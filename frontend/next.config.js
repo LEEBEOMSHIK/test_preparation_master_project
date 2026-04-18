@@ -1,14 +1,13 @@
 /** @type {import('next').NextConfig} */
 
-// React Native Web 모듈 트랜스파일 설정
-const withTM = require('next-transpile-modules')([
-  'react-native',
-  'react-native-web',
-  '@react-native-async-storage/async-storage',
-]);
-
 const nextConfig = {
   reactStrictMode: true,
+  // Next.js 13+ built-in transpilePackages replaces next-transpile-modules
+  transpilePackages: [
+    'react-native',
+    'react-native-web',
+    '@react-native-async-storage/async-storage',
+  ],
   webpack: (config) => {
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
@@ -34,4 +33,4 @@ const nextConfig = {
   },
 };
 
-module.exports = withTM(nextConfig);
+module.exports = nextConfig;

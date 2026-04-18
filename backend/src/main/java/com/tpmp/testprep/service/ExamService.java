@@ -12,6 +12,7 @@ import com.tpmp.testprep.repository.ExamRepository;
 import com.tpmp.testprep.repository.QuestionRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.beans.factory.annotation.Value;
@@ -126,7 +127,7 @@ public class ExamService {
     }
 
     private int parsePdfAndSaveQuestions(Long examId, Path pdfPath, String originalName) {
-        try (PDDocument doc = PDDocument.load(pdfPath.toFile())) {
+        try (PDDocument doc = Loader.loadPDF(pdfPath.toFile())) {
             String text = new PDFTextStripper().getText(doc);
             // TODO: 텍스트 파싱 규칙에 따라 문항 추출
             // 현재는 파싱된 텍스트 전체를 1개 문항으로 임시 저장
