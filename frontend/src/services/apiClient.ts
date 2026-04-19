@@ -18,12 +18,20 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor: 401 → 토큰 갱신 시도
+// Response interceptor: 401 → 토큰 갱신 시도, 403 → 로그인 리다이렉트
+// /auth/ 엔드포인트는 인터셉트하지 않음 (로그인 실패 401이 갱신 루프에 빠지는 것 방지)
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const status = error.response?.status;
+    const isAuthEndpoint = (originalRequest.url as string | undefined)?.includes('/auth/');
+
+    if (isAuthEndpoint) {
+      return Promise.reject(error);
+    }
+
+    if (status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
         const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
@@ -36,6 +44,12 @@ apiClient.interceptors.response.use(
         window.location.href = '/auth/login';
       }
     }
+
+    if (status === 403) {
+      sessionStorage.removeItem('accessToken');
+      window.location.href = '/auth/login';
+    }
+
     return Promise.reject(error);
   }
 );

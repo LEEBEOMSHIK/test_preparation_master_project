@@ -35,7 +35,7 @@ public class Question {
     @Column(columnDefinition = "jsonb")
     private List<String> options;
 
-    @Column(nullable = false)
+    @Column
     private String answer;
 
     @Column(columnDefinition = "TEXT")
@@ -44,9 +44,18 @@ public class Question {
     @Column(name = "source_file")
     private String sourceFile;
 
+    /** 코드 문항의 코드 본문 (CODE 유형에서만 사용) */
+    @Column(columnDefinition = "TEXT")
+    private String code;
+
+    /** 코드 언어 (javascript, python, java ...) */
+    @Column(length = 20)
+    private String language;
+
     @Builder
     public Question(Exam exam, Integer seq, String content, QuestionType questionType,
-                    List<String> options, String answer, String explanation, String sourceFile) {
+                    List<String> options, String answer, String explanation,
+                    String sourceFile, String code, String language) {
         this.exam = exam;
         this.seq = seq;
         this.content = content;
@@ -55,9 +64,23 @@ public class Question {
         this.answer = answer;
         this.explanation = explanation;
         this.sourceFile = sourceFile;
+        this.code = code;
+        this.language = language;
+    }
+
+    public void update(String content, QuestionType questionType,
+                       List<String> options, String answer, String explanation,
+                       String code, String language) {
+        this.content = content;
+        this.questionType = questionType;
+        this.options = options;
+        this.answer = answer;
+        this.explanation = explanation;
+        this.code = code;
+        this.language = language;
     }
 
     public enum QuestionType {
-        MULTIPLE_CHOICE, SHORT_ANSWER, OX
+        MULTIPLE_CHOICE, SHORT_ANSWER, OX, CODE
     }
 }

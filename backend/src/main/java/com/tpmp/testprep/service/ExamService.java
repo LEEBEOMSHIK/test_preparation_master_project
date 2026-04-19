@@ -3,6 +3,7 @@ package com.tpmp.testprep.service;
 import com.tpmp.testprep.dto.request.ExamCreateRequest;
 import com.tpmp.testprep.dto.request.QuestionRequest;
 import com.tpmp.testprep.dto.response.ExamSummaryResponse;
+import com.tpmp.testprep.dto.response.QuestionDetailResponse;
 import com.tpmp.testprep.entity.Exam;
 import com.tpmp.testprep.entity.Question;
 import com.tpmp.testprep.entity.User;
@@ -26,6 +27,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -56,10 +58,16 @@ public class ExamService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.EXAM_NOT_FOUND));
     }
 
+    public ExamSummaryResponse getExamSummary(Long id) {
+        Exam exam = getExamDetail(id);
+        int count = questionRepository.countByExamId(id);
+        return ExamSummaryResponse.from(exam, count);
+    }
+
     @Transactional
     public ExamSummaryResponse createExam(ExamCreateRequest request, String adminEmail) {
         User admin = userRepository.findByEmail(adminEmail)
-                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+                .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
         int orderNo = examRepository.nextOrderNo();
         Exam exam = Exam.builder()
                 .title(request.title())
@@ -75,6 +83,21 @@ public class ExamService {
         Exam exam = getExamDetail(id);
         exam.update(title, questionMode);
         return ExamSummaryResponse.from(exam);
+    }
+
+    public List<QuestionDetailResponse> getExamQuestions(Long examId) {
+        getExamDetail(examId); // verify exam exists
+        return questionRepository.findByExamIdOrderBySeqAsc(examId)
+                .stream().map(QuestionDetailResponse::from).toList();
+    }
+
+    @Transactional
+    public void removeQuestion(Long examId, Long questionId) {
+        Question q = questionRepository.findById(questionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
+        if (!q.getExam().getId().equals(examId))
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        questionRepository.delete(q);
     }
 
     @Transactional
@@ -95,13 +118,71 @@ public class ExamService {
                 .options(request.options())
                 .answer(request.answer())
                 .explanation(request.explanation())
+                .code(request.code())
+                .language(request.language())
                 .build();
         questionRepository.save(question);
     }
 
     @Transactional
     public void addQuestionsBulk(Long examId, List<QuestionRequest> requests) {
-        requests.forEach(req -> addQuestion(examId, req));
+        if (requests.isEmpty()) return;
+        Exam exam = getExamDetail(examId);
+        int startSeq = questionRepository.maxSeqByExamId(examId) + 1;
+        List<Question> questions = new ArrayList<>();
+        for (int i = 0; i < requests.size(); i++) {
+            QuestionRequest req = requests.get(i);
+            questions.add(Question.builder()
+                    .exam(exam)
+                    .seq(startSeq + i)
+                    .content(req.content())
+                    .questionType(req.questionType())
+                    .options(req.options())
+                    .answer(req.answer())
+                    .explanation(req.explanation())
+                    .code(req.code())
+                    .language(req.language())
+                    .build());
+        }
+        questionRepository.saveAll(questions);
+    }
+
+    @Transactional
+    public ExamSummaryResponse createExamWithQuestions(ExamCreateRequest request, String adminEmail,
+                                                        List<QuestionRequest> questionRequests) {
+        User admin = userRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
+        int orderNo = examRepository.nextOrderNo();
+        Exam exam = Exam.builder()
+                .title(request.title())
+                .orderNo(orderNo)
+                .questionMode(request.questionMode())
+                .createdBy(admin)
+                .build();
+        examRepository.save(exam);
+
+        int questionCount = 0;
+        if (questionRequests != null && !questionRequests.isEmpty()) {
+            List<Question> questions = new ArrayList<>();
+            for (int i = 0; i < questionRequests.size(); i++) {
+                QuestionRequest req = questionRequests.get(i);
+                questions.add(Question.builder()
+                        .exam(exam)
+                        .seq(i + 1)
+                        .content(req.content())
+                        .questionType(req.questionType())
+                        .options(req.options())
+                        .answer(req.answer())
+                        .explanation(req.explanation())
+                        .code(req.code())
+                        .language(req.language())
+                        .build());
+            }
+            questionRepository.saveAll(questions);
+            questionCount = questions.size();
+        }
+
+        return ExamSummaryResponse.from(exam, questionCount);
     }
 
     @Transactional

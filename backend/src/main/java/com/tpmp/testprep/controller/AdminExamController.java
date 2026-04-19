@@ -1,9 +1,11 @@
 package com.tpmp.testprep.controller;
 
 import com.tpmp.testprep.dto.request.ExamCreateRequest;
+import com.tpmp.testprep.dto.request.ExamCreateWithQuestionsRequest;
 import com.tpmp.testprep.dto.request.QuestionRequest;
 import com.tpmp.testprep.dto.response.ApiResponse;
 import com.tpmp.testprep.dto.response.ExamSummaryResponse;
+import com.tpmp.testprep.dto.response.QuestionDetailResponse;
 import com.tpmp.testprep.entity.Exam;
 import com.tpmp.testprep.service.ExamService;
 import jakarta.validation.Valid;
@@ -42,6 +44,22 @@ public class AdminExamController {
                 .body(ApiResponse.success(examService.createExam(request, email)));
     }
 
+    /** 시험지 + 문항을 한 트랜잭션으로 원자적 생성 */
+    @PostMapping("/with-questions")
+    public ResponseEntity<ApiResponse<ExamSummaryResponse>> createExamWithQuestions(
+            @Valid @RequestBody ExamCreateWithQuestionsRequest request,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(
+                        examService.createExamWithQuestions(request.toExamCreateRequest(), email, request.questions())));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<ExamSummaryResponse>> getExam(@PathVariable Long id) {
+        // getExamSummary uses a COUNT query inside the transaction — no LazyInitializationException
+        return ResponseEntity.ok(ApiResponse.success(examService.getExamSummary(id)));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<ExamSummaryResponse>> updateExam(
             @PathVariable Long id,
@@ -72,6 +90,18 @@ public class AdminExamController {
             @RequestBody List<@Valid QuestionRequest> requests) {
         examService.addQuestionsBulk(id, requests);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success());
+    }
+
+    @GetMapping("/{id}/questions")
+    public ResponseEntity<ApiResponse<List<QuestionDetailResponse>>> getExamQuestions(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(examService.getExamQuestions(id)));
+    }
+
+    @DeleteMapping("/{id}/questions/{questionId}")
+    public ResponseEntity<ApiResponse<Void>> removeQuestion(
+            @PathVariable Long id, @PathVariable Long questionId) {
+        examService.removeQuestion(id, questionId);
+        return ResponseEntity.ok(ApiResponse.success());
     }
 
     @PostMapping(value = "/{id}/questions/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

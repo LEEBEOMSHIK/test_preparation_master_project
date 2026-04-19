@@ -22,4 +22,15 @@ public record ExamSummaryResponse(
                 exam.getCreatedAt()
         );
     }
+
+    public static ExamSummaryResponse from(Exam exam, int questionCount) {
+        return new ExamSummaryResponse(
+                exam.getId(),
+                exam.getTitle(),
+                exam.getOrderNo(),
+                exam.getQuestionMode().name(),
+                questionCount,
+                exam.getCreatedAt()
+        );
+    }
 }

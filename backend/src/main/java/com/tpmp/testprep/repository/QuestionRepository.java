@@ -8,4 +8,9 @@ import org.springframework.data.repository.query.Param;
 public interface QuestionRepository extends JpaRepository<Question, Long> {
     @Query("SELECT COALESCE(MAX(q.seq), 0) FROM Question q WHERE q.exam.id = :examId")
     int maxSeqByExamId(@Param("examId") Long examId);
+
+    @Query("SELECT COUNT(q) FROM Question q WHERE q.exam.id = :examId")
+    int countByExamId(@Param("examId") Long examId);
+
+    List<Question> findByExamIdOrderBySeqAsc(Long examId);
 }

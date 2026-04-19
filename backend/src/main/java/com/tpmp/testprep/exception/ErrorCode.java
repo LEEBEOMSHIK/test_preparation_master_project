@@ -17,8 +17,11 @@ public enum ErrorCode {
     FORBIDDEN(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
 
     // Exam
-    EXAM_NOT_FOUND(HttpStatus.NOT_FOUND, "시험을 찾을 수 없습니다."),
+    EXAM_NOT_FOUND(HttpStatus.NOT_FOUND, "시험지를 찾을 수 없습니다."),
     QUESTION_NOT_FOUND(HttpStatus.NOT_FOUND, "문항을 찾을 수 없습니다."),
+    EXAMINATION_NOT_FOUND(HttpStatus.NOT_FOUND, "시험을 찾을 수 없습니다."),
+    DOMAIN_NOT_FOUND(HttpStatus.NOT_FOUND, "도메인 항목을 찾을 수 없습니다."),
+    QUOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "명언을 찾을 수 없습니다."),
 
     // ConceptNote
     CONCEPT_NOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "개념 요약을 찾을 수 없습니다."),

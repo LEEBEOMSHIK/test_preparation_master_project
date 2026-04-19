@@ -1,10 +1,23 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 
-const NAV_ITEMS = [
+interface SubNavItem {
+  label: string;
+  href: string;
+}
+
+interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+  children?: SubNavItem[];
+}
+
+const NAV_ITEMS: NavItem[] = [
   {
     label: '시험 관리',
     href: '/admin/exams',
@@ -13,6 +26,10 @@ const NAV_ITEMS = [
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
       </svg>
     ),
+    children: [
+      { label: '문항 관리', href: '/admin/exams/questions' },
+      { label: '시험지 관리', href: '/admin/exams/papers' },
+    ],
   },
   {
     label: '개념노트 관리',
@@ -32,21 +49,51 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  {
+    label: '테이블 관리',
+    href: '/admin/tables',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18M3 6h18M3 18h18" />
+      </svg>
+    ),
+    children: [
+      { label: '도메인 관리', href: '/admin/tables/domains' },
+    ],
+  },
 ];
+
+function getPageTitle(pathname: string): string {
+  for (const item of NAV_ITEMS) {
+    if (item.children) {
+      for (const child of item.children) {
+        if (pathname.startsWith(child.href)) return child.label;
+      }
+    }
+    if (pathname.startsWith(item.href)) return item.label;
+  }
+  return '대시보드';
+}
 
 export default function AdminLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, clearAuth } = useAuthStore();
 
+  // 토큰 없으면 로그인 페이지로 이동
+  useEffect(() => {
+    const token = sessionStorage.getItem('accessToken');
+    if (!token) {
+      router.replace('/auth/login');
+    }
+  }, [router]);
+
   const handleLogout = () => {
     clearAuth();
     router.push('/auth/login');
   };
 
-  const initials = user?.name
-    ? user.name.slice(0, 1).toUpperCase()
-    : 'A';
+  const initials = user?.name ? user.name.slice(0, 1).toUpperCase() : 'A';
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -63,28 +110,73 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
           <p className="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
             메뉴
           </p>
-          <ul className="space-y-1">
+          <ul className="space-y-0.5">
             {NAV_ITEMS.map((item) => {
-              const isActive = pathname.startsWith(item.href);
+              const isParentActive = pathname.startsWith(item.href);
+              const hasChildren = item.children && item.children.length > 0;
+
               return (
                 <li key={item.href}>
+                  {/* Parent item */}
                   <Link
                     href={item.href}
                     className={[
                       'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                      isActive
+                      isParentActive
                         ? 'bg-indigo-50 text-indigo-700'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
                     ].join(' ')}
                   >
-                    <span className={isActive ? 'text-indigo-600' : 'text-gray-400'}>
+                    <span className={isParentActive ? 'text-indigo-600' : 'text-gray-400'}>
                       {item.icon}
                     </span>
                     {item.label}
-                    {isActive && (
+                    {isParentActive && !hasChildren && (
                       <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600" />
                     )}
+                    {hasChildren && (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        className={[
+                          'ml-auto w-3.5 h-3.5 transition-transform',
+                          isParentActive ? 'rotate-90 text-indigo-500' : 'text-gray-300',
+                        ].join(' ')}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    )}
                   </Link>
+
+                  {/* Sub-menu */}
+                  {hasChildren && isParentActive && (
+                    <ul className="mt-0.5 ml-4 pl-3 border-l border-gray-200 space-y-0.5">
+                      {item.children!.map((child) => {
+                        const isChildActive = pathname.startsWith(child.href);
+                        return (
+                          <li key={child.href}>
+                            <Link
+                              href={child.href}
+                              className={[
+                                'flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
+                                isChildActive
+                                  ? 'bg-indigo-50 text-indigo-700 font-medium'
+                                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800',
+                              ].join(' ')}
+                            >
+                              <span className={[
+                                'w-1.5 h-1.5 rounded-full shrink-0',
+                                isChildActive ? 'bg-indigo-500' : 'bg-gray-300',
+                              ].join(' ')} />
+                              {child.label}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </li>
               );
             })}
@@ -118,27 +210,20 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
       <div className="flex-1 flex flex-col min-w-0 ml-56">
         {/* Top header */}
         <header className="sticky top-0 z-30 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm">
-          {/* Page title (derived from nav) */}
           <div>
             <h1 className="text-base font-semibold text-gray-800">
-              {NAV_ITEMS.find((n) => pathname.startsWith(n.href))?.label ?? '대시보드'}
+              {getPageTitle(pathname)}
             </h1>
             <p className="text-xs text-gray-400">TPMP 관리자 콘솔</p>
           </div>
 
-          {/* Right: notification + profile */}
           <div className="flex items-center gap-3">
-            {/* Notification bell */}
             <button className="relative w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
             </button>
-
-            {/* Divider */}
             <div className="h-6 w-px bg-gray-200" />
-
-            {/* Avatar + name */}
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-bold">
                 {initials}
