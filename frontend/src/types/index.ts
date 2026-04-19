@@ -121,6 +121,17 @@ export interface Examination {
 }
 
 // ──────────────────────────────────────────
+// Quote
+// ──────────────────────────────────────────
+export interface Quote {
+  id: number;
+  content: string;
+  author?: string;
+  useYn: string;
+  createdAt: string;
+}
+
+// ──────────────────────────────────────────
 // ConceptNote
 // ──────────────────────────────────────────
 export interface ConceptNote {
