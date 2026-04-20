@@ -5,6 +5,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.Optional;
 
 public interface ExaminationRepository extends JpaRepository<Examination, Long> {
 
@@ -14,4 +17,11 @@ public interface ExaminationRepository extends JpaRepository<Examination, Long> 
            "LEFT JOIN FETCH e.examPaper " +
            "ORDER BY e.createdAt DESC")
     Page<Examination> findAllWithDetails(Pageable pageable);
+
+    /** 단건 조회: 시험지·카테고리 페치 조인 */
+    @Query("SELECT e FROM Examination e " +
+           "JOIN FETCH e.examPaper " +
+           "LEFT JOIN FETCH e.category " +
+           "WHERE e.id = :id")
+    Optional<Examination> findByIdWithPaper(@Param("id") Long id);
 }

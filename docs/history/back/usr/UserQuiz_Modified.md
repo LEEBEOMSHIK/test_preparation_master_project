@@ -1,3 +1,63 @@
+## HIST-20260421-022
+
+- **날짜**: 2026-04-21
+- **수정 범위**: 사용자 백엔드 / 시험 응시 API
+- **수정 개요**: `UserExaminationController.QuestionView`에 `code`·`language` 필드 추가 — 코드 문항의 코드 본문이 응시 화면에 전달되도록 수정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| src/main/java/.../controller/UserExaminationController.java | 수정 | QuestionView record에 code, language 추가 |
+
+### 수정 상세
+
+#### `UserExaminationController.QuestionView`
+- 변경 전: `record QuestionView(Long id, int seq, String content, String questionType, List<String> options)`
+- 변경 후: `record QuestionView(Long id, int seq, String content, String questionType, List<String> options, String code, String language)`
+
+### 복원 방법
+
+HIST-20260421-022 복원 시:
+- `QuestionView` record에서 `code`, `language` 필드 제거
+
+---
+
+## HIST-20260421-019
+
+- **날짜**: 2026-04-21
+- **수정 범위**: 사용자 백엔드 / 시험 응시 API
+- **수정 개요**: 사용자용 시험(Examination) 목록·상세·제출 API 신규 추가 (`/api/user/examinations`), `ExaminationRepository`에 단건 페치 조인 쿼리 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| src/main/java/.../controller/UserExaminationController.java | 추가 | GET 목록·상세, POST 제출 3개 엔드포인트 |
+| src/main/java/.../repository/ExaminationRepository.java | 수정 | `findByIdWithPaper` 페치 조인 쿼리 추가 |
+
+### 수정 상세
+
+#### `UserExaminationController.java` (신규)
+- 변경 전: 파일 없음
+- 변경 후:
+  - `GET /api/user/examinations` — `findAllWithDetails` 페이지 목록 반환
+  - `GET /api/user/examinations/{id}` — `findByIdWithPaper` 조회 후 시험지 문항(RANDOM이면 shuffle) 포함한 `ExaminationDetailView` 반환
+  - `POST /api/user/examinations/{id}/submit` — 시험지 문항 채점 후 `SubmitResult(total, correct, score)` 반환
+  - 내부 레코드: `ExaminationDetailView`, `QuestionView`, `SubmitResult`
+
+#### `ExaminationRepository.java`
+- 변경 전: `findAllWithDetails` 쿼리만 존재
+- 변경 후: `findByIdWithPaper` — examPaper·category 페치 조인 단건 조회 쿼리 추가
+
+### 복원 방법
+
+HIST-20260421-019 복원 시:
+- `UserExaminationController.java` 삭제
+- `ExaminationRepository.java`에서 `findByIdWithPaper` 메서드 제거
+
+---
+
 ## HIST-20260420-008
 
 - **날짜**: 2026-04-20

@@ -198,3 +198,70 @@ time_limit     INT          NOT NULL  — 제한 시간 (분)
 created_by     BIGINT       NOT NULL FK → users.id
 created_at     TIMESTAMP    NOT NULL
 ```
+
+---
+
+## 9. 테이블·컬럼 코멘트 관리
+
+관리자 DB 조회 화면(`/admin/tables/data`)은 각 테이블·컬럼의 한국어 설명과 FK 참조 정보를  
+`frontend/src/data/tableComments.ts` 파일에서 읽어 표시한다.
+
+> **원칙**: 이 문서(§9)가 코멘트의 사람이 읽는 기준이고,  
+> `tableComments.ts`가 런타임 소스다. 새 테이블·컬럼 추가 시 **둘 다** 업데이트한다.
+
+### 9.1 테이블별 코멘트
+
+| 테이블 | 한국어 설명 |
+|--------|------------|
+| `users` | 사용자 계정 |
+| `exams` | 시험지 (문항 묶음) |
+| `questions` | 시험지 내 문항 |
+| `question_bank` | 글로벌 문항 풀 |
+| `domain_master` | 도메인 마스터 (분류 그룹) |
+| `domain_slave` | 도메인 슬레이브 (분류 값) |
+| `examinations` | 시험 이벤트 |
+| `quotes` | 명언 |
+| `concept_notes` | 개념 노트 |
+| `inquiries` | 문의 |
+
+### 9.2 주요 컬럼 코멘트 (FK 포함)
+
+#### `exams`
+| 컬럼 | 설명 |
+|------|------|
+| `created_by` | FK → users.id (생성자) |
+
+#### `questions`
+| 컬럼 | 설명 |
+|------|------|
+| `exam_id` | FK → exams.id (시험지) |
+| `question_type` | MULTIPLE_CHOICE / SHORT_ANSWER / OX / CODE |
+
+#### `question_bank`
+| 컬럼 | 설명 |
+|------|------|
+| `category_id` | FK → domain_slave.id (문제 유형) |
+| `create_uno` | FK → users.id (생성자) |
+| `modified_uno` | FK → users.id (수정자) |
+| `del_yn` | 삭제 여부 (Y/N) |
+| `use_yn` | 사용 여부 (Y/N) |
+
+#### `domain_slave`
+| 컬럼 | 설명 |
+|------|------|
+| `master_id` | FK → domain_master.id (상위 분류) |
+
+#### `examinations`
+| 컬럼 | 설명 |
+|------|------|
+| `exam_paper_id` | FK → exams.id (사용 시험지) |
+| `category_id` | FK → domain_slave.id (시험 유형) |
+| `created_by` | FK → users.id (생성자) |
+
+### 9.3 코멘트 추가 방법
+
+1. 이 문서 §9 테이블에 새 행 추가
+2. `frontend/src/data/tableComments.ts`의 `TABLE_COMMENTS` 배열에서 해당 테이블 항목 업데이트
+   - 새 테이블이면 `TableComment` 객체를 배열에 추가
+   - FK 관계가 있으면 `fkRelations` 배열에 `{ column, foreignTable, foreignColumn, displayColumn }` 추가
+   - `displayColumn`은 참조 테이블에서 레이블로 보여줄 컬럼명 (보통 `name` 또는 `title`)

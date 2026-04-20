@@ -62,7 +62,7 @@ export default function QuizCategoryPage() {
                   <p className="text-sm font-medium text-gray-800 group-hover:text-indigo-700 transition">
                     {slave.name}
                   </p>
-                  <p className="text-xs text-gray-400 mt-0.5">랜덤 10문제</p>
+                  <p className="text-xs text-gray-400 mt-0.5">랜덤 연속 출제</p>
                 </button>
               ))}
             </div>

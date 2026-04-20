@@ -27,6 +27,9 @@ public enum ErrorCode {
     CONCEPT_NOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "개념 요약을 찾을 수 없습니다."),
     CONCEPT_NOTE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 개념 요약에 접근할 수 없습니다."),
 
+    // User
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
+
     // Inquiry
     INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "문의를 찾을 수 없습니다."),
 

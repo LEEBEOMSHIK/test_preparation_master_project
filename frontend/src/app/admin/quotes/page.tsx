@@ -130,8 +130,8 @@ export default function AdminQuotesPage() {
               <th className="px-4 py-3 text-left font-medium text-gray-600 w-8">No.</th>
               <th className="px-4 py-3 text-left font-medium text-gray-600">내용</th>
               <th className="px-4 py-3 text-left font-medium text-gray-600 w-36">출처/저자</th>
-              <th className="px-4 py-3 text-center font-medium text-gray-600 w-20">사용여부</th>
-              <th className="px-4 py-3 text-center font-medium text-gray-600 w-28">관리</th>
+              <th className="px-4 py-3 text-center font-medium text-gray-600 w-24 whitespace-nowrap">사용여부</th>
+              <th className="px-4 py-3 text-center font-medium text-gray-600 w-32 whitespace-nowrap">관리</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -151,7 +151,7 @@ export default function AdminQuotesPage() {
                   <p className="line-clamp-2">{q.content}</p>
                 </td>
                 <td className="px-4 py-3 text-gray-500">{q.author ?? '-'}</td>
-                <td className="px-4 py-3 text-center">
+                <td className="px-4 py-3 text-center whitespace-nowrap">
                   <button
                     onClick={() => handleToggle(q)}
                     className={[
@@ -164,8 +164,8 @@ export default function AdminQuotesPage() {
                     {q.useYn === 'Y' ? '사용' : '미사용'}
                   </button>
                 </td>
-                <td className="px-4 py-3 text-center">
-                  <div className="flex gap-1.5 justify-center">
+                <td className="px-4 py-3 text-center whitespace-nowrap">
+                  <div className="flex gap-1.5 justify-center flex-nowrap">
                     <button
                       onClick={() => openEdit(q)}
                       className="px-2.5 py-1 text-xs bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition"

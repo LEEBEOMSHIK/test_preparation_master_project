@@ -1,7 +1,23 @@
 import apiClient from './apiClient';
-import type { ApiResponse, Examination, PageResponse } from '@/types';
+import type { ApiResponse, Examination, ExaminationDetail, PageResponse } from '@/types';
 
 export const examinationService = {
+  // ── 사용자 ──────────────────────────────────────────────────────────
+  userGetExaminations: (page = 0, size = 500) =>
+    apiClient.get<ApiResponse<PageResponse<Examination>>>('/user/examinations', {
+      params: { page, size },
+    }),
+
+  userGetExaminationDetail: (id: number) =>
+    apiClient.get<ApiResponse<ExaminationDetail>>(`/user/examinations/${id}`),
+
+  userSubmitExamination: (id: number, answers: Record<number, string>) =>
+    apiClient.post<ApiResponse<{ total: number; correct: number; score: number }>>(
+      `/user/examinations/${id}/submit`,
+      answers,
+    ),
+
+  // ── 관리자 ──────────────────────────────────────────────────────────
   /** 시험 목록 조회 */
   adminGetExaminations: (page = 0, size = 50) =>
     apiClient.get<ApiResponse<PageResponse<Examination>>>('/admin/examinations', {

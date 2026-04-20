@@ -28,6 +28,16 @@ public class ConceptNote {
     @Column(name = "is_public", nullable = false)
     private boolean isPublic = true;
 
+    /** 시험 문항에서 등록된 경우 연결 (nullable) */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "question_id")
+    private Question question;
+
+    /** 데일리 퀴즈 문항에서 등록된 경우 연결 (nullable) */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "question_bank_id")
+    private QuestionBank questionBank;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -46,11 +56,14 @@ public class ConceptNote {
     }
 
     @Builder
-    public ConceptNote(User user, String title, String content, boolean isPublic) {
+    public ConceptNote(User user, String title, String content, boolean isPublic,
+                       Question question, QuestionBank questionBank) {
         this.user = user;
         this.title = title;
         this.content = content;
         this.isPublic = isPublic;
+        this.question = question;
+        this.questionBank = questionBank;
     }
 
     public void update(String title, String content, boolean isPublic) {

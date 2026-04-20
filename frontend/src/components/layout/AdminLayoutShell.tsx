@@ -68,6 +68,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
     children: [
       { label: '도메인 관리', href: '/admin/tables/domains' },
+      { label: 'DB 조회', href: '/admin/tables/data' },
     ],
   },
 ];

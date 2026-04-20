@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { quizService, type QuizQuestion, type CheckResult } from '@/services/quizService';
 
-type Phase = 'loading' | 'quiz' | 'result';
+type Phase = 'loading' | 'quiz' | 'continue' | 'result';
 
 interface AnswerState {
   userAnswer: string;
@@ -26,21 +26,66 @@ export default function QuizPlayPage() {
   const [answers, setAnswers] = useState<Record<number, AnswerState>>({});
   const [inputValue, setInputValue] = useState('');
   const [checking, setChecking] = useState(false);
+  const [roundNum, setRoundNum] = useState(1);
 
-  useEffect(() => {
+  // Accumulated across batches
+  const [sessionAnswered, setSessionAnswered] = useState(0);
+  const [sessionCorrect, setSessionCorrect] = useState(0);
+
+  // Derived from current batch
+  const correctCount = Object.values(answers).filter(a => a.result?.correct).length;
+  const answeredCount = Object.values(answers).filter(a => a.submitted).length;
+
+  const loadBatch = useCallback(() => {
+    setPhase('loading');
     quizService.getQuestions(categoryId, 10).then(res => {
       if (res.data.success && res.data.data && res.data.data.length > 0) {
         setQuestions(res.data.data);
+        setAnswers({});
+        setCurrent(0);
+        setInputValue('');
         setPhase('quiz');
       } else {
         alert('이 카테고리에 등록된 문항이 없습니다.');
         router.back();
       }
     });
+  }, [categoryId, router]);
+
+  useEffect(() => {
+    loadBatch();
   }, [categoryId]);
 
   const q = questions[current];
   const answerState = q ? answers[q.id] : undefined;
+
+  // Flush current batch progress into session totals
+  const flushBatch = useCallback((currentAnswers: Record<number, AnswerState>) => {
+    const batchAnswered = Object.values(currentAnswers).filter(a => a.submitted).length;
+    const batchCorrect = Object.values(currentAnswers).filter(a => a.result?.correct).length;
+    setSessionAnswered(prev => prev + batchAnswered);
+    setSessionCorrect(prev => prev + batchCorrect);
+  }, []);
+
+  const handleStop = () => {
+    flushBatch(answers);
+    setPhase('result');
+  };
+
+  const handleNext = () => {
+    if (current < questions.length - 1) {
+      setCurrent(c => c + 1);
+      setInputValue('');
+    } else {
+      flushBatch(answers);
+      setPhase('continue');
+    }
+  };
+
+  const handleContinue = () => {
+    setRoundNum(r => r + 1);
+    loadBatch();
+  };
 
   const handleSubmitAnswer = useCallback(async () => {
     if (!q || !inputValue.trim() || checking) return;
@@ -58,7 +103,7 @@ export default function QuizPlayPage() {
     }
   }, [q, inputValue, checking]);
 
-  const handleSelectOption = useCallback(async (option: string, idx: number) => {
+  const handleSelectOption = useCallback(async (_: string, idx: number) => {
     if (!q || answerState?.submitted) return;
     const userAnswer = String(idx + 1);
     setChecking(true);
@@ -75,18 +120,7 @@ export default function QuizPlayPage() {
     }
   }, [q, answerState]);
 
-  const handleNext = () => {
-    if (current < questions.length - 1) {
-      setCurrent(c => c + 1);
-      setInputValue('');
-    } else {
-      setPhase('result');
-    }
-  };
-
-  const correctCount = Object.values(answers).filter(a => a.result?.correct).length;
-  const answeredCount = Object.values(answers).filter(a => a.submitted).length;
-
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (phase === 'loading') {
     return (
       <div className="flex items-center justify-center py-20">
@@ -95,21 +129,80 @@ export default function QuizPlayPage() {
     );
   }
 
+  // ── Continue (end of batch) ────────────────────────────────────────────────
+  if (phase === 'continue') {
+    const roundScore = questions.length > 0
+      ? Math.round((correctCount / questions.length) * 100)
+      : 0;
+    return (
+      <div className="max-w-lg mx-auto py-10 space-y-6">
+        <div className={[
+          'rounded-2xl border p-8 text-center shadow-sm',
+          roundScore >= 80 ? 'bg-green-50 border-green-200'
+          : roundScore >= 50 ? 'bg-yellow-50 border-yellow-200'
+          : 'bg-red-50 border-red-200',
+        ].join(' ')}>
+          <div className={[
+            'w-16 h-16 rounded-full mx-auto flex items-center justify-center text-2xl font-bold mb-4',
+            roundScore >= 80 ? 'bg-green-100 text-green-700'
+            : roundScore >= 50 ? 'bg-yellow-100 text-yellow-700'
+            : 'bg-red-100 text-red-700',
+          ].join(' ')}>
+            {roundScore}
+          </div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+            라운드 {roundNum} 완료
+          </p>
+          <p className="text-lg font-bold text-gray-800 mb-1">
+            {questions.length}문제 중 <span className="text-indigo-600">{correctCount}문제</span> 정답
+          </p>
+          <p className="text-xs text-gray-500 mt-2">
+            세션 누계: {sessionAnswered}문제 풀이 · {sessionCorrect}문제 정답
+          </p>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => setPhase('result')}
+            className="flex-1 py-3 text-sm border border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 transition"
+          >
+            종료하기
+          </button>
+          <button
+            onClick={handleContinue}
+            className="flex-1 py-3 text-sm bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition font-medium"
+          >
+            계속 풀기
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Result ─────────────────────────────────────────────────────────────────
   if (phase === 'result') {
-    const score = Math.round((correctCount / questions.length) * 100);
+    const totalAnswered = sessionAnswered;
+    const totalCorrect = sessionCorrect;
+    const score = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+
     return (
       <div className="max-w-lg mx-auto space-y-6 py-8">
         <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
           <div className={[
             'w-20 h-20 rounded-full mx-auto flex items-center justify-center text-3xl font-bold mb-4',
-            score >= 80 ? 'bg-green-100 text-green-600' :
-            score >= 50 ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600',
+            score >= 80 ? 'bg-green-100 text-green-600'
+            : score >= 50 ? 'bg-yellow-100 text-yellow-600'
+            : 'bg-red-100 text-red-600',
           ].join(' ')}>
             {score}
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-1">퀴즈 완료!</h2>
-          <p className="text-gray-500 text-sm mb-4">
-            {questions.length}문제 중 <span className="font-semibold text-indigo-600">{correctCount}문제</span> 정답
+          <h2 className="text-xl font-bold text-gray-900 mb-1">세션 종료</h2>
+          <p className="text-gray-500 text-sm mb-1">
+            총 <span className="font-semibold text-gray-800">{totalAnswered}</span>문제 중{' '}
+            <span className="font-semibold text-indigo-600">{totalCorrect}문제</span> 정답
+          </p>
+          <p className="text-xs text-gray-400 mb-5">
+            {roundNum - (phase === 'result' ? 0 : 1)}라운드 진행
           </p>
           <div className="flex gap-3 justify-center">
             <button
@@ -120,62 +213,22 @@ export default function QuizPlayPage() {
             </button>
             <button
               onClick={() => {
-                setAnswers({});
-                setCurrent(0);
-                setInputValue('');
-                setPhase('loading');
-                quizService.getQuestions(categoryId, 10).then(res => {
-                  if (res.data.success && res.data.data) {
-                    setQuestions(res.data.data);
-                    setPhase('quiz');
-                  }
-                });
+                setSessionAnswered(0);
+                setSessionCorrect(0);
+                setRoundNum(1);
+                loadBatch();
               }}
               className="px-5 py-2 text-sm bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition"
             >
-              다시 풀기
+              다시 시작
             </button>
           </div>
-        </div>
-
-        {/* 오답 복습 */}
-        <div className="space-y-3">
-          <h3 className="font-semibold text-gray-700">문제 리뷰</h3>
-          {questions.map((question, idx) => {
-            const ans = answers[question.id];
-            return (
-              <div
-                key={question.id}
-                className={[
-                  'bg-white rounded-xl border p-4 text-sm',
-                  ans?.result?.correct ? 'border-green-200' : 'border-red-200',
-                ].join(' ')}
-              >
-                <div className="flex items-start gap-2">
-                  <span className={[
-                    'shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mt-0.5',
-                    ans?.result?.correct ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600',
-                  ].join(' ')}>
-                    {ans?.result?.correct ? '○' : '×'}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-gray-800 font-medium mb-1">Q{idx + 1}. {question.content}</p>
-                    {!ans?.result?.correct && (
-                      <p className="text-green-700 text-xs">정답: {ans?.result?.answer}</p>
-                    )}
-                    {ans?.result?.explanation && (
-                      <p className="text-gray-500 text-xs mt-1">{ans.result.explanation}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
         </div>
       </div>
     );
   }
 
+  // ── Quiz ───────────────────────────────────────────────────────────────────
   if (!q) return null;
 
   const isMultipleChoice = q.questionType === 'MULTIPLE_CHOICE';
@@ -183,11 +236,30 @@ export default function QuizPlayPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
-      {/* 진행 상태 */}
-      <div className="flex items-center justify-between text-sm text-gray-500">
-        <span className="font-medium text-indigo-600">{categoryName}</span>
-        <span>{current + 1} / {questions.length}</span>
+      {/* 헤더: 카테고리 + 진행상태 + 종료 버튼 */}
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-3">
+          <span className="font-medium text-indigo-600">{categoryName}</span>
+          {sessionAnswered > 0 && (
+            <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">
+              세션 {sessionAnswered}문제 · {sessionCorrect}정답
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-gray-400">
+            R{roundNum} · {current + 1}/{questions.length}
+          </span>
+          <button
+            onClick={handleStop}
+            className="px-3 py-1 text-xs border border-gray-300 text-gray-500 rounded-lg hover:bg-gray-50 hover:border-red-300 hover:text-red-500 transition"
+          >
+            종료하기
+          </button>
+        </div>
       </div>
+
+      {/* 진행 바 */}
       <div className="w-full bg-gray-200 rounded-full h-1.5">
         <div
           className="bg-indigo-600 h-1.5 rounded-full transition-all"
@@ -321,7 +393,7 @@ export default function QuizPlayPage() {
           onClick={handleNext}
           className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition"
         >
-          {current < questions.length - 1 ? '다음 문제' : '결과 보기'}
+          {current < questions.length - 1 ? '다음 문제' : '라운드 완료'}
         </button>
       )}
     </div>

@@ -57,6 +57,8 @@ export interface Question {
   content: string;
   questionType: QuestionType;
   options?: string[];
+  code?: string;
+  language?: string;
 }
 
 export interface ExamDetail extends ExamSummary {
@@ -120,6 +122,16 @@ export interface Examination {
   createdAt: string;
 }
 
+export interface ExaminationDetail {
+  id: number;
+  title: string;
+  examPaperId: number;
+  examPaperTitle: string;
+  categoryName: string | null;
+  timeLimit: number;
+  questions: Question[];
+}
+
 // ──────────────────────────────────────────
 // Quote
 // ──────────────────────────────────────────
@@ -139,6 +151,20 @@ export interface ConceptNote {
   title: string;
   content: string;
   isPublic: boolean;
+  userId?: number;
+  userName?: string;
+  // 연결된 시험 문항 (시험 화면에서 등록된 경우)
+  questionId?: number;
+  questionContent?: string;
+  questionType?: string;
+  questionCode?: string;
+  questionLanguage?: string;
+  // 연결된 퀴즈 문항 (데일리 퀴즈에서 등록된 경우)
+  questionBankId?: number;
+  questionBankContent?: string;
+  questionBankType?: string;
+  questionBankCode?: string;
+  questionBankLanguage?: string;
   createdAt: string;
   updatedAt: string;
 }
