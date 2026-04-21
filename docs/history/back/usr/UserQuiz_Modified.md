@@ -1,3 +1,29 @@
+## HIST-20260421-037
+
+- **날짜**: 2026-04-21
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈
+- **수정 개요**: `/api/user/quiz/categories` 500 오류 수정 — `findAll()` → `findAllWithSlaves()` 교체로 LazyInitializationException 해결
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| src/main/java/.../controller/UserQuizController.java | 수정 | getCategories()에서 findAll() → findAllWithSlaves() |
+
+### 수정 상세
+
+#### `UserQuizController.getCategories()`
+- 변경 전: `domainMasterRepository.findAll().stream().map(DomainMasterResponse::from).toList()`
+- 변경 후: `domainMasterRepository.findAllWithSlaves().stream().map(DomainMasterResponse::from).toList()`
+- 이유: `DomainMasterResponse.from()`이 `master.getSlaves()`를 접근하는데, `findAll()`은 slaves를 지연 로딩으로 가져옴. 트랜잭션 범위 밖에서 접근 시 `LazyInitializationException` 발생. `findAllWithSlaves()`는 LEFT JOIN FETCH로 slaves를 즉시 로딩하여 해결
+
+### 복원 방법
+
+HIST-20260421-037 복원 시:
+- `UserQuizController.getCategories()`에서 `findAllWithSlaves()` → `findAll()`로 되돌림
+
+---
+
 ## HIST-20260421-022
 
 - **날짜**: 2026-04-21

@@ -7,7 +7,8 @@ import { examService } from '@/services/examService';
 import { domainService } from '@/services/domainService';
 import type { QuestionType, DomainSlave, DomainMaster } from '@/types';
 import { CodeEditor } from '@/components/ui/CodeEditor';
-import { ImageUploadButton } from '@/components/ui/ImageUploadButton';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { SubAnswerEditor } from '@/components/ui/SubAnswerEditor';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,10 @@ const LANGUAGES: { value: string; label: string }[] = [
   { value: 'other',      label: '기타' },
 ];
 
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: CURRENT_YEAR - 2010 + 1 }, (_, i) => CURRENT_YEAR - i);
+const ROUNDS = Array.from({ length: 12 }, (_, i) => i + 1);
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface QuestionDraft {
@@ -47,6 +52,8 @@ interface QuestionDraft {
   code:         string;
   language:     string;
   categoryId:   number | null;
+  year:         number | null;
+  round:        number | null;
 }
 
 interface ImportedDraft extends QuestionDraft {
@@ -68,7 +75,18 @@ const emptyDraft = (): QuestionDraft => ({
   code:         '',
   language:     'javascript',
   categoryId:   null,
+  year:         null,
+  round:        null,
 });
+
+// Return slaves only from the "question type" master (문항 유형).
+// Falls back to all slaves if no matching master found.
+function getQuestionTypeSlaves(domains: DomainMaster[]): DomainSlave[] {
+  const master = domains.find((m) =>
+    m.name.includes('유형') || m.name.includes('문항') || m.name.toLowerCase().includes('type'),
+  );
+  return master ? master.slaves : domains.flatMap((m) => m.slaves);
+}
 
 function parseTextToQuestions(text: string): ImportedDraft[] {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -82,7 +100,7 @@ function parseTextToQuestions(text: string): ImportedDraft[] {
         localId: uid(), content,
         questionType: 'SHORT_ANSWER', options: [], answer: '',
         code: '', language: 'other',
-        categoryId: null,
+        categoryId: null, year: null, round: null,
         excluded: false, sourceHint: '클립보드',
       });
     }
@@ -122,7 +140,7 @@ async function simulateFileParse(file: File): Promise<ImportedDraft[]> {
           questionType: 'MULTIPLE_CHOICE' as QuestionType,
           options: ['보기 1', '보기 2', '보기 3', '보기 4'],
           answer: '1', code: '', language: 'other',
-          categoryId: null,
+          categoryId: null, year: null, round: null,
           excluded: false, sourceHint: file.name,
         })),
       );
@@ -133,14 +151,14 @@ async function simulateFileParse(file: File): Promise<ImportedDraft[]> {
 // ── ManualQuestionCard ─────────────────────────────────────────────────────────
 
 function ManualQuestionCard({
-  draft, index, total, onChange, onRemove, allSlaves,
+  draft, index, total, onChange, onRemove, categorySlaves,
 }: {
-  draft:     QuestionDraft;
-  index:     number;
-  total:     number;
-  onChange:  (field: string, value: string | string[] | number | null) => void;
-  onRemove:  () => void;
-  allSlaves: DomainSlave[];
+  draft:          QuestionDraft;
+  index:          number;
+  total:          number;
+  onChange:       (field: string, value: string | string[] | number | null) => void;
+  onRemove:       () => void;
+  categorySlaves: DomainSlave[];
 }) {
   const isCode = draft.questionType === 'CODE';
 
@@ -193,7 +211,7 @@ function ManualQuestionCard({
           </div>
         </div>
 
-        {/* 카테고리 선택 */}
+        {/* 카테고리 선택 (문항 유형만) */}
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1.5">
             카테고리 <span className="text-red-400">*</span>
@@ -204,41 +222,59 @@ function ManualQuestionCard({
             className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           >
             <option value="">카테고리를 선택하세요</option>
-            {allSlaves.map((s) => (
+            {categorySlaves.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
         </div>
 
-        {/* 문항 내용 (모든 유형 공통) */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-xs font-medium text-gray-500">
-              {isCode ? '문제 설명' : '문항 내용'}{' '}
-              <span className="text-red-400">*</span>
-            </label>
-            <ImageUploadButton
-              onInsert={(md) => onChange('content', draft.content + '\n' + md)}
-            />
+        {/* 출제 연도 / 회차 */}
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">출제 연도</label>
+            <select
+              value={draft.year ?? ''}
+              onChange={(e) => onChange('year', e.target.value ? Number(e.target.value) : null)}
+              className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+            >
+              <option value="">연도 선택</option>
+              {YEARS.map((y) => (
+                <option key={y} value={y}>{y}년</option>
+              ))}
+            </select>
           </div>
-          <textarea
-            rows={isCode ? 2 : 3}
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">회차</label>
+            <select
+              value={draft.round ?? ''}
+              onChange={(e) => onChange('round', e.target.value ? Number(e.target.value) : null)}
+              className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+            >
+              <option value="">회차 선택</option>
+              {ROUNDS.map((r) => (
+                <option key={r} value={r}>{r}회</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* 문항 내용 — RichTextEditor */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">
+            {isCode ? '문제 설명' : '문항 내용'}{' '}
+            <span className="text-red-400">*</span>
+          </label>
+          <RichTextEditor
             value={draft.content}
-            onChange={(e) => onChange('content', e.target.value)}
-            maxLength={5000}
-            placeholder={
-              isCode
-                ? '예: 아래 코드의 실행 결과를 작성하시오.'
-                : '문항 내용을 입력하세요.'
-            }
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none"
+            onChange={(html) => onChange('content', html)}
+            placeholder={isCode ? '예: 아래 코드의 실행 결과를 작성하시오.' : '문항 내용을 입력하세요.'}
+            minHeight={isCode ? 80 : 120}
           />
         </div>
 
         {/* ── CODE 섹션 ── */}
         {isCode && (
           <div className="space-y-3">
-            {/* 언어 선택 */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1.5">프로그래밍 언어</label>
               <select
@@ -252,7 +288,6 @@ function ManualQuestionCard({
               </select>
             </div>
 
-            {/* 코드 에디터 — SQL/코드 내용은 JPA 파라미터 바인딩으로 안전하게 저장됨 */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1.5">
                 코드 <span className="text-red-400">*</span>
@@ -265,7 +300,6 @@ function ManualQuestionCard({
               />
             </div>
 
-            {/* 정답 / 예상 출력 */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1.5">
                 정답 / 예상 출력
@@ -353,14 +387,13 @@ function ManualQuestionCard({
         {/* ── SHORT_ANSWER 정답 ── */}
         {draft.questionType === 'SHORT_ANSWER' && (
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">정답 (선택)</label>
-            <input
-              type="text"
-              value={draft.answer}
-              onChange={(e) => onChange('answer', e.target.value)}
-              maxLength={2000}
-              placeholder="모범 답안을 입력하세요."
-              className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              정답 <span className="text-gray-400 font-normal">(선택 · 항목 추가로 (ㄱ)(ㄴ)(ㄷ) 구분 가능)</span>
+            </label>
+            <SubAnswerEditor
+              key={`sa-${draft.localId}`}
+              answer={draft.answer}
+              onChange={(v) => onChange('answer', v)}
             />
           </div>
         )}
@@ -383,18 +416,17 @@ export default function AdminQuestionNewPage() {
   const [loading,   setLoading]     = useState(false);
   const [error,     setError]       = useState('');
 
-  // 도메인 (카테고리)
   const [domains, setDomains]             = useState<DomainMaster[]>([]);
   const [importCategory, setImportCategory] = useState<number | null>(null);
-  const allSlaves: DomainSlave[]           = domains.flatMap((m) => m.slaves);
+
+  const categorySlaves = getQuestionTypeSlaves(domains);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── 도메인 로드 ──────────────────────────────────────────────────────────────
   useEffect(() => {
     domainService.getDomains()
       .then((res) => setDomains(res.data.data ?? []))
-      .catch(() => {}); // 카테고리 목록 로드 실패 시 빈 드롭다운 유지
+      .catch(() => {});
   }, []);
 
   // ── Manual helpers ───────────────────────────────────────────────────────────
@@ -467,8 +499,10 @@ export default function AdminQuestionNewPage() {
 
   // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
+    const EMPTY_HTML = '<p></p>';
     const manualValid = manualQuestions.filter((q) =>
-      q.content.trim() && (q.questionType !== 'CODE' || q.code.trim()) && q.categoryId !== null,
+      q.content.trim() && q.content !== EMPTY_HTML &&
+      (q.questionType !== 'CODE' || q.code.trim()) && q.categoryId !== null,
     );
     const importedValid = importedQuestions.filter((q) => !q.excluded && q.content.trim());
 
@@ -502,6 +536,8 @@ export default function AdminQuestionNewPage() {
           answer:       q.answer || undefined,
           code:         q.code   || undefined,
           language:     q.language || undefined,
+          year:         q.year  ?? undefined,
+          round:        q.round ?? undefined,
         })),
       );
       router.push('/admin/exams/questions');
@@ -513,8 +549,10 @@ export default function AdminQuestionNewPage() {
   };
 
   // ── Counts ───────────────────────────────────────────────────────────────────
+  const EMPTY_HTML = '<p></p>';
   const manualFilledCount = manualQuestions.filter((q) =>
-    q.content.trim() && (q.questionType !== 'CODE' || q.code.trim()) && q.categoryId !== null,
+    q.content.trim() && q.content !== EMPTY_HTML &&
+    (q.questionType !== 'CODE' || q.code.trim()) && q.categoryId !== null,
   ).length;
   const importedAppliedCount = importedQuestions.filter((q) => !q.excluded).length;
   const totalCount           = manualFilledCount + importedAppliedCount;
@@ -567,7 +605,7 @@ export default function AdminQuestionNewPage() {
               draft={q}
               index={idx}
               total={manualQuestions.length}
-              allSlaves={allSlaves}
+              categorySlaves={categorySlaves}
               onChange={(field, value) => updateManualQuestion(q.localId, field, value)}
               onRemove={() => removeManualQuestion(q.localId)}
             />
@@ -588,7 +626,6 @@ export default function AdminQuestionNewPage() {
       {/* ── 파일 / 클립보드 탭 ── */}
       {tab === 'import' && (
         <div className="space-y-4">
-          {/* 드래그앤드롭 */}
           <div
             onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
             onDragLeave={() => setIsDragOver(false)}
@@ -618,7 +655,6 @@ export default function AdminQuestionNewPage() {
             )}
           </div>
 
-          {/* 클립보드 붙여넣기 */}
           <button type="button" onClick={handlePasteFromClipboard}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
@@ -627,7 +663,6 @@ export default function AdminQuestionNewPage() {
             클립보드에서 붙여넣기
           </button>
 
-          {/* 가져온 문항 카테고리 선택 */}
           <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
             <label className="text-sm font-medium text-amber-800 whitespace-nowrap shrink-0">
               카테고리 <span className="text-red-400">*</span>
@@ -638,13 +673,12 @@ export default function AdminQuestionNewPage() {
               className="flex-1 px-3 py-1.5 rounded-lg border border-amber-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 transition"
             >
               <option value="">가져온 문항에 적용할 카테고리 선택</option>
-              {allSlaves.map((s) => (
+              {categorySlaves.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
           </div>
 
-          {/* 가져온 문항 목록 */}
           {importedQuestions.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">

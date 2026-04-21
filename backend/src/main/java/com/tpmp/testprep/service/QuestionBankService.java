@@ -66,6 +66,8 @@ public class QuestionBankService {
                 .code(request.code())
                 .language(request.language())
                 .explanation(request.explanation())
+                .year(request.year())
+                .round(request.round())
                 .createdByUno(adminId)
                 .build();
         return QuestionBankResponse.from(questionBankRepository.save(qb));
@@ -85,6 +87,8 @@ public class QuestionBankService {
                         .code(req.code())
                         .language(req.language())
                         .explanation(req.explanation())
+                        .year(req.year())
+                        .round(req.round())
                         .createdByUno(adminId)
                         .build())
                 .toList();
@@ -102,7 +106,9 @@ public class QuestionBankService {
                   category,
                   request.options(), request.answer(),
                   request.code(), request.language(),
-                  request.explanation(), adminId);
+                  request.explanation(),
+                  request.year(), request.round(),
+                  adminId);
         return QuestionBankResponse.from(qb);
     }
 

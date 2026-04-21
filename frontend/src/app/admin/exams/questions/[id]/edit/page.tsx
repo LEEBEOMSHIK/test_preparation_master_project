@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { examService } from '@/services/examService';
-import type { QuestionType } from '@/types';
+import { domainService } from '@/services/domainService';
+import type { QuestionType, DomainMaster, DomainSlave } from '@/types';
 import { CodeEditor } from '@/components/ui/CodeEditor';
-import { ImageUploadButton } from '@/components/ui/ImageUploadButton';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { SubAnswerEditor } from '@/components/ui/SubAnswerEditor';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -35,6 +37,17 @@ const LANGUAGES: { value: string; label: string }[] = [
   { value: 'other',      label: '기타' },
 ];
 
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: CURRENT_YEAR - 2010 + 1 }, (_, i) => CURRENT_YEAR - i);
+const ROUNDS = Array.from({ length: 12 }, (_, i) => i + 1);
+
+function getQuestionTypeSlaves(domains: DomainMaster[]): DomainSlave[] {
+  const master = domains.find((m) =>
+    m.name.includes('유형') || m.name.includes('문항') || m.name.toLowerCase().includes('type'),
+  );
+  return master ? master.slaves : domains.flatMap((m) => m.slaves);
+}
+
 // ── Form State ─────────────────────────────────────────────────────────────────
 
 interface FormState {
@@ -45,6 +58,9 @@ interface FormState {
   code:         string;
   language:     string;
   explanation:  string;
+  categoryId:   number | null;
+  year:         number | null;
+  round:        number | null;
 }
 
 const defaultForm = (): FormState => ({
@@ -55,6 +71,9 @@ const defaultForm = (): FormState => ({
   code:         '',
   language:     'javascript',
   explanation:  '',
+  categoryId:   null,
+  year:         null,
+  round:        null,
 });
 
 // ── Page ───────────────────────────────────────────────────────────────────────
@@ -64,12 +83,20 @@ export default function AdminQuestionEditPage() {
   const params   = useParams();
   const id       = Number(params.id);
 
-  const [form,    setForm]    = useState<FormState>(defaultForm());
+  const [form,     setForm]     = useState<FormState>(defaultForm());
+  const [domains,  setDomains]  = useState<DomainMaster[]>([]);
   const [fetching, setFetching] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState('');
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState('');
 
-  // 기존 문항 로드
+  const categorySlaves = getQuestionTypeSlaves(domains);
+
+  useEffect(() => {
+    domainService.getDomains()
+      .then((res) => setDomains(res.data.data ?? []))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     examService.adminGetQuestion(id)
       .then((res) => {
@@ -83,13 +110,16 @@ export default function AdminQuestionEditPage() {
           code:         q.code ?? '',
           language:     q.language ?? 'javascript',
           explanation:  q.explanation ?? '',
+          categoryId:   q.categoryId ?? null,
+          year:         (q as unknown as { year?: number }).year ?? null,
+          round:        (q as unknown as { round?: number }).round ?? null,
         });
       })
       .catch(() => setError('문항 정보를 불러오지 못했습니다.'))
       .finally(() => setFetching(false));
   }, [id]);
 
-  const update = (field: keyof FormState, value: string | string[]) =>
+  const update = <K extends keyof FormState>(field: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
   const handleTypeChange = (type: QuestionType) => {
@@ -103,7 +133,8 @@ export default function AdminQuestionEditPage() {
   };
 
   const handleSubmit = async () => {
-    if (!form.content.trim()) { setError('문항 내용을 입력하세요.'); return; }
+    const EMPTY_HTML = '<p></p>';
+    if (!form.content.trim() || form.content === EMPTY_HTML) { setError('문항 내용을 입력하세요.'); return; }
     if (form.questionType === 'CODE' && !form.code.trim()) { setError('코드를 입력하세요.'); return; }
 
     setError('');
@@ -112,11 +143,14 @@ export default function AdminQuestionEditPage() {
       await examService.adminUpdateQuestion(id, {
         content:      form.content.trim(),
         questionType: form.questionType,
+        categoryId:   form.categoryId ?? undefined,
         options:      form.questionType === 'MULTIPLE_CHOICE' ? form.options.filter(Boolean) : undefined,
         answer:       form.answer || undefined,
         code:         form.code   || undefined,
         language:     form.language || undefined,
         explanation:  form.explanation || undefined,
+        year:         form.year  ?? undefined,
+        round:        form.round ?? undefined,
       });
       router.push('/admin/exams/questions');
     } catch {
@@ -152,7 +186,6 @@ export default function AdminQuestionEditPage() {
         </div>
       </div>
 
-      {/* 폼 카드 */}
       <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
         <div className="p-5 space-y-5">
 
@@ -182,23 +215,62 @@ export default function AdminQuestionEditPage() {
             </div>
           </div>
 
-          {/* 문항 내용 */}
+          {/* 카테고리 선택 */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-medium text-gray-500">
-                {isCode ? '문제 설명' : '문항 내용'}{' '}
-                <span className="text-red-400">*</span>
-              </label>
-              <ImageUploadButton
-                onInsert={(md) => update('content', form.content + '\n' + md)}
-              />
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">카테고리</label>
+            <select
+              value={form.categoryId ?? ''}
+              onChange={(e) => update('categoryId', e.target.value ? Number(e.target.value) : null)}
+              className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+            >
+              <option value="">카테고리를 선택하세요</option>
+              {categorySlaves.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 출제 연도 / 회차 */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">출제 연도</label>
+              <select
+                value={form.year ?? ''}
+                onChange={(e) => update('year', e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              >
+                <option value="">연도 선택</option>
+                {YEARS.map((y) => (
+                  <option key={y} value={y}>{y}년</option>
+                ))}
+              </select>
             </div>
-            <textarea
-              rows={isCode ? 2 : 3}
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">회차</label>
+              <select
+                value={form.round ?? ''}
+                onChange={(e) => update('round', e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              >
+                <option value="">회차 선택</option>
+                {ROUNDS.map((r) => (
+                  <option key={r} value={r}>{r}회</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* 문항 내용 — RichTextEditor */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              {isCode ? '문제 설명' : '문항 내용'}{' '}
+              <span className="text-red-400">*</span>
+            </label>
+            <RichTextEditor
               value={form.content}
-              onChange={(e) => update('content', e.target.value)}
+              onChange={(html) => update('content', html)}
               placeholder={isCode ? '예: 아래 코드의 실행 결과를 작성하시오.' : '문항 내용을 입력하세요.'}
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none"
+              minHeight={isCode ? 80 : 120}
             />
           </div>
 
@@ -309,20 +381,20 @@ export default function AdminQuestionEditPage() {
           )}
 
           {/* ── SHORT_ANSWER ── */}
-          {form.questionType === 'SHORT_ANSWER' && (
+          {form.questionType === 'SHORT_ANSWER' && !fetching && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">정답 (선택)</label>
-              <input
-                type="text"
-                value={form.answer}
-                onChange={(e) => update('answer', e.target.value)}
-                placeholder="모범 답안을 입력하세요."
-                className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                정답 <span className="text-gray-400 font-normal">(선택 · 항목 추가로 (ㄱ)(ㄴ)(ㄷ) 구분 가능)</span>
+              </label>
+              <SubAnswerEditor
+                key={`sa-edit-${id}`}
+                answer={form.answer}
+                onChange={(v) => update('answer', v)}
               />
             </div>
           )}
 
-          {/* 해설 (공통) */}
+          {/* 해설 */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">해설 (선택)</label>
             <textarea

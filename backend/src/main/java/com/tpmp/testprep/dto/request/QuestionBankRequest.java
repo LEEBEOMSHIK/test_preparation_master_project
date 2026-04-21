@@ -35,5 +35,9 @@ public record QuestionBankRequest(
         String language,
 
         @Size(max = 5000, message = "해설은 5000자를 초과할 수 없습니다.")
-        String explanation
+        String explanation,
+
+        Integer year,
+
+        Integer round
 ) {}

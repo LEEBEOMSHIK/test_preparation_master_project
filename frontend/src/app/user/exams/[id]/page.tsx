@@ -244,7 +244,10 @@ export default function ExamTakingPage() {
               </button>
             </div>
 
-            <p className="text-gray-800 text-sm leading-relaxed">{q.content}</p>
+            <div
+              className="tpmp-content text-sm"
+              dangerouslySetInnerHTML={{ __html: q.content }}
+            />
 
             {/* 선택지 */}
             {isMultiple && q.options && (

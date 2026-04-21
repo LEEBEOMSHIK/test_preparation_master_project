@@ -59,12 +59,22 @@ public class QuestionBank extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String explanation;
 
+    /** 출제 연도 */
+    @Column(name = "exam_year")
+    private Integer year;
+
+    /** 출제 회차 */
+    @Column(name = "exam_round")
+    private Integer round;
+
     @Builder
     public QuestionBank(String content, QuestionType questionType,
                         DomainSlave category,
                         List<String> options, String answer,
                         String code, String language,
-                        String explanation, Long createdByUno) {
+                        String explanation,
+                        Integer year, Integer round,
+                        Long createdByUno) {
         this.content = content;
         this.questionType = questionType;
         this.category = category;
@@ -73,6 +83,8 @@ public class QuestionBank extends BaseEntity {
         this.code = code;
         this.language = language;
         this.explanation = explanation;
+        this.year = year;
+        this.round = round;
         initAudit(createdByUno);
     }
 
@@ -80,7 +92,9 @@ public class QuestionBank extends BaseEntity {
                        DomainSlave category,
                        List<String> options, String answer,
                        String code, String language,
-                       String explanation, Long modifiedByUno) {
+                       String explanation,
+                       Integer year, Integer round,
+                       Long modifiedByUno) {
         this.content = content;
         this.questionType = questionType;
         this.category = category;
@@ -89,6 +103,8 @@ public class QuestionBank extends BaseEntity {
         this.code = code;
         this.language = language;
         this.explanation = explanation;
+        this.year = year;
+        this.round = round;
         updateAudit(modifiedByUno);
     }
 

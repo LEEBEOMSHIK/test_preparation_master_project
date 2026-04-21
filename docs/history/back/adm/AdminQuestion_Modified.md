@@ -1,3 +1,54 @@
+## HIST-20260422-002
+
+- **날짜**: 2026-04-22
+- **수정 범위**: 관리자 백엔드 / 문항 관리
+- **수정 개요**: 문항에 출제 연도(`year`)·회차(`round`) 필드 추가, 이미지 정적 파일 리소스 핸들러 URI 생성 방식 수정 (Windows 경로 호환)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| entity/QuestionBank.java | 수정 | `exam_year`, `exam_round` 컬럼 추가; builder·update() 메서드 파라미터 추가 |
+| dto/request/QuestionBankRequest.java | 수정 | `year`, `round` 선택 필드 추가 |
+| dto/response/QuestionBankResponse.java | 수정 | `year`, `round` 응답 필드 추가; `from()` 매핑 추가 |
+| service/QuestionBankService.java | 수정 | createQuestion·createQuestionsBulk·updateQuestion에 year·round 전달 |
+| config/WebMvcConfig.java | 수정 | `Path.toAbsolutePath().toUri()` 사용으로 Windows 역슬래시 경로 문제 해결 |
+
+### 수정 상세
+
+#### `QuestionBank.java`
+- 변경 전: `year`, `round` 필드 없음; `builder()`, `update()` 에 year·round 파라미터 없음
+- 변경 후: `@Column(name="exam_year") Integer year`, `@Column(name="exam_round") Integer round` 추가; builder·update 메서드에 파라미터 추가
+- 이유: 출제 연도·회차를 DB에 저장하기 위한 컬럼 추가
+
+#### `QuestionBankRequest.java`
+- 변경 전: `year`, `round` 필드 없음
+- 변경 후: nullable `Integer year`, `Integer round` 추가
+
+#### `QuestionBankResponse.java`
+- 변경 전: `year`, `round` 응답 필드 없음
+- 변경 후: `Integer year`, `Integer round` 추가; `from()`에서 `qb.getYear()`, `qb.getRound()` 매핑
+
+#### `QuestionBankService.java`
+- 변경 전: `QuestionBank.builder()` 및 `qb.update()` 에 year·round 없음
+- 변경 후: `.year(request.year()).round(request.round())` 추가 (create·bulk·update 모두)
+
+#### `WebMvcConfig.java`
+- 변경 전: `"file:" + absPath + "/"` — Windows에서 `file:C:\path\...` 형태로 URI 잘못 생성, 리소스 서빙 500
+- 변경 후: `Paths.get(uploadPath).toAbsolutePath().normalize().toUri().toString()` — 플랫폼 무관하게 올바른 `file:///...` URI 생성
+- 이유: Windows 개발환경에서 업로드 이미지 로드 시 500 오류 발생
+
+### 복원 방법
+
+HIST-20260422-002 복원 시:
+- `QuestionBank.java`: `year`, `round` 필드 제거; builder·update 파라미터 제거
+- `QuestionBankRequest.java`: `year`, `round` 필드 제거
+- `QuestionBankResponse.java`: `year`, `round` 필드 제거
+- `QuestionBankService.java`: `.year()`, `.round()` 호출 제거
+- `WebMvcConfig.java`: `toUri()` 방식을 `"file:" + absPath + "/"` 으로 되돌림
+
+---
+
 ## HIST-20260420-002
 
 - **날짜**: 2026-04-20

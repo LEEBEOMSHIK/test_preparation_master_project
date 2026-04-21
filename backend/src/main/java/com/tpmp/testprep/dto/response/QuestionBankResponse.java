@@ -16,6 +16,8 @@ public record QuestionBankResponse(
         String code,
         String language,
         String explanation,
+        Integer year,
+        Integer round,
         LocalDateTime createdAt
 ) {
     public static QuestionBankResponse from(QuestionBank qb) {
@@ -30,6 +32,8 @@ public record QuestionBankResponse(
                 qb.getCode(),
                 qb.getLanguage(),
                 qb.getExplanation(),
+                qb.getYear(),
+                qb.getRound(),
                 qb.getCreateDt()
         );
     }

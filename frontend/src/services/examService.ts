@@ -83,6 +83,8 @@ export const examService = {
     code?: string;
     language?: string;
     explanation?: string;
+    year?: number;
+    round?: number;
   }>) =>
     apiClient.post<ApiResponse<{ created: number }>>('/admin/questions/bulk', { questions }),
 
@@ -92,11 +94,14 @@ export const examService = {
   adminUpdateQuestion: (id: number, data: {
     content: string;
     questionType: QuestionType;
+    categoryId?: number;
     options?: string[];
     answer?: string;
     code?: string;
     language?: string;
     explanation?: string;
+    year?: number;
+    round?: number;
   }) =>
     apiClient.put<ApiResponse<QuestionSummary>>(`/admin/questions/${id}`, data),
 };

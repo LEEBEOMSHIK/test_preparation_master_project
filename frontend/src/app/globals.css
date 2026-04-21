@@ -21,3 +21,98 @@ body {
   background-color: #F9FAFB;
   color: #111827;
 }
+
+/* ── TipTap Rich Editor ─────────────────────────────────────────────── */
+.tpmp-editor .ProseMirror {
+  min-height: 120px;
+  padding: 8px 12px;
+  outline: none;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.tpmp-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+.tpmp-editor .ProseMirror h2 { font-size: 1.1rem; font-weight: 700; margin: 0.6em 0 0.3em; }
+.tpmp-editor .ProseMirror h3 { font-size: 1rem; font-weight: 600; margin: 0.5em 0 0.25em; }
+.tpmp-editor .ProseMirror ul { list-style: disc; padding-left: 1.4em; margin: 0.4em 0; }
+.tpmp-editor .ProseMirror ol { list-style: decimal; padding-left: 1.4em; margin: 0.4em 0; }
+.tpmp-editor .ProseMirror blockquote {
+  border-left: 3px solid #e5e7eb;
+  padding-left: 0.75em;
+  color: #6b7280;
+  margin: 0.4em 0;
+}
+.tpmp-editor .ProseMirror code {
+  background: #f3f4f6;
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.82em;
+}
+.tpmp-editor .ProseMirror pre {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  border-radius: 6px;
+  padding: 0.75em 1em;
+  overflow-x: auto;
+  margin: 0.4em 0;
+}
+.tpmp-editor .ProseMirror pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: 0.85em;
+}
+.tpmp-editor .ProseMirror img {
+  max-width: 100%;
+  border-radius: 6px;
+  margin: 0.4em 0;
+}
+.tpmp-editor .ProseMirror hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 0.75em 0;
+}
+.tpmp-editor .ProseMirror strong { font-weight: 700; }
+.tpmp-editor .ProseMirror em { font-style: italic; }
+.tpmp-editor .ProseMirror s { text-decoration: line-through; }
+
+/* ── Rendered question content (user-facing) ──────────────────────── */
+.tpmp-content { font-size: 0.875rem; line-height: 1.6; color: #1f2937; }
+.tpmp-content p { margin: 0.25em 0; }
+.tpmp-content h2 { font-size: 1.1rem; font-weight: 700; margin: 0.6em 0 0.3em; }
+.tpmp-content h3 { font-size: 1rem; font-weight: 600; margin: 0.5em 0 0.25em; }
+.tpmp-content ul { list-style: disc; padding-left: 1.4em; margin: 0.4em 0; }
+.tpmp-content ol { list-style: decimal; padding-left: 1.4em; margin: 0.4em 0; }
+.tpmp-content blockquote {
+  border-left: 3px solid #e5e7eb;
+  padding-left: 0.75em;
+  color: #6b7280;
+  margin: 0.4em 0;
+}
+.tpmp-content code {
+  background: #f3f4f6;
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.82em;
+}
+.tpmp-content pre {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  border-radius: 6px;
+  padding: 0.75em 1em;
+  overflow-x: auto;
+  margin: 0.4em 0;
+}
+.tpmp-content pre code { background: none; padding: 0; color: inherit; font-size: 0.85em; }
+.tpmp-content img { max-width: 100%; border-radius: 6px; margin: 0.4em 0; }
+.tpmp-content hr { border: none; border-top: 1px solid #e5e7eb; margin: 0.75em 0; }
+.tpmp-content strong { font-weight: 700; }
+.tpmp-content em { font-style: italic; }
+.tpmp-content s { text-decoration: line-through; }

@@ -1,3 +1,34 @@
+## HIST-20260421-036
+
+- **날짜**: 2026-04-21
+- **수정 범위**: 관리자 프론트엔드 / 레이아웃 / 테이블 관리
+- **수정 개요**: 테이블 관리 서브메뉴 순서 변경 — DB 조회를 첫 번째 메뉴로, 기본 리다이렉트 URL도 DB 조회로 변경
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| frontend/src/components/layout/AdminLayoutShell.tsx | 수정 | 테이블 관리 children 배열에서 DB 조회를 첫 번째로 이동 |
+| frontend/src/app/admin/tables/page.tsx | 수정 | router.replace 대상을 /admin/tables/domains → /admin/tables/data 변경 |
+
+### 수정 상세
+
+#### `AdminLayoutShell.tsx`
+- 변경 전: `[{ label: '도메인 관리', ... }, { label: 'DB 조회', ... }]`
+- 변경 후: `[{ label: 'DB 조회', ... }, { label: '도메인 관리', ... }]`
+
+#### `admin/tables/page.tsx`
+- 변경 전: `router.replace('/admin/tables/domains')`
+- 변경 후: `router.replace('/admin/tables/data')`
+
+### 복원 방법
+
+이 ID(HIST-20260421-036)만으로 복원 시:
+- AdminLayoutShell.tsx children 배열 순서를 원래대로 되돌림
+- tables/page.tsx redirect를 `/admin/tables/domains`로 되돌림
+
+---
+
 ## HIST-20260419-007
 
 - **날짜**: 2026-04-19

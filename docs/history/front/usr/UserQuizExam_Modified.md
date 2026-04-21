@@ -1,3 +1,35 @@
+## HIST-20260421-035
+
+- **날짜**: 2026-04-21
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시
+- **수정 개요**: 문항 내용을 HTML로 렌더링하도록 수정 (RichTextEditor 출력 반영)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| frontend/src/app/user/exams/[id]/page.tsx | 수정 | 문항 content를 plain text → dangerouslySetInnerHTML HTML 렌더링으로 변경 |
+| frontend/src/app/globals.css | 수정 | .tpmp-content 클래스 추가 (사용자 화면용 문항 HTML 스타일) |
+
+### 수정 상세
+
+#### `user/exams/[id]/page.tsx`
+- 변경 전: `<p className="...">{q.content}</p>` — plain text 렌더링으로 HTML 태그 노출
+- 변경 후: `<div className="tpmp-content ..." dangerouslySetInnerHTML={{ __html: q.content }} />`
+- 이유: 관리자가 RichTextEditor로 등록한 HTML 내용(보기, 표, 이미지 등)이 사용자 화면에 올바르게 표시되도록 수정
+
+#### `globals.css`
+- 변경 전: .tpmp-content 클래스 없음
+- 변경 후: h2/h3, ul/ol, blockquote, code, pre, img 등 .tpmp-content prose 스타일 추가
+
+### 복원 방법
+
+이 ID(HIST-20260421-035)만으로 복원 시:
+- page.tsx 247번 라인을 `<p ...>{q.content}</p>`으로 되돌림
+- globals.css에서 `.tpmp-content` 블록 제거
+
+---
+
 ## HIST-20260421-033
 
 - **날짜**: 2026-04-21

@@ -23,7 +23,7 @@ public class UserQuizController {
     /** 퀴즈 카테고리 목록 (문제 유형 도메인) */
     @GetMapping("/categories")
     public ResponseEntity<ApiResponse<List<DomainMasterResponse>>> getCategories() {
-        List<DomainMasterResponse> masters = domainMasterRepository.findAll().stream()
+        List<DomainMasterResponse> masters = domainMasterRepository.findAllWithSlaves().stream()
                 .map(DomainMasterResponse::from)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(masters));

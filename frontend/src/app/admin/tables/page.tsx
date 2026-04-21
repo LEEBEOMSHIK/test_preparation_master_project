@@ -7,7 +7,7 @@ export default function AdminTablesPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/admin/tables/domains');
+    router.replace('/admin/tables/data');
   }, [router]);
 
   return null;
