@@ -45,6 +45,7 @@ export default function AdminInquiryDetailPage() {
       if (res.data.success && res.data.data) {
         setInquiry(res.data.data);
         setReplyText(res.data.data.reply ?? '');
+        alert(inquiry.status === 'ANSWERED' ? '답변이 수정되었습니다.' : '답변이 등록되었습니다.');
       }
     } finally {
       setReplying(false);

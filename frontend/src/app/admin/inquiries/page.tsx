@@ -28,6 +28,7 @@ export default function AdminInquiriesPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [holding, setHolding] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState<number | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -45,6 +46,19 @@ export default function AdminInquiriesPage() {
 
   useEffect(() => { setPage(0); }, [statusFilter, pageSize]);
   useEffect(() => { load(); }, [load]);
+
+  const handleDelete = async (e: React.MouseEvent, id: number) => {
+    e.preventDefault();
+    if (!confirm('이 문의를 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.')) return;
+    setDeleting(id);
+    try {
+      await inquiryService.adminDelete(id);
+      setInquiries((prev) => prev.filter((q) => q.id !== id));
+      setTotalElements((prev) => prev - 1);
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   const handleToggleHold = async (e: React.MouseEvent, id: number) => {
     e.preventDefault();
@@ -148,12 +162,13 @@ export default function AdminInquiriesPage() {
                           {inquiry.status === 'ON_HOLD' ? '대기로' : '보류'}
                         </button>
                       )}
-                      <Link
-                        href={`/admin/inquiries/${inquiry.id}`}
-                        className="px-2.5 py-1 rounded-md text-xs font-medium bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                      <button
+                        onClick={(e) => handleDelete(e, inquiry.id)}
+                        disabled={deleting === inquiry.id}
+                        className="px-2.5 py-1 rounded-md text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 transition-colors"
                       >
-                        상세
-                      </Link>
+                        {deleting === inquiry.id ? '삭제 중' : '삭제'}
+                      </button>
                     </div>
                   </td>
                 </tr>
