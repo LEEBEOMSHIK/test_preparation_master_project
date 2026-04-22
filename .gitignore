@@ -1,0 +1,42 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.env.local
+
+# Backend
+backend/build/
+backend/.gradle/
+backend/bin/
+backend/logs/
+*.class
+*.jar
+!gradle-wrapper.jar
+
+# Claude Code session files
+.claude/
+
+# Uploads (runtime)
+uploads/pdfs/*
+uploads/hwp/*
+uploads/images/*
+!uploads/pdfs/.gitkeep
+!uploads/hwp/.gitkeep
+
+# Docker
+docker-compose.override.yml

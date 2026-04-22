@@ -1,0 +1,65 @@
+spring:
+  profiles:
+    active: local
+
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: ${MAX_FILE_SIZE:10MB}
+      max-request-size: ${MAX_FILE_SIZE:10MB}
+
+logging:
+  file:
+    name: ./logs/app.log
+  level:
+    root: INFO
+    com.tpmp: DEBUG
+    org.springframework.transaction: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    path: /api/v3/api-docs
+  swagger-ui:
+    path: /api/swagger-ui.html
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/tpmp
+    username: tpmp
+    password: ${DB_PASSWORD:tpmp_local_pw}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:local_dev_secret_change_in_production_please}
+    access-token-expiry: 900000       # 15분 (ms)
+    refresh-token-expiry: 604800000   # 7일 (ms)
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
+  upload:
+    path: ${UPLOAD_PATH:./uploads}
