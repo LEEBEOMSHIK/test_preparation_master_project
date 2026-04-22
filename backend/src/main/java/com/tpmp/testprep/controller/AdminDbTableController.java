@@ -34,7 +34,7 @@ public class AdminDbTableController {
             @PathVariable String tableName) {
         validateTableName(tableName);
         List<Map<String, Object>> columns = jdbcTemplate.queryForList(
-            "SELECT column_name, data_type, is_nullable, column_default " +
+            "SELECT column_name, data_type, is_nullable, column_default, is_identity " +
             "FROM information_schema.columns " +
             "WHERE table_schema = 'public' AND table_name = ? " +
             "ORDER BY ordinal_position",

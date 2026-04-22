@@ -5,7 +5,8 @@ import { dbTableService, type TableColumn } from '@/services/dbTableService';
 import { getTableMeta, type FkRelation } from '@/data/tableComments';
 
 function isAutoColumn(col: TableColumn) {
-  return !!(col.column_default && col.column_default.includes('nextval'));
+  return col.is_identity === 'YES' ||
+    !!(col.column_default && col.column_default.includes('nextval'));
 }
 
 function isPkColumn(col: TableColumn) {

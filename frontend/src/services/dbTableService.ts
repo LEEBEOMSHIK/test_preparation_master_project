@@ -6,6 +6,7 @@ export interface TableColumn {
   data_type: string;
   is_nullable: string;
   column_default: string | null;
+  is_identity: string | null;
 }
 
 export interface TableRowsResponse {
