@@ -1,3 +1,35 @@
+## HIST-20260422-008
+
+- **날짜**: 2026-04-22
+- **수정 범위**: 관리자 프론트엔드 / 1:1 문의 관리
+- **수정 개요**: 문의 상세 페이지 신규 추가, 목록에서 인라인 확장 제거, 답변 등록·수정·삭제 기능 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/.../admin/inquiries/page.tsx` | 수정 | 인라인 확장 제거, 행 클릭 → 상세 링크로 변경, 상세 버튼 추가 |
+| `frontend/.../admin/inquiries/[id]/page.tsx` | 추가 | 문의 상세·답변 등록/수정·보류 토글·삭제 기능 포함 |
+| `frontend/.../services/inquiryService.ts` | 수정 | `adminDelete(id)` 메서드 추가 |
+
+### 수정 상세
+
+#### `admin/inquiries/page.tsx`
+- 변경 전: 행 클릭 시 인라인 확장(답변 폼 포함)
+- 변경 후: 제목 클릭 또는 [상세] 버튼 → `/admin/inquiries/{id}` 이동, 인라인 확장 제거
+
+#### `admin/inquiries/[id]/page.tsx` (신규)
+- 문의 내용 + 첨부 이미지 표시
+- 보류 토글 버튼 (ANSWERED 아닐 때만)
+- 답변 textarea: ANSWERED 포함 항상 노출(수정 가능), 기존 답변 pre-fill
+- 문의 삭제 버튼 (confirm 후 삭제 → 목록으로 이동)
+
+### 복원 방법
+
+`admin/inquiries/[id]/page.tsx` 삭제, `admin/inquiries/page.tsx`를 HIST-20260422-006 버전으로 되돌린다.
+
+---
+
 ## HIST-20260422-006
 
 - **날짜**: 2026-04-22

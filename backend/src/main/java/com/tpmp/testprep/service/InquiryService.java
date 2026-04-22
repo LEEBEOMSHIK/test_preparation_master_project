@@ -129,6 +129,11 @@ public class InquiryService {
         return InquiryResponse.from(inquiry);
     }
 
+    @Transactional
+    public void adminDelete(Long id) {
+        inquiryRepository.delete(findInquiry(id));
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private User findUser(String email) {

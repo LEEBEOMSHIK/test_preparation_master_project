@@ -45,4 +45,10 @@ public class AdminInquiryController {
     public ResponseEntity<ApiResponse<InquiryResponse>> toggleHold(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(inquiryService.adminToggleHold(id)));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+        inquiryService.adminDelete(id);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
 }

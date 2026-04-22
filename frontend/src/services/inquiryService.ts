@@ -46,4 +46,7 @@ export const inquiryService = {
 
   adminToggleHold: (id: number) =>
     apiClient.patch<ApiResponse<Inquiry>>(`/admin/inquiries/${id}/hold`),
+
+  adminDelete: (id: number) =>
+    apiClient.delete<ApiResponse<void>>(`/admin/inquiries/${id}`),
 };

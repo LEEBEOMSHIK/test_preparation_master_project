@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { inquiryService } from '@/services/inquiryService';
 import type { Inquiry, InquiryStatus } from '@/types';
 import { INQUIRY_STATUS_LABEL, INQUIRY_TYPE_LABEL } from '@/types';
@@ -26,11 +27,6 @@ export default function AdminInquiriesPage() {
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-
-  // Expanded row for inline detail + reply
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [replyText, setReplyText] = useState('');
-  const [replying, setReplying] = useState(false);
   const [holding, setHolding] = useState<number | null>(null);
 
   const load = useCallback(() => {
@@ -50,41 +46,13 @@ export default function AdminInquiriesPage() {
   useEffect(() => { setPage(0); }, [statusFilter, pageSize]);
   useEffect(() => { load(); }, [load]);
 
-  const toggleExpand = (inquiry: Inquiry) => {
-    if (expandedId === inquiry.id) {
-      setExpandedId(null);
-      setReplyText('');
-    } else {
-      setExpandedId(inquiry.id);
-      setReplyText(inquiry.reply ?? '');
-    }
-  };
-
-  const handleReply = async (id: number) => {
-    if (!replyText.trim()) return;
-    setReplying(true);
-    try {
-      const res = await inquiryService.adminReply(id, replyText.trim());
-      if (res.data.success && res.data.data) {
-        setInquiries((prev) =>
-          prev.map((q) => (q.id === id ? res.data.data! : q))
-        );
-        setExpandedId(null);
-        setReplyText('');
-      }
-    } finally {
-      setReplying(false);
-    }
-  };
-
-  const handleToggleHold = async (id: number) => {
+  const handleToggleHold = async (e: React.MouseEvent, id: number) => {
+    e.preventDefault();
     setHolding(id);
     try {
       const res = await inquiryService.adminToggleHold(id);
       if (res.data.success && res.data.data) {
-        setInquiries((prev) =>
-          prev.map((q) => (q.id === id ? res.data.data! : q))
-        );
+        setInquiries((prev) => prev.map((q) => (q.id === id ? res.data.data! : q)));
       }
     } finally {
       setHolding(null);
@@ -133,120 +101,62 @@ export default function AdminInquiriesPage() {
                 <th className="px-4 py-3 text-left font-medium text-gray-500 w-24 whitespace-nowrap">작성자</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500 w-24 whitespace-nowrap">상태</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500 w-28 whitespace-nowrap">등록일</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-32 whitespace-nowrap">관리</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 w-24 whitespace-nowrap">관리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {inquiries.map((inquiry, idx) => (
-                <>
-                  <tr
-                    key={inquiry.id}
-                    className={['hover:bg-gray-50 transition-colors cursor-pointer', expandedId === inquiry.id ? 'bg-indigo-50' : ''].join(' ')}
-                    onClick={() => toggleExpand(inquiry)}
-                  >
-                    <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
-                      {page * pageSize + idx + 1}
-                    </td>
-                    <td className="px-4 py-3 font-medium text-gray-900 max-w-xs">
-                      <p className="truncate">{inquiry.title}</p>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                      {INQUIRY_TYPE_LABEL[inquiry.inquiryType]}
-                    </td>
-                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                      {inquiry.userName}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={['inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', STATUS_COLOR[inquiry.status]].join(' ')}>
-                        {INQUIRY_STATUS_LABEL[inquiry.status]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
-                      {inquiry.createdAt?.slice(0, 10)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex gap-1.5">
-                        {inquiry.status !== 'ANSWERED' && (
-                          <button
-                            onClick={() => handleToggleHold(inquiry.id)}
-                            disabled={holding === inquiry.id}
-                            className={[
-                              'px-2.5 py-1 rounded-md text-xs font-medium transition-colors disabled:opacity-50',
-                              inquiry.status === 'ON_HOLD'
-                                ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
-                            ].join(' ')}
-                          >
-                            {inquiry.status === 'ON_HOLD' ? '대기로' : '보류'}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-
-                  {/* Expanded row */}
-                  {expandedId === inquiry.id && (
-                    <tr key={`${inquiry.id}-detail`}>
-                      <td colSpan={7} className="px-6 py-5 bg-indigo-50 border-b border-indigo-100">
-                        <div className="space-y-4 max-w-3xl">
-                          {/* Content */}
-                          <div>
-                            <p className="text-xs font-semibold text-gray-500 mb-1">문의 내용</p>
-                            <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed bg-white rounded-lg border border-gray-200 px-4 py-3">
-                              {inquiry.content}
-                            </p>
-                          </div>
-
-                          {/* Images */}
-                          {inquiry.imageUrls?.length > 0 && (
-                            <div>
-                              <p className="text-xs font-semibold text-gray-500 mb-2">첨부 이미지</p>
-                              <div className="flex flex-wrap gap-2">
-                                {inquiry.imageUrls.map((url, i) => (
-                                  <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={url} alt="" className="w-20 h-20 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition-opacity" />
-                                  </a>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Existing reply */}
-                          {inquiry.status === 'ANSWERED' && inquiry.reply && (
-                            <div className="bg-green-50 border border-green-100 rounded-lg px-4 py-3">
-                              <p className="text-xs font-semibold text-green-700 mb-1">기존 답변</p>
-                              <p className="text-sm text-green-900 whitespace-pre-wrap">{inquiry.reply}</p>
-                            </div>
-                          )}
-
-                          {/* Reply form */}
-                          {inquiry.status !== 'ANSWERED' && (
-                            <div>
-                              <p className="text-xs font-semibold text-gray-500 mb-1">답변 작성</p>
-                              <textarea
-                                value={replyText}
-                                onChange={(e) => setReplyText(e.target.value)}
-                                rows={4}
-                                placeholder="답변을 입력하세요."
-                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y bg-white"
-                              />
-                              <div className="flex justify-end mt-2">
-                                <button
-                                  onClick={() => handleReply(inquiry.id)}
-                                  disabled={replying || !replyText.trim()}
-                                  className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-                                >
-                                  {replying ? '저장 중...' : '답변 등록'}
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </>
+                <tr key={inquiry.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
+                    {page * pageSize + idx + 1}
+                  </td>
+                  <td className="px-4 py-3 font-medium max-w-xs">
+                    <Link
+                      href={`/admin/inquiries/${inquiry.id}`}
+                      className="text-gray-900 hover:text-indigo-600 transition-colors truncate block"
+                    >
+                      {inquiry.title}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                    {INQUIRY_TYPE_LABEL[inquiry.inquiryType]}
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                    {inquiry.userName}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={['inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', STATUS_COLOR[inquiry.status]].join(' ')}>
+                      {INQUIRY_STATUS_LABEL[inquiry.status]}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
+                    {inquiry.createdAt?.slice(0, 10)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex gap-1.5">
+                      {inquiry.status !== 'ANSWERED' && (
+                        <button
+                          onClick={(e) => handleToggleHold(e, inquiry.id)}
+                          disabled={holding === inquiry.id}
+                          className={[
+                            'px-2.5 py-1 rounded-md text-xs font-medium transition-colors disabled:opacity-50',
+                            inquiry.status === 'ON_HOLD'
+                              ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                          ].join(' ')}
+                        >
+                          {inquiry.status === 'ON_HOLD' ? '대기로' : '보류'}
+                        </button>
+                      )}
+                      <Link
+                        href={`/admin/inquiries/${inquiry.id}`}
+                        className="px-2.5 py-1 rounded-md text-xs font-medium bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                      >
+                        상세
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
