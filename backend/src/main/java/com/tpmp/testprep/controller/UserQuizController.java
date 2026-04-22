@@ -24,7 +24,7 @@ public class UserQuizController {
     @GetMapping("/categories")
     public ResponseEntity<ApiResponse<List<DomainMasterResponse>>> getCategories() {
         List<String> quizMasterNames = List.of("문제 유형", "시험 유형");
-        List<DomainMasterResponse> masters = domainMasterRepository.findAll().stream()
+        List<DomainMasterResponse> masters = domainMasterRepository.findAllWithSlaves().stream()
                 .filter(m -> quizMasterNames.contains(m.getName()))
                 .map(DomainMasterResponse::from)
                 .toList();

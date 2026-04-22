@@ -1,3 +1,28 @@
+## HIST-20260422-007
+
+- **날짜**: 2026-04-22
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈
+- **수정 개요**: `/api/user/quiz/categories` 카테고리 없을 때 500 오류 수정 (LazyInitializationException)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../controller/UserQuizController.java` | 수정 | `findAll()` → `findAllWithSlaves()` 로 변경 |
+
+### 수정 상세
+
+#### `UserQuizController.java`
+- 변경 전: `domainMasterRepository.findAll().stream()`
+- 변경 후: `domainMasterRepository.findAllWithSlaves().stream()`
+- 이유: `findAll()`은 `slaves`를 지연 로딩(lazy)으로 가져오는데, 레포지토리 호출 후 JPA 세션이 닫혀 `getSlaves()` 호출 시 `LazyInitializationException` → 500 발생. 이미 존재하는 `findAllWithSlaves()`(LEFT JOIN FETCH)를 사용해 세션 내에서 슬레이브까지 한 번에 로드.
+
+### 복원 방법
+
+`UserQuizController.java` 의 `findAllWithSlaves()` 를 `findAll()` 로 되돌린다.
+
+---
+
 ## HIST-20260422-005
 
 - **날짜**: 2026-04-22
