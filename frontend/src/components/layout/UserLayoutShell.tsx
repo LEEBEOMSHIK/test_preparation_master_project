@@ -4,8 +4,18 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeStore } from '@/store/themeStore';
 
 const NAV_ITEMS = [
+  {
+    label: '시험 정보',
+    href: '/user/exam-info',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
   {
     label: '시험',
     href: '/user/exams',
@@ -53,6 +63,35 @@ const NAV_ITEMS = [
   },
 ];
 
+function ThemeToggle() {
+  const { theme, toggleTheme } = useThemeStore();
+  const isDark =
+    theme === 'dark' ||
+    (theme === 'system' &&
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  return (
+    <button
+      onClick={toggleTheme}
+      title={isDark ? '라이트 모드로 전환' : '다크 모드로 전환'}
+      className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
+    >
+      {isDark ? (
+        /* Sun */
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+        </svg>
+      ) : (
+        /* Moon */
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 export default function UserLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -69,9 +108,9 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
     : 'U';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
       {/* ── Top Header ── */}
-      <header className="fixed top-0 inset-x-0 z-40 h-14 bg-white border-b border-gray-200 shadow-sm">
+      <header className="fixed top-0 inset-x-0 z-40 h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="max-w-5xl mx-auto h-full flex items-center justify-between px-4 sm:px-6">
           {/* Logo */}
           <Link href="/user/exams" className="text-lg font-bold text-indigo-600 tracking-tight shrink-0">
@@ -89,11 +128,11 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
                   className={[
                     'flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
                     isActive
-                      ? 'bg-indigo-50 text-indigo-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+                      ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800',
                   ].join(' ')}
                 >
-                  <span className={isActive ? 'text-indigo-600' : 'text-gray-400'}>
+                  <span className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500'}>
                     {item.icon}
                   </span>
                   {item.label}
@@ -102,45 +141,50 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
             })}
           </nav>
 
-          {/* User dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setDropdownOpen((v) => !v)}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <div className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold">
-                {initials}
-              </div>
-              <span className="hidden sm:block text-sm font-medium text-gray-700">
-                {user?.name ?? '사용자'}
-              </span>
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-gray-400">
-                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </button>
+          {/* Right side: theme toggle + user dropdown */}
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
 
-            {dropdownOpen && (
-              <>
-                {/* Backdrop */}
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setDropdownOpen(false)}
-                />
-                {/* Dropdown menu */}
-                <div className="absolute right-0 mt-1 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-20">
-                  <div className="px-4 py-2 border-b border-gray-100">
-                    <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                    <p className="text-xs text-gray-400 truncate">{user?.email}</p>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    로그아웃
-                  </button>
+            {/* User dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setDropdownOpen((v) => !v)}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                <div className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold">
+                  {initials}
                 </div>
-              </>
-            )}
+                <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-200">
+                  {user?.name ?? '사용자'}
+                </span>
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-gray-400 dark:text-gray-500">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              {dropdownOpen && (
+                <>
+                  {/* Backdrop */}
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setDropdownOpen(false)}
+                  />
+                  {/* Dropdown menu */}
+                  <div className="absolute right-0 mt-1 w-44 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 py-1 z-20">
+                    <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user?.name}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{user?.email}</p>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                    >
+                      로그아웃
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -153,7 +197,7 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
       </main>
 
       {/* ── Mobile bottom tab bar ── */}
-      <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 h-16 bg-white border-t border-gray-200 flex items-center">
+      <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 h-16 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex items-center">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
@@ -162,13 +206,13 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
               href={item.href}
               className={[
                 'flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
-                isActive ? 'text-indigo-600' : 'text-gray-400 hover:text-gray-600',
+                isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300',
               ].join(' ')}
             >
               {item.icon}
               {item.label}
               {isActive && (
-                <span className="absolute top-0 w-8 h-0.5 bg-indigo-600 rounded-b-full" />
+                <span className="absolute top-0 w-8 h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-b-full" />
               )}
             </Link>
           );

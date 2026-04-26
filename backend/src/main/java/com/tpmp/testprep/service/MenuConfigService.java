@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -72,6 +73,50 @@ public class MenuConfigService {
     @Transactional
     public void delete(Long id) {
         menuConfigRepository.delete(findMenu(id));
+    }
+
+    /** 특정 권한 코드가 allowedRoles에 포함된 메뉴 ID 목록을 반환 */
+    public List<Long> getMenuIdsByPermissionCode(String code) {
+        return menuConfigRepository.findAll().stream()
+                .filter(m -> containsRole(m.getAllowedRoles(), code))
+                .map(MenuConfig::getId)
+                .toList();
+    }
+
+    /** 특정 권한 코드의 메뉴 접근 권한을 menuIds 목록으로 일괄 교체 */
+    @Transactional
+    public void updatePermissionMenus(String permCode, List<Long> menuIds) {
+        List<MenuConfig> all = menuConfigRepository.findAll();
+        for (MenuConfig menu : all) {
+            boolean shouldHave = menuIds != null && menuIds.contains(menu.getId());
+            boolean hasNow = containsRole(menu.getAllowedRoles(), permCode);
+            if (shouldHave == hasNow) continue;
+
+            String updated = shouldHave
+                    ? addRole(menu.getAllowedRoles(), permCode)
+                    : removeRole(menu.getAllowedRoles(), permCode);
+            menu.update(menu.getParentId(), menu.getName(), menu.getUrl(),
+                    menu.getIconKey(), menu.getDisplayOrder(), menu.isActive(), updated);
+        }
+    }
+
+    private boolean containsRole(String allowedRoles, String code) {
+        if (allowedRoles == null || allowedRoles.isBlank()) return false;
+        return Arrays.stream(allowedRoles.split(","))
+                .map(String::trim).anyMatch(code::equals);
+    }
+
+    private String addRole(String allowedRoles, String code) {
+        if (allowedRoles == null || allowedRoles.isBlank()) return code;
+        return allowedRoles + "," + code;
+    }
+
+    private String removeRole(String allowedRoles, String code) {
+        if (allowedRoles == null) return null;
+        String result = Arrays.stream(allowedRoles.split(","))
+                .map(String::trim).filter(r -> !r.equals(code))
+                .collect(Collectors.joining(","));
+        return result.isBlank() ? "" : result;
     }
 
     private MenuConfig findMenu(Long id) {

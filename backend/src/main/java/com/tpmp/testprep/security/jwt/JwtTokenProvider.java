@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -28,22 +29,23 @@ public class JwtTokenProvider {
         this.refreshTokenExpiry = refreshTokenExpiry;
     }
 
-    public String createAccessToken(String email, String role) {
-        return buildToken(email, role, accessTokenExpiry);
+    public String createAccessToken(String email, String role, List<String> permissions) {
+        return buildToken(email, role, permissions, accessTokenExpiry);
     }
 
     public String createRefreshToken(String email) {
-        return buildToken(email, null, refreshTokenExpiry);
+        return buildToken(email, null, null, refreshTokenExpiry);
     }
 
-    private String buildToken(String subject, String role, long expiry) {
+    private String buildToken(String subject, String role, List<String> permissions, long expiry) {
         var builder = Jwts.builder()
                 .subject(subject)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiry))
                 .signWith(key);
-        if (role != null) {
-            builder.claim("role", role);
+        if (role != null) builder.claim("role", role);
+        if (permissions != null && !permissions.isEmpty()) {
+            builder.claim("permissions", String.join(",", permissions));
         }
         return builder.compact();
     }
@@ -54,6 +56,10 @@ public class JwtTokenProvider {
 
     public String getRole(String token) {
         return parseClaims(token).get("role", String.class);
+    }
+
+    public String getPermissions(String token) {
+        return parseClaims(token).get("permissions", String.class);
     }
 
     public boolean validate(String token) {

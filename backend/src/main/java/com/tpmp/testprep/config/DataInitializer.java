@@ -44,6 +44,8 @@ public class DataInitializer implements ApplicationRunner {
                 new String[]{"SQLD", "정보처리기사 실기", "정보처리기사 필기", "리눅스마스터 1급"});
         ensurePermissionMasters();
         ensureDefaultMenus();
+        ensureAdminUsersMenu();
+        ensureExamInfoMenus();
     }
 
     private void fixAnswerNullable() {
@@ -127,17 +129,22 @@ public class DataInitializer implements ApplicationRunner {
 
     @Transactional
     public void ensurePermissionMasters() {
-        ensurePermissionMaster("USER", "사용자", "일반 사용자 권한");
-        ensurePermissionMaster("ADMIN", "관리자", "전체 관리자 권한");
+        ensurePermissionMaster("USER",  "사용자", "일반 사용자 권한",  PermissionMaster.PermissionScope.USER);
+        ensurePermissionMaster("ADMIN", "관리자", "전체 관리자 권한", PermissionMaster.PermissionScope.ADMIN);
+        // JPA self-invocation 우회: JdbcTemplate으로 scope를 직접 동기화
+        jdbcTemplate.update("UPDATE permission_master SET scope = 'USER'  WHERE code = 'USER'");
+        jdbcTemplate.update("UPDATE permission_master SET scope = 'ADMIN' WHERE code = 'ADMIN'");
+        log.info("[DataInitializer] 권한 마스터 scope 동기화 완료");
     }
 
-    private void ensurePermissionMaster(String code, String name, String description) {
+    private void ensurePermissionMaster(String code, String name, String description,
+                                        PermissionMaster.PermissionScope scope) {
         if (permissionMasterRepository.existsByCode(code)) {
-            log.debug("[DataInitializer] 권한 마스터 '{}' 이미 존재 — 건너뜀", code);
+            log.debug("[DataInitializer] 권한 마스터 '{}' 이미 존재", code);
             return;
         }
         permissionMasterRepository.save(PermissionMaster.builder()
-                .code(code).name(name).description(description).build());
+                .code(code).name(name).description(description).scope(scope).build());
         log.info("[DataInitializer] 권한 마스터 '{}' 생성 완료", code);
     }
 
@@ -182,6 +189,24 @@ public class DataInitializer implements ApplicationRunner {
         saveMenu(null, "1:1 문의",    "/user/inquiries", "inquiry", 5, MenuConfig.MenuType.USER, "USER,ADMIN");
 
         log.info("[DataInitializer] 기본 메뉴 데이터 생성 완료");
+    }
+
+    private void ensureAdminUsersMenu() {
+        if (!menuConfigRepository.existsByUrl("/admin/users")) {
+            saveMenu(null, "계정 관리", "/admin/users", "users", 9, MenuConfig.MenuType.ADMIN, "ADMIN");
+            log.info("[DataInitializer] 계정 관리 메뉴 추가 완료");
+        }
+    }
+
+    private void ensureExamInfoMenus() {
+        if (!menuConfigRepository.existsByUrl("/admin/exam-info")) {
+            saveMenu(null, "시험 정보 관리", "/admin/exam-info", "examinfo", 10, MenuConfig.MenuType.ADMIN, "ADMIN");
+            log.info("[DataInitializer] 시험 정보 관리 메뉴 추가 완료");
+        }
+        if (!menuConfigRepository.existsByUrl("/user/exam-info")) {
+            saveMenu(null, "시험 정보", "/user/exam-info", "examinfo", 0, MenuConfig.MenuType.USER, "USER,ADMIN");
+            log.info("[DataInitializer] 시험 정보 사용자 메뉴 추가 완료");
+        }
     }
 
     private void saveMenu(Long parentId, String name, String url, String iconKey,

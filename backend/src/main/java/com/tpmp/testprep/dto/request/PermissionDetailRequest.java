@@ -7,5 +7,6 @@ import jakarta.validation.constraints.Size;
 public record PermissionDetailRequest(
         @NotNull Long masterId,
         @NotBlank @Size(max = 100) String name,
-        String description
+        String description,
+        @Size(max = 100) String code
 ) {}

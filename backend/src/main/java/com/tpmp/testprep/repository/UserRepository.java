@@ -3,9 +3,13 @@ package com.tpmp.testprep.repository;
 import com.tpmp.testprep.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
+    long countByRole(User.Role role);
+    List<User> findAllByOrderByCreatedAtDesc();
+    List<User> findAllByRoleOrderByCreatedAtDesc(User.Role role);
 }

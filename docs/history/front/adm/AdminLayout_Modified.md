@@ -1,3 +1,67 @@
+## HIST-20260427-002
+
+- **날짜**: 2026-04-27
+- **수정 범위**: 관리자 프론트엔드 / 다크 모드 — 레이아웃 + 인프라
+- **수정 개요**: 시스템 전체 다크 모드 지원 추가 — Tailwind class 전략, Zustand 테마 스토어, 안티-FOUC 스크립트, 글로벌 CSS 오버라이드, AdminLayoutShell ThemeToggle 버튼
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/tailwind.config.ts` | 수정 | `darkMode: 'class'` 추가 |
+| `frontend/src/store/themeStore.ts` | 추가 | Zustand persist 테마 스토어 (`light`/`dark`/`system`, localStorage `tpmp-theme`) |
+| `frontend/src/components/ThemeProvider.tsx` | 추가 | `document.documentElement`에 `dark` 클래스 적용·제거 + 시스템 preference 감지 |
+| `frontend/src/app/layout.tsx` | 수정 | 안티-FOUC 인라인 스크립트 추가, `ThemeProvider` 래핑, `suppressHydrationWarning` |
+| `frontend/src/app/globals.css` | 수정 | `.dark .{tailwind-class}` 글로벌 오버라이드 추가 (surfaces·text·borders·shadows·forms·scrollbar) |
+| `frontend/src/components/layout/AdminLayoutShell.tsx` | 수정 | `ThemeToggle` 컴포넌트 추가, 모든 UI 요소에 `dark:` 접두사 variant 적용 |
+
+### 수정 상세
+
+#### `frontend/tailwind.config.ts`
+- 변경 전: `darkMode` 설정 없음 (기본 media 전략)
+- 변경 후: `darkMode: 'class'` — `<html class="dark">` 기반 전환
+- 이유: JS로 동적 토글·저장 가능한 class 전략 채택
+
+#### `frontend/src/store/themeStore.ts`
+- 변경 전: 파일 없음
+- 변경 후: 신규 생성. `theme: 'system'|'light'|'dark'`, `toggleTheme()` (system→현재OS값 반전), Zustand persist (`tpmp-theme` 키)
+
+#### `frontend/src/components/ThemeProvider.tsx`
+- 변경 전: 파일 없음
+- 변경 후: 신규 생성. `useThemeStore` 구독 → `dark`/`light` 시 직접 클래스 조작, `system` 시 `matchMedia` 이벤트 리스너 등록
+
+#### `frontend/src/app/layout.tsx`
+- 변경 전: `<html lang="ko"><body>{children}</body></html>`
+- 변경 후: `<html suppressHydrationWarning>` + `<head>`에 안티-FOUC 스크립트 + `<ThemeProvider>` 래핑
+- 이유: React 하이드레이션 전 FOUC(잘못된 테마 깜빡임) 방지
+
+#### `frontend/src/app/globals.css`
+- 변경 전: Tailwind 기본 + 루트 색상 변수만 존재
+- 변경 후: `.dark .{class}` 오버라이드 100+ 규칙 추가
+  - Surfaces: `bg-white→#1f2937`, `bg-gray-50→#111827` 등
+  - Text: gray-900~400 → 밝은 등가값
+  - Borders, shadows, hover states, form controls, scrollbar
+
+#### `frontend/src/components/layout/AdminLayoutShell.tsx`
+- 변경 전: 라이트 전용 Tailwind 클래스
+- 변경 후:
+  - `ThemeToggle` 내부 컴포넌트 추가 (sun/moon SVG, `useThemeStore().toggleTheme()`)
+  - 사이드바: `dark:bg-gray-900 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800`
+  - 활성 메뉴: `dark:bg-indigo-900/40 dark:text-indigo-300`
+  - 헤더: `dark:bg-gray-900 dark:border-gray-700`
+  - 메인 래퍼: `dark:bg-gray-950`
+
+### 복원 방법
+
+이 ID(HIST-20260427-002)로 복원 시:
+- `tailwind.config.ts`에서 `darkMode: 'class'` 제거
+- `themeStore.ts`, `ThemeProvider.tsx` 삭제
+- `layout.tsx`를 안티-FOUC 스크립트 및 ThemeProvider 없는 이전 버전으로 되돌림
+- `globals.css`에서 `.dark` 오버라이드 블록 전체 제거
+- `AdminLayoutShell.tsx`에서 `ThemeToggle` 컴포넌트 및 모든 `dark:` variant 제거
+
+---
+
 ## HIST-20260419-007
 
 - **날짜**: 2026-04-19

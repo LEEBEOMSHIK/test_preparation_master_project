@@ -26,6 +26,10 @@ public class PermissionMaster {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "scope", length = 20)
+    private PermissionScope scope;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -39,14 +43,21 @@ public class PermissionMaster {
     }
 
     @Builder
-    public PermissionMaster(String code, String name, String description) {
+    public PermissionMaster(String code, String name, String description, PermissionScope scope) {
         this.code = code;
         this.name = name;
         this.description = description;
+        this.scope = scope != null ? scope : PermissionScope.ADMIN;
     }
 
     public void update(String name, String description) {
         if (name != null) this.name = name;
         if (description != null) this.description = description;
     }
+
+    public void updateScope(PermissionScope scope) {
+        if (scope != null) this.scope = scope;
+    }
+
+    public enum PermissionScope { USER, ADMIN }
 }

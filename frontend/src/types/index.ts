@@ -30,6 +30,38 @@ export interface User {
   email: string;
   name: string;
   role: Role;
+  isFirstLogin?: boolean;
+  interestedExamTypes?: string[];
+}
+
+// ──────────────────────────────────────────
+// ExamInfo
+// ──────────────────────────────────────────
+export const EXAM_TYPES = [
+  'IT 자격증',
+  '공무원',
+  '어학',
+  '금융/회계',
+  '의료/보건',
+  '법무/행정',
+  '공기업',
+  '수능/입시',
+] as const;
+export type ExamType = typeof EXAM_TYPES[number];
+
+export interface ExamInfo {
+  id: number;
+  examType: string;
+  title: string;
+  description?: string;
+  applicationPeriod?: string;
+  examSchedule?: string;
+  resultDate?: string;
+  officialUrl?: string;
+  isActive: boolean;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AuthTokens {
@@ -226,17 +258,24 @@ export interface PermissionDetail {
   masterName: string;
   name: string;
   description?: string;
+  code?: string;
+  allowedMenuIds: number[];
   createdAt: string;
   updatedAt: string;
 }
+
+export type PermissionScope = 'USER' | 'ADMIN';
 
 export interface PermissionMaster {
   id: number;
   code: string;
   name: string;
   description?: string;
+  scope: PermissionScope;
   createdAt: string;
   details: PermissionDetail[];
+  allowedMenuIds: number[];
+  userCount: number;
 }
 
 // ──────────────────────────────────────────

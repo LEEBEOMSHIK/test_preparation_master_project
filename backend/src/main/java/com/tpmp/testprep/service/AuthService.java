@@ -4,6 +4,7 @@ import com.tpmp.testprep.dto.request.LoginRequest;
 import com.tpmp.testprep.dto.request.SignupRequest;
 import com.tpmp.testprep.dto.response.LoginResponse;
 import com.tpmp.testprep.dto.response.UserResponse;
+import com.tpmp.testprep.entity.PermissionDetail;
 import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
@@ -16,6 +17,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -51,7 +54,11 @@ public class AuthService {
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        String accessToken = jwtTokenProvider.createAccessToken(user.getEmail(), user.getRole().name());
+        List<String> permCodes = user.getGrantedPermissions().stream()
+                .map(PermissionDetail::getCode)
+                .filter(c -> c != null && !c.isBlank())
+                .toList();
+        String accessToken = jwtTokenProvider.createAccessToken(user.getEmail(), user.getRole().name(), permCodes);
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getEmail());
 
         Cookie cookie = new Cookie("refresh_token", refreshToken);
@@ -70,7 +77,11 @@ public class AuthService {
         String email = jwtTokenProvider.getEmail(refreshToken);
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
-        String newAccessToken = jwtTokenProvider.createAccessToken(email, user.getRole().name());
+        List<String> permCodes = user.getGrantedPermissions().stream()
+                .map(PermissionDetail::getCode)
+                .filter(c -> c != null && !c.isBlank())
+                .toList();
+        String newAccessToken = jwtTokenProvider.createAccessToken(email, user.getRole().name(), permCodes);
         return new LoginResponse(newAccessToken, UserResponse.from(user));
     }
 

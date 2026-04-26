@@ -1,3 +1,56 @@
+## HIST-20260427-002
+
+- **날짜**: 2026-04-27
+- **수정 범위**: 사용자 프론트엔드 / 다크 모드 — 레이아웃·인증·온보딩
+- **수정 개요**: UserLayoutShell에 ThemeToggle 추가 및 dark: variant 전면 적용, 인증/온보딩 페이지 그라디언트 배경 다크 모드 대응
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | `ThemeToggle` 추가, 헤더·내비·드롭다운·바텀탭 `dark:` variant 적용 |
+| `frontend/src/app/auth/login/page.tsx` | 수정 | 그라디언트 배경에 `dark:from-gray-950 dark:to-gray-900` 추가 |
+| `frontend/src/app/auth/signup/page.tsx` | 수정 | 그라디언트 배경에 `dark:from-gray-950 dark:to-gray-900` 추가 |
+| `frontend/src/app/onboarding/page.tsx` | 수정 | 그라디언트 배경 및 시험 유형 버튼 카드 `dark:` variant 추가 |
+
+### 수정 상세
+
+#### `frontend/src/components/layout/UserLayoutShell.tsx`
+- 변경 전: `useThemeStore` import 없음, 라이트 전용 클래스
+- 변경 후:
+  - `ThemeToggle` 함수 컴포넌트 추가 (sun/moon SVG, `toggleTheme()`)
+  - 헤더: `dark:bg-gray-900 dark:border-gray-700`
+  - 내비 활성: `dark:bg-indigo-900/40 dark:text-indigo-300`
+  - 내비 비활성: `dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800`
+  - 드롭다운: `dark:bg-gray-800 dark:border-gray-700`
+  - 바텀탭: `dark:bg-gray-900 dark:border-gray-700`
+  - 루트 래퍼: `dark:bg-gray-950`
+
+#### `frontend/src/app/auth/login/page.tsx`
+- 변경 전: `bg-gradient-to-br from-indigo-50 to-white`
+- 변경 후: `bg-gradient-to-br from-indigo-50 to-white dark:from-gray-950 dark:to-gray-900`
+
+#### `frontend/src/app/auth/signup/page.tsx`
+- 변경 전: `bg-gradient-to-br from-indigo-50 to-white`
+- 변경 후: `bg-gradient-to-br from-indigo-50 to-white dark:from-gray-950 dark:to-gray-900`
+
+#### `frontend/src/app/onboarding/page.tsx`
+- 변경 전: `bg-gradient-to-br from-indigo-50 via-white to-purple-50`, 시험 유형 버튼 라이트 전용
+- 변경 후:
+  - 배경: `dark:from-gray-950 dark:via-gray-900 dark:to-gray-950` 추가
+  - 선택된 버튼: `dark:bg-indigo-900/40 dark:text-indigo-200 dark:border-indigo-400`
+  - 미선택 버튼: `dark:border-gray-700 dark:hover:border-gray-600 dark:text-gray-300`
+
+### 복원 방법
+
+이 ID(HIST-20260427-002)로 복원 시:
+- `UserLayoutShell.tsx`에서 `useThemeStore` import, `ThemeToggle` 컴포넌트, 모든 `dark:` variant 제거
+- `login/page.tsx`: `dark:from-gray-950 dark:to-gray-900` 제거
+- `signup/page.tsx`: 동일
+- `onboarding/page.tsx`: 배경 dark: variant 및 버튼 dark: variant 제거
+
+---
+
 ## HIST-20260422-004
 
 - **날짜**: 2026-04-22

@@ -23,7 +23,13 @@ export default function LoginPage() {
       const res = await authService.login(email, password);
       const { user, accessToken } = res.data.data!;
       setAuth(user, accessToken);
-      router.push(user.role === 'ADMIN' ? '/admin/exams' : '/user/exams');
+      if (user.role === 'ADMIN') {
+        router.push('/admin/exams');
+      } else if (user.isFirstLogin) {
+        router.push('/onboarding');
+      } else {
+        router.push('/user/exam-info');
+      }
     } catch {
       setError('이메일 또는 비밀번호가 올바르지 않습니다.');
     } finally {
@@ -32,7 +38,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white dark:from-gray-950 dark:to-gray-900 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">

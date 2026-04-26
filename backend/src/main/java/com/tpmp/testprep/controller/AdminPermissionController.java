@@ -50,6 +50,30 @@ public class AdminPermissionController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    @GetMapping("/masters/{id}/menus")
+    public ResponseEntity<ApiResponse<List<Long>>> getMenuIds(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(permissionService.getMenuIds(id)));
+    }
+
+    @PutMapping("/masters/{id}/menus")
+    public ResponseEntity<ApiResponse<Void>> updateMenuAccess(
+            @PathVariable Long id, @RequestBody List<Long> menuIds) {
+        permissionService.updateMenuAccess(id, menuIds);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @GetMapping("/details/{id}/menus")
+    public ResponseEntity<ApiResponse<List<Long>>> getDetailMenuIds(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(permissionService.getDetailMenuIds(id)));
+    }
+
+    @PutMapping("/details/{id}/menus")
+    public ResponseEntity<ApiResponse<Void>> updateDetailMenuAccess(
+            @PathVariable Long id, @RequestBody List<Long> menuIds) {
+        permissionService.updateDetailMenuAccess(id, menuIds);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
     @PostMapping("/details")
     public ResponseEntity<ApiResponse<PermissionDetailResponse>> createDetail(
             @Valid @RequestBody PermissionDetailRequest request) {
