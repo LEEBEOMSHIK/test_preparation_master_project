@@ -1,11 +1,7 @@
 package com.tpmp.testprep.config;
 
-import com.tpmp.testprep.entity.DomainMaster;
-import com.tpmp.testprep.entity.DomainSlave;
-import com.tpmp.testprep.entity.User;
-import com.tpmp.testprep.repository.DomainMasterRepository;
-import com.tpmp.testprep.repository.DomainSlaveRepository;
-import com.tpmp.testprep.repository.UserRepository;
+import com.tpmp.testprep.entity.*;
+import com.tpmp.testprep.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -33,6 +29,8 @@ public class DataInitializer implements ApplicationRunner {
     private final JdbcTemplate jdbcTemplate;
     private final DomainMasterRepository domainMasterRepository;
     private final DomainSlaveRepository domainSlaveRepository;
+    private final PermissionMasterRepository permissionMasterRepository;
+    private final MenuConfigRepository menuConfigRepository;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -44,9 +42,10 @@ public class DataInitializer implements ApplicationRunner {
                 new String[]{"운영체제", "SQL", "프로그래밍 언어", "네트워크", "정보보안"});
         ensureDomainMaster("시험 유형",
                 new String[]{"SQLD", "정보처리기사 실기", "정보처리기사 필기", "리눅스마스터 1급"});
+        ensurePermissionMasters();
+        ensureDefaultMenus();
     }
 
-    /** questions.answer NOT NULL 제약 해제 */
     private void fixAnswerNullable() {
         try {
             jdbcTemplate.execute("ALTER TABLE questions ALTER COLUMN answer DROP NOT NULL");
@@ -56,10 +55,6 @@ public class DataInitializer implements ApplicationRunner {
         }
     }
 
-    /**
-     * question_type CHECK 제약 재생성 — CODE 포함.
-     * Hibernate ddl-auto:update 는 기존 제약을 수정하지 않으므로 수동 처리.
-     */
     private void fixQuestionTypeConstraints() {
         String[] tables = {"questions", "question_bank"};
         for (String table : tables) {
@@ -112,10 +107,6 @@ public class DataInitializer implements ApplicationRunner {
         log.info("[DataInitializer] 테스트 사용자 계정 준비 완료 — {}", TEST_USER_EMAIL);
     }
 
-    /**
-     * 도메인 마스터/슬레이브 데이터 보장 (중복 생성 방지).
-     * 이름으로 마스터를 검색해 없을 때만 생성한다.
-     */
     @Transactional
     public void ensureDomainMaster(String masterName, String[] slaveNames) {
         if (domainMasterRepository.findByName(masterName).isPresent()) {
@@ -132,5 +123,78 @@ public class DataInitializer implements ApplicationRunner {
                     .build());
         }
         log.info("[DataInitializer] 도메인 '{}' 생성 완료 — 슬레이브 {}개", masterName, slaveNames.length);
+    }
+
+    @Transactional
+    public void ensurePermissionMasters() {
+        ensurePermissionMaster("USER", "사용자", "일반 사용자 권한");
+        ensurePermissionMaster("ADMIN", "관리자", "전체 관리자 권한");
+    }
+
+    private void ensurePermissionMaster(String code, String name, String description) {
+        if (permissionMasterRepository.existsByCode(code)) {
+            log.debug("[DataInitializer] 권한 마스터 '{}' 이미 존재 — 건너뜀", code);
+            return;
+        }
+        permissionMasterRepository.save(PermissionMaster.builder()
+                .code(code).name(name).description(description).build());
+        log.info("[DataInitializer] 권한 마스터 '{}' 생성 완료", code);
+    }
+
+    @Transactional
+    public void ensureDefaultMenus() {
+        if (menuConfigRepository.count() > 0) {
+            log.debug("[DataInitializer] 메뉴 데이터 이미 존재 — 건너뜀");
+            return;
+        }
+
+        // ── Admin menus ──
+        saveMenu(null, "시험 관리",     "/admin/exams",              "exam",       1,  MenuConfig.MenuType.ADMIN, "ADMIN");
+        saveMenu(null, "개념노트 관리", "/admin/concepts",           "concept",    2,  MenuConfig.MenuType.ADMIN, "ADMIN");
+        saveMenu(null, "1:1 문의 관리", "/admin/inquiries",          "inquiry",    3,  MenuConfig.MenuType.ADMIN, "ADMIN");
+        saveMenu(null, "FAQ 관리",      "/admin/faq",                "faq",        4,  MenuConfig.MenuType.ADMIN, "ADMIN");
+        saveMenu(null, "명언 관리",     "/admin/quotes",             "quote",      5,  MenuConfig.MenuType.ADMIN, "ADMIN");
+        saveMenu(null, "테이블 관리",   "/admin/tables",             "table",      6,  MenuConfig.MenuType.ADMIN, "ADMIN");
+        saveMenu(null, "권한 관리",     "/admin/permissions",        "permission", 7,  MenuConfig.MenuType.ADMIN, "ADMIN");
+        saveMenu(null, "메뉴 관리",     "/admin/menus",              "menu",       8,  MenuConfig.MenuType.ADMIN, "ADMIN");
+
+        // Admin sub-menus (parentId resolved by URL lookup would be complex; use display_order logic)
+        // We insert top-levels first, then sub-menus with parentId from DB
+        Long examParentId   = menuConfigRepository.findByMenuTypeOrderByDisplayOrderAsc(MenuConfig.MenuType.ADMIN)
+                .stream().filter(m -> "/admin/exams".equals(m.getUrl())).findFirst().map(MenuConfig::getId).orElse(null);
+        Long tableParentId  = menuConfigRepository.findByMenuTypeOrderByDisplayOrderAsc(MenuConfig.MenuType.ADMIN)
+                .stream().filter(m -> "/admin/tables".equals(m.getUrl())).findFirst().map(MenuConfig::getId).orElse(null);
+
+        if (examParentId != null) {
+            saveMenu(examParentId,  "문항 관리",   "/admin/exams/questions", null, 1, MenuConfig.MenuType.ADMIN, "ADMIN");
+            saveMenu(examParentId,  "시험지 관리", "/admin/exams/papers",    null, 2, MenuConfig.MenuType.ADMIN, "ADMIN");
+        }
+        if (tableParentId != null) {
+            saveMenu(tableParentId, "DB 조회",     "/admin/tables/data",     null, 1, MenuConfig.MenuType.ADMIN, "ADMIN");
+            saveMenu(tableParentId, "도메인 관리", "/admin/tables/domains",  null, 2, MenuConfig.MenuType.ADMIN, "ADMIN");
+        }
+
+        // ── User menus ──
+        saveMenu(null, "시험",        "/user/exams",     "exam",    1, MenuConfig.MenuType.USER, "USER,ADMIN");
+        saveMenu(null, "데일리 퀴즈", "/user/quiz",      "quiz",    2, MenuConfig.MenuType.USER, "USER,ADMIN");
+        saveMenu(null, "개념노트",    "/user/concepts",  "concept", 3, MenuConfig.MenuType.USER, "USER,ADMIN");
+        saveMenu(null, "FAQ",         "/user/faq",       "faq",     4, MenuConfig.MenuType.USER, "USER,ADMIN");
+        saveMenu(null, "1:1 문의",    "/user/inquiries", "inquiry", 5, MenuConfig.MenuType.USER, "USER,ADMIN");
+
+        log.info("[DataInitializer] 기본 메뉴 데이터 생성 완료");
+    }
+
+    private void saveMenu(Long parentId, String name, String url, String iconKey,
+                          int order, MenuConfig.MenuType type, String allowedRoles) {
+        menuConfigRepository.save(MenuConfig.builder()
+                .parentId(parentId)
+                .name(name)
+                .url(url)
+                .iconKey(iconKey)
+                .displayOrder(order)
+                .menuType(type)
+                .isActive(true)
+                .allowedRoles(allowedRoles)
+                .build());
     }
 }

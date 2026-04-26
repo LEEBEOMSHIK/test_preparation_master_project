@@ -9,6 +9,11 @@ import { INQUIRY_TYPE_LABEL } from '@/types';
 
 const INQUIRY_TYPES: InquiryType[] = ['EXAM', 'CONCEPT_NOTE', 'DAILY_QUIZ', 'OTHER'];
 
+interface UploadedImage {
+  id: number;
+  url: string;
+}
+
 export default function NewInquiryPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -16,7 +21,7 @@ export default function NewInquiryPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [inquiryType, setInquiryType] = useState<InquiryType>('OTHER');
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -24,7 +29,7 @@ export default function NewInquiryPage() {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (imageUrls.length >= 3) {
+    if (uploadedImages.length >= 3) {
       setError('이미지는 최대 3개까지 첨부할 수 있습니다.');
       return;
     }
@@ -32,8 +37,8 @@ export default function NewInquiryPage() {
     setError('');
     try {
       const res = await inquiryService.uploadImage(file);
-      if (res.data.success && res.data.data?.url) {
-        setImageUrls((prev) => [...prev, res.data.data!.url]);
+      if (res.data.success && res.data.data) {
+        setUploadedImages((prev) => [...prev, { id: res.data.data!.id, url: res.data.data!.url }]);
       }
     } catch {
       setError('이미지 업로드에 실패했습니다.');
@@ -44,7 +49,7 @@ export default function NewInquiryPage() {
   };
 
   const removeImage = (idx: number) => {
-    setImageUrls((prev) => prev.filter((_, i) => i !== idx));
+    setUploadedImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleSubmit = async () => {
@@ -53,7 +58,12 @@ export default function NewInquiryPage() {
     setError('');
     setSubmitting(true);
     try {
-      await inquiryService.create({ title: title.trim(), content: content.trim(), inquiryType, imageUrls });
+      await inquiryService.create({
+        title: title.trim(),
+        content: content.trim(),
+        inquiryType,
+        attachmentIds: uploadedImages.map((img) => img.id),
+      });
       router.push('/user/inquiries');
     } catch {
       setError('문의 등록에 실패했습니다. 다시 시도해 주세요.');
@@ -130,10 +140,10 @@ export default function NewInquiryPage() {
             이미지 첨부 <span className="text-gray-400 font-normal">(최대 3개)</span>
           </label>
           <div className="flex flex-wrap gap-3">
-            {imageUrls.map((url, idx) => (
-              <div key={idx} className="relative w-20 h-20 rounded-lg border border-gray-200 overflow-hidden group">
+            {uploadedImages.map((img, idx) => (
+              <div key={img.id} className="relative w-20 h-20 rounded-lg border border-gray-200 overflow-hidden group">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt={`첨부 이미지 ${idx + 1}`} className="w-full h-full object-cover" />
+                <img src={img.url} alt={`첨부 이미지 ${idx + 1}`} className="w-full h-full object-cover" />
                 <button
                   onClick={() => removeImage(idx)}
                   className="absolute inset-0 bg-black/50 text-white text-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -142,7 +152,7 @@ export default function NewInquiryPage() {
                 </button>
               </div>
             ))}
-            {imageUrls.length < 3 && (
+            {uploadedImages.length < 3 && (
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}

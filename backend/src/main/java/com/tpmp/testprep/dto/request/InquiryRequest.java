@@ -11,5 +11,5 @@ public record InquiryRequest(
         @NotBlank @Size(max = 200) String title,
         @NotBlank String content,
         @NotNull Inquiry.InquiryType inquiryType,
-        @Size(max = 3) List<String> imageUrls
+        @Size(max = 3) List<Long> attachmentIds
 ) {}

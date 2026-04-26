@@ -3,6 +3,7 @@ package com.tpmp.testprep.service;
 import com.tpmp.testprep.dto.request.QuestionBankBulkRequest;
 import com.tpmp.testprep.dto.request.QuestionBankRequest;
 import com.tpmp.testprep.dto.response.QuestionBankResponse;
+import com.tpmp.testprep.entity.Attachment;
 import com.tpmp.testprep.entity.DomainSlave;
 import com.tpmp.testprep.entity.QuestionBank;
 import com.tpmp.testprep.entity.User;
@@ -12,19 +13,13 @@ import com.tpmp.testprep.repository.DomainSlaveRepository;
 import com.tpmp.testprep.repository.QuestionBankRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -34,12 +29,7 @@ public class QuestionBankService {
     private final QuestionBankRepository questionBankRepository;
     private final UserRepository userRepository;
     private final DomainSlaveRepository domainSlaveRepository;
-
-    @Value("${app.upload.path:./uploads}")
-    private String uploadPath;
-
-    private static final List<String> ALLOWED_IMAGE_MIME =
-            List.of("image/jpeg", "image/png", "image/gif", "image/webp");
+    private final AttachmentService attachmentService;
 
     /** 삭제되지 않은 문항 목록 조회 (페이징) */
     public Page<QuestionBankResponse> getQuestions(Pageable pageable) {
@@ -114,27 +104,11 @@ public class QuestionBankService {
         qb.softDelete(adminId);
     }
 
-    /** 문항 이미지 업로드 — /uploads/images/{uuid}.ext 로 저장, URL 반환 */
+    /** 문항 이미지 업로드 — 첨부파일 테이블에 기록 후 URL 반환 */
+    @Transactional
     public String uploadImage(MultipartFile image) {
-        if (image.isEmpty()) throw new BusinessException(ErrorCode.INVALID_INPUT);
-        String mime = image.getContentType();
-        if (mime == null || !ALLOWED_IMAGE_MIME.contains(mime))
-            throw new BusinessException(ErrorCode.UNSUPPORTED_FILE_TYPE);
-
-        String origName = image.getOriginalFilename();
-        String ext = (origName != null && origName.contains("."))
-                ? origName.substring(origName.lastIndexOf('.') + 1).toLowerCase()
-                : "jpg";
-
-        String filename = UUID.randomUUID() + "." + ext;
-        Path dest = Paths.get(uploadPath, "images", filename);
-        try {
-            Files.createDirectories(dest.getParent());
-            image.transferTo(dest);
-        } catch (IOException e) {
-            throw new BusinessException(ErrorCode.FILE_PARSE_FAILED);
-        }
-        return "/uploads/images/" + filename;
+        Attachment attachment = attachmentService.saveImage(image, Attachment.RefType.QUESTION_BANK);
+        return attachment.getFileUrl();
     }
 
     // ── private helpers ────────────────────────────────────────────────────────

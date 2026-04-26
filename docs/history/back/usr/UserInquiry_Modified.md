@@ -1,3 +1,171 @@
+## HIST-20260426-008
+
+- **날짜**: 2026-04-26
+- **수정 범위**: 사용자 백엔드 / 1:1 문의
+- **수정 개요**: 이미지 URL 직접 처리 → 첨부파일 테이블(attachments) 연동으로 전환 — InquiryRequest.imageUrls → attachmentIds, InquiryService.uploadImage() → AttachmentService 위임, Controller 응답 `{url}` → `{id, url}`
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `dto/request/InquiryRequest.java` | 수정 | `imageUrls: List<String>` → `attachmentIds: List<Long>` |
+| `dto/response/InquiryResponse.java` | 수정 | `fromWithUrls()` 정적 팩토리 추가, `from()`이 내부 위임하도록 변경 |
+| `service/InquiryService.java` | 수정 | `AttachmentService` 주입, `uploadImage()` 반환 타입 `UploadResult` 레코드로 변경, `create()` attachmentIds 처리, `toResponse()` 첨부파일 테이블 우선 조회 |
+| `controller/UserInquiryController.java` | 수정 | `uploadImage` 반환 타입 `Map<String,String>` → `Map<String,Object>`, 응답 `{url}` → `{id, url}` |
+
+### 수정 상세
+
+#### `dto/request/InquiryRequest.java`
+- **변경 전**:
+  ```java
+  public record InquiryRequest(
+          @NotBlank @Size(max = 200) String title,
+          @NotBlank String content,
+          @NotNull Inquiry.InquiryType inquiryType,
+          @Size(max = 3) List<String> imageUrls
+  ) {}
+  ```
+- **변경 후**:
+  ```java
+  public record InquiryRequest(
+          @NotBlank @Size(max = 200) String title,
+          @NotBlank String content,
+          @NotNull Inquiry.InquiryType inquiryType,
+          @Size(max = 3) List<Long> attachmentIds
+  ) {}
+  ```
+- **이유**: 프론트엔드가 업로드 직후 받은 attachment ID를 전송, 서버는 ID로 첨부파일 테이블에서 조회·연결
+
+#### `dto/response/InquiryResponse.java`
+- **변경 전**: `from(Inquiry)` 단일 팩토리만 존재
+  ```java
+  public static InquiryResponse from(Inquiry inquiry) {
+      List<String> urls = (inquiry.getImageUrls() != null && !inquiry.getImageUrls().isBlank())
+              ? Arrays.stream(inquiry.getImageUrls().split(","))
+                      .map(String::trim).filter(s -> !s.isEmpty()).toList()
+              : Collections.emptyList();
+      return new InquiryResponse(
+              inquiry.getId(), inquiry.getTitle(), inquiry.getContent(),
+              inquiry.getStatus().name(), inquiry.getInquiryType().name(), urls,
+              inquiry.getReply(), inquiry.getRepliedAt(), inquiry.getCreatedAt(),
+              inquiry.getUser().getId(), inquiry.getUser().getName());
+  }
+  ```
+- **변경 후**: `fromWithUrls()` 정적 팩토리 추가, `from()`은 내부적으로 `fromWithUrls()` 호출
+  ```java
+  public static InquiryResponse from(Inquiry inquiry) {
+      List<String> urls = (inquiry.getImageUrls() != null && !inquiry.getImageUrls().isBlank())
+              ? Arrays.stream(inquiry.getImageUrls().split(","))
+                      .map(String::trim).filter(s -> !s.isEmpty()).toList()
+              : Collections.emptyList();
+      return fromWithUrls(inquiry, urls);
+  }
+
+  public static InquiryResponse fromWithUrls(Inquiry inquiry, List<String> imageUrls) {
+      return new InquiryResponse(
+              inquiry.getId(), inquiry.getTitle(), inquiry.getContent(),
+              inquiry.getStatus().name(), inquiry.getInquiryType().name(), imageUrls,
+              inquiry.getReply(), inquiry.getRepliedAt(), inquiry.getCreatedAt(),
+              inquiry.getUser().getId(), inquiry.getUser().getName());
+  }
+  ```
+- **이유**: InquiryService.toResponse()에서 외부에서 구성한 imageUrls를 주입할 수 있도록 팩토리 분리
+
+#### `service/InquiryService.java`
+- **변경 전**:
+  - `@Value("${app.upload.path}") private String uploadPath` 필드 존재
+  - `ALLOWED_IMAGE_MIME` Set 상수 존재
+  - `create()`: `request.imageUrls()`를 comma-join하여 `Inquiry.imageUrls` TEXT 필드에 저장
+  - `uploadImage()`: 직접 파일 IO (UUID 파일명, `/uploads/images/` 저장, URL 반환)
+  - `toResponse()`: `InquiryResponse.from(inquiry)` 단순 호출 (legacy TEXT 파싱)
+  ```java
+  public String uploadImage(MultipartFile image) {
+      if (image.isEmpty()) throw new BusinessException(ErrorCode.INVALID_INPUT);
+      String mime = image.getContentType();
+      if (mime == null || !ALLOWED_IMAGE_MIME.contains(mime))
+          throw new BusinessException(ErrorCode.UNSUPPORTED_FILE_TYPE);
+      String origName = image.getOriginalFilename();
+      String ext = (origName != null && origName.contains("."))
+              ? origName.substring(origName.lastIndexOf('.') + 1).toLowerCase() : "jpg";
+      String filename = UUID.randomUUID() + "." + ext;
+      Path dest = Paths.get(uploadPath, "images", filename);
+      try {
+          Files.createDirectories(dest.getParent());
+          image.transferTo(dest);
+      } catch (IOException e) {
+          throw new BusinessException(ErrorCode.FILE_PARSE_FAILED);
+      }
+      return "/uploads/images/" + filename;
+  }
+  ```
+- **변경 후**:
+  - `attachmentService` 의존성 주입 (`final AttachmentService attachmentService`)
+  - `@Value`, `ALLOWED_IMAGE_MIME` 제거
+  - `create()`: `attachmentIds`로 첨부파일 조회 → URL comma-join → `Inquiry.imageUrls` TEXT 저장 후, `linkAttachments()`로 attachments.refId 업데이트
+  - `UploadResult(Long id, String url)` 내부 레코드 정의
+  - `uploadImage()`: AttachmentService에 위임, `UploadResult` 반환
+  - `toResponse()`: 첨부파일 테이블 우선 조회, 없으면 legacy TEXT 폴백
+  ```java
+  public record UploadResult(Long id, String url) {}
+
+  @Transactional
+  public UploadResult uploadImage(MultipartFile image) {
+      Attachment attachment = attachmentService.saveImage(image, Attachment.RefType.INQUIRY);
+      return new UploadResult(attachment.getId(), attachment.getFileUrl());
+  }
+
+  private InquiryResponse toResponse(Inquiry inquiry) {
+      List<Attachment> attachments = attachmentService.findByRef(Attachment.RefType.INQUIRY, inquiry.getId());
+      List<String> imageUrls;
+      if (!attachments.isEmpty()) {
+          imageUrls = attachments.stream().map(Attachment::getFileUrl).toList();
+      } else if (inquiry.getImageUrls() != null && !inquiry.getImageUrls().isBlank()) {
+          imageUrls = Arrays.stream(inquiry.getImageUrls().split(","))
+                  .map(String::trim).filter(s -> !s.isEmpty()).toList();
+      } else {
+          imageUrls = List.of();
+      }
+      return InquiryResponse.fromWithUrls(inquiry, imageUrls);
+  }
+  ```
+
+#### `controller/UserInquiryController.java`
+- **변경 전**:
+  ```java
+  @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ResponseEntity<ApiResponse<Map<String, String>>> uploadImage(
+          @RequestPart("image") MultipartFile image) {
+      String url = inquiryService.uploadImage(image);
+      return ResponseEntity.ok(ApiResponse.success(Map.of("url", url)));
+  }
+  ```
+- **변경 후**:
+  ```java
+  @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ResponseEntity<ApiResponse<Map<String, Object>>> uploadImage(
+          @RequestPart("image") MultipartFile image) {
+      InquiryService.UploadResult result = inquiryService.uploadImage(image);
+      return ResponseEntity.ok(ApiResponse.success(Map.of("id", result.id(), "url", result.url())));
+  }
+  ```
+- **이유**: 프론트엔드가 attachment ID를 저장해 두었다가 문의 등록 시 `attachmentIds`로 전송하기 위해 `id` 필드 추가
+
+### 복원 방법
+
+HIST-20260426-008 복원 시:
+- `InquiryRequest.java`: `attachmentIds: List<Long>` → `imageUrls: List<String>` 복원
+- `InquiryResponse.java`: `fromWithUrls()` 메서드 제거, `from()` 단독 팩토리로 복원 (URL 파싱 로직 `from()` 내부에 포함)
+- `InquiryService.java`:
+  - `attachmentService` 의존성 제거
+  - `@Value("${app.upload.path}") private String uploadPath` + `ALLOWED_IMAGE_MIME` 상수 복원
+  - `UploadResult` 레코드 제거
+  - `uploadImage()` 직접 파일 IO 구현으로 복원 (위의 "변경 전" 코드)
+  - `create()`: `request.attachmentIds()` → `request.imageUrls()` comma-join으로 복원
+  - `toResponse()`: `InquiryResponse.from(inquiry)` 단순 호출로 복원
+- `UserInquiryController.java`: `uploadImage()` 반환 타입 `Map<String,String>`, 응답 `Map.of("url", url)` 복원
+
+---
+
 ## HIST-20260422-006
 
 - **날짜**: 2026-04-22

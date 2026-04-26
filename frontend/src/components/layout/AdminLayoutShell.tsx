@@ -1,95 +1,92 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { menuService } from '@/services/menuService';
+import type { MenuConfig } from '@/types';
 
-interface SubNavItem {
-  label: string;
-  href: string;
-}
+const ICON_MAP: Record<string, React.ReactNode> = {
+  exam: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    </svg>
+  ),
+  concept: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+    </svg>
+  ),
+  inquiry: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+    </svg>
+  ),
+  faq: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  quote: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+    </svg>
+  ),
+  table: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18M3 6h18M3 18h18" />
+    </svg>
+  ),
+  permission: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+    </svg>
+  ),
+  menu: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  ),
+  quiz: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+    </svg>
+  ),
+};
 
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ReactNode;
-  children?: SubNavItem[];
-}
+const DEFAULT_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+  </svg>
+);
 
-const NAV_ITEMS: NavItem[] = [
-  {
-    label: '시험 관리',
-    href: '/admin/exams',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
-    ),
-    children: [
-      { label: '문항 관리', href: '/admin/exams/questions' },
-      { label: '시험지 관리', href: '/admin/exams/papers' },
-    ],
-  },
-  {
-    label: '개념노트 관리',
-    href: '/admin/concepts',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-      </svg>
-    ),
-  },
-  {
-    label: '1:1 문의 관리',
-    href: '/admin/inquiries',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'FAQ 관리',
-    href: '/admin/faq',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  },
-  {
-    label: '명언 관리',
-    href: '/admin/quotes',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-      </svg>
-    ),
-  },
-  {
-    label: '테이블 관리',
-    href: '/admin/tables',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18M3 6h18M3 18h18" />
-      </svg>
-    ),
-    children: [
-      { label: 'DB 조회', href: '/admin/tables/data' },
-      { label: '도메인 관리', href: '/admin/tables/domains' },
-    ],
-  },
+// Fallback static nav used when API is unavailable
+const FALLBACK_NAV: MenuConfig[] = [
+  { id: 1,  parentId: undefined, name: '시험 관리',     url: '/admin/exams',        iconKey: 'exam',       displayOrder: 1, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [
+    { id: 11, parentId: 1, name: '문항 관리',   url: '/admin/exams/questions', iconKey: undefined, displayOrder: 1, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+    { id: 12, parentId: 1, name: '시험지 관리', url: '/admin/exams/papers',    iconKey: undefined, displayOrder: 2, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  ]},
+  { id: 2, parentId: undefined, name: '개념노트 관리', url: '/admin/concepts',    iconKey: 'concept',    displayOrder: 2, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  { id: 3, parentId: undefined, name: '1:1 문의 관리', url: '/admin/inquiries',   iconKey: 'inquiry',    displayOrder: 3, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  { id: 4, parentId: undefined, name: 'FAQ 관리',      url: '/admin/faq',         iconKey: 'faq',        displayOrder: 4, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  { id: 5, parentId: undefined, name: '명언 관리',     url: '/admin/quotes',      iconKey: 'quote',      displayOrder: 5, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  { id: 6, parentId: undefined, name: '테이블 관리',   url: '/admin/tables',      iconKey: 'table',      displayOrder: 6, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [
+    { id: 61, parentId: 6, name: 'DB 조회',     url: '/admin/tables/data',    iconKey: undefined, displayOrder: 1, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+    { id: 62, parentId: 6, name: '도메인 관리', url: '/admin/tables/domains', iconKey: undefined, displayOrder: 2, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  ]},
+  { id: 7, parentId: undefined, name: '권한 관리',     url: '/admin/permissions', iconKey: 'permission', displayOrder: 7, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  { id: 8, parentId: undefined, name: '메뉴 관리',     url: '/admin/menus',       iconKey: 'menu',       displayOrder: 8, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
 ];
 
-function getPageTitle(pathname: string): string {
-  for (const item of NAV_ITEMS) {
+function getPageTitle(pathname: string, navItems: MenuConfig[]): string {
+  for (const item of navItems) {
     if (item.children) {
       for (const child of item.children) {
-        if (pathname.startsWith(child.href)) return child.label;
+        if (pathname.startsWith(child.url)) return child.name;
       }
     }
-    if (pathname.startsWith(item.href)) return item.label;
+    if (pathname.startsWith(item.url)) return item.name;
   }
   return '대시보드';
 }
@@ -98,13 +95,24 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
   const pathname = usePathname();
   const router = useRouter();
   const { user, clearAuth } = useAuthStore();
+  const [navItems, setNavItems] = useState<MenuConfig[]>(FALLBACK_NAV);
 
-  // 토큰 없으면 로그인 페이지로 이동
   useEffect(() => {
     const token = sessionStorage.getItem('accessToken');
     if (!token) {
       router.replace('/auth/login');
+      return;
     }
+    // Fetch dynamic menus from API
+    menuService.adminGetAll('ADMIN')
+      .then((res) => {
+        if (res.data.success && res.data.data && res.data.data.length > 0) {
+          setNavItems(res.data.data);
+        }
+      })
+      .catch(() => {
+        // Keep fallback nav on error
+      });
   }, [router]);
 
   const handleLogout = () => {
@@ -130,15 +138,15 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
             메뉴
           </p>
           <ul className="space-y-0.5">
-            {NAV_ITEMS.map((item) => {
-              const isParentActive = pathname.startsWith(item.href);
+            {navItems.map((item) => {
+              const isParentActive = pathname.startsWith(item.url);
               const hasChildren = item.children && item.children.length > 0;
+              const icon = item.iconKey ? (ICON_MAP[item.iconKey] ?? DEFAULT_ICON) : DEFAULT_ICON;
 
               return (
-                <li key={item.href}>
-                  {/* Parent item */}
+                <li key={item.id}>
                   <Link
-                    href={item.href}
+                    href={item.url}
                     className={[
                       'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                       isParentActive
@@ -147,9 +155,9 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
                     ].join(' ')}
                   >
                     <span className={isParentActive ? 'text-indigo-600' : 'text-gray-400'}>
-                      {item.icon}
+                      {icon}
                     </span>
-                    {item.label}
+                    {item.name}
                     {isParentActive && !hasChildren && (
                       <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600" />
                     )}
@@ -169,15 +177,14 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
                     )}
                   </Link>
 
-                  {/* Sub-menu */}
                   {hasChildren && isParentActive && (
                     <ul className="mt-0.5 ml-4 pl-3 border-l border-gray-200 space-y-0.5">
                       {item.children!.map((child) => {
-                        const isChildActive = pathname.startsWith(child.href);
+                        const isChildActive = pathname.startsWith(child.url);
                         return (
-                          <li key={child.href}>
+                          <li key={child.id}>
                             <Link
-                              href={child.href}
+                              href={child.url}
                               className={[
                                 'flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
                                 isChildActive
@@ -189,7 +196,7 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
                                 'w-1.5 h-1.5 rounded-full shrink-0',
                                 isChildActive ? 'bg-indigo-500' : 'bg-gray-300',
                               ].join(' ')} />
-                              {child.label}
+                              {child.name}
                             </Link>
                           </li>
                         );
@@ -231,7 +238,7 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
         <header className="sticky top-0 z-30 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm">
           <div>
             <h1 className="text-base font-semibold text-gray-800">
-              {getPageTitle(pathname)}
+              {getPageTitle(pathname, navItems)}
             </h1>
             <p className="text-xs text-gray-400">TPMP 관리자 콘솔</p>
           </div>

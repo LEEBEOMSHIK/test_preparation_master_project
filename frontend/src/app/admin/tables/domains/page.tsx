@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { domainService } from '@/services/domainService';
 import type { DomainMaster, DomainSlave } from '@/types';
 
@@ -9,7 +9,11 @@ export default function AdminDomainsPage() {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
 
-  // 마스터 추가 폼
+  // 검색
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // 마스터 추가 폼 토글
+  const [showAddMaster,    setShowAddMaster]    = useState(false);
   const [newMasterName,    setNewMasterName]    = useState('');
   const [addingMaster,     setAddingMaster]     = useState(false);
 
@@ -37,6 +41,24 @@ export default function AdminDomainsPage() {
 
   useEffect(() => { loadDomains(); }, []);
 
+  // ── 검색 필터 ────────────────────────────────────────────────────────────────
+
+  const filteredMasters = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return masters;
+    return masters
+      .map((master) => {
+        const masterMatch = master.name.toLowerCase().includes(q);
+        const matchedSlaves = master.slaves.filter((s) =>
+          s.name.toLowerCase().includes(q)
+        );
+        if (masterMatch) return master;
+        if (matchedSlaves.length > 0) return { ...master, slaves: matchedSlaves };
+        return null;
+      })
+      .filter(Boolean) as DomainMaster[];
+  }, [masters, searchQuery]);
+
   // ── 마스터 CRUD ───────────────────────────────────────────────────────────────
 
   const handleAddMaster = async () => {
@@ -45,6 +67,7 @@ export default function AdminDomainsPage() {
     try {
       await domainService.createMaster(newMasterName.trim());
       setNewMasterName('');
+      setShowAddMaster(false);
       loadDomains();
     } catch {
       setError('마스터 추가에 실패했습니다.');
@@ -139,37 +162,80 @@ export default function AdminDomainsPage() {
         <p className="text-sm text-red-500 bg-red-50 rounded-lg px-4 py-2.5">{error}</p>
       )}
 
-      {/* ── 마스터 추가 ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <p className="text-sm font-semibold text-gray-700 mb-3">새 마스터 추가</p>
-        <div className="flex gap-2">
+      {/* ── 검색 + 추가 버튼 ── */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <svg viewBox="0 0 20 20" fill="currentColor" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400">
+            <path fillRule="evenodd" d="M12.9 14.32a8 8 0 111.414-1.414l4.387 4.386a1 1 0 01-1.414 1.415l-4.387-4.387zM8 14A6 6 0 108 2a6 6 0 000 12z" clipRule="evenodd" />
+          </svg>
           <input
             type="text"
-            value={newMasterName}
-            onChange={(e) => setNewMasterName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddMaster()}
-            placeholder="마스터 이름 (예: 자격증 유형)"
-            maxLength={100}
-            className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="마스터 이름 또는 서브도메인 이름으로 검색"
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           />
-          <button
-            type="button"
-            onClick={handleAddMaster}
-            disabled={addingMaster || !newMasterName.trim()}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
-          >
-            {addingMaster ? '추가 중...' : '추가'}
-          </button>
         </div>
+        <button
+          type="button"
+          onClick={() => { setShowAddMaster((v) => !v); setNewMasterName(''); }}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-1.5"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+          </svg>
+          도메인 추가
+        </button>
       </div>
 
+      {/* ── 마스터 추가 폼 (토글) ── */}
+      {showAddMaster && (
+        <div className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-5">
+          <p className="text-sm font-semibold text-gray-700 mb-3">새 마스터 추가</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newMasterName}
+              onChange={(e) => setNewMasterName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddMaster()}
+              placeholder="마스터 이름 (예: 자격증 유형)"
+              maxLength={100}
+              autoFocus
+              className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+            />
+            <button
+              type="button"
+              onClick={handleAddMaster}
+              disabled={addingMaster || !newMasterName.trim()}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+            >
+              {addingMaster ? '추가 중...' : '추가'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddMaster(false)}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── 검색 결과 없음 ── */}
+      {searchQuery && filteredMasters.length === 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400 text-sm">
+          &ldquo;{searchQuery}&rdquo; 검색 결과가 없습니다.
+        </div>
+      )}
+
       {/* ── 마스터 목록 ── */}
-      {masters.length === 0 ? (
+      {!searchQuery && filteredMasters.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center text-gray-400 text-sm">
           등록된 도메인이 없습니다.
         </div>
       ) : (
-        masters.map((master) => (
+        filteredMasters.map((master) => (
           <div key={master.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             {/* 마스터 헤더 */}
             <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50/50">

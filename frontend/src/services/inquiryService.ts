@@ -5,7 +5,12 @@ export interface InquiryRequest {
   title: string;
   content: string;
   inquiryType: InquiryType;
-  imageUrls: string[];
+  attachmentIds: number[];
+}
+
+export interface UploadImageResult {
+  id: number;
+  url: string;
 }
 
 export const inquiryService = {
@@ -27,7 +32,7 @@ export const inquiryService = {
   uploadImage: (file: File) => {
     const form = new FormData();
     form.append('image', file);
-    return apiClient.post<ApiResponse<{ url: string }>>('/user/inquiries/images', form, {
+    return apiClient.post<ApiResponse<UploadImageResult>>('/user/inquiries/images', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },

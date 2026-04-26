@@ -1,3 +1,131 @@
+## HIST-20260426-002
+
+- **날짜**: 2026-04-26
+- **수정 범위**: 사용자 프론트엔드 / 1:1 문의
+- **수정 개요**: 문의 이미지 업로드 응답을 `{id, url}` 구조로 변경 — 제출 시 imageUrls 대신 attachmentIds 전송, types/index.ts에 신규 타입 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/inquiryService.ts` | 수정 | `InquiryRequest.imageUrls` → `attachmentIds: number[]`, `UploadImageResult {id, url}` 인터페이스 추가, uploadImage 응답 타입 변경 |
+| `frontend/src/app/user/inquiries/new/page.tsx` | 수정 | `imageUrls: string[]` 상태 → `uploadedImages: {id, url}[]` 상태로 변경, 제출 시 attachmentIds 전송 |
+| `frontend/src/types/index.ts` | 수정 | Attachment, PermissionMaster, PermissionDetail, MenuConfig 타입 추가 |
+
+### 수정 상세
+
+#### `services/inquiryService.ts`
+- **변경 전**:
+  ```typescript
+  export interface InquiryRequest {
+    title: string;
+    content: string;
+    inquiryType: InquiryType;
+    imageUrls: string[];
+  }
+
+  // UploadImageResult 인터페이스 없음
+
+  uploadImage: (file: File) => {
+    const form = new FormData();
+    form.append('image', file);
+    return apiClient.post<ApiResponse<{ url: string }>>('/user/inquiries/images', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  ```
+- **변경 후**:
+  ```typescript
+  export interface InquiryRequest {
+    title: string;
+    content: string;
+    inquiryType: InquiryType;
+    attachmentIds: number[];
+  }
+
+  export interface UploadImageResult {
+    id: number;
+    url: string;
+  }
+
+  uploadImage: (file: File) => {
+    const form = new FormData();
+    form.append('image', file);
+    return apiClient.post<ApiResponse<UploadImageResult>>('/user/inquiries/images', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  ```
+- **이유**: 백엔드가 attachment ID를 반환하므로 프론트엔드도 ID를 보존해야 문의 등록 시 attachmentIds로 전송 가능
+
+#### `app/user/inquiries/new/page.tsx`
+- **변경 전**:
+  ```typescript
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+
+  // 업로드 핸들러 내부:
+  const url = res.data.data?.url;
+  if (url) setImageUrls((prev) => [...prev, url]);
+
+  // 제출 시:
+  await inquiryService.create({
+    title: title.trim(),
+    content: content.trim(),
+    inquiryType,
+    imageUrls,
+  });
+
+  // 이미지 미리보기:
+  {imageUrls.map((url, idx) => (
+    <div key={url} className="relative w-20 h-20 ...">
+      <img src={url} alt={`첨부 이미지 ${idx + 1}`} />
+      <button onClick={() => removeImage(idx)}>×</button>
+    </div>
+  ))}
+  ```
+- **변경 후**:
+  ```typescript
+  interface UploadedImage { id: number; url: string; }
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
+
+  // 업로드 핸들러 내부:
+  if (res.data.success && res.data.data) {
+    setUploadedImages((prev) => [...prev, { id: res.data.data!.id, url: res.data.data!.url }]);
+  }
+
+  // 제출 시:
+  await inquiryService.create({
+    title: title.trim(),
+    content: content.trim(),
+    inquiryType,
+    attachmentIds: uploadedImages.map((img) => img.id),
+  });
+
+  // 이미지 미리보기:
+  {uploadedImages.map((img, idx) => (
+    <div key={img.id} className="relative w-20 h-20 ...">
+      <img src={img.url} alt={`첨부 이미지 ${idx + 1}`} />
+      <button onClick={() => removeImage(idx)}>×</button>
+    </div>
+  ))}
+  ```
+- **이유**: 업로드 시 서버로부터 받은 attachment ID를 보존해야 문의 등록 시 첨부파일 테이블에 연결 가능
+
+### 복원 방법
+
+HIST-20260426-002 복원 시:
+- `inquiryService.ts`:
+  - `InquiryRequest.attachmentIds: number[]` → `imageUrls: string[]`
+  - `UploadImageResult` 인터페이스 삭제
+  - `uploadImage()` 반환 타입 `ApiResponse<{ url: string }>`로 복원
+- `new/page.tsx`:
+  - `uploadedImages: UploadedImage[]` 상태 → `imageUrls: string[]` 상태로 복원
+  - 업로드 핸들러: `res.data.data?.url` 저장으로 복원
+  - 제출: `imageUrls` 필드 전송으로 복원
+  - 미리보기: `key={url}` 기반 렌더링으로 복원
+
+---
+
 ## HIST-20260422-006
 
 - **날짜**: 2026-04-22

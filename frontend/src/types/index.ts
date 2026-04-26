@@ -203,6 +203,61 @@ export interface Inquiry {
 }
 
 // ──────────────────────────────────────────
+// Attachment
+// ──────────────────────────────────────────
+export interface Attachment {
+  id: number;
+  originalFilename: string;
+  fileUrl: string;
+  fileSize?: number;
+  mimeType?: string;
+  refType?: string;
+  refId?: number;
+  createdAt: string;
+}
+
+// ──────────────────────────────────────────
+// Permission
+// ──────────────────────────────────────────
+export interface PermissionDetail {
+  id: number;
+  masterId: number;
+  masterCode: string;
+  masterName: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PermissionMaster {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  details: PermissionDetail[];
+}
+
+// ──────────────────────────────────────────
+// MenuConfig
+// ──────────────────────────────────────────
+export interface MenuConfig {
+  id: number;
+  parentId?: number;
+  name: string;
+  url: string;
+  iconKey?: string;
+  displayOrder: number;
+  menuType: 'USER' | 'ADMIN';
+  isActive: boolean;
+  allowedRoles?: string;
+  createdAt: string;
+  updatedAt: string;
+  children: MenuConfig[];
+}
+
+// ──────────────────────────────────────────
 // FAQ
 // ──────────────────────────────────────────
 export interface Faq {

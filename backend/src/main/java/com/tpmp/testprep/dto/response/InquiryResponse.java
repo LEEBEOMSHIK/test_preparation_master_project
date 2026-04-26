@@ -27,13 +27,17 @@ public record InquiryResponse(
                         .filter(s -> !s.isEmpty())
                         .toList()
                 : Collections.emptyList();
+        return fromWithUrls(inquiry, urls);
+    }
+
+    public static InquiryResponse fromWithUrls(Inquiry inquiry, List<String> imageUrls) {
         return new InquiryResponse(
                 inquiry.getId(),
                 inquiry.getTitle(),
                 inquiry.getContent(),
                 inquiry.getStatus().name(),
                 inquiry.getInquiryType().name(),
-                urls,
+                imageUrls,
                 inquiry.getReply(),
                 inquiry.getRepliedAt(),
                 inquiry.getCreatedAt(),

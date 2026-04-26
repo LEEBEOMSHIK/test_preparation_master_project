@@ -59,9 +59,9 @@ public class UserInquiryController {
     }
 
     @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<Map<String, String>>> uploadImage(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> uploadImage(
             @RequestPart("image") MultipartFile image) {
-        String url = inquiryService.uploadImage(image);
-        return ResponseEntity.ok(ApiResponse.success(Map.of("url", url)));
+        InquiryService.UploadResult result = inquiryService.uploadImage(image);
+        return ResponseEntity.ok(ApiResponse.success(Map.of("id", result.id(), "url", result.url())));
     }
 }
