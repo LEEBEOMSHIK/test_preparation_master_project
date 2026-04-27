@@ -1,12 +1,19 @@
 import apiClient from './apiClient';
 import type { ApiResponse } from '@/types';
 
+export interface GrantedPermissionInfo {
+  id: number;
+  name: string;
+  code?: string;
+}
+
 export interface AdminUser {
   id: number;
   email: string;
   name: string;
   role: 'USER' | 'ADMIN';
   createdAt: string;
+  grantedPermissions: GrantedPermissionInfo[];
 }
 
 export interface UserUpdateRequest {

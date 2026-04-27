@@ -50,13 +50,14 @@ body {
 .dark .text-gray-700  { color: #e5e7eb; }
 .dark .text-gray-600  { color: #d1d5db; }
 .dark .text-gray-500  { color: #9ca3af; }
-.dark .text-gray-400  { color: #6b7280; }
+.dark .text-gray-400  { color: #9ca3af; }
 
 /* Tinted surfaces — indigo */
 .dark .bg-indigo-50   { background-color: rgb(49 46 129 / 0.25); }
 .dark .bg-indigo-100  { background-color: rgb(49 46 129 / 0.35); }
 
 /* Tinted surfaces — colors */
+.dark .bg-emerald-50  { background-color: rgb(6 78 59 / 0.25); }
 .dark .bg-emerald-100 { background-color: rgb(6 78 59 / 0.35); }
 .dark .bg-red-50      { background-color: rgb(69 10 10 / 0.35); }
 .dark .bg-red-100     { background-color: rgb(69 10 10 / 0.45); }
@@ -68,8 +69,10 @@ body {
 .dark .bg-pink-100    { background-color: rgb(131 24 67 / 0.35); }
 
 /* Tinted text — brighten for dark surfaces */
+.dark .text-indigo-600  { color: #818cf8; }
 .dark .text-indigo-700  { color: #a5b4fc; }
 .dark .text-indigo-800  { color: #c7d2fe; }
+.dark .text-indigo-500  { color: #a5b4fc; }
 .dark .text-emerald-700 { color: #34d399; }
 .dark .text-red-700     { color: #fca5a5; }
 .dark .text-red-500     { color: #f87171; }
@@ -123,7 +126,7 @@ body {
 
 .dark input::placeholder,
 .dark textarea::placeholder {
-  color: #6b7280;
+  color: #9ca3af;
 }
 
 .dark input:focus:not([type='checkbox']):not([type='radio']):not([type='submit']):not([type='button']),

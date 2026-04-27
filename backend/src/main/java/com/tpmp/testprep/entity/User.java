@@ -70,7 +70,8 @@ public class User {
     }
     public void updateInterests(String examTypes) { this.interestedExamTypes = examTypes; }
     public void setGrantedPermissions(Set<PermissionDetail> permissions) {
-        this.grantedPermissions = permissions != null ? permissions : new HashSet<>();
+        this.grantedPermissions.clear();
+        if (permissions != null) this.grantedPermissions.addAll(permissions);
     }
 
     public enum Role {

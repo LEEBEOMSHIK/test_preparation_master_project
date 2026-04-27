@@ -8,6 +8,12 @@ import { examInfoService } from '@/services/examInfoService';
 import { EXAM_TYPES } from '@/types';
 import type { ExamInfo } from '@/types';
 
+function fmtRange(val: string | undefined): string {
+  if (!val) return '';
+  const [start = '', end = ''] = val.split(' ~ ').map(s => s.trim().replace(/-/g, '.'));
+  return end ? `${start} ~ ${end}` : start;
+}
+
 const TYPE_COLOR: Record<string, string> = {
   'IT 자격증':  'bg-blue-100 text-blue-700',
   '공무원':     'bg-emerald-100 text-emerald-700',
@@ -169,13 +175,13 @@ export default function UserExamInfoPage() {
                 {item.applicationPeriod && (
                   <div className="bg-gray-50 rounded-xl p-3">
                     <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">접수 기간</p>
-                    <p className="text-sm text-gray-700">{item.applicationPeriod}</p>
+                    <p className="text-sm text-gray-700">{fmtRange(item.applicationPeriod)}</p>
                   </div>
                 )}
                 {item.examSchedule && (
                   <div className="bg-gray-50 rounded-xl p-3">
                     <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">시험 일정</p>
-                    <p className="text-sm text-gray-700">{item.examSchedule}</p>
+                    <p className="text-sm text-gray-700">{fmtRange(item.examSchedule)}</p>
                   </div>
                 )}
                 {item.resultDate && (

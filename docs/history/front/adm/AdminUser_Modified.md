@@ -1,3 +1,87 @@
+## HIST-20260428-011
+
+- **날짜**: 2026-04-28
+- **수정 범위**: 관리자 프론트엔드 / 전역 스타일
+- **수정 개요**: 다크 모드에서 `bg-emerald-50` 배경이 너무 밝게 보이는 문제 수정 — globals.css에 오버라이드 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/globals.css` | 수정 | `.dark .bg-emerald-50` 다크 모드 오버라이드 추가 |
+
+### 수정 상세
+
+#### `globals.css`
+- **변경 전**: `.dark .bg-emerald-50` 없음 → 원래 밝은 초록 그대로 표시
+- **변경 후**: `.dark .bg-emerald-50 { background-color: rgb(6 78 59 / 0.25); }` 추가
+- **이유**: 계정 목록의 USER 역할 세부 권한 칩(`bg-emerald-50`)이 다크 배경에서 너무 하얗게 보임; `bg-emerald-100`과 같은 색조(6 78 59)에 불투명도만 낮춰 적용
+
+### 복원 방법
+
+HIST-20260428-011 복원 시: `globals.css`에서 `.dark .bg-emerald-50` 줄 제거.
+
+---
+
+## HIST-20260428-010
+
+- **날짜**: 2026-04-28
+- **수정 범위**: 관리자 프론트엔드 / 계정 관리
+- **수정 개요**: 계정 목록 세부 권한 칩 색상을 역할(USER/ADMIN)별로 구분
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/users/page.tsx` | 수정 | `PERMISSION_CHIP_COLOR` 맵 추가, 권한 칩에 역할별 색상 적용 |
+
+### 수정 상세
+
+#### `admin/users/page.tsx`
+- **변경 전**: 모든 권한 칩 `bg-indigo-50 text-indigo-700` 고정
+- **변경 후**: `PERMISSION_CHIP_COLOR` 맵 추가
+  ```ts
+  USER:  'bg-emerald-50 text-emerald-700'
+  ADMIN: 'bg-indigo-50  text-indigo-700'
+  ```
+  역할 배지(`ROLE_COLOR`)와 같은 계열 색상으로 통일
+
+### 복원 방법
+
+HIST-20260428-010 복원 시: `PERMISSION_CHIP_COLOR` 상수 제거, 칩 className을 `bg-indigo-50 text-indigo-700` 고정으로 되돌림.
+
+---
+
+## HIST-20260428-006
+
+- **날짜**: 2026-04-28
+- **수정 범위**: 관리자 프론트엔드 / 계정 관리
+- **수정 개요**: 계정 목록에 세부 권한 컬럼 추가 — 사용자별 부여된 세부 권한을 칩으로 표시
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/adminUserService.ts` | 수정 | `GrantedPermissionInfo` 타입 추가, `AdminUser`에 `grantedPermissions` 필드 추가 |
+| `frontend/src/app/admin/users/page.tsx` | 수정 | "세부 권한" 컬럼 추가, 권한 이름 칩 렌더링 |
+
+### 수정 상세
+
+#### `adminUserService.ts`
+- **추가**: `GrantedPermissionInfo { id, name, code? }` 인터페이스
+- **변경**: `AdminUser`에 `grantedPermissions: GrantedPermissionInfo[]` 필드 추가
+
+#### `admin/users/page.tsx`
+- **변경**: 테이블 컬럼 수 6 → 7, "세부 권한" 컬럼 추가
+- **추가**: 권한이 있으면 `bg-indigo-50 text-indigo-700` 칩 렌더링, 없으면 "없음" 표시
+- 권한 칩에 `title={p.code}` 속성 추가 → 마우스 오버 시 코드 확인 가능
+
+### 복원 방법
+
+HIST-20260428-006 복원 시: `adminUserService.ts`에서 `GrantedPermissionInfo` 제거 및 `grantedPermissions` 필드 제거, `page.tsx`에서 세부 권한 컬럼 제거.
+
+---
+
 ## HIST-20260426-016
 
 - **날짜**: 2026-04-26

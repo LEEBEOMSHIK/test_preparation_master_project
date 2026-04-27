@@ -11,6 +11,10 @@ const ROLE_COLOR: Record<string, string> = {
   USER: 'bg-emerald-100 text-emerald-700',
   ADMIN: 'bg-indigo-100 text-indigo-700',
 };
+const PERMISSION_CHIP_COLOR: Record<string, string> = {
+  USER: 'bg-emerald-50 text-emerald-700',
+  ADMIN: 'bg-indigo-50 text-indigo-700',
+};
 
 export default function AdminUsersPage() {
   const router = useRouter();
@@ -75,6 +79,7 @@ export default function AdminUsersPage() {
               <th className="px-4 py-3 text-left font-medium text-gray-600">이름</th>
               <th className="px-4 py-3 text-left font-medium text-gray-600">이메일</th>
               <th className="px-4 py-3 text-center font-medium text-gray-600 w-24">역할</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600">세부 권한</th>
               <th className="px-4 py-3 text-center font-medium text-gray-600 w-32 whitespace-nowrap">가입일</th>
               <th className="px-4 py-3 text-center font-medium text-gray-600 w-20">상세</th>
             </tr>
@@ -82,12 +87,12 @@ export default function AdminUsersPage() {
           <tbody className="divide-y divide-gray-100">
             {loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-gray-400">불러오는 중...</td>
+                <td colSpan={7} className="px-4 py-10 text-center text-gray-400">불러오는 중...</td>
               </tr>
             )}
             {!loading && users.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-gray-400">계정이 없습니다.</td>
+                <td colSpan={7} className="px-4 py-10 text-center text-gray-400">계정이 없습니다.</td>
               </tr>
             )}
             {!loading && users.map((u, idx) => (
@@ -103,6 +108,23 @@ export default function AdminUsersPage() {
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLOR[u.role] ?? 'bg-gray-100 text-gray-600'}`}>
                     {ROLE_LABEL[u.role] ?? u.role}
                   </span>
+                </td>
+                <td className="px-4 py-3">
+                  {u.grantedPermissions?.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {u.grantedPermissions.map(p => (
+                        <span
+                          key={p.id}
+                          title={p.code ?? ''}
+                          className={`px-2 py-0.5 rounded text-xs font-medium ${PERMISSION_CHIP_COLOR[u.role] ?? 'bg-gray-100 text-gray-600'}`}
+                        >
+                          {p.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400">없음</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-center text-gray-500 whitespace-nowrap">{fmtDate(u.createdAt)}</td>
                 <td className="px-4 py-3 text-center">

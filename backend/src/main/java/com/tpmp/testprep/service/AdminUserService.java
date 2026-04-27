@@ -24,18 +24,23 @@ public class AdminUserService {
     private final PasswordEncoder passwordEncoder;
     private final PermissionDetailRepository permissionDetailRepository;
 
+    @Transactional(readOnly = true)
     public List<AdminUserResponse> getAll() {
-        return userRepository.findAllByOrderByCreatedAtDesc().stream()
+        return userRepository.findAllWithPermissionsOrderByCreatedAtDesc().stream()
                 .map(AdminUserResponse::from).toList();
     }
 
+    @Transactional(readOnly = true)
     public List<AdminUserResponse> getByRole(User.Role role) {
-        return userRepository.findAllByRoleOrderByCreatedAtDesc(role).stream()
+        return userRepository.findAllWithPermissionsByRoleOrderByCreatedAtDesc(role).stream()
                 .map(AdminUserResponse::from).toList();
     }
 
+    @Transactional(readOnly = true)
     public AdminUserResponse getOne(Long id) {
-        return AdminUserResponse.from(findOrThrow(id));
+        User user = userRepository.findByIdWithPermissions(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
+        return AdminUserResponse.from(user);
     }
 
     @Transactional
@@ -72,7 +77,7 @@ public class AdminUserService {
     }
 
     private User findOrThrow(Long id) {
-        return userRepository.findById(id)
+        return userRepository.findByIdWithPermissions(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
     }
 }

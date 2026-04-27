@@ -2,15 +2,17 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { examInfoService } from '@/services/examInfoService';
-import { EXAM_TYPES } from '@/types';
+import { domainService } from '@/services/domainService';
 import type { ExamInfo } from '@/types';
 
 const EMPTY_FORM = {
-  examType: EXAM_TYPES[0] as string,
+  examType: '',
   title: '',
   description: '',
-  applicationPeriod: '',
-  examSchedule: '',
+  applicationPeriodStart: '',
+  applicationPeriodEnd: '',
+  examScheduleStart: '',
+  examScheduleEnd: '',
   resultDate: '',
   officialUrl: '',
   isActive: true,
@@ -19,10 +21,53 @@ const EMPTY_FORM = {
 
 type FormState = typeof EMPTY_FORM;
 
+// ── 날짜 입력 범위 제한: 오늘 기준 ±10년 ──────────────────────────────────────
+const THIS_YEAR = new Date().getFullYear();
+const MIN_DATE  = `${THIS_YEAR - 10}-01-01`;
+const MAX_DATE  = `${THIS_YEAR + 10}-12-31`;
+
+/** YYYY-MM-DD 형식 + 연도가 ±10년 이내인지 정규식으로 검증 */
+const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+function isAllowedDate(val: string): boolean {
+  if (!val) return true;
+  const m = DATE_RE.exec(val);
+  if (!m) return false;
+  const yr = parseInt(m[1], 10);
+  return yr >= THIS_YEAR - 10 && yr <= THIS_YEAR + 10;
+}
+
+/** "YYYY-MM-DD ~ YYYY-MM-DD" 형식 파싱 */
+function parseRange(val: string | undefined): { start: string; end: string } {
+  if (!val) return { start: '', end: '' };
+  const [start = '', end = ''] = val.split(' ~ ');
+  return { start: start.trim(), end: end.trim() };
+}
+
+/** 시작/종료 날짜 → 저장용 문자열 */
+function buildRange(start: string, end: string): string {
+  if (!start && !end) return '';
+  if (start && end) return `${start} ~ ${end}`;
+  return start || end;
+}
+
+/** "YYYY-MM-DD" → "YYYY.MM.DD" 표시 변환 */
+function fmtDate(val: string): string {
+  return val.replace(/-/g, '.');
+}
+
+/** 범위 문자열을 사람이 읽기 좋은 형태로 변환 */
+function fmtRange(val: string | undefined): string {
+  if (!val) return '';
+  const { start, end } = parseRange(val);
+  if (start && end) return `${fmtDate(start)} ~ ${fmtDate(end)}`;
+  return fmtDate(start || end);
+}
+
 export default function AdminExamInfoPage() {
   const [items, setItems] = useState<ExamInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [examTypeOptions, setExamTypeOptions] = useState<string[]>([]);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -39,20 +84,38 @@ export default function AdminExamInfoPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    domainService.getDomains()
+      .then(res => {
+        const masters = res.data.data ?? [];
+        const examTypeMaster = masters.find(m => m.name === '시험 유형');
+        const names = examTypeMaster?.slaves?.map(s => s.name) ?? [];
+        setExamTypeOptions(names);
+        if (names.length > 0) {
+          setForm(prev => ({ ...prev, examType: prev.examType || names[0] }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const openCreate = () => {
     setEditingId(null);
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, examType: examTypeOptions[0] ?? '' });
     setShowForm(true);
   };
 
   const openEdit = (item: ExamInfo) => {
+    const appRange = parseRange(item.applicationPeriod);
+    const schRange = parseRange(item.examSchedule);
     setEditingId(item.id);
     setForm({
       examType: item.examType,
       title: item.title,
       description: item.description ?? '',
-      applicationPeriod: item.applicationPeriod ?? '',
-      examSchedule: item.examSchedule ?? '',
+      applicationPeriodStart: appRange.start,
+      applicationPeriodEnd: appRange.end,
+      examScheduleStart: schRange.start,
+      examScheduleEnd: schRange.end,
       resultDate: item.resultDate ?? '',
       officialUrl: item.officialUrl ?? '',
       isActive: item.isActive,
@@ -70,10 +133,21 @@ export default function AdminExamInfoPage() {
     setSaving(true);
     setError('');
     try {
+      const payload = {
+        examType: form.examType,
+        title: form.title,
+        description: form.description,
+        applicationPeriod: buildRange(form.applicationPeriodStart, form.applicationPeriodEnd),
+        examSchedule: buildRange(form.examScheduleStart, form.examScheduleEnd),
+        resultDate: form.resultDate,
+        officialUrl: form.officialUrl,
+        isActive: form.isActive,
+        displayOrder: form.displayOrder,
+      };
       if (editingId !== null) {
-        await examInfoService.adminUpdate(editingId, form);
+        await examInfoService.adminUpdate(editingId, payload);
       } else {
-        await examInfoService.adminCreate(form);
+        await examInfoService.adminCreate(payload);
       }
       setShowForm(false);
       load();
@@ -133,8 +207,10 @@ export default function AdminExamInfoPage() {
                 onChange={e => set('examType', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               >
-                {EXAM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                <option value="기타">기타</option>
+                {examTypeOptions.length === 0 && (
+                  <option value="">-- 도메인 로딩 중 --</option>
+                )}
+                {examTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
@@ -161,29 +237,65 @@ export default function AdminExamInfoPage() {
             />
           </div>
 
+          {/* 접수 기간 — 날짜 범위 */}
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">
+              접수 기간
+              <span className="ml-1 text-gray-400 font-normal">({THIS_YEAR - 10} ~ {THIS_YEAR + 10}년)</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                min={MIN_DATE}
+                max={MAX_DATE}
+                value={form.applicationPeriodStart}
+                onChange={e => { if (isAllowedDate(e.target.value)) set('applicationPeriodStart', e.target.value); }}
+                onBlur={e => { if (e.target.validity.badInput || !isAllowedDate(e.target.value)) set('applicationPeriodStart', ''); }}
+                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <span className="text-xs text-gray-400 shrink-0">~</span>
+              <input
+                type="date"
+                min={form.applicationPeriodStart || MIN_DATE}
+                max={MAX_DATE}
+                value={form.applicationPeriodEnd}
+                onChange={e => { if (isAllowedDate(e.target.value)) set('applicationPeriodEnd', e.target.value); }}
+                onBlur={e => { if (e.target.validity.badInput || !isAllowedDate(e.target.value)) set('applicationPeriodEnd', ''); }}
+                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          {/* 시험 일정 — 날짜 범위 */}
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">
+              시험 일정
+              <span className="ml-1 text-gray-400 font-normal">({THIS_YEAR - 10} ~ {THIS_YEAR + 10}년)</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                min={MIN_DATE}
+                max={MAX_DATE}
+                value={form.examScheduleStart}
+                onChange={e => { if (isAllowedDate(e.target.value)) set('examScheduleStart', e.target.value); }}
+                onBlur={e => { if (e.target.validity.badInput || !isAllowedDate(e.target.value)) set('examScheduleStart', ''); }}
+                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <span className="text-xs text-gray-400 shrink-0">~</span>
+              <input
+                type="date"
+                min={form.examScheduleStart || MIN_DATE}
+                max={MAX_DATE}
+                value={form.examScheduleEnd}
+                onChange={e => { if (isAllowedDate(e.target.value)) set('examScheduleEnd', e.target.value); }}
+                onBlur={e => { if (e.target.validity.badInput || !isAllowedDate(e.target.value)) set('examScheduleEnd', ''); }}
+                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
           <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">접수 기간</label>
-              <input
-                type="text"
-                value={form.applicationPeriod}
-                onChange={e => set('applicationPeriod', e.target.value)}
-                placeholder="예: 매년 1·3·5월"
-                maxLength={300}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">시험 일정</label>
-              <input
-                type="text"
-                value={form.examSchedule}
-                onChange={e => set('examSchedule', e.target.value)}
-                placeholder="예: 매년 2·4·6월"
-                maxLength={300}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">합격 발표</label>
               <input
@@ -195,9 +307,6 @@ export default function AdminExamInfoPage() {
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
               <label className="block text-xs text-gray-500 mb-1">공식 홈페이지 URL</label>
               <input
@@ -209,6 +318,9 @@ export default function AdminExamInfoPage() {
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">정렬 순서</label>
               <input
@@ -219,17 +331,18 @@ export default function AdminExamInfoPage() {
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="isActive"
-              checked={form.isActive}
-              onChange={e => set('isActive', e.target.checked)}
-              className="w-4 h-4 accent-indigo-600"
-            />
-            <label htmlFor="isActive" className="text-sm text-gray-600">활성화 (사용자에게 노출)</label>
+            <div className="col-span-2 flex items-end pb-1">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={form.isActive}
+                  onChange={e => set('isActive', e.target.checked)}
+                  className="w-4 h-4 accent-indigo-600"
+                />
+                <label htmlFor="isActive" className="text-sm text-gray-600">활성화 (사용자에게 노출)</label>
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-2 justify-end pt-2">
@@ -273,8 +386,12 @@ export default function AdminExamInfoPage() {
                     <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.description}</p>
                   )}
                   <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-400">
-                    {item.applicationPeriod && <span>접수: {item.applicationPeriod}</span>}
-                    {item.examSchedule && <span>일정: {item.examSchedule}</span>}
+                    {item.applicationPeriod && (
+                      <span>접수: {fmtRange(item.applicationPeriod)}</span>
+                    )}
+                    {item.examSchedule && (
+                      <span>일정: {fmtRange(item.examSchedule)}</span>
+                    )}
                     {item.resultDate && <span>발표: {item.resultDate}</span>}
                     {item.officialUrl && (
                       <a href={item.officialUrl} target="_blank" rel="noopener noreferrer"

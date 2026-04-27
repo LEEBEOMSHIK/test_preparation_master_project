@@ -1,3 +1,31 @@
+## HIST-20260428-002
+
+- **날짜**: 2026-04-28
+- **수정 범위**: 관리자/사용자 프론트엔드 / 다크 모드 색상
+- **수정 개요**: 다크 모드에서 가시성이 낮은 두 색상 수정 (#6b7280, text-indigo-600) + placeholder 색상 보정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/globals.css` | 수정 | `.dark .text-gray-400`, `.dark input::placeholder`, `.dark .text-indigo-600/500` 색상 조정 |
+
+### 수정 상세
+
+#### `frontend/src/app/globals.css`
+- **변경 전**: `.dark .text-gray-400 { color: #6b7280; }` → 다크 배경에서 대비 부족
+- **변경 후**: `.dark .text-gray-400 { color: #9ca3af; }` (gray-400 실제값으로 복원)
+- **변경 전**: placeholder `color: #6b7280` → 다크 입력창 배경(#374151)에서 너무 어두움
+- **변경 후**: placeholder `color: #9ca3af`
+- **추가**: `.dark .text-indigo-600 { color: #818cf8; }` — rgb(79 70 229) 계열이 다크 배경에서 비가시, indigo-400으로 밝힘
+- **추가**: `.dark .text-indigo-500 { color: #a5b4fc; }` — 동일 계열 보정
+
+### 복원 방법
+
+HIST-20260428-002 복원 시: `globals.css`에서 위 변경을 역으로 적용한다.
+
+---
+
 ## HIST-20260427-002
 
 - **날짜**: 2026-04-27

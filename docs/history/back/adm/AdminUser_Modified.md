@@ -1,3 +1,74 @@
+## HIST-20260428-008
+
+- **날짜**: 2026-04-28
+- **수정 범위**: 관리자 백엔드 / 계정 관리
+- **수정 개요**: 세부 권한 저장 후 목록에 "없음" 표시 버그 수정 — Hibernate PersistentSet 교체 문제 해결 + 읽기 트랜잭션 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../entity/User.java` | 수정 | `setGrantedPermissions()` 를 `clear()`+`addAll()` 방식으로 변경 |
+| `backend/.../service/AdminUserService.java` | 수정 | `getAll()`, `getByRole()`, `getOne()` 에 `@Transactional(readOnly = true)` 추가 |
+
+### 수정 상세
+
+#### `entity/User.java`
+- **변경 전**: `this.grantedPermissions = permissions != null ? permissions : new HashSet<>()`  
+  → 필드를 새 `HashSet`으로 교체하여 Hibernate `PersistentSet` 참조를 끊음
+- **변경 후**: `this.grantedPermissions.clear(); if (permissions != null) this.grantedPermissions.addAll(permissions);`  
+  → 기존 `PersistentSet`을 in-place 변경하여 Hibernate 6.x dirty-checking 정상 동작
+- **이유**: Hibernate 6.x에서 컬렉션 참조를 교체하면 join table flush가 누락됨
+
+#### `service/AdminUserService.java`
+- **변경 전**: `getAll()`, `getByRole()`, `getOne()` 에 트랜잭션 없음
+- **변경 후**: 세 메서드 모두 `@Transactional(readOnly = true)` 적용
+- **이유**: Hibernate 세션 유지로 `grantedPermissions` 지연 로딩 보장 (JOIN FETCH가 있어도 세션 범위 명시가 안전)
+
+### 복원 방법
+
+HIST-20260428-008 복원 시:
+- `User.java`: `setGrantedPermissions()` 를 필드 대입 방식으로 되돌림
+- `AdminUserService.java`: `getAll()`, `getByRole()`, `getOne()` 에서 `@Transactional(readOnly = true)` 제거
+
+---
+
+## HIST-20260428-007
+
+- **날짜**: 2026-04-28
+- **수정 범위**: 관리자 백엔드 / 계정 관리
+- **수정 개요**: 계정 목록/단건 API 응답에 세부 권한 목록 포함 — N+1 방지 JOIN FETCH 쿼리 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../repository/UserRepository.java` | 수정 | `grantedPermissions` JOIN FETCH 쿼리 3개 추가 |
+| `backend/.../dto/response/AdminUserResponse.java` | 수정 | `GrantedPermissionInfo` 중첩 레코드 추가, `grantedPermissions` 필드 추가 |
+| `backend/.../service/AdminUserService.java` | 수정 | `getAll()`, `getByRole()`, `getOne()`, `findOrThrow()` 를 새 쿼리 메서드로 교체 |
+
+### 수정 상세
+
+#### `UserRepository.java`
+- **추가**: `findAllWithPermissionsOrderByCreatedAtDesc()` — LEFT JOIN FETCH 전체 조회
+- **추가**: `findAllWithPermissionsByRoleOrderByCreatedAtDesc(role)` — 역할별 조회
+- **추가**: `findByIdWithPermissions(id)` — 단건 조회
+- 모두 `DISTINCT` 또는 단건으로 처리해 N+1 쿼리 방지
+
+#### `AdminUserResponse.java`
+- **추가**: `GrantedPermissionInfo(Long id, String name, String code)` 중첩 레코드
+- **추가**: `List<GrantedPermissionInfo> grantedPermissions` 필드
+- `from(User)` 팩토리 메서드에서 `getGrantedPermissions()` 스트림 → DTO 변환 (이름순 정렬)
+
+#### `AdminUserService.java`
+- `getAll()`, `getByRole()`, `getOne()`, `findOrThrow()` 모두 새 JOIN FETCH 메서드 사용
+
+### 복원 방법
+
+HIST-20260428-007 복원 시: 세 파일을 이전 상태로 되돌린다.
+
+---
+
 ## HIST-20260426-013
 
 - **날짜**: 2026-04-26
