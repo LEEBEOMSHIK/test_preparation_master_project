@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { inquiryService } from '@/services/inquiryService';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 import type { Inquiry, InquiryStatus } from '@/types';
 import { INQUIRY_STATUS_LABEL, INQUIRY_TYPE_LABEL } from '@/types';
 
@@ -102,7 +103,7 @@ export default function AdminInquiriesPage() {
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-sm text-gray-400">불러오는 중...</div>
+          <TableSkeleton rows={5} cols={5} />
         ) : inquiries.length === 0 ? (
           <div className="p-12 text-center text-sm text-gray-400">문의가 없습니다.</div>
         ) : (

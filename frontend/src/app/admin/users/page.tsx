@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { adminUserService, type AdminUser } from '@/services/adminUserService';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 
 type TabKey = 'ALL' | 'USER' | 'ADMIN';
 
@@ -72,6 +73,9 @@ export default function AdminUsersPage() {
 
       {/* 목록 */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {loading ? (
+          <TableSkeleton rows={5} cols={7} />
+        ) : (
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
@@ -85,17 +89,12 @@ export default function AdminUsersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {loading && (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-gray-400">불러오는 중...</td>
-              </tr>
-            )}
-            {!loading && users.length === 0 && (
+            {users.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-gray-400">계정이 없습니다.</td>
               </tr>
             )}
-            {!loading && users.map((u, idx) => (
+            {users.map((u, idx) => (
               <tr
                 key={u.id}
                 onClick={() => router.push(`/admin/users/${u.id}`)}
@@ -139,6 +138,7 @@ export default function AdminUsersPage() {
             ))}
           </tbody>
         </table>
+        )}
       </div>
     </div>
   );

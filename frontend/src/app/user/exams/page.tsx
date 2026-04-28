@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { examinationService } from '@/services/examinationService';
 import { quoteService } from '@/services/quoteService';
+import { CardListSkeleton } from '@/components/ui/Skeleton';
 import type { Examination, Quote } from '@/types';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
@@ -155,9 +156,7 @@ export default function UserExamsPage() {
       </div>
 
       {loading ? (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-400 text-sm">
-          불러오는 중...
-        </div>
+        <CardListSkeleton rows={6} />
       ) : filteredExams.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-400 text-sm">
           {allExams.length === 0 ? '등록된 시험이 없습니다.' : '검색 조건에 맞는 시험이 없습니다.'}

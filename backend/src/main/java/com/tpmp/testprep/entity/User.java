@@ -20,8 +20,14 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String password;
+
+    @Column(name = "provider", length = 20)
+    private String provider;
+
+    @Column(name = "provider_id")
+    private String providerId;
 
     @Column(nullable = false)
     private String name;
@@ -50,7 +56,19 @@ public class User {
         this.password = password;
         this.name = name;
         this.role = role;
+        this.provider = "LOCAL";
         this.isFirstLogin = true;
+    }
+
+    public static User ofOAuth(String email, String name, String provider, String providerId) {
+        User user = new User();
+        user.email = email;
+        user.name = name;
+        user.provider = provider;
+        user.providerId = providerId;
+        user.role = Role.USER;
+        user.isFirstLogin = true;
+        return user;
     }
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -60,6 +78,11 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "detail_id")
     )
     private Set<PermissionDetail> grantedPermissions = new HashSet<>();
+
+    public void linkOAuthProvider(String provider, String providerId) {
+        this.provider = provider;
+        this.providerId = providerId;
+    }
 
     public void updateName(String name) { this.name = name; }
     public void updateRole(Role role) { this.role = role; }

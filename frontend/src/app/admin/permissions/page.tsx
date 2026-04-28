@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { permissionService } from '@/services/permissionService';
 import { menuService } from '@/services/menuService';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 import type { PermissionMaster, PermissionScope, MenuConfig } from '@/types';
 
 type Tab = 'USER' | 'ADMIN';
@@ -230,8 +231,13 @@ export default function AdminPermissionsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48">
-        <div className="w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+      <div className="space-y-4">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <TableSkeleton rows={4} cols={4} />
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <TableSkeleton rows={6} cols={3} />
+        </div>
       </div>
     );
   }

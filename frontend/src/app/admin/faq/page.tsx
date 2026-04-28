@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { faqService } from '@/services/faqService';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 import type { Faq } from '@/types';
 
 export default function AdminFaqPage() {
@@ -76,7 +77,7 @@ export default function AdminFaqPage() {
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-sm text-gray-400">불러오는 중...</div>
+          <TableSkeleton rows={5} cols={5} />
         ) : faqs.length === 0 ? (
           <div className="p-12 text-center text-sm text-gray-400">등록된 FAQ가 없습니다.</div>
         ) : (

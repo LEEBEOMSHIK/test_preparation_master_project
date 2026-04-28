@@ -10,6 +10,18 @@ spring:
       ddl-auto: validate
     show-sql: false
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+            redirect-uri: ${GOOGLE_OAUTH2_REDIRECT_URI}
+
 app:
   jwt:
     secret: ${JWT_SECRET}
@@ -19,3 +31,5 @@ app:
     allowed-origins: ${ALLOWED_ORIGINS}
   upload:
     path: ${UPLOAD_PATH:/uploads}
+  oauth2:
+    frontend-redirect-uri: ${OAUTH2_FRONTEND_REDIRECT_URI}

@@ -8,6 +8,18 @@ spring:
       hibernate:
         format_sql: true
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
+            scope:
+              - email
+              - profile
+            redirect-uri: ${GOOGLE_OAUTH2_REDIRECT_URI:http://localhost:8080/api/login/oauth2/code/google}
+
   servlet:
     multipart:
       enabled: true
@@ -63,3 +75,5 @@ app:
     allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
   upload:
     path: ${UPLOAD_PATH:./uploads}
+  oauth2:
+    frontend-redirect-uri: ${OAUTH2_FRONTEND_REDIRECT_URI:http://localhost:3000/auth/oauth/callback}

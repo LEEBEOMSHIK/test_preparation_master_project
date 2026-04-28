@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { examService } from '@/services/examService';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 import type { ExamSummary } from '@/types';
 
 const MODE_LABEL: Record<string, string> = {
@@ -58,7 +59,7 @@ export default function AdminExamPapersPage() {
       {/* 목록 */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-10 text-center text-gray-400 text-sm">불러오는 중...</div>
+          <TableSkeleton rows={5} cols={6} />
         ) : error ? (
           <div className="p-10 text-center text-red-400 text-sm">{error}</div>
         ) : papers.length === 0 ? (

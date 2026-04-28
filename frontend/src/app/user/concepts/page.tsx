@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { conceptNoteService } from '@/services/conceptNoteService';
+import { CardListSkeleton } from '@/components/ui/Skeleton';
 import type { ConceptNote } from '@/types';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
@@ -95,7 +96,7 @@ export default function UserConceptsPage() {
 
       {/* List */}
       {loading ? (
-        <div className="text-center py-16 text-gray-400">로딩 중...</div>
+        <CardListSkeleton rows={5} />
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           {search ? '검색 결과가 없습니다.' : '작성된 개념노트가 없습니다.'}

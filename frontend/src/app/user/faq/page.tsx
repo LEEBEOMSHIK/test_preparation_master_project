@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { faqService } from '@/services/faqService';
+import { AccordionSkeleton } from '@/components/ui/Skeleton';
 import type { Faq } from '@/types';
 
 export default function UserFaqPage() {
@@ -31,7 +32,7 @@ export default function UserFaqPage() {
       </div>
 
       {loading ? (
-        <div className="p-12 text-center text-sm text-gray-400">불러오는 중...</div>
+        <AccordionSkeleton rows={6} />
       ) : faqs.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center text-sm text-gray-400">
           등록된 FAQ가 없습니다.

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { quizService } from '@/services/quizService';
+import { CardGridSkeleton } from '@/components/ui/Skeleton';
 import type { DomainMaster, DomainSlave } from '@/types';
 
 export default function QuizCategoryPage() {
@@ -24,8 +25,12 @@ export default function QuizCategoryPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <p className="text-gray-400 text-sm">카테고리 불러오는 중...</p>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900">데일리 퀴즈</h2>
+          <p className="text-sm text-gray-500 mt-1">풀고 싶은 문제 유형을 선택하세요.</p>
+        </div>
+        <CardGridSkeleton />
       </div>
     );
   }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
 import { examInfoService } from '@/services/examInfoService';
+import { ExamInfoCardSkeleton } from '@/components/ui/Skeleton';
 import { EXAM_TYPES } from '@/types';
 import type { ExamInfo } from '@/types';
 
@@ -127,9 +128,7 @@ export default function UserExamInfoPage() {
 
       {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <ExamInfoCardSkeleton count={3} />
       ) : displayed.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
           <p className="text-gray-400 text-sm mb-2">표시할 시험 정보가 없습니다.</p>
