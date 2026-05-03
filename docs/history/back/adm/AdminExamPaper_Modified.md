@@ -1,3 +1,59 @@
+## HIST-20260502-001
+
+- **날짜**: 2026-05-02
+- **수정 범위**: 관리자 백엔드 / 시험지 관리
+- **수정 개요**: `exams.del_yn` 컬럼 누락으로 인한 500 오류 수정 — columnDefinition에 DEFAULT 추가, `getExams()` lazy load 제거
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `entity/Exam.java` | 수정 | `del_yn` 컬럼에 `columnDefinition = "char(1) not null default 'N'"` 추가 |
+| `service/ExamService.java` | 수정 | `getExams()` — lazy `exam.getQuestions().size()` → `questionRepository.countByExamId` COUNT 쿼리로 교체 |
+| `service/ExamService.java` | 수정 | `updateExam()` — 동일하게 COUNT 쿼리 사용으로 변경 |
+
+### 수정 상세
+
+#### 원인
+
+`Exam.java`에 `del_yn` 컬럼(NOT NULL)이 추가되었지만 `@Column` 어노테이션에 DEFAULT가 없었다.
+- **로컬 프로파일** (`ddl-auto: update`): `exams` 테이블에 이미 데이터가 있으면 PostgreSQL이 NOT NULL 컬럼 추가를 거부 → `del_yn` 컬럼이 생성되지 않음 → `findAllByDelYn()` 실행 시 `column "del_yn" does not exist` → 500
+- **도커 프로파일** (`ddl-auto: validate`): 스키마에 `del_yn` 컬럼이 없으면 Hibernate 기동 시 `SchemaManagementException` → 앱 시작 실패 → 전체 엔드포인트 500/502
+
+메뉴 관리도 도커 프로파일에서 앱 기동 실패 시 동일하게 500 응답.
+
+#### `entity/Exam.java`
+- 변경 전: `@Column(name = "del_yn", nullable = false, length = 1)`
+- 변경 후: `@Column(name = "del_yn", nullable = false, length = 1, columnDefinition = "char(1) not null default 'N'")`
+- 이유: `ddl-auto: update` 시 기존 행이 있는 테이블에도 DEFAULT 'N'으로 컬럼이 추가될 수 있도록 함
+
+#### `service/ExamService.java` — `getExams()`
+- 변경 전: `.map(ExamSummaryResponse::from)` → `exam.getQuestions().size()` lazy 컬렉션 로드 (N+1)
+- 변경 후: `.map(exam -> ExamSummaryResponse.from(exam, questionRepository.countByExamId(exam.getId())))`
+- 이유: lazy 컬렉션 의존 제거, N+1 방지
+
+#### `service/ExamService.java` — `updateExam()`
+- 변경 전: `return ExamSummaryResponse.from(exam)` → `exam.getQuestions().size()` lazy 로드
+- 변경 후: `int count = questionRepository.countByExamId(id); return ExamSummaryResponse.from(exam, count);`
+- 이유: 일관성 확보
+
+### 도커 환경 수동 조치 (validate 모드)
+
+`ddl-auto: validate` 사용 시 아래 SQL을 DB에 직접 실행 후 백엔드를 재시작한다.
+
+```sql
+ALTER TABLE exams ADD COLUMN IF NOT EXISTS del_yn CHAR(1) NOT NULL DEFAULT 'N';
+```
+
+### 복원 방법
+
+HIST-20260502-001 복원 시:
+- `Exam.java`에서 `columnDefinition` 제거 → `@Column(name = "del_yn", nullable = false, length = 1)`으로 되돌림
+- `ExamService.getExams()` → `.map(ExamSummaryResponse::from)` 으로 되돌림
+- `ExamService.updateExam()` → `return ExamSummaryResponse.from(exam);` 으로 되돌림
+
+---
+
 ## HIST-20260420-001
 
 - **날짜**: 2026-04-20

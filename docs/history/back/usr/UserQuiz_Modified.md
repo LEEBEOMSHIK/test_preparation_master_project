@@ -1,3 +1,29 @@
+## HIST-20260501-003
+
+- **날짜**: 2026-05-01
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈
+- **수정 개요**: `findRandomByCategory` 쿼리가 `category_id`만 검색하던 것을 `exam_type_id`도 함께 검색하도록 수정 — 시험 유형 카테고리 선택 시 문제가 표시되지 않던 버그 수정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/QuestionBankRepository.java` | 수정 | `findRandomByCategory` WHERE절 `category_id = :categoryId` → `(category_id = :categoryId OR exam_type_id = :categoryId)` |
+
+### 수정 상세
+
+#### `QuestionBankRepository.java`
+- 변경 전: `WHERE category_id = :categoryId AND del_yn = 'N'`
+- 변경 후: `WHERE (category_id = :categoryId OR exam_type_id = :categoryId) AND del_yn = 'N'`
+- 이유: 퀴즈 카테고리 페이지에서 "시험 유형" 마스터의 슬레이브를 선택하면 해당 슬레이브 ID가 `categoryId` 파라미터로 전달되는데, `question_bank`에서 시험 유형은 `exam_type_id` 컬럼에 저장된다. 이전 쿼리는 `category_id`만 조회해 시험 유형 기반 문항이 한 건도 반환되지 않았음.
+
+### 복원 방법
+
+이 ID(HIST-20260501-003)만으로 복원 시:
+- `findRandomByCategory` 쿼리의 WHERE절을 `category_id = :categoryId AND del_yn = 'N'`으로 되돌림
+
+---
+
 ## HIST-20260422-007
 
 - **날짜**: 2026-04-22

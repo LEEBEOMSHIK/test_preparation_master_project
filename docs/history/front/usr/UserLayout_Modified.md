@@ -1,3 +1,45 @@
+## HIST-20260502-009
+
+- **날짜**: 2026-05-02
+- **수정 범위**: 사용자 프론트엔드 / 레이아웃
+- **수정 개요**: UserLayoutShell 전면 재작성 — 하드코딩 NAV_ITEMS 제거, DB 기반 권한 메뉴 조회(`GET /menus/mine?menuType=USER`) 적용, USER_FALLBACK_NAV 폴백 유지
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | NAV_ITEMS 상수 제거 → DB 조회 + FALLBACK 병합 방식으로 전환 |
+| `frontend/src/services/menuService.ts` | 수정 | `getMyMenus(menuType)` 메서드 추가 (`GET /menus/mine`) |
+
+### 수정 상세
+
+#### `services/menuService.ts`
+- **변경 전**: `adminGetAll`, `adminGetFlat`, `getMenuTree`, `create`, `update`, `delete` 만 존재
+- **변경 후**: `getMyMenus(menuType)` 추가 — `GET /api/menus/mine?menuType=USER|ADMIN`
+
+#### `components/layout/UserLayoutShell.tsx`
+- **변경 전**:
+  - `NAV_ITEMS` 하드코딩 상수 (label/href/icon SVG 직접 포함)
+  - DB 조회 없음, 권한 필터링 없음
+  - 인증 토큰 확인 없음
+- **변경 후**:
+  - `NAV_ITEMS` 상수 삭제
+  - `ICON_MAP` 추가 (examinfo/exam/concept/quiz/faq/inquiry 키별 SVG)
+  - `USER_FALLBACK_NAV: MenuConfig[]` 추가 (id: 101~106, url /user/*)
+  - `navItems: MenuConfig[]` state (초기값 = USER_FALLBACK_NAV)
+  - `useEffect` 추가: 토큰 없으면 `/auth/login` redirect, 있으면 `menuService.getMyMenus('USER')` 호출
+  - DB 응답 성공 시 → DB 메뉴 + (FALLBACK에만 있는 항목 보완) 병합
+  - DB 응답 실패/빈 배열 시 → USER_FALLBACK_NAV 유지
+  - 렌더링: `item.label` → `item.name`, `item.href` → `item.url`, `item.icon` → `ICON_MAP[item.iconKey]`
+
+### 복원 방법
+
+HIST-20260502-009 복원 시:
+- `UserLayoutShell.tsx`를 하드코딩 NAV_ITEMS 방식으로 되돌린다 (HIST-20260427-002 버전 참고)
+- `menuService.ts`에서 `getMyMenus` 메서드 제거
+
+---
+
 ## HIST-20260427-002
 
 - **날짜**: 2026-04-27

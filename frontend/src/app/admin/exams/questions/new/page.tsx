@@ -47,6 +47,7 @@ interface QuestionDraft {
   code:         string;
   language:     string;
   categoryId:   number | null;
+  examTypeId:   number | null;
 }
 
 interface ImportedDraft extends QuestionDraft {
@@ -68,6 +69,7 @@ const emptyDraft = (): QuestionDraft => ({
   code:         '',
   language:     'javascript',
   categoryId:   null,
+  examTypeId:   null,
 });
 
 function parseTextToQuestions(text: string): ImportedDraft[] {
@@ -83,6 +85,7 @@ function parseTextToQuestions(text: string): ImportedDraft[] {
         questionType: 'SHORT_ANSWER', options: [], answer: '',
         code: '', language: 'other',
         categoryId: null,
+        examTypeId: null,
         excluded: false, sourceHint: '클립보드',
       });
     }
@@ -123,6 +126,7 @@ async function simulateFileParse(file: File): Promise<ImportedDraft[]> {
           options: ['보기 1', '보기 2', '보기 3', '보기 4'],
           answer: '1', code: '', language: 'other',
           categoryId: null,
+          examTypeId: null,
           excluded: false, sourceHint: file.name,
         })),
       );
@@ -133,14 +137,15 @@ async function simulateFileParse(file: File): Promise<ImportedDraft[]> {
 // ── ManualQuestionCard ─────────────────────────────────────────────────────────
 
 function ManualQuestionCard({
-  draft, index, total, onChange, onRemove, allSlaves,
+  draft, index, total, onChange, onRemove, examTypeSlaves, questionTypeSlaves,
 }: {
-  draft:     QuestionDraft;
-  index:     number;
-  total:     number;
-  onChange:  (field: string, value: string | string[] | number | null) => void;
-  onRemove:  () => void;
-  allSlaves: DomainSlave[];
+  draft:              QuestionDraft;
+  index:              number;
+  total:              number;
+  onChange:           (field: string, value: string | string[] | number | null) => void;
+  onRemove:           () => void;
+  examTypeSlaves:     DomainSlave[];
+  questionTypeSlaves: DomainSlave[];
 }) {
   const isCode = draft.questionType === 'CODE';
 
@@ -193,18 +198,35 @@ function ManualQuestionCard({
           </div>
         </div>
 
-        {/* 카테고리 선택 */}
+        {/* 시험 유형 선택 */}
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1.5">
-            카테고리 <span className="text-red-400">*</span>
+            시험 유형
+          </label>
+          <select
+            value={draft.examTypeId ?? ''}
+            onChange={(e) => onChange('examTypeId', e.target.value ? Number(e.target.value) : null)}
+            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+          >
+            <option value="">시험 유형을 선택하세요</option>
+            {examTypeSlaves.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* 문항 유형 선택 */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">
+            문항 유형
           </label>
           <select
             value={draft.categoryId ?? ''}
             onChange={(e) => onChange('categoryId', e.target.value ? Number(e.target.value) : null)}
             className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           >
-            <option value="">카테고리를 선택하세요</option>
-            {allSlaves.map((s) => (
+            <option value="">문항 유형을 선택하세요</option>
+            {questionTypeSlaves.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
@@ -384,9 +406,12 @@ export default function AdminQuestionNewPage() {
   const [error,     setError]       = useState('');
 
   // 도메인 (카테고리)
-  const [domains, setDomains]             = useState<DomainMaster[]>([]);
-  const [importCategory, setImportCategory] = useState<number | null>(null);
-  const allSlaves: DomainSlave[]           = domains.flatMap((m) => m.slaves);
+  const [domains, setDomains]                 = useState<DomainMaster[]>([]);
+  const [importCategory, setImportCategory]   = useState<number | null>(null);
+  const [importExamType, setImportExamType]   = useState<number | null>(null);
+
+  const examTypeSlaves: DomainSlave[]     = domains.find((m) => m.name === '시험 유형')?.slaves ?? [];
+  const questionTypeSlaves: DomainSlave[] = domains.find((m) => m.name === '문제 유형')?.slaves ?? [];
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -394,7 +419,7 @@ export default function AdminQuestionNewPage() {
   useEffect(() => {
     domainService.getDomains()
       .then((res) => setDomains(res.data.data ?? []))
-      .catch(() => {}); // 카테고리 목록 로드 실패 시 빈 드롭다운 유지
+      .catch(() => {});
   }, []);
 
   // ── Manual helpers ───────────────────────────────────────────────────────────
@@ -468,25 +493,17 @@ export default function AdminQuestionNewPage() {
   // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     const manualValid = manualQuestions.filter((q) =>
-      q.content.trim() && (q.questionType !== 'CODE' || q.code.trim()) && q.categoryId !== null,
+      q.content.trim() && (q.questionType !== 'CODE' || q.code.trim()),
     );
     const importedValid = importedQuestions.filter((q) => !q.excluded && q.content.trim());
 
     const all = [
       ...manualValid,
-      ...importedValid.map((q) => ({ ...q, categoryId: importCategory })),
+      ...importedValid.map((q) => ({ ...q, categoryId: importCategory, examTypeId: importExamType })),
     ];
 
     if (all.length === 0) {
       setError('등록할 문항이 없습니다. 내용을 입력하거나 파일을 가져오세요.');
-      return;
-    }
-    if (importedValid.length > 0 && importCategory === null) {
-      setError('가져온 문항의 카테고리를 선택해야 합니다.');
-      return;
-    }
-    if (all.some((q) => q.categoryId === null)) {
-      setError('모든 문항에 카테고리를 선택해야 합니다.');
       return;
     }
 
@@ -497,7 +514,8 @@ export default function AdminQuestionNewPage() {
         all.map((q) => ({
           content:      q.content.trim(),
           questionType: q.questionType,
-          categoryId:   q.categoryId!,
+          categoryId:   q.categoryId ?? undefined,
+          examTypeId:   q.examTypeId ?? undefined,
           options:      q.options.length ? q.options.filter(Boolean) : undefined,
           answer:       q.answer || undefined,
           code:         q.code   || undefined,
@@ -514,7 +532,7 @@ export default function AdminQuestionNewPage() {
 
   // ── Counts ───────────────────────────────────────────────────────────────────
   const manualFilledCount = manualQuestions.filter((q) =>
-    q.content.trim() && (q.questionType !== 'CODE' || q.code.trim()) && q.categoryId !== null,
+    q.content.trim() && (q.questionType !== 'CODE' || q.code.trim()),
   ).length;
   const importedAppliedCount = importedQuestions.filter((q) => !q.excluded).length;
   const totalCount           = manualFilledCount + importedAppliedCount;
@@ -567,7 +585,8 @@ export default function AdminQuestionNewPage() {
               draft={q}
               index={idx}
               total={manualQuestions.length}
-              allSlaves={allSlaves}
+              examTypeSlaves={examTypeSlaves}
+              questionTypeSlaves={questionTypeSlaves}
               onChange={(field, value) => updateManualQuestion(q.localId, field, value)}
               onRemove={() => removeManualQuestion(q.localId)}
             />
@@ -627,21 +646,38 @@ export default function AdminQuestionNewPage() {
             클립보드에서 붙여넣기
           </button>
 
-          {/* 가져온 문항 카테고리 선택 */}
-          <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
-            <label className="text-sm font-medium text-amber-800 whitespace-nowrap shrink-0">
-              카테고리 <span className="text-red-400">*</span>
-            </label>
-            <select
-              value={importCategory ?? ''}
-              onChange={(e) => setImportCategory(Number(e.target.value) || null)}
-              className="flex-1 px-3 py-1.5 rounded-lg border border-amber-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 transition"
-            >
-              <option value="">가져온 문항에 적용할 카테고리 선택</option>
-              {allSlaves.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
+          {/* 가져온 문항 유형 선택 */}
+          <div className="flex flex-col gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-amber-800 whitespace-nowrap shrink-0 w-20">
+                시험 유형
+              </label>
+              <select
+                value={importExamType ?? ''}
+                onChange={(e) => setImportExamType(Number(e.target.value) || null)}
+                className="flex-1 px-3 py-1.5 rounded-lg border border-amber-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 transition"
+              >
+                <option value="">가져온 문항에 적용할 시험 유형 선택</option>
+                {examTypeSlaves.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-amber-800 whitespace-nowrap shrink-0 w-20">
+                문항 유형
+              </label>
+              <select
+                value={importCategory ?? ''}
+                onChange={(e) => setImportCategory(Number(e.target.value) || null)}
+                className="flex-1 px-3 py-1.5 rounded-lg border border-amber-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 transition"
+              >
+                <option value="">가져온 문항에 적용할 문항 유형 선택</option>
+                {questionTypeSlaves.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* 가져온 문항 목록 */}

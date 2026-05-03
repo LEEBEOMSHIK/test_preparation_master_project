@@ -1,3 +1,142 @@
+## HIST-20260502-008
+
+- **날짜**: 2026-05-02
+- **수정 범위**: 관리자 프론트엔드 / 레이아웃
+- **수정 개요**: AdminLayoutShell 메뉴 API 호출을 `adminGetAll` → `getMyMenus`로 교체 — 로그인 사용자의 권한에 맞는 메뉴만 사이드바에 표시
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/AdminLayoutShell.tsx` | 수정 | `menuService.adminGetAll('ADMIN')` → `menuService.getMyMenus('ADMIN')` 변경 |
+
+### 수정 상세
+
+#### `components/layout/AdminLayoutShell.tsx`
+- **변경 전**: `menuService.adminGetAll('ADMIN')` → `/admin/menus?menuType=ADMIN&treeView=true` (전체 메뉴 반환, 권한 무관)
+- **변경 후**: `menuService.getMyMenus('ADMIN')` → `/menus/mine?menuType=ADMIN` (JWT 권한 기반 필터링된 메뉴 반환)
+- **이유**: 관리자도 권한별 메뉴 노출 제어 적용 (HIST-20260502-007 백엔드 연동)
+
+### 복원 방법
+
+HIST-20260502-008 복원 시: `menuService.getMyMenus('ADMIN')` → `menuService.adminGetAll('ADMIN')`로 되돌린다.
+
+---
+
+## HIST-20260502-006
+
+- **날짜**: 2026-05-02
+- **수정 범위**: 관리자 프론트엔드 / 레이아웃
+- **수정 개요**: FALLBACK_NAV 중복 ID 수정 — 테스트 케이스 항목 `id:11` → `id:9901`로 변경 (문항 관리 자식 id:11 충돌 해소)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/AdminLayoutShell.tsx` | 수정 | FALLBACK_NAV의 테스트 케이스 항목 id:11 → id:9901, displayOrder:11 → 99로 변경 |
+
+### 수정 상세
+
+#### `components/layout/AdminLayoutShell.tsx`
+- **변경 전**: `{ id: 11, name: '테스트 케이스', displayOrder: 11, ... }` — 시험 관리 하위의 문항 관리(child id:11)와 id 충돌
+- **변경 후**: `{ id: 9901, name: '테스트 케이스', displayOrder: 99, ... }` — 고유 ID로 변경, 사이드바 최하단에 위치
+
+### 복원 방법
+
+HIST-20260502-006 복원 시: 테스트 케이스 항목 `id: 9901, displayOrder: 99` → `id: 11, displayOrder: 11`로 복원
+
+---
+
+## HIST-20260502-005
+
+- **날짜**: 2026-05-02
+- **수정 범위**: 관리자 프론트엔드 / 레이아웃
+- **수정 개요**: API 메뉴 로딩 후 FALLBACK_NAV 보완 로직 추가 — DB 미등록 시스템 메뉴(테스트 케이스 등)가 사이드바에 항상 표시되도록 수정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/AdminLayoutShell.tsx` | 수정 | API 결과와 FALLBACK_NAV 병합 로직 추가 |
+
+### 수정 상세
+
+#### `components/layout/AdminLayoutShell.tsx`
+- **변경 전**: API 성공 시 `setNavItems(res.data.data)` — DB 메뉴 목록으로 완전히 교체 → FALLBACK_NAV 항목 중 DB에 없는 것은 사라짐
+- **변경 후**: API 결과의 URL 목록을 Set으로 수집 후, FALLBACK_NAV 중 API에 없는 항목을 뒤에 병합
+  ```ts
+  const coveredUrls = new Set<string>();
+  apiMenus.forEach(m => { coveredUrls.add(m.url); (m.children ?? []).forEach(c => coveredUrls.add(c.url)); });
+  const missing = FALLBACK_NAV.filter(m => !coveredUrls.has(m.url));
+  setNavItems(missing.length > 0 ? [...apiMenus, ...missing] : apiMenus);
+  ```
+- **이유**: "테스트 케이스" 메뉴가 DB에 등록되지 않은 상태에서 API가 정상 응답하면 사이드바에 미표시됨
+
+### 복원 방법
+
+HIST-20260502-005 복원 시:
+- `menuService.adminGetAll` then 블록을 `setNavItems(res.data.data)`로 단순 교체
+
+---
+
+## HIST-20260430-012
+
+- **날짜**: 2026-04-30
+- **수정 범위**: 관리자 프론트엔드 / 다크 모드 색상
+- **수정 개요**: 다크 모드에서 `bg-indigo-200` (#c7d2fe) 배경이 너무 밝아 가시성 저하 — 다크 오버라이드 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/globals.css` | 수정 | `.dark .bg-indigo-200` 오버라이드 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/globals.css`
+- **변경 전**: `.dark .bg-indigo-200` 오버라이드 없음 → 다크 모드에서 원래 Tailwind 값 `#c7d2fe` (rgb 199 210 254) 그대로 렌더링, 어두운 배경에서 과도하게 밝음
+- **변경 후**: `.dark .bg-indigo-200 { background-color: rgb(49 46 129 / 0.55); }` 추가 — 기존 `bg-indigo-50/100` 오버라이드 패턴(indigo-900 opacity 단계)과 일치
+- **이유**: `admin/tables/data/page.tsx` FK 컬럼 배지에 `bg-indigo-200` 사용 중, 다크 모드에서 배경 대비 불량
+
+### 복원 방법
+
+이 ID(HIST-20260430-012)로 복원 시: `globals.css`의 `.dark .bg-indigo-200` 라인 제거
+
+---
+
+## HIST-20260430-002
+
+- **날짜**: 2026-04-30
+- **수정 범위**: 관리자 프론트엔드 / 레이아웃
+- **수정 개요**: 포인트 색상 #FF8224(accent) 추가 및 관리자 전용 UI 요소에 적용
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/tailwind.config.ts` | 수정 | `accent` 색상 추가 (`DEFAULT: #FF8224`, `light: #FF9B57`, `dark: #D96A0D`) |
+| `frontend/src/components/layout/AdminLayoutShell.tsx` | 수정 | 사이드바 "관리자" 레이블 → `text-accent`, 헤더 사용자 아바타 → `bg-accent` |
+
+### 수정 상세
+
+#### `tailwind.config.ts`
+- **변경 전**: `primary` 색상만 존재
+- **변경 후**: `accent: { DEFAULT: '#FF8224', light: '#FF9B57', dark: '#D96A0D' }` 추가
+- **이유**: 관리자 전용 포인트 색상 (#FF8224) 추가 요구 사항
+
+#### `AdminLayoutShell.tsx`
+- **변경 전**: 사이드바 "관리자" 레이블 = `text-gray-400`, 헤더 아바타 = `bg-indigo-600`
+- **변경 후**: 사이드바 "관리자" 레이블 = `text-accent font-bold`, 헤더 아바타 = `bg-accent`
+- **이유**: 관리자 UI에만 accent 색상 적용 (사용자 UI와 시각적 구분)
+
+### 복원 방법
+
+이 ID(HIST-20260430-002)로 복원 시:
+- `tailwind.config.ts`에서 `accent` 블록 제거
+- `AdminLayoutShell.tsx` 사이드바 레이블 → `text-gray-400 dark:text-gray-500 font-medium`, 헤더 아바타 → `bg-indigo-600`
+
+---
+
 ## HIST-20260428-002
 
 - **날짜**: 2026-04-28

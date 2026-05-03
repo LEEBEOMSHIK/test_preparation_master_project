@@ -15,6 +15,11 @@ const config: Config = {
           light: '#818CF8',
           dark: '#3730A3',
         },
+        accent: {
+          DEFAULT: '#FF8224',
+          light: '#FF9B57',
+          dark: '#D96A0D',
+        },
       },
       fontFamily: {
         sans: ['Noto Sans KR', 'Inter', 'sans-serif'],

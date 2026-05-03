@@ -55,6 +55,7 @@ body {
 /* Tinted surfaces — indigo */
 .dark .bg-indigo-50   { background-color: rgb(49 46 129 / 0.25); }
 .dark .bg-indigo-100  { background-color: rgb(49 46 129 / 0.35); }
+.dark .bg-indigo-200  { background-color: rgb(49 46 129 / 0.55); }
 
 /* Tinted surfaces — colors */
 .dark .bg-emerald-50  { background-color: rgb(6 78 59 / 0.25); }

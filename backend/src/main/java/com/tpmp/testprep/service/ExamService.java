@@ -50,11 +50,12 @@ public class ExamService {
     );
 
     public Page<ExamSummaryResponse> getExams(Pageable pageable) {
-        return examRepository.findAll(pageable).map(ExamSummaryResponse::from);
+        return examRepository.findAllByDelYn("N", pageable)
+                .map(exam -> ExamSummaryResponse.from(exam, questionRepository.countByExamId(exam.getId())));
     }
 
     public Exam getExamDetail(Long id) {
-        return examRepository.findById(id)
+        return examRepository.findByIdAndDelYn(id, "N")
                 .orElseThrow(() -> new BusinessException(ErrorCode.EXAM_NOT_FOUND));
     }
 
@@ -82,7 +83,8 @@ public class ExamService {
     public ExamSummaryResponse updateExam(Long id, String title, Exam.QuestionMode questionMode) {
         Exam exam = getExamDetail(id);
         exam.update(title, questionMode);
-        return ExamSummaryResponse.from(exam);
+        int count = questionRepository.countByExamId(id);
+        return ExamSummaryResponse.from(exam, count);
     }
 
     public List<QuestionDetailResponse> getExamQuestions(Long examId) {
@@ -103,7 +105,7 @@ public class ExamService {
     @Transactional
     public void deleteExam(Long id) {
         Exam exam = getExamDetail(id);
-        examRepository.delete(exam);
+        exam.softDelete();
     }
 
     @Transactional

@@ -47,10 +47,12 @@ public class QuestionBankService {
     public QuestionBankResponse createQuestion(QuestionBankRequest request, String adminEmail) {
         Long adminId = resolveAdminId(adminEmail);
         DomainSlave category = resolveCategory(request.categoryId());
+        DomainSlave examType = resolveCategory(request.examTypeId());
         QuestionBank qb = QuestionBank.builder()
                 .content(request.content())
                 .questionType(request.questionType())
                 .category(category)
+                .examType(examType)
                 .options(request.options())
                 .answer(request.answer())
                 .code(request.code())
@@ -70,6 +72,7 @@ public class QuestionBankService {
                         .content(req.content())
                         .questionType(req.questionType())
                         .category(resolveCategory(req.categoryId()))
+                        .examType(resolveCategory(req.examTypeId()))
                         .options(req.options())
                         .answer(req.answer())
                         .code(req.code())
@@ -87,9 +90,10 @@ public class QuestionBankService {
     public QuestionBankResponse updateQuestion(Long id, QuestionBankRequest request, String adminEmail) {
         Long adminId = resolveAdminId(adminEmail);
         DomainSlave category = resolveCategory(request.categoryId());
+        DomainSlave examType = resolveCategory(request.examTypeId());
         QuestionBank qb = findActive(id);
         qb.update(request.content(), request.questionType(),
-                  category,
+                  category, examType,
                   request.options(), request.answer(),
                   request.code(), request.language(),
                   request.explanation(), adminId);
@@ -129,6 +133,7 @@ public class QuestionBankService {
     }
 
     private DomainSlave resolveCategory(Long categoryId) {
+        if (categoryId == null) return null;
         return domainSlaveRepository.findById(categoryId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
     }

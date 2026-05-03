@@ -8,6 +8,8 @@ import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.DomainMasterRepository;
 import com.tpmp.testprep.repository.DomainSlaveRepository;
+import com.tpmp.testprep.repository.ExaminationRepository;
+import com.tpmp.testprep.repository.QuestionBankRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,8 @@ public class DomainService {
 
     private final DomainMasterRepository domainMasterRepository;
     private final DomainSlaveRepository domainSlaveRepository;
+    private final QuestionBankRepository questionBankRepository;
+    private final ExaminationRepository examinationRepository;
 
     public List<DomainMasterResponse> getAllMasters() {
         return domainMasterRepository.findAllWithSlaves()
@@ -46,6 +50,9 @@ public class DomainService {
     @Transactional
     public void deleteMaster(Long masterId) {
         DomainMaster master = findMasterById(masterId);
+        boolean anyInUse = master.getSlaves().stream()
+                .anyMatch(s -> isSlaveInUse(s.getId()));
+        if (anyInUse) throw new BusinessException(ErrorCode.DOMAIN_IN_USE);
         domainMasterRepository.delete(master);
     }
 
@@ -76,6 +83,8 @@ public class DomainService {
         DomainSlave slave = findSlaveById(slaveId);
         if (!slave.getMaster().getId().equals(masterId))
             throw new BusinessException(ErrorCode.INVALID_INPUT);
+        if (isSlaveInUse(slaveId))
+            throw new BusinessException(ErrorCode.DOMAIN_IN_USE);
         domainSlaveRepository.delete(slave);
     }
 
@@ -89,5 +98,10 @@ public class DomainService {
     private DomainSlave findSlaveById(Long id) {
         return domainSlaveRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DOMAIN_NOT_FOUND));
+    }
+
+    private boolean isSlaveInUse(Long slaveId) {
+        return questionBankRepository.existsByCategoryIdOrExamTypeId(slaveId, slaveId)
+                || examinationRepository.existsByCategoryId(slaveId);
     }
 }

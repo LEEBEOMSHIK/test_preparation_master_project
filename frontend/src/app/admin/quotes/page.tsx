@@ -1,44 +1,56 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { quoteService } from '@/services/quoteService';
 import type { Quote } from '@/types';
 
+const PAGE_SIZE = 20;
+
 export default function AdminQuotesPage() {
-  const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
-  const PAGE_SIZE = 20;
+  const [allQuotes, setAllQuotes] = useState<Quote[]>([]);
+  const [page, setPage]           = useState(0);
 
   // 폼 상태
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
+  const [showForm, setShowForm]     = useState(false);
+  const [editId, setEditId]         = useState<number | null>(null);
   const [formContent, setFormContent] = useState('');
-  const [formAuthor, setFormAuthor] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [formAuthor, setFormAuthor]   = useState('');
+  const [saving, setSaving]           = useState(false);
 
-  const load = async (p = page) => {
-    const res = await quoteService.adminGetAll(p, PAGE_SIZE);
+  // 검색 조건 (입력)
+  const [keyword, setKeyword]               = useState('');
+  // 검색 조건 (적용됨)
+  const [appliedKeyword, setAppliedKeyword] = useState('');
+
+  const load = async () => {
+    const res = await quoteService.adminGetAll(0, 10000);
     if (res.data.success && res.data.data) {
-      setQuotes(res.data.data.content);
-      setTotal(res.data.data.totalElements);
+      setAllQuotes(res.data.data.content);
     }
   };
 
-  useEffect(() => { load(); }, [page]);
+  useEffect(() => { load(); }, []);
+
+  const handleSearch = () => { setAppliedKeyword(keyword); setPage(0); };
+  const handleReset  = () => { setKeyword(''); setAppliedKeyword(''); setPage(0); };
+
+  const filtered = useMemo(() => {
+    if (!appliedKeyword) return allQuotes;
+    const kw = appliedKeyword.toLowerCase();
+    return allQuotes.filter((q) =>
+      q.content.toLowerCase().includes(kw) || (q.author ?? '').toLowerCase().includes(kw)
+    );
+  }, [allQuotes, appliedKeyword]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged      = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const openCreate = () => {
-    setEditId(null);
-    setFormContent('');
-    setFormAuthor('');
-    setShowForm(true);
+    setEditId(null); setFormContent(''); setFormAuthor(''); setShowForm(true);
   };
 
   const openEdit = (q: Quote) => {
-    setEditId(q.id);
-    setFormContent(q.content);
-    setFormAuthor(q.author ?? '');
-    setShowForm(true);
+    setEditId(q.id); setFormContent(q.content); setFormAuthor(q.author ?? ''); setShowForm(true);
   };
 
   const handleSave = async () => {
@@ -52,7 +64,7 @@ export default function AdminQuotesPage() {
       }
       setShowForm(false);
       setPage(0);
-      load(0);
+      await load();
     } finally {
       setSaving(false);
     }
@@ -60,16 +72,14 @@ export default function AdminQuotesPage() {
 
   const handleToggle = async (q: Quote) => {
     await quoteService.adminToggleUseYn(q.id);
-    load();
+    await load();
   };
 
   const handleDelete = async (q: Quote) => {
     if (!confirm(`"${q.content.slice(0, 30)}..." 명언을 삭제하시겠습니까?`)) return;
     await quoteService.adminDelete(q.id);
-    load();
+    setAllQuotes((prev) => prev.filter((item) => item.id !== q.id));
   };
-
-  const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
     <div className="space-y-4">
@@ -87,20 +97,51 @@ export default function AdminQuotesPage() {
         </button>
       </div>
 
+      {/* 검색 조건 */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-48">
+            <label className="block text-xs font-medium text-gray-500 mb-1">내용 / 출처</label>
+            <input
+              type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="명언 내용 또는 출처 검색"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            />
+          </div>
+          <button
+            onClick={handleSearch}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
+          >
+            검색
+          </button>
+          {(keyword || appliedKeyword) && (
+            <button
+              onClick={handleReset}
+              className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
+            >
+              초기화
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* 등록/수정 폼 */}
       {showForm && (
         <div className="bg-white border border-indigo-200 rounded-xl p-5 space-y-3 shadow-sm">
           <h3 className="font-semibold text-gray-800">{editId ? '명언 수정' : '새 명언 추가'}</h3>
           <textarea
             value={formContent}
-            onChange={e => setFormContent(e.target.value)}
+            onChange={(e) => setFormContent(e.target.value)}
             placeholder="명언 내용을 입력하세요 *"
             rows={3}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
           />
           <input
             value={formAuthor}
-            onChange={e => setFormAuthor(e.target.value)}
+            onChange={(e) => setFormAuthor(e.target.value)}
             placeholder="출처 / 저자 (선택)"
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
@@ -135,14 +176,14 @@ export default function AdminQuotesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {quotes.length === 0 && (
+            {paged.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-gray-400">
-                  등록된 명언이 없습니다.
+                  {allQuotes.length === 0 ? '등록된 명언이 없습니다.' : '검색 결과가 없습니다.'}
                 </td>
               </tr>
             )}
-            {quotes.map((q, idx) => (
+            {paged.map((q, idx) => (
               <tr key={q.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
                   {page * PAGE_SIZE + idx + 1}
@@ -190,7 +231,7 @@ export default function AdminQuotesPage() {
       {totalPages > 1 && (
         <div className="flex justify-center gap-1">
           <button
-            onClick={() => setPage(p => Math.max(0, p - 1))}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
             className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
           >
@@ -211,7 +252,7 @@ export default function AdminQuotesPage() {
             </button>
           ))}
           <button
-            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={page >= totalPages - 1}
             className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
           >

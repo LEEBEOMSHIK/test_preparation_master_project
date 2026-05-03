@@ -39,6 +39,10 @@ services:
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
       UPLOAD_PATH: /uploads
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-not_configured}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-not_configured}
+      GOOGLE_OAUTH2_REDIRECT_URI: ${GOOGLE_OAUTH2_REDIRECT_URI:-https://not_configured/api/login/oauth2/code/google}
+      OAUTH2_FRONTEND_REDIRECT_URI: ${OAUTH2_FRONTEND_REDIRECT_URI:-http://localhost/auth/oauth/callback}
     ports:
       - "8080:8080"
     volumes:

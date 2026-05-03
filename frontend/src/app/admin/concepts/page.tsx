@@ -1,41 +1,56 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { conceptNoteService } from '@/services/conceptNoteService';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 import type { ConceptNote } from '@/types';
 
-const PAGE_SIZE_OPTIONS = [10, 20, 50];
+const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 
 export default function AdminConceptsPage() {
-  const [notes, setNotes] = useState<ConceptNote[]>([]);
-  const [totalElements, setTotalElements] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<number | null>(null);
+  const [allNotes, setAllNotes]   = useState<ConceptNote[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [expanded, setExpanded]   = useState<number | null>(null);
+  const [page, setPage]           = useState(0);
+  const [pageSize, setPageSize]   = useState<10 | 20 | 50>(10);
 
-  function load() {
+  // 검색 조건 (입력)
+  const [keyword, setKeyword]               = useState('');
+  // 검색 조건 (적용됨)
+  const [appliedKeyword, setAppliedKeyword] = useState('');
+
+  useEffect(() => {
     setLoading(true);
-    conceptNoteService.adminGetAll(page, pageSize)
-      .then(res => {
+    conceptNoteService.adminGetAll(0, 10000)
+      .then((res) => {
         const data = res.data.data;
-        if (data) {
-          setNotes(data.content);
-          setTotalElements(data.totalElements);
-          setTotalPages(data.totalPages);
-        }
+        if (data) setAllNotes(data.content);
       })
       .finally(() => setLoading(false));
-  }
+  }, []);
 
-  useEffect(() => { load(); }, [page, pageSize]); // eslint-disable-line
+  const handleSearch = () => { setAppliedKeyword(keyword); setPage(0); };
+  const handleReset  = () => { setKeyword(''); setAppliedKeyword(''); setPage(0); };
+
+  const handlePageSizeChange = (s: 10 | 20 | 50) => { setPageSize(s); setPage(0); };
+
+  const filtered = useMemo(() => {
+    if (!appliedKeyword) return allNotes;
+    const kw = appliedKeyword.toLowerCase();
+    return allNotes.filter((n) =>
+      n.title.toLowerCase().includes(kw) || (n.userName ?? '').toLowerCase().includes(kw)
+    );
+  }, [allNotes, appliedKeyword]);
+
+  const totalElements = filtered.length;
+  const totalPages    = Math.ceil(totalElements / pageSize);
+  const paged         = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
   function handleTogglePublic(id: number) {
-    conceptNoteService.adminTogglePublic(id).then(res => {
+    conceptNoteService.adminTogglePublic(id).then((res) => {
       const updated = res.data.data;
       if (updated) {
-        setNotes(prev => prev.map(n => n.id === id ? { ...n, isPublic: updated.isPublic } : n));
+        setAllNotes((prev) => prev.map((n) => (n.id === id ? { ...n, isPublic: updated.isPublic } : n)));
       }
     });
   }
@@ -43,8 +58,7 @@ export default function AdminConceptsPage() {
   function handleDelete(id: number) {
     if (!confirm('해당 개념노트를 삭제하시겠습니까?')) return;
     conceptNoteService.adminDelete(id).then(() => {
-      setNotes(prev => prev.filter(n => n.id !== id));
-      setTotalElements(prev => prev - 1);
+      setAllNotes((prev) => prev.filter((n) => n.id !== id));
     });
   }
 
@@ -55,26 +69,65 @@ export default function AdminConceptsPage() {
         <p className="text-sm text-gray-500 mt-1">사용자가 등록한 개념노트를 관리합니다.</p>
       </div>
 
-      {/* Controls */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">전체 {totalElements}개</p>
-        <select
-          value={pageSize}
-          onChange={e => { setPageSize(Number(e.target.value)); setPage(0); }}
-          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none"
-        >
-          {PAGE_SIZE_OPTIONS.map(s => (
-            <option key={s} value={s}>{s}개</option>
-          ))}
-        </select>
+      {/* 검색 조건 */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-48">
+            <label className="block text-xs font-medium text-gray-500 mb-1">제목 / 작성자</label>
+            <input
+              type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="제목 또는 작성자 검색"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            />
+          </div>
+          <button
+            onClick={handleSearch}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
+          >
+            검색
+          </button>
+          {(keyword || appliedKeyword) && (
+            <button
+              onClick={handleReset}
+              className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
+            >
+              초기화
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Controls */}
+      {!loading && totalElements > 0 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-500">전체 {totalElements}개</p>
+          <select
+            value={pageSize}
+            onChange={(e) => handlePageSizeChange(Number(e.target.value) as 10 | 20 | 50)}
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none"
+          >
+            {PAGE_SIZE_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}개</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Table */}
       {loading ? (
-        <div className="text-center py-16 text-gray-400">로딩 중...</div>
-      ) : notes.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <TableSkeleton rows={5} cols={5} />
+        </div>
+      ) : allNotes.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-400 text-sm">
           등록된 개념노트가 없습니다.
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-400 text-sm">
+          검색 결과가 없습니다.
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -89,7 +142,7 @@ export default function AdminConceptsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {notes.map(note => (
+              {paged.map((note) => (
                 <>
                   <tr
                     key={note.id}
@@ -113,7 +166,7 @@ export default function AdminConceptsPage() {
                       {new Date(note.updatedAt).toLocaleDateString('ko-KR')}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-2" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => handleTogglePublic(note.id)}
                           className="text-xs px-2 py-1 border border-indigo-200 text-indigo-600 rounded hover:bg-indigo-50"
@@ -147,11 +200,11 @@ export default function AdminConceptsPage() {
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {!loading && totalPages > 1 && (
         <div className="flex justify-center items-center gap-2">
           <button
             disabled={page === 0}
-            onClick={() => setPage(p => p - 1)}
+            onClick={() => setPage((p) => p - 1)}
             className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
           >
             이전
@@ -171,7 +224,7 @@ export default function AdminConceptsPage() {
           ))}
           <button
             disabled={page >= totalPages - 1}
-            onClick={() => setPage(p => p + 1)}
+            onClick={() => setPage((p) => p + 1)}
             className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
           >
             다음

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { examService } from '@/services/examService';
@@ -14,15 +14,22 @@ const MODE_LABEL: Record<string, string> = {
 
 export default function AdminExamPapersPage() {
   const router = useRouter();
-  const [papers, setPapers]     = useState<ExamSummary[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState('');
+  const [allPapers, setAllPapers] = useState<ExamSummary[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState('');
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // 검색 조건 (입력)
+  const [keyword, setKeyword]     = useState('');
+  const [modeFilter, setModeFilter] = useState('');
+  // 검색 조건 (적용됨)
+  const [appliedKeyword, setAppliedKeyword]     = useState('');
+  const [appliedModeFilter, setAppliedModeFilter] = useState('');
 
   useEffect(() => {
     examService
-      .adminGetExams(0, 100)
-      .then((res) => setPapers(res.data.data?.content ?? []))
+      .adminGetExams(0, 1000)
+      .then((res) => setAllPapers(res.data.data?.content ?? []))
       .catch(() => setError('시험지 목록을 불러오지 못했습니다.'))
       .finally(() => setLoading(false));
   }, []);
@@ -32,13 +39,32 @@ export default function AdminExamPapersPage() {
     setDeletingId(id);
     try {
       await examService.adminDeleteExam(id);
-      setPapers((prev) => prev.filter((p) => p.id !== id));
+      setAllPapers((prev) => prev.filter((p) => p.id !== id));
     } catch {
       setError('시험지 삭제에 실패했습니다.');
     } finally {
       setDeletingId(null);
     }
   };
+
+  const handleSearch = () => {
+    setAppliedKeyword(keyword);
+    setAppliedModeFilter(modeFilter);
+  };
+
+  const handleReset = () => {
+    setKeyword(''); setModeFilter('');
+    setAppliedKeyword(''); setAppliedModeFilter('');
+  };
+
+  const filtered = useMemo(() => {
+    const kw = appliedKeyword.trim().toLowerCase();
+    return allPapers.filter((p) => {
+      if (kw && !p.title.toLowerCase().includes(kw)) return false;
+      if (appliedModeFilter && p.questionMode !== appliedModeFilter) return false;
+      return true;
+    });
+  }, [allPapers, appliedKeyword, appliedModeFilter]);
 
   return (
     <div className="space-y-4">
@@ -56,19 +82,63 @@ export default function AdminExamPapersPage() {
         </Link>
       </div>
 
+      {/* 검색 조건 */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-48">
+            <label className="block text-xs font-medium text-gray-500 mb-1">시험지 제목</label>
+            <input
+              type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="시험지 제목 검색"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">출제 방식</label>
+            <select
+              value={modeFilter}
+              onChange={(e) => setModeFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            >
+              <option value="">전체</option>
+              {Object.entries(MODE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          <button
+            onClick={handleSearch}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
+          >
+            검색
+          </button>
+          {(keyword || modeFilter || appliedKeyword || appliedModeFilter) && (
+            <button
+              onClick={handleReset}
+              className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
+            >
+              초기화
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* 목록 */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
           <TableSkeleton rows={5} cols={6} />
         ) : error ? (
           <div className="p-10 text-center text-red-400 text-sm">{error}</div>
-        ) : papers.length === 0 ? (
+        ) : allPapers.length === 0 ? (
           <div className="p-10 text-center text-gray-400 text-sm">
             등록된 시험지가 없습니다.{' '}
             <Link href="/admin/exams/papers/new" className="text-indigo-500 hover:underline">
               시험지를 등록해보세요.
             </Link>
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-10 text-center text-gray-400 text-sm">검색 결과가 없습니다.</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -82,7 +152,7 @@ export default function AdminExamPapersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {papers.map((paper, idx) => (
+              {filtered.map((paper, idx) => (
                 <tr key={paper.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3.5 text-gray-400 text-center whitespace-nowrap">
                     {idx + 1}

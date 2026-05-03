@@ -20,8 +20,9 @@ public record QuestionBankRequest(
         @NotNull(message = "문항 유형은 필수입니다.")
         QuestionBank.QuestionType questionType,
 
-        @NotNull(message = "카테고리는 필수입니다.")
         Long categoryId,
+
+        Long examTypeId,
 
         List<String> options,
 

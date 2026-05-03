@@ -10,9 +10,12 @@ public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long
     /** 삭제되지 않은 문항만 조회 */
     Page<QuestionBank> findAllByDelYn(String delYn, Pageable pageable);
 
+    /** 슬레이브 ID가 category 또는 examType으로 참조되는지 확인 */
+    boolean existsByCategoryIdOrExamTypeId(Long categoryId, Long examTypeId);
+
     /** 카테고리별 랜덤 문항 조회 (데일리 퀴즈용) */
     @org.springframework.data.jpa.repository.Query(
-        value = "SELECT * FROM question_bank WHERE category_id = :categoryId AND del_yn = 'N' ORDER BY RANDOM() LIMIT :limit",
+        value = "SELECT * FROM question_bank WHERE (category_id = :categoryId OR exam_type_id = :categoryId) AND del_yn = 'N' ORDER BY RANDOM() LIMIT :limit",
         nativeQuery = true)
     java.util.List<QuestionBank> findRandomByCategory(
             @org.springframework.data.repository.query.Param("categoryId") Long categoryId,

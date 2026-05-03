@@ -21,6 +21,10 @@ export const menuService = {
       params: { menuType, treeView: true },
     }),
 
+  /** 현재 로그인 사용자의 권한에 맞는 메뉴 트리 반환 (GET /menus/mine) */
+  getMyMenus: (menuType: 'USER' | 'ADMIN') =>
+    apiClient.get<ApiResponse<MenuConfig[]>>('/menus/mine', { params: { menuType } }),
+
   adminGetFlat: (menuType: 'USER' | 'ADMIN') =>
     apiClient.get<ApiResponse<MenuConfig[]>>('/admin/menus', {
       params: { menuType, treeView: false },

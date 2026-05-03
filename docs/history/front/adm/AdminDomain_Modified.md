@@ -1,3 +1,53 @@
+## HIST-20260501-005
+
+- **날짜**: 2026-05-01
+- **수정 범위**: 관리자 프론트엔드 / 테이블 관리 > 도메인 관리
+- **수정 개요**: 삭제 실패 시 catch 블록에서 API 에러 메시지(409 Conflict 등)를 화면에 표시하도록 개선
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/tables/domains/page.tsx` | 수정 | `handleDeleteMaster`, `handleDeleteSlave` catch 블록에서 `err.response.data.error.message` 우선 표시 |
+
+### 수정 상세
+
+#### `page.tsx`
+- 변경 전: catch 블록에서 하드코딩된 에러 메시지만 표시
+- 변경 후: API 응답의 `error.message`가 있으면 우선 표시 (없으면 기본 메시지 fallback)
+- 이유: 백엔드가 DOMAIN_IN_USE(409)를 반환할 때 "다른 데이터에서 참조 중인 항목입니다..." 메시지를 사용자에게 전달하기 위함
+
+### 복원 방법
+
+HIST-20260501-005 복원 시:
+- `handleDeleteMaster`, `handleDeleteSlave` catch 블록을 `catch { setError('...'); }` 형태로 되돌린다.
+
+---
+
+## HIST-20260430-008
+
+- **날짜**: 2026-04-30
+- **수정 범위**: 관리자 프론트엔드 / 테이블 관리 > 도메인 관리
+- **수정 개요**: 전체 너비 레이아웃으로 변경 + 로딩 스피너를 TableSkeleton으로 교체
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/tables/domains/page.tsx` | 수정 | `max-w-2xl` 제거, `TableSkeleton` import 추가, 로딩 early return을 스피너 → TableSkeleton으로 교체 |
+
+### 수정 상세
+
+- **변경 전**: `<div className="max-w-2xl space-y-6">`, 로딩 시 `animate-spin` 원형 스피너
+- **변경 후**: `<div className="space-y-6">`, 로딩 시 `TableSkeleton rows={5} cols={3}`
+- **이유**: 다른 관리자 페이지와 동일한 전체 너비 통일; CLAUDE.md skeleton 컨벤션 준수
+
+### 복원 방법
+
+이 ID(HIST-20260430-008)로 복원 시: `max-w-2xl` 복원, `TableSkeleton` import 제거, 스피너 early return 복원
+
+---
+
 ## HIST-20260426-003
 
 - **날짜**: 2026-04-26

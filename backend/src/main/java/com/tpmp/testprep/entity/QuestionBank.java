@@ -38,6 +38,10 @@ public class QuestionBank extends BaseEntity {
     @JoinColumn(name = "category_id")
     private DomainSlave category;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "exam_type_id")
+    private DomainSlave examType;
+
     /** 객관식 보기 목록 (MULTIPLE_CHOICE 유형에서만 사용) */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
@@ -61,13 +65,14 @@ public class QuestionBank extends BaseEntity {
 
     @Builder
     public QuestionBank(String content, QuestionType questionType,
-                        DomainSlave category,
+                        DomainSlave category, DomainSlave examType,
                         List<String> options, String answer,
                         String code, String language,
                         String explanation, Long createdByUno) {
         this.content = content;
         this.questionType = questionType;
         this.category = category;
+        this.examType = examType;
         this.options = options;
         this.answer = answer;
         this.code = code;
@@ -77,13 +82,14 @@ public class QuestionBank extends BaseEntity {
     }
 
     public void update(String content, QuestionType questionType,
-                       DomainSlave category,
+                       DomainSlave category, DomainSlave examType,
                        List<String> options, String answer,
                        String code, String language,
                        String explanation, Long modifiedByUno) {
         this.content = content;
         this.questionType = questionType;
         this.category = category;
+        this.examType = examType;
         this.options = options;
         this.answer = answer;
         this.code = code;

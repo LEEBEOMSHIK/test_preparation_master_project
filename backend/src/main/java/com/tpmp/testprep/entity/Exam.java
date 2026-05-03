@@ -38,6 +38,9 @@ public class Exam {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "del_yn", nullable = false, length = 1, columnDefinition = "char(1) not null default 'N'")
+    private String delYn = "N";
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -55,6 +58,8 @@ public class Exam {
         if (title != null) this.title = title;
         if (questionMode != null) this.questionMode = questionMode;
     }
+
+    public void softDelete() { this.delYn = "Y"; }
 
     public enum QuestionMode {
         RANDOM, SEQUENTIAL

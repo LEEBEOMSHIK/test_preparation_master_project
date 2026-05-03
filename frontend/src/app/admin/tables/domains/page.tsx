@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { domainService } from '@/services/domainService';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 import type { DomainMaster, DomainSlave } from '@/types';
 
 export default function AdminDomainsPage() {
@@ -92,8 +93,9 @@ export default function AdminDomainsPage() {
     try {
       await domainService.deleteMaster(masterId);
       loadDomains();
-    } catch {
-      setError('마스터 삭제에 실패했습니다.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      setError(msg ?? '마스터 삭제에 실패했습니다.');
     }
   };
 
@@ -133,8 +135,9 @@ export default function AdminDomainsPage() {
     try {
       await domainService.deleteSlave(masterId, slaveId);
       loadDomains();
-    } catch {
-      setError('슬레이브 삭제에 실패했습니다.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      setError(msg ?? '슬레이브 삭제에 실패했습니다.');
     }
   };
 
@@ -142,14 +145,16 @@ export default function AdminDomainsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48">
-        <div className="w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+      <div className="space-y-4">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <TableSkeleton rows={5} cols={3} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-gray-900">도메인 관리</h2>
         <p className="text-sm text-gray-500 mt-1">

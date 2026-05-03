@@ -15,12 +15,12 @@ spring:
       client:
         registration:
           google:
-            client-id: ${GOOGLE_CLIENT_ID}
-            client-secret: ${GOOGLE_CLIENT_SECRET}
+            client-id: ${GOOGLE_CLIENT_ID:not_configured}
+            client-secret: ${GOOGLE_CLIENT_SECRET:not_configured}
             scope:
               - email
               - profile
-            redirect-uri: ${GOOGLE_OAUTH2_REDIRECT_URI}
+            redirect-uri: ${GOOGLE_OAUTH2_REDIRECT_URI:https://not_configured/api/login/oauth2/code/google}
 
 app:
   jwt:
@@ -32,4 +32,4 @@ app:
   upload:
     path: ${UPLOAD_PATH:/uploads}
   oauth2:
-    frontend-redirect-uri: ${OAUTH2_FRONTEND_REDIRECT_URI}
+    frontend-redirect-uri: ${OAUTH2_FRONTEND_REDIRECT_URI:http://localhost/auth/oauth/callback}

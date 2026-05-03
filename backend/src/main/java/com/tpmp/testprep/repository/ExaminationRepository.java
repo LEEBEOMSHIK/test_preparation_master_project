@@ -18,6 +18,9 @@ public interface ExaminationRepository extends JpaRepository<Examination, Long> 
            "ORDER BY e.createdAt DESC")
     Page<Examination> findAllWithDetails(Pageable pageable);
 
+    /** 슬레이브 ID가 category로 참조되는 시험이 있는지 확인 */
+    boolean existsByCategoryId(Long categoryId);
+
     /** 단건 조회: 시험지·카테고리 페치 조인 */
     @Query("SELECT e FROM Examination e " +
            "JOIN FETCH e.examPaper " +

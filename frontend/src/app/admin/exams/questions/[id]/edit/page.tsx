@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { examService } from '@/services/examService';
-import type { QuestionType } from '@/types';
+import { domainService } from '@/services/domainService';
+import type { QuestionType, DomainMaster, DomainSlave } from '@/types';
 import { CodeEditor } from '@/components/ui/CodeEditor';
 import { ImageUploadButton } from '@/components/ui/ImageUploadButton';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -45,6 +47,8 @@ interface FormState {
   code:         string;
   language:     string;
   explanation:  string;
+  categoryId:   number | null;
+  examTypeId:   number | null;
 }
 
 const defaultForm = (): FormState => ({
@@ -55,6 +59,8 @@ const defaultForm = (): FormState => ({
   code:         '',
   language:     'javascript',
   explanation:  '',
+  categoryId:   null,
+  examTypeId:   null,
 });
 
 // ── Page ───────────────────────────────────────────────────────────────────────
@@ -68,6 +74,16 @@ export default function AdminQuestionEditPage() {
   const [fetching, setFetching] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
+  const [domains, setDomains] = useState<DomainMaster[]>([]);
+
+  const examTypeSlaves: DomainSlave[]     = domains.find((m) => m.name === '시험 유형')?.slaves ?? [];
+  const questionTypeSlaves: DomainSlave[] = domains.find((m) => m.name === '문제 유형')?.slaves ?? [];
+
+  useEffect(() => {
+    domainService.getDomains()
+      .then((res) => setDomains(res.data.data ?? []))
+      .catch(() => {});
+  }, []);
 
   // 기존 문항 로드
   useEffect(() => {
@@ -83,13 +99,15 @@ export default function AdminQuestionEditPage() {
           code:         q.code ?? '',
           language:     q.language ?? 'javascript',
           explanation:  q.explanation ?? '',
+          categoryId:   q.categoryId ?? null,
+          examTypeId:   q.examTypeId ?? null,
         });
       })
       .catch(() => setError('문항 정보를 불러오지 못했습니다.'))
       .finally(() => setFetching(false));
   }, [id]);
 
-  const update = (field: keyof FormState, value: string | string[]) =>
+  const update = (field: keyof FormState, value: string | string[] | number | null) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
   const handleTypeChange = (type: QuestionType) => {
@@ -112,6 +130,8 @@ export default function AdminQuestionEditPage() {
       await examService.adminUpdateQuestion(id, {
         content:      form.content.trim(),
         questionType: form.questionType,
+        categoryId:   form.categoryId ?? undefined,
+        examTypeId:   form.examTypeId ?? undefined,
         options:      form.questionType === 'MULTIPLE_CHOICE' ? form.options.filter(Boolean) : undefined,
         answer:       form.answer || undefined,
         code:         form.code   || undefined,
@@ -130,8 +150,8 @@ export default function AdminQuestionEditPage() {
 
   if (fetching) {
     return (
-      <div className="flex items-center justify-center h-48">
-        <div className="w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+      <div className="max-w-2xl">
+        <TableSkeleton rows={5} cols={2} />
       </div>
     );
   }
@@ -180,6 +200,36 @@ export default function AdminQuestionEditPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* 시험 유형 선택 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">시험 유형</label>
+            <select
+              value={form.examTypeId ?? ''}
+              onChange={(e) => update('examTypeId', e.target.value ? Number(e.target.value) : null)}
+              className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+            >
+              <option value="">시험 유형을 선택하세요</option>
+              {examTypeSlaves.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 문항 유형 선택 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">문항 유형</label>
+            <select
+              value={form.categoryId ?? ''}
+              onChange={(e) => update('categoryId', e.target.value ? Number(e.target.value) : null)}
+              className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+            >
+              <option value="">문항 유형을 선택하세요</option>
+              {questionTypeSlaves.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
           </div>
 
           {/* 문항 내용 */}

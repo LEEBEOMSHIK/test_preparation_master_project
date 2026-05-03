@@ -77,7 +77,8 @@ export const examService = {
   adminCreateQuestionsBulk: (questions: Array<{
     content: string;
     questionType: QuestionType;
-    categoryId: number;
+    categoryId?: number;
+    examTypeId?: number;
     options?: string[];
     answer?: string;
     code?: string;
@@ -92,6 +93,8 @@ export const examService = {
   adminUpdateQuestion: (id: number, data: {
     content: string;
     questionType: QuestionType;
+    categoryId?: number;
+    examTypeId?: number;
     options?: string[];
     answer?: string;
     code?: string;

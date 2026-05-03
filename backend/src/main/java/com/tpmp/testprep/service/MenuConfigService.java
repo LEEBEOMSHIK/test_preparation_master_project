@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -73,6 +74,30 @@ public class MenuConfigService {
     @Transactional
     public void delete(Long id) {
         menuConfigRepository.delete(findMenu(id));
+    }
+
+    /** 권한 코드 집합 기반 메뉴 트리 반환 — codes가 비어 있으면 해당 타입 전체 반환 */
+    public List<MenuConfigResponse> getMenuTreeByPermissions(MenuConfig.MenuType menuType, Set<String> codes) {
+        List<MenuConfig> menus = menuConfigRepository
+                .findByMenuTypeAndIsActiveOrderByDisplayOrderAsc(menuType, true);
+
+        List<MenuConfig> filtered = codes.isEmpty()
+                ? menus
+                : menus.stream()
+                        .filter(m -> codes.stream().anyMatch(c -> containsRole(m.getAllowedRoles(), c)))
+                        .toList();
+
+        Map<Long, List<MenuConfig>> childMap = filtered.stream()
+                .filter(m -> m.getParentId() != null)
+                .collect(Collectors.groupingBy(MenuConfig::getParentId));
+
+        return filtered.stream()
+                .filter(m -> m.getParentId() == null)
+                .map(m -> MenuConfigResponse.withChildren(
+                        m,
+                        childMap.getOrDefault(m.getId(), List.of())
+                                .stream().map(MenuConfigResponse::from).toList()))
+                .toList();
     }
 
     /** 특정 권한 코드가 allowedRoles에 포함된 메뉴 ID 목록을 반환 */

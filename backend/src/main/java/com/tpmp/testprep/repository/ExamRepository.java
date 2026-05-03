@@ -9,6 +9,10 @@ import org.springframework.data.jpa.repository.Query;
 public interface ExamRepository extends JpaRepository<Exam, Long> {
     Page<Exam> findAll(Pageable pageable);
 
+    Page<Exam> findAllByDelYn(String delYn, Pageable pageable);
+
+    java.util.Optional<Exam> findByIdAndDelYn(Long id, String delYn);
+
     @Query("SELECT COALESCE(MAX(e.orderNo), 0) + 1 FROM Exam e")
     int nextOrderNo();
 }

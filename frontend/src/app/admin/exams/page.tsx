@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { examinationService } from '@/services/examinationService';
@@ -9,15 +9,22 @@ import type { Examination } from '@/types';
 
 export default function AdminExamsPage() {
   const router = useRouter();
-  const [exams, setExams]         = useState<Examination[]>([]);
+  const [allExams, setAllExams]   = useState<Examination[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
+  // 검색 조건 (입력)
+  const [keyword, setKeyword]             = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  // 검색 조건 (적용됨)
+  const [appliedKeyword, setAppliedKeyword]             = useState('');
+  const [appliedCategoryFilter, setAppliedCategoryFilter] = useState('');
+
   useEffect(() => {
     examinationService
-      .adminGetExaminations(0, 100)
-      .then((res) => setExams(res.data.data?.content ?? []))
+      .adminGetExaminations(0, 1000)
+      .then((res) => setAllExams(res.data.data?.content ?? []))
       .catch(() => setError('시험 목록을 불러오지 못했습니다.'))
       .finally(() => setLoading(false));
   }, []);
@@ -27,13 +34,34 @@ export default function AdminExamsPage() {
     setDeletingId(id);
     try {
       await examinationService.adminDeleteExamination(id);
-      setExams((prev) => prev.filter((e) => e.id !== id));
+      setAllExams((prev) => prev.filter((e) => e.id !== id));
     } catch {
       setError('시험 삭제에 실패했습니다.');
     } finally {
       setDeletingId(null);
     }
   };
+
+  const handleSearch = () => {
+    setAppliedKeyword(keyword);
+    setAppliedCategoryFilter(categoryFilter);
+  };
+
+  const handleReset = () => {
+    setKeyword(''); setCategoryFilter('');
+    setAppliedKeyword(''); setAppliedCategoryFilter('');
+  };
+
+  const categories = useMemo(() => [...new Set(allExams.map((e) => e.categoryName).filter(Boolean))], [allExams]);
+
+  const filtered = useMemo(() => {
+    const kw = appliedKeyword.trim().toLowerCase();
+    return allExams.filter((e) => {
+      if (kw && !e.title.toLowerCase().includes(kw)) return false;
+      if (appliedCategoryFilter && e.categoryName !== appliedCategoryFilter) return false;
+      return true;
+    });
+  }, [allExams, appliedKeyword, appliedCategoryFilter]);
 
   return (
     <div className="space-y-4">
@@ -51,19 +79,63 @@ export default function AdminExamsPage() {
         </Link>
       </div>
 
+      {/* 검색 조건 */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-48">
+            <label className="block text-xs font-medium text-gray-500 mb-1">시험 제목</label>
+            <input
+              type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="시험 제목 검색"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">시험 유형</label>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            >
+              <option value="">전체</option>
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <button
+            onClick={handleSearch}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
+          >
+            검색
+          </button>
+          {(keyword || categoryFilter || appliedKeyword || appliedCategoryFilter) && (
+            <button
+              onClick={handleReset}
+              className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
+            >
+              초기화
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* 목록 */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
           <TableSkeleton rows={5} cols={7} />
         ) : error ? (
           <div className="p-10 text-center text-red-400 text-sm">{error}</div>
-        ) : exams.length === 0 ? (
+        ) : allExams.length === 0 ? (
           <div className="p-10 text-center text-gray-400 text-sm">
             등록된 시험이 없습니다.{' '}
             <Link href="/admin/exams/new" className="text-indigo-500 hover:underline">
               시험을 등록해보세요.
             </Link>
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-10 text-center text-gray-400 text-sm">검색 결과가 없습니다.</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -78,9 +150,9 @@ export default function AdminExamsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {exams.map((exam, idx) => (
+              {filtered.map((exam, idx) => (
                 <tr key={exam.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3.5 text-gray-400 text-center">{idx + 1}</td>
+                  <td className="px-4 py-3.5 text-gray-400 text-center whitespace-nowrap">{idx + 1}</td>
                   <td className="px-4 py-3.5 font-medium text-gray-900 max-w-0">
                     <p className="truncate">{exam.title}</p>
                   </td>

@@ -46,6 +46,7 @@ public class UserQuizController {
     @PostMapping("/check")
     public ResponseEntity<ApiResponse<CheckResult>> checkAnswer(@RequestBody CheckRequest request) {
         QuestionBank qb = questionBankRepository.findById(request.questionId())
+                .filter(q -> "N".equals(q.getDelYn()))
                 .orElseThrow();
         boolean correct = qb.getAnswer() != null
                 && qb.getAnswer().trim().equalsIgnoreCase(request.userAnswer().trim());

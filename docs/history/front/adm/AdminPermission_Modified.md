@@ -1,3 +1,97 @@
+## HIST-20260502-005
+
+- **날짜**: 2026-05-02
+- **수정 범위**: 관리자 프론트엔드 / 권한 관리
+- **수정 개요**: 세부 권한 메뉴 접근 영역을 tri-state 체크박스 트리 구조로 개선 — 상위 메뉴 클릭 시 전체 하위 토글, 전체 체크 시 상위 자동 체크, Indeterminate 상태 표시
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/permissions/page.tsx` | 수정 | `buildMenuHierarchy` 제거, `IndeterminateCheckbox`·`MenuCheckboxTree` 컴포넌트 추가, 메뉴 패널 그리드 → 트리 UI 교체 |
+
+### 수정 상세
+
+#### `app/admin/permissions/page.tsx`
+- **변경 전**: 메뉴 접근 패널에 `grid-cols-2` 2열 평면 체크박스 목록 — 상위/하위 메뉴 구분 없이 `└` 접두어만으로 계층 표시
+- **변경 후**:
+  - `buildMenuHierarchy()` 제거, `toggleDetailMenu()` 제거
+  - `IndeterminateCheckbox` 컴포넌트: `useRef`로 `input.indeterminate` 직접 제어 → 중간 선택 상태(`—`) 표시
+  - `MenuCheckboxTree` 컴포넌트:
+    - 상위 메뉴: 색상 헤더 + tri-state 체크박스 + 우측 `N / M` 카운트
+    - 하위 메뉴: 들여쓰기(`pl-9`) + 개별 체크박스
+    - 상위 클릭 → 전체 하위 on/off (allOn 기준)
+    - 하위 전부 체크 → 상위 자동 체크
+    - 하위 일부 체크 → 상위 Indeterminate
+  - 메뉴 패널 내 `<MenuCheckboxTree>` 연결: `onChange={(next) => setPendingDetailMenus(prev => ({...prev, [detail.id]: next}))}`
+  - `import { ..., useRef, useMemo }` 추가
+
+### 복원 방법
+
+HIST-20260502-005 복원 시 `permissions/page.tsx`를 HIST-20260502-004 시점 내용으로 되돌린다:
+- `import`에서 `useRef`, `useMemo` 제거
+- `buildMenuHierarchy()`, `toggleDetailMenu()` 함수 복원
+- `IndeterminateCheckbox`, `MenuCheckboxTree` 컴포넌트 제거
+- 메뉴 패널을 기존 `grid-cols-2` 체크박스 그리드로 복원
+
+---
+
+## HIST-20260502-004
+
+- **날짜**: 2026-05-02
+- **수정 범위**: 관리자 프론트엔드 / 권한 관리
+- **수정 개요**: 마스터(권한 그룹) / 세부 권한 시각 계층 개선 — 섹션 레이블·색상 강화, 구조 안내 배너 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/permissions/page.tsx` | 수정 | 마스터/세부 권한 시각 구분 강화 |
+
+### 수정 상세
+
+#### `app/admin/permissions/page.tsx`
+- **변경 전**: 마스터 헤더와 세부 권한 행이 배경색 차이만으로 구분 — 계층 파악 어려움
+- **변경 후**:
+  - 구조 안내 배너 추가 (상단 amber 배너: "권한 그룹"과 "세부 권한" 역할 설명)
+  - 마스터 헤더: `MASTER` 뱃지 + `권한 그룹` 레이블 + 탭별 색상(USER=에메랄드, ADMIN=인디고)
+  - 세부 권한 섹션 레이블 추가 (`세부 권한 N건` 구분선)
+  - 세부 권한 행: 좌측 세로선(`border-l-2`) + `▸` 아이콘으로 하위 항목 표시
+  - 메뉴 접근 패널: 별도 rounded 카드 UI로 분리
+  - 세부 권한 추가 영역: 점선 구분선 + `+ 세부 권한 추가` 레이블
+  - 탭 UI: 밑줄 방식 → pill 방식으로 변경
+  - 버튼 텍스트: "권한 추가" → "권한 그룹 추가"
+
+### 복원 방법
+
+HIST-20260502-004 복원 시 `permissions/page.tsx`를 HIST-20260430-007 시점 내용으로 되돌린다.
+
+---
+
+## HIST-20260430-007
+
+- **날짜**: 2026-04-30
+- **수정 범위**: 관리자 프론트엔드 / 권한 관리
+- **수정 개요**: 전체 너비 레이아웃으로 변경 + 권한 코드/이름 키워드 검색 조건 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/permissions/page.tsx` | 수정 | `max-w-2xl` 제거, `masterKeyword`/`appliedMasterKeyword` 상태 추가, `filteredMasters` IIFE에 키워드 필터 레이어 추가, 검색 UI 추가 |
+
+### 수정 상세
+
+- **변경 전**: `<div className="max-w-2xl space-y-6">` + `filteredMasters = masters.filter(m => m.scope === activeTab)`
+- **변경 후**: `<div className="space-y-6">` + IIFE에서 탭 필터 후 키워드 필터 추가 적용
+- **이유**: 다른 관리자 페이지와 동일한 전체 너비 레이아웃 통일; 권한이 많을 때 빠른 검색 가능
+
+### 복원 방법
+
+이 ID(HIST-20260430-007)로 복원 시: `max-w-2xl` 복원, 검색 상태/UI 제거, `filteredMasters` 단순 filter 복원
+
+---
+
 ## HIST-20260426-017
 
 - **날짜**: 2026-04-26

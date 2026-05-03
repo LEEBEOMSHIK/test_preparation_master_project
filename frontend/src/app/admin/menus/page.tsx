@@ -1,19 +1,31 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { menuService, type MenuConfigRequest } from '@/services/menuService';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 import type { MenuConfig } from '@/types';
 
 type MenuTypeTab = 'ADMIN' | 'USER';
 
-const ICON_KEYS = ['exam', 'concept', 'inquiry', 'faq', 'quote', 'table', 'permission', 'menu', 'quiz', ''];
+const CUSTOM_VALUE = '__custom__';
+const FALLBACK_ICON_KEYS = ['exam', 'examinfo', 'concept', 'inquiry', 'faq', 'quote', 'table', 'permission', 'menu', 'quiz'];
 
 export default function AdminMenusPage() {
   const [activeTab, setActiveTab] = useState<MenuTypeTab>('ADMIN');
   const [menus, setMenus] = useState<MenuConfig[]>([]);
   const [flatMenus, setFlatMenus] = useState<MenuConfig[]>([]);
+  const [allFlatMenus, setAllFlatMenus] = useState<MenuConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // DB에 저장된 iconKey + 폴백 목록을 합쳐 중복 제거한 선택지
+  const distinctIconKeys = useMemo(() => {
+    const fromDb = allFlatMenus
+      .map((m) => m.iconKey)
+      .filter((k): k is string => !!k && k.trim() !== '');
+    const merged = [...new Set([...FALLBACK_ICON_KEYS, ...fromDb])].sort();
+    return ['', ...merged]; // '' = (없음)
+  }, [allFlatMenus]);
 
   // 추가 폼
   const [showAdd, setShowAdd] = useState(false);
@@ -35,13 +47,18 @@ export default function AdminMenusPage() {
 
   const load = (tab: MenuTypeTab) => {
     setLoading(true);
+    const otherTab: MenuTypeTab = tab === 'ADMIN' ? 'USER' : 'ADMIN';
     Promise.all([
       menuService.adminGetAll(tab),
       menuService.adminGetFlat(tab),
+      menuService.adminGetFlat(otherTab),
     ])
-      .then(([treeRes, flatRes]) => {
+      .then(([treeRes, flatRes, otherFlatRes]) => {
+        const flatData = flatRes.data.data ?? [];
+        const otherFlatData = otherFlatRes.data.data ?? [];
         setMenus(treeRes.data.data ?? []);
-        setFlatMenus(flatRes.data.data ?? []);
+        setFlatMenus(flatData);
+        setAllFlatMenus([...flatData, ...otherFlatData]);
       })
       .catch(() => setError('메뉴 목록을 불러오지 못했습니다.'))
       .finally(() => setLoading(false));
@@ -125,8 +142,10 @@ export default function AdminMenusPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48">
-        <div className="w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+      <div className="space-y-4">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <TableSkeleton rows={6} cols={4} />
+        </div>
       </div>
     );
   }
@@ -178,11 +197,12 @@ export default function AdminMenusPage() {
         <div className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-5 space-y-3">
           <p className="text-sm font-semibold text-gray-700">새 메뉴 추가</p>
           <MenuForm
+            key="add-form"
             data={form}
             onChange={setForm}
             parentOptions={parentOptions}
             menuType={activeTab}
-            iconKeys={ICON_KEYS}
+            iconKeys={distinctIconKeys}
           />
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={() => setShowAdd(false)}
@@ -217,7 +237,7 @@ export default function AdminMenusPage() {
                 onChangeEdit={(f) => setEditForm(f)}
                 parentOptions={parentOptions}
                 saving={saving}
-                iconKeys={ICON_KEYS}
+                iconKeys={distinctIconKeys}
                 isChild={false}
               />
 
@@ -237,7 +257,7 @@ export default function AdminMenusPage() {
                         onChangeEdit={(f) => setEditForm(f)}
                         parentOptions={parentOptions}
                         saving={saving}
-                        iconKeys={ICON_KEYS}
+                        iconKeys={distinctIconKeys}
                         isChild
                       />
                     </li>
@@ -274,6 +294,7 @@ function MenuRow({
       {isEditing && editForm ? (
         <div className="space-y-2">
           <MenuForm
+            key={`edit-${menu.id}`}
             data={editForm}
             onChange={onChangeEdit}
             parentOptions={parentOptions}
@@ -317,10 +338,32 @@ function MenuForm({
   data: MenuConfigRequest;
   onChange: (d: MenuConfigRequest) => void;
   parentOptions: MenuConfig[];
-  menuType: 'USER' | 'ADMIN';
+  menuType: string;
   iconKeys: string[];
 }) {
   const set = (patch: Partial<MenuConfigRequest>) => onChange({ ...data, ...patch });
+
+  // 현재 iconKey가 선택지에 없으면 "직접 입력" 모드로 초기화
+  const initIsCustom = !!data.iconKey && !iconKeys.includes(data.iconKey ?? '');
+  const [isCustom, setIsCustom] = useState(initIsCustom);
+  const [customText, setCustomText] = useState(initIsCustom ? (data.iconKey ?? '') : '');
+
+  const selectVal = isCustom ? CUSTOM_VALUE : (data.iconKey ?? '');
+
+  const handleSelect = (val: string) => {
+    if (val === CUSTOM_VALUE) {
+      setIsCustom(true);
+    } else {
+      setIsCustom(false);
+      setCustomText('');
+      set({ iconKey: val || undefined });
+    }
+  };
+
+  const handleCustomText = (val: string) => {
+    setCustomText(val);
+    set({ iconKey: val.trim() || undefined });
+  };
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -348,12 +391,26 @@ function MenuForm({
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-1">아이콘 키</label>
-        <select value={data.iconKey ?? ''} onChange={(e) => set({ iconKey: e.target.value || undefined })}
-          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <select
+          value={selectVal}
+          onChange={(e) => handleSelect(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
           {iconKeys.map((k) => (
             <option key={k} value={k}>{k || '(없음)'}</option>
           ))}
+          <option value={CUSTOM_VALUE}>직접 입력</option>
         </select>
+        {isCustom && (
+          <input
+            type="text"
+            value={customText}
+            onChange={(e) => handleCustomText(e.target.value)}
+            placeholder="아이콘 키를 직접 입력하세요 (예: examinfo)"
+            autoFocus
+            className="mt-1.5 w-full px-3 py-2 rounded-lg border border-indigo-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        )}
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-1">표시 순서</label>

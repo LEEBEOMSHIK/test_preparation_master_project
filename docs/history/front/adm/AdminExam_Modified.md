@@ -1,3 +1,32 @@
+## HIST-20260430-003
+
+- **날짜**: 2026-04-30
+- **수정 범위**: 관리자 프론트엔드 / 시험 관리, 시험지 관리
+- **수정 개요**: 시험 목록·시험지 목록에 검색 조건 패널 추가 (버튼 클릭 시 적용)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/page.tsx` | 수정 | 시험 제목·유형 검색 조건 추가, 전체 로드 후 클라이언트 필터링 |
+| `frontend/src/app/admin/exams/papers/page.tsx` | 수정 | 시험지 제목·출제방식 검색 조건 추가, 클라이언트 필터링 |
+
+### 수정 상세
+
+#### `admin/exams/page.tsx`
+- **변경 전**: 검색 없이 전체 목록 표시 (`exams` 상태)
+- **변경 후**: `allExams` + `keyword`/`categoryFilter` 입력 상태, `appliedKeyword`/`appliedCategoryFilter` 적용 상태, `useMemo` 필터링, 검색 UI 패널 추가
+
+#### `admin/exams/papers/page.tsx`
+- **변경 전**: 검색 없이 전체 목록 표시 (`papers` 상태)
+- **변경 후**: `allPapers` + 동일한 입력/적용 상태 패턴, 검색 UI 패널 추가
+
+### 복원 방법
+
+이 ID(HIST-20260430-003)로 복원 시: 검색 상태 변수 제거, `useMemo` 제거, `exams`/`papers` 상태명 복원, 검색 UI 패널 `<div>` 제거
+
+---
+
 ## HIST-20260419-017
 
 - **날짜**: 2026-04-19

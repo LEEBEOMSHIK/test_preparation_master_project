@@ -1,3 +1,72 @@
+## HIST-20260501-001
+
+- **날짜**: 2026-05-01
+- **수정 범위**: 관리자 백엔드 / 문항 관리
+- **수정 개요**: QuestionBankResponse에 `updatedAt`(최종 수정일) 필드 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionBankResponse.java` | 수정 | `updatedAt` 필드 추가, `from()`에서 `qb.getModifiedDt()` 매핑 |
+
+### 수정 상세
+
+#### `dto/response/QuestionBankResponse.java`
+- 변경 전: `createdAt` 필드만 존재 (`qb.getCreateDt()` 매핑)
+- 변경 후: `updatedAt` 필드 추가 (`qb.getModifiedDt()` 매핑), record 14번째 컴포넌트로 삽입
+- 이유: 프론트엔드 문항 목록에서 최근 수정일 기준 정렬 지원
+
+### 복원 방법
+
+이 ID(HIST-20260501-001)만으로 복원 시:
+- `QuestionBankResponse.java`에서 `LocalDateTime updatedAt` 필드 제거, `from()` 메서드에서 `qb.getModifiedDt()` 인수 제거
+
+---
+
+## HIST-20260430-014
+
+- **날짜**: 2026-04-30
+- **수정 범위**: 관리자 백엔드 / 문항 관리
+- **수정 개요**: QuestionBank에 examType(시험 유형) 필드 추가, categoryId 선택 필드로 완화, QuestionBankResponse에 examTypeId/examTypeName 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/entity/QuestionBank.java` | 수정 | `examType` ManyToOne 필드 추가, `@Builder`/`update()` 파라미터에 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/request/QuestionBankRequest.java` | 수정 | `categoryId` @NotNull 제거, `examTypeId` 필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionBankResponse.java` | 수정 | `examTypeId`, `examTypeName` 필드 및 `from()` 팩토리 업데이트 |
+| `backend/src/main/java/com/tpmp/testprep/service/QuestionBankService.java` | 수정 | `resolveCategory` null-safe, `createQuestion`/`createQuestionsBulk`/`updateQuestion`에 `examType` 적용 |
+
+### 수정 상세
+
+#### `entity/QuestionBank.java`
+- 변경 전: `category` 필드만 존재, `@Builder`/`update()`에 `DomainSlave category` 하나
+- 변경 후: `@ManyToOne @JoinColumn(name="exam_type_id") DomainSlave examType` 추가, `@Builder`/`update()` 파라미터에 `DomainSlave examType` 추가 (category 뒤)
+- 이유: 문항에 시험 유형을 별도로 분류하기 위한 필드 추가
+
+#### `dto/request/QuestionBankRequest.java`
+- 변경 전: `@NotNull Long categoryId`
+- 변경 후: `Long categoryId` (@NotNull 제거), `Long examTypeId` 추가
+- 이유: 프론트엔드 신규 등록 화면에서 카테고리 선택을 선택 사항으로 변경
+
+#### `dto/response/QuestionBankResponse.java`
+- 변경 전: `categoryId`, `categoryName` 이후 바로 `options`
+- 변경 후: `examTypeId`, `examTypeName` 두 필드 추가 (categoryName 뒤), `from()`에서 null-safe getter 매핑
+- 이유: 프론트엔드에서 시험 유형 표시 및 수정 화면 기본값 채우기 지원
+
+#### `service/QuestionBankService.java`
+- 변경 전: `resolveCategory`가 null 전달 시 `findById(null)` 호출로 예외 발생
+- 변경 후: `if (categoryId == null) return null;` 선행 체크 추가, create/update에 examType 파라미터 적용
+- 이유: categoryId/examTypeId가 선택 필드이므로 null에 대한 방어 처리 필요
+
+### 복원 방법
+
+이 ID(HIST-20260430-014)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다.
+
+---
+
 ## HIST-20260420-002
 
 - **날짜**: 2026-04-20

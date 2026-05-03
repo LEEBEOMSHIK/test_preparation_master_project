@@ -2,6 +2,7 @@ package com.tpmp.testprep.exception;
 
 import com.tpmp.testprep.dto.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -28,6 +29,14 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         return ResponseEntity.badRequest()
                 .body(ApiResponse.fail(ErrorCode.INVALID_INPUT.name(), message));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException e) {
+        log.warn("Data integrity violation", e);
+        ErrorCode code = ErrorCode.DOMAIN_IN_USE;
+        return ResponseEntity.status(code.getStatus())
+                .body(ApiResponse.fail(code.name(), code.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

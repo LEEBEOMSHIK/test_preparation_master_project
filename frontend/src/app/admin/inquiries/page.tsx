@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { inquiryService } from '@/services/inquiryService';
 import { TableSkeleton } from '@/components/ui/Skeleton';
@@ -20,33 +20,53 @@ const STATUS_COLOR: Record<InquiryStatus, string> = {
   ANSWERED: 'bg-green-100 text-green-700',
 };
 
-export default function AdminInquiriesPage() {
-  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<InquiryStatus | ''>('');
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
-  const [holding, setHolding] = useState<number | null>(null);
-  const [deleting, setDeleting] = useState<number | null>(null);
+const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 
-  const load = useCallback(() => {
+export default function AdminInquiriesPage() {
+  const [allInquiries, setAllInquiries] = useState<Inquiry[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [statusFilter, setStatusFilter] = useState<InquiryStatus | ''>('');
+  const [page, setPage]                 = useState(0);
+  const [pageSize, setPageSize]         = useState<10 | 20 | 50>(10);
+  const [holding, setHolding]           = useState<number | null>(null);
+  const [deleting, setDeleting]         = useState<number | null>(null);
+
+  // 검색 조건 (입력)
+  const [keyword, setKeyword]               = useState('');
+  // 검색 조건 (적용됨)
+  const [appliedKeyword, setAppliedKeyword] = useState('');
+
+  useEffect(() => {
     setLoading(true);
     inquiryService
-      .adminGetAll(page, pageSize, statusFilter || undefined)
+      .adminGetAll(0, 10000, undefined)
       .then((res) => {
-        if (res.data.success && res.data.data) {
-          setInquiries(res.data.data.content);
-          setTotalPages(res.data.data.totalPages);
-          setTotalElements(res.data.data.totalElements);
-        }
+        if (res.data.success && res.data.data) setAllInquiries(res.data.data.content);
       })
       .finally(() => setLoading(false));
-  }, [page, pageSize, statusFilter]);
+  }, []);
 
-  useEffect(() => { setPage(0); }, [statusFilter, pageSize]);
-  useEffect(() => { load(); }, [load]);
+  const handleSearch = () => { setAppliedKeyword(keyword); setPage(0); };
+  const handleReset  = () => { setKeyword(''); setAppliedKeyword(''); setPage(0); };
+
+  const handleStatusChange = (s: InquiryStatus | '') => { setStatusFilter(s); setPage(0); };
+  const handlePageSizeChange = (s: 10 | 20 | 50) => { setPageSize(s); setPage(0); };
+
+  const filtered = useMemo(() => {
+    let result = allInquiries;
+    if (statusFilter) result = result.filter((i) => i.status === statusFilter);
+    if (appliedKeyword) {
+      const kw = appliedKeyword.toLowerCase();
+      result = result.filter((i) =>
+        i.title.toLowerCase().includes(kw) || (i.userName ?? '').toLowerCase().includes(kw)
+      );
+    }
+    return result;
+  }, [allInquiries, statusFilter, appliedKeyword]);
+
+  const totalElements = filtered.length;
+  const totalPages    = Math.ceil(totalElements / pageSize);
+  const paged         = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
   const handleDelete = async (e: React.MouseEvent, id: number) => {
     e.preventDefault();
@@ -54,8 +74,7 @@ export default function AdminInquiriesPage() {
     setDeleting(id);
     try {
       await inquiryService.adminDelete(id);
-      setInquiries((prev) => prev.filter((q) => q.id !== id));
-      setTotalElements((prev) => prev - 1);
+      setAllInquiries((prev) => prev.filter((i) => i.id !== id));
     } finally {
       setDeleting(null);
     }
@@ -67,7 +86,7 @@ export default function AdminInquiriesPage() {
     try {
       const res = await inquiryService.adminToggleHold(id);
       if (res.data.success && res.data.data) {
-        setInquiries((prev) => prev.map((q) => (q.id === id ? res.data.data! : q)));
+        setAllInquiries((prev) => prev.map((i) => (i.id === id ? res.data.data! : i)));
       }
     } finally {
       setHolding(null);
@@ -87,7 +106,7 @@ export default function AdminInquiriesPage() {
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}
-            onClick={() => setStatusFilter(tab.value)}
+            onClick={() => handleStatusChange(tab.value)}
             className={[
               'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
               statusFilter === tab.value
@@ -100,12 +119,45 @@ export default function AdminInquiriesPage() {
         ))}
       </div>
 
+      {/* 검색 조건 */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-48">
+            <label className="block text-xs font-medium text-gray-500 mb-1">제목 / 작성자</label>
+            <input
+              type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="제목 또는 작성자 검색"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            />
+          </div>
+          <button
+            onClick={handleSearch}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
+          >
+            검색
+          </button>
+          {(keyword || appliedKeyword) && (
+            <button
+              onClick={handleReset}
+              className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
+            >
+              초기화
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading ? (
           <TableSkeleton rows={5} cols={5} />
-        ) : inquiries.length === 0 ? (
+        ) : allInquiries.length === 0 ? (
           <div className="p-12 text-center text-sm text-gray-400">문의가 없습니다.</div>
+        ) : filtered.length === 0 ? (
+          <div className="p-12 text-center text-sm text-gray-400">검색 결과가 없습니다.</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -120,7 +172,7 @@ export default function AdminInquiriesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {inquiries.map((inquiry, idx) => (
+              {paged.map((inquiry, idx) => (
                 <tr key={inquiry.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
                     {page * pageSize + idx + 1}
@@ -186,10 +238,10 @@ export default function AdminInquiriesPage() {
             <span>페이지당</span>
             <select
               value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value) as 10 | 20 | 50)}
               className="border border-gray-200 rounded-md px-2 py-1 text-sm"
             >
-              {[10, 20, 50].map((s) => (
+              {PAGE_SIZE_OPTIONS.map((s) => (
                 <option key={s} value={s}>{s}개</option>
               ))}
             </select>

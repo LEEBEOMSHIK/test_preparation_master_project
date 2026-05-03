@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { adminUserService, type AdminUser } from '@/services/adminUserService';
 import { TableSkeleton } from '@/components/ui/Skeleton';
@@ -23,6 +23,13 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // 검색 조건
+  const [keyword, setKeyword]             = useState('');
+  const [appliedKeyword, setAppliedKeyword] = useState('');
+
+  const handleSearch = () => setAppliedKeyword(keyword);
+  const handleReset  = () => { setKeyword(''); setAppliedKeyword(''); };
+
   const load = async (activeTab: TabKey) => {
     setLoading(true);
     try {
@@ -35,6 +42,14 @@ export default function AdminUsersPage() {
   };
 
   useEffect(() => { load(tab); }, [tab]);
+
+  const filteredUsers = useMemo(() => {
+    if (!appliedKeyword) return users;
+    const kw = appliedKeyword.toLowerCase();
+    return users.filter((u) =>
+      u.name.toLowerCase().includes(kw) || u.email.toLowerCase().includes(kw)
+    );
+  }, [users, appliedKeyword]);
 
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -71,6 +86,37 @@ export default function AdminUsersPage() {
         ))}
       </div>
 
+      {/* 검색 조건 */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-48">
+            <label className="block text-xs font-medium text-gray-500 mb-1">이름 / 이메일</label>
+            <input
+              type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="이름 또는 이메일 검색"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            />
+          </div>
+          <button
+            onClick={handleSearch}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
+          >
+            검색
+          </button>
+          {(keyword || appliedKeyword) && (
+            <button
+              onClick={handleReset}
+              className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
+            >
+              초기화
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* 목록 */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading ? (
@@ -89,12 +135,14 @@ export default function AdminUsersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {users.length === 0 && (
+            {filteredUsers.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-gray-400">계정이 없습니다.</td>
+                <td colSpan={7} className="px-4 py-10 text-center text-gray-400">
+                  {users.length === 0 ? '계정이 없습니다.' : '검색 결과가 없습니다.'}
+                </td>
               </tr>
             )}
-            {users.map((u, idx) => (
+            {filteredUsers.map((u, idx) => (
               <tr
                 key={u.id}
                 onClick={() => router.push(`/admin/users/${u.id}`)}

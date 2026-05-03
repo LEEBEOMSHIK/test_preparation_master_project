@@ -24,29 +24,49 @@ const TYPE_COLOR: Record<QuestionType, string> = {
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+type SortField = 'createdAt' | 'updatedAt';
+
+function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.8}
+         className={['w-3 h-3 ml-1 shrink-0', active ? 'text-indigo-500' : 'text-gray-300'].join(' ')}>
+      {dir === 'desc' || !active
+        ? <path strokeLinecap="round" strokeLinejoin="round" d="M8 3v10M4 9l4 4 4-4" />
+        : <path strokeLinecap="round" strokeLinejoin="round" d="M8 13V3M4 7l4-4 4 4" />}
+    </svg>
+  );
+}
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function AdminQuestionsPage() {
   const router = useRouter();
 
-  // 원본 데이터
   const [allQuestions, setAllQuestions] = useState<QuestionSummary[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState('');
   const [deletingId,   setDeletingId]   = useState<number | null>(null);
 
-  // 검색 조건
-  const [keyword,  setKeyword]  = useState('');
+  // 검색 조건 (입력)
+  const [keyword,    setKeyword]    = useState('');
   const [typeFilter, setTypeFilter] = useState<QuestionType | ''>('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo,   setDateTo]   = useState('');
+  const [dateFrom,   setDateFrom]   = useState('');
+  const [dateTo,     setDateTo]     = useState('');
+
+  // 검색 조건 (적용됨)
+  const [appliedKeyword,    setAppliedKeyword]    = useState('');
+  const [appliedTypeFilter, setAppliedTypeFilter] = useState<QuestionType | ''>('');
+  const [appliedDateFrom,   setAppliedDateFrom]   = useState('');
+  const [appliedDateTo,     setAppliedDateTo]     = useState('');
+
+  // 정렬
+  const [sortField, setSortField] = useState<SortField>('updatedAt');
+  const [sortDir,   setSortDir]   = useState<'asc' | 'desc'>('desc');
 
   // 페이지네이션
   const [page,     setPage]     = useState(0);
   const [pageSize, setPageSize] = useState<10 | 20 | 50>(10);
 
-  // 초기 로딩
   useEffect(() => {
     examService
       .adminGetQuestions(0, 500)
@@ -55,7 +75,6 @@ export default function AdminQuestionsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // 삭제
   const handleDelete = async (id: number) => {
     if (!confirm('이 문항을 삭제하시겠습니까?')) return;
     setDeletingId(id);
@@ -69,33 +88,55 @@ export default function AdminQuestionsPage() {
     }
   };
 
-  // 검색 실행 (검색 버튼 / 조건 즉시 반영)
-  const handleSearch = () => setPage(0);
+  const handleSearch = () => {
+    setAppliedKeyword(keyword);
+    setAppliedTypeFilter(typeFilter);
+    setAppliedDateFrom(dateFrom);
+    setAppliedDateTo(dateTo);
+    setPage(0);
+  };
 
-  // 필터링
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDir('desc');
+    }
+    setPage(0);
+  };
+
   const filtered = useMemo(() => {
-    const kw      = keyword.trim().toLowerCase();
-    const fromMs  = dateFrom ? new Date(dateFrom).getTime() : null;
-    const toMs    = dateTo   ? new Date(dateTo + 'T23:59:59').getTime() : null;
+    const kw     = appliedKeyword.trim().toLowerCase();
+    const fromMs = appliedDateFrom ? new Date(appliedDateFrom).getTime() : null;
+    const toMs   = appliedDateTo   ? new Date(appliedDateTo + 'T23:59:59').getTime() : null;
 
-    return allQuestions.filter((q) => {
+    const base = allQuestions.filter((q) => {
       if (kw && !q.content.toLowerCase().includes(kw)) return false;
-      if (typeFilter && q.questionType !== typeFilter) return false;
+      if (appliedTypeFilter && q.questionType !== appliedTypeFilter) return false;
       const created = new Date(q.createdAt).getTime();
       if (fromMs && created < fromMs) return false;
       if (toMs   && created > toMs)   return false;
       return true;
     });
-  }, [allQuestions, keyword, typeFilter, dateFrom, dateTo]);
+
+    return [...base].sort((a, b) => {
+      const av = sortField === 'updatedAt' ? (a.updatedAt ?? a.createdAt) : a.createdAt;
+      const bv = sortField === 'updatedAt' ? (b.updatedAt ?? b.createdAt) : b.createdAt;
+      const diff = new Date(av).getTime() - new Date(bv).getTime();
+      return sortDir === 'asc' ? diff : -diff;
+    });
+  }, [allQuestions, appliedKeyword, appliedTypeFilter, appliedDateFrom, appliedDateTo, sortField, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged      = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
-  // 페이지 크기 변경 시 첫 페이지로
   const handlePageSizeChange = (size: 10 | 20 | 50) => {
     setPageSize(size);
     setPage(0);
   };
+
+  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('ko-KR');
 
   return (
     <div className="space-y-4">
@@ -116,7 +157,6 @@ export default function AdminQuestionsPage() {
       {/* 검색 조건 */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="flex flex-wrap items-end gap-3">
-          {/* 내용 검색 */}
           <div className="flex-1 min-w-48">
             <label className="block text-xs font-medium text-gray-500 mb-1">문항 내용</label>
             <input
@@ -129,12 +169,11 @@ export default function AdminQuestionsPage() {
             />
           </div>
 
-          {/* 유형 필터 */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">유형</label>
             <select
               value={typeFilter}
-              onChange={(e) => { setTypeFilter(e.target.value as QuestionType | ''); setPage(0); }}
+              onChange={(e) => setTypeFilter(e.target.value as QuestionType | '')}
               className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
             >
               <option value="">전체</option>
@@ -144,29 +183,26 @@ export default function AdminQuestionsPage() {
             </select>
           </div>
 
-          {/* 등록일 from */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">등록일 (시작)</label>
             <input
               type="date"
               value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
+              onChange={(e) => setDateFrom(e.target.value)}
               className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
             />
           </div>
 
-          {/* 등록일 to */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">등록일 (종료)</label>
             <input
               type="date"
               value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
+              onChange={(e) => setDateTo(e.target.value)}
               className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
             />
           </div>
 
-          {/* 검색 버튼 */}
           <button
             onClick={handleSearch}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
@@ -174,10 +210,13 @@ export default function AdminQuestionsPage() {
             검색
           </button>
 
-          {/* 초기화 */}
-          {(keyword || typeFilter || dateFrom || dateTo) && (
+          {(keyword || typeFilter || dateFrom || dateTo || appliedKeyword || appliedTypeFilter || appliedDateFrom || appliedDateTo) && (
             <button
-              onClick={() => { setKeyword(''); setTypeFilter(''); setDateFrom(''); setDateTo(''); setPage(0); }}
+              onClick={() => {
+                setKeyword(''); setTypeFilter(''); setDateFrom(''); setDateTo('');
+                setAppliedKeyword(''); setAppliedTypeFilter(''); setAppliedDateFrom(''); setAppliedDateTo('');
+                setPage(0);
+              }}
               className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
             >
               초기화
@@ -189,7 +228,7 @@ export default function AdminQuestionsPage() {
       {/* 목록 */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
-          <TableSkeleton rows={5} cols={5} />
+          <TableSkeleton rows={5} cols={6} />
         ) : error ? (
           <div className="p-10 text-center text-red-400 text-sm">{error}</div>
         ) : filtered.length === 0 ? (
@@ -205,7 +244,6 @@ export default function AdminQuestionsPage() {
           </div>
         ) : (
           <>
-            {/* 결과 요약 + 페이지 크기 */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
               <span className="text-xs text-gray-500">
                 총 <span className="font-semibold text-gray-700">{filtered.length}</span>개 문항
@@ -230,7 +268,24 @@ export default function AdminQuestionsPage() {
                   <th className="px-4 py-3 w-12 text-center whitespace-nowrap">No.</th>
                   <th className="px-4 py-3">문항 내용</th>
                   <th className="px-4 py-3 w-24 text-center whitespace-nowrap">유형</th>
-                  <th className="px-4 py-3 w-28 whitespace-nowrap">등록일</th>
+                  <th className="px-4 py-3 w-28 whitespace-nowrap">
+                    <button
+                      onClick={() => handleSort('createdAt')}
+                      className="inline-flex items-center hover:text-gray-700 transition"
+                    >
+                      등록일
+                      <SortIcon active={sortField === 'createdAt'} dir={sortDir} />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 w-28 whitespace-nowrap">
+                    <button
+                      onClick={() => handleSort('updatedAt')}
+                      className="inline-flex items-center hover:text-gray-700 transition"
+                    >
+                      수정일
+                      <SortIcon active={sortField === 'updatedAt'} dir={sortDir} />
+                    </button>
+                  </th>
                   <th className="px-4 py-3 w-40 text-center whitespace-nowrap">관리</th>
                 </tr>
               </thead>
@@ -252,7 +307,10 @@ export default function AdminQuestionsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3.5 text-gray-400 whitespace-nowrap">
-                      {new Date(q.createdAt).toLocaleDateString('ko-KR')}
+                      {fmtDate(q.createdAt)}
+                    </td>
+                    <td className="px-4 py-3.5 text-gray-400 whitespace-nowrap">
+                      {q.updatedAt ? fmtDate(q.updatedAt) : '-'}
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <div className="inline-flex items-center gap-2">
@@ -282,10 +340,8 @@ export default function AdminQuestionsPage() {
               </tbody>
             </table>
 
-            {/* 페이지네이션 */}
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-1 px-5 py-4 border-t border-gray-100">
-                {/* 이전 */}
                 <button
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
@@ -296,16 +352,9 @@ export default function AdminQuestionsPage() {
                   </svg>
                 </button>
 
-                {/* 페이지 번호 */}
                 {Array.from({ length: totalPages }, (_, i) => {
-                  const show =
-                    i === 0 ||
-                    i === totalPages - 1 ||
-                    Math.abs(i - page) <= 2;
-                  const gap =
-                    i > 0 &&
-                    Math.abs(i - page) === 3 &&
-                    (i === 1 || i === totalPages - 2);
+                  const show = i === 0 || i === totalPages - 1 || Math.abs(i - page) <= 2;
+                  const gap  = i > 0 && Math.abs(i - page) === 3 && (i === 1 || i === totalPages - 2);
                   if (!show && !gap) return null;
                   if (gap) return <span key={i} className="w-8 text-center text-gray-400 text-xs">…</span>;
                   return (
@@ -324,7 +373,6 @@ export default function AdminQuestionsPage() {
                   );
                 })}
 
-                {/* 다음 */}
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                   disabled={page === totalPages - 1}

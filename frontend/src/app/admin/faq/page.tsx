@@ -1,43 +1,58 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { faqService } from '@/services/faqService';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import type { Faq } from '@/types';
 
+const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+
 export default function AdminFaqPage() {
-  const [faqs, setFaqs] = useState<Faq[]>([]);
+  const [allFaqs, setAllFaqs] = useState<Faq[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
+  const [pageSize, setPageSize] = useState<10 | 20 | 50>(10);
   const [toggling, setToggling] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
 
-  const load = useCallback(() => {
+  // 검색 조건 (입력)
+  const [keyword, setKeyword] = useState('');
+  // 검색 조건 (적용됨)
+  const [appliedKeyword, setAppliedKeyword] = useState('');
+
+  useEffect(() => {
     setLoading(true);
-    faqService.adminGetAll(page, pageSize)
+    faqService.adminGetAll(0, 10000)
       .then((res) => {
-        if (res.data.success && res.data.data) {
-          setFaqs(res.data.data.content);
-          setTotalPages(res.data.data.totalPages);
-          setTotalElements(res.data.data.totalElements);
-        }
+        if (res.data.success && res.data.data) setAllFaqs(res.data.data.content);
       })
       .finally(() => setLoading(false));
-  }, [page, pageSize]);
+  }, []);
 
-  useEffect(() => { setPage(0); }, [pageSize]);
-  useEffect(() => { load(); }, [load]);
+  const handleSearch = () => { setAppliedKeyword(keyword); setPage(0); };
+  const handleReset  = () => { setKeyword(''); setAppliedKeyword(''); setPage(0); };
+
+  const handlePageSizeChange = (s: 10 | 20 | 50) => { setPageSize(s); setPage(0); };
+
+  const filtered = useMemo(() => {
+    if (!appliedKeyword) return allFaqs;
+    const kw = appliedKeyword.toLowerCase();
+    return allFaqs.filter((f) =>
+      f.question.toLowerCase().includes(kw) || f.answer.toLowerCase().includes(kw)
+    );
+  }, [allFaqs, appliedKeyword]);
+
+  const totalElements = filtered.length;
+  const totalPages    = Math.ceil(totalElements / pageSize);
+  const paged         = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
   const handleToggle = async (id: number) => {
     setToggling(id);
     try {
       const res = await faqService.adminToggleActive(id);
       if (res.data.success && res.data.data) {
-        setFaqs((prev) => prev.map((f) => (f.id === id ? res.data.data! : f)));
+        setAllFaqs((prev) => prev.map((f) => (f.id === id ? res.data.data! : f)));
       }
     } finally {
       setToggling(null);
@@ -49,7 +64,7 @@ export default function AdminFaqPage() {
     setDeleting(id);
     try {
       await faqService.adminDelete(id);
-      load();
+      setAllFaqs((prev) => prev.filter((f) => f.id !== id));
     } finally {
       setDeleting(null);
     }
@@ -74,12 +89,45 @@ export default function AdminFaqPage() {
         </Link>
       </div>
 
+      {/* 검색 조건 */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-48">
+            <label className="block text-xs font-medium text-gray-500 mb-1">질문 / 답변</label>
+            <input
+              type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="질문 또는 답변 검색"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            />
+          </div>
+          <button
+            onClick={handleSearch}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
+          >
+            검색
+          </button>
+          {(keyword || appliedKeyword) && (
+            <button
+              onClick={handleReset}
+              className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
+            >
+              초기화
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading ? (
           <TableSkeleton rows={5} cols={5} />
-        ) : faqs.length === 0 ? (
+        ) : allFaqs.length === 0 ? (
           <div className="p-12 text-center text-sm text-gray-400">등록된 FAQ가 없습니다.</div>
+        ) : filtered.length === 0 ? (
+          <div className="p-12 text-center text-sm text-gray-400">검색 결과가 없습니다.</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -93,7 +141,7 @@ export default function AdminFaqPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {faqs.map((faq, idx) => (
+              {paged.map((faq, idx) => (
                 <tr key={faq.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
                     {page * pageSize + idx + 1}
@@ -154,10 +202,10 @@ export default function AdminFaqPage() {
             <span>페이지당</span>
             <select
               value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value) as 10 | 20 | 50)}
               className="border border-gray-200 rounded-md px-2 py-1 text-sm"
             >
-              {[10, 20, 50].map((s) => (
+              {PAGE_SIZE_OPTIONS.map((s) => (
                 <option key={s} value={s}>{s}개</option>
               ))}
             </select>

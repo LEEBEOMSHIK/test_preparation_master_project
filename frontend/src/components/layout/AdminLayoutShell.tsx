@@ -64,6 +64,11 @@ const ICON_MAP: Record<string, React.ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
+  test: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7l2 2 4-4" />
+    </svg>
+  ),
 };
 
 const DEFAULT_ICON = (
@@ -89,6 +94,7 @@ const FALLBACK_NAV: MenuConfig[] = [
   { id: 8,  parentId: undefined, name: '메뉴 관리',     url: '/admin/menus',       iconKey: 'menu',       displayOrder: 8,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 9,  parentId: undefined, name: '계정 관리',       url: '/admin/users',      iconKey: 'users',      displayOrder: 9,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 10, parentId: undefined, name: '시험 정보 관리', url: '/admin/exam-info',  iconKey: 'examinfo',   displayOrder: 10, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  { id: 9901, parentId: undefined, name: '테스트 케이스', url: '/admin/test-cases', iconKey: 'test',       displayOrder: 99, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
 ];
 
 function getPageTitle(pathname: string, navItems: MenuConfig[]): string {
@@ -143,10 +149,18 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
       router.replace('/auth/login');
       return;
     }
-    menuService.adminGetAll('ADMIN')
+    menuService.getMyMenus('ADMIN')
       .then((res) => {
         if (res.data.success && res.data.data && res.data.data.length > 0) {
-          setNavItems(res.data.data);
+          const apiMenus = res.data.data;
+          // DB에 없는 FALLBACK_NAV 항목을 보완 (예: 테스트 케이스 등 미등록 시스템 메뉴)
+          const coveredUrls = new Set<string>();
+          apiMenus.forEach((m) => {
+            coveredUrls.add(m.url);
+            (m.children ?? []).forEach((c) => coveredUrls.add(c.url));
+          });
+          const missing = FALLBACK_NAV.filter((m) => !coveredUrls.has(m.url));
+          setNavItems(missing.length > 0 ? [...apiMenus, ...missing] : apiMenus);
         }
       })
       .catch(() => {});
@@ -166,7 +180,7 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
         {/* Logo */}
         <div className="h-16 flex items-center px-5 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400 tracking-tight">TPMP</span>
-          <span className="ml-2 text-xs text-gray-400 dark:text-gray-500 font-medium">관리자</span>
+          <span className="ml-2 text-xs font-bold text-accent">관리자</span>
         </div>
 
         {/* Navigation */}
@@ -275,7 +289,7 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
             <ThemeToggle />
             <div className="h-6 w-px bg-gray-200 dark:bg-gray-700" />
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-bold">
+              <div className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-sm font-bold">
                 {initials}
               </div>
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:block">

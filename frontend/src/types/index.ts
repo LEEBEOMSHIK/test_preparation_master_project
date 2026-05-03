@@ -121,7 +121,10 @@ export interface QuestionSummary {
   explanation?: string;
   categoryId?: number;
   categoryName?: string;
+  examTypeId?: number;
+  examTypeName?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 // ──────────────────────────────────────────

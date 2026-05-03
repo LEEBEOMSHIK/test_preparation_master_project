@@ -21,6 +21,7 @@ public enum ErrorCode {
     QUESTION_NOT_FOUND(HttpStatus.NOT_FOUND, "문항을 찾을 수 없습니다."),
     EXAMINATION_NOT_FOUND(HttpStatus.NOT_FOUND, "시험을 찾을 수 없습니다."),
     DOMAIN_NOT_FOUND(HttpStatus.NOT_FOUND, "도메인 항목을 찾을 수 없습니다."),
+    DOMAIN_IN_USE(HttpStatus.CONFLICT, "다른 데이터에서 참조 중인 항목입니다. 먼저 해당 항목의 참조를 제거하세요."),
     QUOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "명언을 찾을 수 없습니다."),
 
     // ConceptNote
