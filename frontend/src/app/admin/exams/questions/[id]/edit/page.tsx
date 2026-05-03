@@ -7,7 +7,7 @@ import { examService } from '@/services/examService';
 import { domainService } from '@/services/domainService';
 import type { QuestionType, DomainMaster, DomainSlave } from '@/types';
 import { CodeEditor } from '@/components/ui/CodeEditor';
-import { ImageUploadButton } from '@/components/ui/ImageUploadButton';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -120,8 +120,10 @@ export default function AdminQuestionEditPage() {
     }));
   };
 
+  const stripHtml = (html: string) => html.replace(/<[^>]+>/g, '').trim();
+
   const handleSubmit = async () => {
-    if (!form.content.trim()) { setError('문항 내용을 입력하세요.'); return; }
+    if (!stripHtml(form.content)) { setError('문항 내용을 입력하세요.'); return; }
     if (form.questionType === 'CODE' && !form.code.trim()) { setError('코드를 입력하세요.'); return; }
 
     setError('');
@@ -173,7 +175,7 @@ export default function AdminQuestionEditPage() {
       </div>
 
       {/* 폼 카드 */}
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-gray-100 rounded-xl shadow-sm">
         <div className="p-5 space-y-5">
 
           {/* 유형 선택 */}
@@ -234,21 +236,15 @@ export default function AdminQuestionEditPage() {
 
           {/* 문항 내용 */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-medium text-gray-500">
-                {isCode ? '문제 설명' : '문항 내용'}{' '}
-                <span className="text-red-400">*</span>
-              </label>
-              <ImageUploadButton
-                onInsert={(md) => update('content', form.content + '\n' + md)}
-              />
-            </div>
-            <textarea
-              rows={isCode ? 2 : 3}
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              {isCode ? '문제 설명' : '문항 내용'}{' '}
+              <span className="text-red-400">*</span>
+            </label>
+            <RichTextEditor
               value={form.content}
-              onChange={(e) => update('content', e.target.value)}
+              onChange={(html) => update('content', html)}
               placeholder={isCode ? '예: 아래 코드의 실행 결과를 작성하시오.' : '문항 내용을 입력하세요.'}
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none"
+              minHeight={isCode ? 100 : 150}
             />
           </div>
 

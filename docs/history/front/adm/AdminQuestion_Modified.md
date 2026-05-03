@@ -1,3 +1,210 @@
+## HIST-20260503-011
+
+- **날짜**: 2026-05-03
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리
+- **수정 개요**: RichTextEditor 이미지 삽입 불가("에디터가 아직 준비되지 않았습니다") 수정 + 하이퍼링크 툴팁 잘림 수정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/RichTextEditor.tsx` | 수정 | `useEffect`(매 렌더) → 폴링 방식(마운트 1회, 150ms 간격)으로 editorRef 초기화 방식 변경 |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | ManualQuestionCard 래퍼 div에서 `overflow-hidden` 제거 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | 폼 카드 래퍼 div에서 `overflow-hidden` 제거 |
+
+### 수정 상세
+
+#### `RichTextEditor.tsx`
+- 변경 전: 매 렌더마다 실행되는 `useEffect`에서 `quillRef.current?.getEditor?.()`로 editorRef 설정 시도
+- 변경 후: 마운트 시 1회만 등록되는 `useEffect` 내부에서 150ms 간격 폴링으로 Quill 인스턴스가 준비될 때까지 재시도; 언마운트 시 `cancelled = true` + `editorRef.current = null`로 정리
+- 이유: `dynamic()` 비동기 로드 완료 시점이 마운트보다 늦을 수 있어, 매 렌더 방식으로도 타이밍을 맞추지 못하는 경우 발생
+
+#### `new/page.tsx` (ManualQuestionCard)
+- 변경 전: `<div className="... overflow-hidden">`
+- 변경 후: `<div className="... ">`(overflow-hidden 제거)
+- 이유: `overflow-hidden`이 Quill `.ql-tooltip`(절대위치 팝업)을 카드 경계에서 잘라냄
+
+#### `[id]/edit/page.tsx` (폼 카드)
+- 변경 전: `<div className="... overflow-hidden">`
+- 변경 후: `<div className="... ">`(overflow-hidden 제거)
+- 이유: 동일 — 하이퍼링크/색상 팝업이 카드 밖으로 나오지 못해 잘림
+
+### 복원 방법
+
+이 ID(HIST-20260503-011)만으로 복원 시:
+- `RichTextEditor.tsx`: 폴링 `useEffect`를 매 렌더 실행 `useEffect`(의존 배열 없음, `if (editorRef.current) return;` 가드)로 교체
+- `new/page.tsx` ManualQuestionCard 래퍼: `overflow-hidden` 다시 추가
+- `[id]/edit/page.tsx` 폼 카드: `overflow-hidden` 다시 추가
+
+---
+
+## HIST-20260503-010
+
+- **날짜**: 2026-05-03
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리
+- **수정 개요**: RichTextEditor — `dynamic()` 래퍼로 인한 "Function components cannot be given refs" 스크립트 오류 수정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/RichTextEditor.tsx` | 수정 | `dynamic()` 반환 컴포넌트를 `React.forwardRef`로 감싸 ref 전달 경로 확보 |
+
+### 수정 상세
+
+#### `RichTextEditor.tsx`
+- **오류 원인**: `dynamic(() => import('react-quill'), { ssr: false })`는 내부적으로 함수 컴포넌트 래퍼를 생성하는데, 함수 컴포넌트는 `React.forwardRef` 없이 `ref`를 받을 수 없음 → `<ReactQuill ref={quillRef} />`에서 런타임 경고·ref null 발생
+- **변경 전**: `const ReactQuill = dynamic(() => import('react-quill'), { ssr: false }) as any`
+- **변경 후**:
+  ```tsx
+  const ReactQuill = dynamic<any>(
+    async () => {
+      const { default: RQ } = await import('react-quill');
+      const Fwd = React.forwardRef<any, any>((props, ref) => <RQ {...props} ref={ref} />);
+      Fwd.displayName = 'ReactQuill';
+      return Fwd;
+    },
+    { ssr: false },
+  );
+  ```
+  - async 팩토리 함수 내에서 `React.forwardRef`로 ReactQuill을 감싼 뒤 반환
+  - `ref`가 dynamic 래퍼 → forwardRef 래퍼 → ReactQuill 클래스 인스턴스까지 정확히 전달됨
+  - `quillRef.current.getEditor()` 호출 가능 → `editorRef.current`에 원시 Quill 인스턴스 저장 성공
+
+### 복원 방법
+
+HIST-20260503-010 복원 시:
+- `dynamic` 호출을 단순 `dynamic(() => import('react-quill'), { ssr: false }) as any` 형태로 되돌림
+- `React` import에서 default export 제거 (`import { useRef, useMemo, useEffect } from 'react'`)
+
+---
+
+## HIST-20260503-009
+
+- **날짜**: 2026-05-03
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리
+- **수정 개요**: RichTextEditor 이미지 삽입 완전 수정 + 링크 팝업 잘림 수정 + 글자 크기·색상 기능 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/RichTextEditor.tsx` | 수정 | editorRef 분리(useEffect 마운트 후 저장), JSX 파일인풋 도입, 이미지 핸들러 안정화, 글자 크기·색상·배경색 툴바 추가 |
+| `frontend/src/app/globals.css` | 수정 | overflow-hidden 제거→ql-container overflow:visible, 링크 tooltip z-index·border-radius 추가, 사이즈 피커 한국어 레이블, 다크모드 tooltip·picker 스타일 보완 |
+
+### 수정 상세
+
+#### `RichTextEditor.tsx`
+- **이미지 미삽입 근본 원인**: `dynamic()` 래퍼를 통한 ref에서 `getEditor()`의 반환 타이밍이 불확실 → `useMemo` 핸들러 내에서 호출 시 null 가능성
+- **수정 방법**:
+  - `editorRef` 별도 추가 — `useEffect`(매 렌더 후 실행, 이미 설정 시 즉시 반환)로 `quillRef.current?.getEditor?.()`를 호출해 원시 Quill 인스턴스 저장
+  - `fileRef` (JSX `<input type="file">`) 추가 — `createElement` 방식 제거, React 이벤트 시스템 내에서 파일 선택·업로드 처리
+  - 이미지 핸들러: `editorRef.current` 사용, 커서 위치를 `savedIdx.current`에 저장 후 `fileRef.current?.click()`
+  - `handleImageChange`: 파일 선택 → 업로드 → `quill.insertEmbed(idx, 'image', url)` → `setSelection(idx+1)`
+- **기능 추가**: 툴바에 `size`(small/보통/large/huge), `color`, `background` 피커 추가; formats에 `'size', 'color', 'background'` 추가
+
+#### `globals.css`
+- **링크 팝업 잘림 수정**: 래퍼 div의 `overflow-hidden`(Tailwind 클래스) 제거, `.ql-container.ql-snow`에 `overflow: visible` 적용, `.ql-editor`에 `overflow-y: auto` 유지
+- `.ql-toolbar`: `border-radius: 0.5rem 0.5rem 0 0` (상단 모서리)
+- `.ql-container`: `border-radius: 0 0 0.5rem 0.5rem` (하단 모서리)
+- `.ql-tooltip`: `z-index: 50`, `border-radius`, `box-shadow` 추가
+- `.ql-picker-options`: `z-index: 50`, `border-radius`, `box-shadow` 추가
+- 사이즈 피커 한국어 레이블: 작게/보통/크게/매우 크게
+- 다크모드: tooltip 배경·테두리·텍스트·input 스타일, picker-item hover 추가
+
+### 복원 방법
+
+HIST-20260503-009 복원 시:
+- `RichTextEditor.tsx`: `editorRef`/`fileRef`/`savedIdx` 제거, `useEffect` 제거, `modules`를 이전 핸들러(createElement 방식)로 복원, 툴바에서 size/color/background 제거, `handleImageChange` 제거
+- `globals.css`: HIST-20260503-007 시점의 Quill 스타일 블록으로 복원
+
+---
+
+## HIST-20260503-008
+
+- **날짜**: 2026-05-03
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리
+- **수정 개요**: 리치텍스트 에디터(react-quill) 이미지 삽입 버그 수정 — 파일 다이얼로그 오픈 시 포커스 소실로 selection null 반환하여 삽입이 무시되던 문제
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/RichTextEditor.tsx` | 수정 | 이미지 핸들러: 다이얼로그 열기 전 selection index 저장, 파일 선택 후 저장된 index에 insertEmbed |
+
+### 수정 상세
+
+#### `components/ui/RichTextEditor.tsx` — image handler
+- **변경 전**: `input.click()` 후 `onchange`에서 `quill.getSelection(true)` 호출 → 파일 다이얼로그로 포커스 이동으로 selection이 null → `if (quill && range)` 조건 실패 → 이미지 삽입 무시
+- **변경 후**:
+  1. `input.click()` 호출 **전**에 `quill.getSelection()?.index` 저장 (`savedIndex`)
+  2. `input.onchange` → `input.addEventListener('change', ...)` 변경
+  3. 파일 선택 후 `savedIndex`로 `quill.insertEmbed(savedIndex, 'image', url)` 호출
+  4. `getEditor` 존재 여부 방어적 처리: `rq?.getEditor ? rq.getEditor() : null`
+  5. `url` 빈 문자열 guard 추가 (`if (!url) return`)
+
+### 복원 방법
+
+HIST-20260503-008 복원 시:
+- `imageHandler`를 변경 전 방식(savedIndex 없이 onchange 안에서 getSelection)으로 되돌림
+
+---
+
+## HIST-20260503-007
+
+- **날짜**: 2026-05-03
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리
+- **수정 개요**: 문항 내용 입력 필드를 textarea+ImageUploadButton에서 react-quill 기반 리치텍스트 에디터(`RichTextEditor`)로 교체 — 이미지 업로드 인라인 미리보기, 서식(굵게·기울임·목록 등) 지원
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/RichTextEditor.tsx` | 수정 | Tiptap 의존 제거 → react-quill 기반으로 전면 재작성, 이미지 업로드 핸들러 내장 |
+| `frontend/src/app/globals.css` | 수정 | Quill `.rte-quill-wrapper` 스타일 통합 (테두리·다크모드·이미지 미리보기 등) |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | `ImageUploadButton` import 제거 → `RichTextEditor` import; ManualQuestionCard의 content 필드 textarea→RichTextEditor 교체; `stripHtml` 헬퍼 추가로 유효성 검사 개선 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | `ImageUploadButton` import 제거 → `RichTextEditor` import; 문항 내용 textarea→RichTextEditor 교체; `stripHtml` 유효성 검사 적용 |
+| `frontend/package.json` | 수정 | `react-quill` 패키지 설치 (`npm install react-quill`) |
+
+### 수정 상세
+
+#### `components/ui/RichTextEditor.tsx`
+- **변경 전**: Tiptap(`@tiptap/react`, `@tiptap/starter-kit` 등) 의존 — package.json에 없어 빌드 불가
+- **변경 후**: `react-quill` 동적 import (`ssr: false`), `quill.snow.css` import
+  - 툴바: 제목(H1~H3), 굵게·기울임·밑줄·취소선, 순서 있는/없는 목록, 링크, 이미지, 서식 초기화
+  - 이미지 핸들러: 파일 선택 → `examService.adminUploadQuestionImage()` → Quill에 `insertEmbed`로 삽입, 업로드 즉시 인라인 미리보기
+  - `modules` `useMemo` 안정화로 Quill 툴바 재설치 방지
+  - Props: `value`, `onChange(html)`, `placeholder`, `minHeight`
+
+#### `globals.css`
+- `.rte-quill-wrapper` 래퍼 클래스 스타일 추가
+  - `.ql-toolbar`, `.ql-container` 기본 border 제거 (부모 div border·ring으로 통합)
+  - 툴바 배경: `#f9fafb`, 하단 구분선 유지
+  - 에디터 폰트: Noto Sans KR 상속, `0.875rem`
+  - 이미지: `max-width: 100%`, `border-radius: 6px`, 블록 표시로 미리보기 형태
+  - 다크모드: `.dark .rte-quill-wrapper` 배경·아이콘·텍스트 색상 오버라이드
+
+#### `new/page.tsx`
+- **변경 전**: `ImageUploadButton` 버튼 + `<textarea>` (마크다운 텍스트 삽입 방식)
+- **변경 후**: `<RichTextEditor value onChange placeholder minHeight />` (WYSIWYG 방식)
+- `stripHtml` 헬퍼 함수 추가 — `manualFilledCount`, `handleSubmit` 양쪽에서 HTML 태그 제거 후 비어있는지 검사
+
+#### `[id]/edit/page.tsx`
+- **변경 전**: `ImageUploadButton` 버튼 + `<textarea>`
+- **변경 후**: `<RichTextEditor value onChange placeholder minHeight />`
+- `handleSubmit` 유효성 검사: `form.content.trim()` → `stripHtml(form.content)`
+
+### 복원 방법
+
+HIST-20260503-007 복원 시:
+- `RichTextEditor.tsx`: Tiptap 기반 구현으로 복원 (HIST-20260420-005 이전 미존재, Tiptap 패키지 재설치 필요)
+- `globals.css`: `.rte-quill-wrapper` 이하 Quill 스타일 블록 제거
+- `new/page.tsx`: `RichTextEditor` → `ImageUploadButton` import 교체; `stripHtml` 제거; ManualQuestionCard content 필드를 textarea+ImageUploadButton으로 복원
+- `[id]/edit/page.tsx`: 동일하게 textarea+ImageUploadButton 복원, `stripHtml` 제거
+- `react-quill` 언인스톨: `npm uninstall react-quill`
+
+---
+
 ## HIST-20260501-002
 
 - **날짜**: 2026-05-01

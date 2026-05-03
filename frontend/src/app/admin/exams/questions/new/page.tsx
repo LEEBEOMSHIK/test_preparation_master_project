@@ -7,7 +7,7 @@ import { examService } from '@/services/examService';
 import { domainService } from '@/services/domainService';
 import type { QuestionType, DomainSlave, DomainMaster } from '@/types';
 import { CodeEditor } from '@/components/ui/CodeEditor';
-import { ImageUploadButton } from '@/components/ui/ImageUploadButton';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -56,6 +56,8 @@ interface ImportedDraft extends QuestionDraft {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+
+const stripHtml = (html: string) => html.replace(/<[^>]+>/g, '').trim();
 
 let _seq = 0;
 const uid = () => `q-${++_seq}-${Date.now()}`;
@@ -150,7 +152,7 @@ function ManualQuestionCard({
   const isCode = draft.questionType === 'CODE';
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-gray-100 rounded-xl shadow-sm">
       {/* Card header */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50">
         <span className="text-sm font-semibold text-indigo-600">문항 {index + 1}</span>
@@ -234,26 +236,15 @@ function ManualQuestionCard({
 
         {/* 문항 내용 (모든 유형 공통) */}
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-xs font-medium text-gray-500">
-              {isCode ? '문제 설명' : '문항 내용'}{' '}
-              <span className="text-red-400">*</span>
-            </label>
-            <ImageUploadButton
-              onInsert={(md) => onChange('content', draft.content + '\n' + md)}
-            />
-          </div>
-          <textarea
-            rows={isCode ? 2 : 3}
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">
+            {isCode ? '문제 설명' : '문항 내용'}{' '}
+            <span className="text-red-400">*</span>
+          </label>
+          <RichTextEditor
             value={draft.content}
-            onChange={(e) => onChange('content', e.target.value)}
-            maxLength={5000}
-            placeholder={
-              isCode
-                ? '예: 아래 코드의 실행 결과를 작성하시오.'
-                : '문항 내용을 입력하세요.'
-            }
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none"
+            onChange={(html) => onChange('content', html)}
+            placeholder={isCode ? '예: 아래 코드의 실행 결과를 작성하시오.' : '문항 내용을 입력하세요.'}
+            minHeight={isCode ? 100 : 150}
           />
         </div>
 
@@ -493,7 +484,7 @@ export default function AdminQuestionNewPage() {
   // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     const manualValid = manualQuestions.filter((q) =>
-      q.content.trim() && (q.questionType !== 'CODE' || q.code.trim()),
+      stripHtml(q.content) && (q.questionType !== 'CODE' || q.code.trim()),
     );
     const importedValid = importedQuestions.filter((q) => !q.excluded && q.content.trim());
 
@@ -532,7 +523,7 @@ export default function AdminQuestionNewPage() {
 
   // ── Counts ───────────────────────────────────────────────────────────────────
   const manualFilledCount = manualQuestions.filter((q) =>
-    q.content.trim() && (q.questionType !== 'CODE' || q.code.trim()),
+    stripHtml(q.content) && (q.questionType !== 'CODE' || q.code.trim()),
   ).length;
   const importedAppliedCount = importedQuestions.filter((q) => !q.excluded).length;
   const totalCount           = manualFilledCount + importedAppliedCount;

@@ -142,3 +142,134 @@ body {
 .dark ::-webkit-scrollbar-track { background: #1f2937; }
 .dark ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
 .dark ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+/* ────────────────────────────────────────────────────────────────
+   Quill 에디터 (react-quill) — 프레임 통합 스타일
+──────────────────────────────────────────────────────────────── */
+
+/* 래퍼: 내부 Quill 요소에 border-radius 적용하므로 overflow 제거 */
+.rte-quill-wrapper {
+  position: relative; /* ql-tooltip 절대위치 기준점 */
+}
+
+/* 내부 Quill 요소의 기본 border 제거 (부모 div border+ring으로 통합) */
+.rte-quill-wrapper .ql-toolbar.ql-snow,
+.rte-quill-wrapper .ql-container.ql-snow {
+  border: none;
+}
+
+/* 툴바 — 상단 모서리 둥글게 */
+.rte-quill-wrapper .ql-toolbar.ql-snow {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 0.5rem 0.5rem 0 0;
+  padding: 6px 8px;
+  font-family: inherit;
+  flex-wrap: wrap;
+}
+
+/* 컨테이너 — 하단 모서리 둥글게, 팝업이 잘리지 않도록 overflow 허용 */
+.rte-quill-wrapper .ql-container.ql-snow {
+  border-radius: 0 0 0.5rem 0.5rem;
+  overflow: visible;
+}
+
+/* 에디터 본문 */
+.rte-quill-wrapper .ql-editor {
+  font-family: 'Noto Sans KR', 'Inter', sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  padding: 10px 12px;
+  color: #111827;
+  overflow-y: auto; /* 에디터 자체는 스크롤 허용 */
+}
+
+/* placeholder */
+.rte-quill-wrapper .ql-editor.ql-blank::before {
+  color: #9ca3af;
+  font-style: normal;
+  left: 12px;
+}
+
+/* 이미지 인라인 미리보기 */
+.rte-quill-wrapper .ql-editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 4px 0;
+  display: block;
+}
+
+/* 마지막 p 하단 여백 제거 */
+.rte-quill-wrapper .ql-editor p:last-child { margin-bottom: 0; }
+
+/* ── 링크 팝업 (.ql-tooltip) ── */
+/* overflow-hidden 제거로 팝업이 잘리지 않음; z-index로 다른 요소 위에 표시 */
+.rte-quill-wrapper .ql-tooltip {
+  z-index: 50;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+  white-space: nowrap;
+}
+
+/* ── 사이즈 피커 레이블 ── */
+.rte-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-label::before,
+.rte-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-item::before {
+  content: '보통';
+}
+.rte-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='small']::before,
+.rte-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='small']::before {
+  content: '작게';
+}
+.rte-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='large']::before,
+.rte-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='large']::before {
+  content: '크게';
+}
+.rte-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='huge']::before,
+.rte-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='huge']::before {
+  content: '매우 크게';
+}
+
+/* 사이즈 피커 드롭다운 너비 */
+.rte-quill-wrapper .ql-snow .ql-picker.ql-size { width: 80px; }
+
+/* 피커 드롭다운 z-index */
+.rte-quill-wrapper .ql-snow .ql-picker-options {
+  z-index: 50;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.10);
+}
+
+/* ── 다크모드 ── */
+.dark .rte-quill-wrapper .ql-toolbar.ql-snow {
+  background-color: #1f2937;
+  border-bottom-color: #374151;
+}
+.dark .rte-quill-wrapper .ql-toolbar .ql-stroke       { stroke: #d1d5db; }
+.dark .rte-quill-wrapper .ql-toolbar .ql-fill         { fill:  #d1d5db; }
+.dark .rte-quill-wrapper .ql-toolbar .ql-picker-label { color: #d1d5db; }
+.dark .rte-quill-wrapper .ql-toolbar button:hover .ql-stroke     { stroke: #a5b4fc; }
+.dark .rte-quill-wrapper .ql-toolbar button.ql-active .ql-stroke { stroke: #818cf8; }
+.dark .rte-quill-wrapper .ql-toolbar button.ql-active .ql-fill   { fill:  #818cf8; }
+.dark .rte-quill-wrapper .ql-editor {
+  background-color: #1f2937;
+  color: #f9fafb;
+}
+.dark .rte-quill-wrapper .ql-editor.ql-blank::before { color: #6b7280; }
+.dark .rte-quill-wrapper .ql-snow .ql-picker-options {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #f9fafb;
+}
+.dark .rte-quill-wrapper .ql-snow .ql-picker-item:hover { background-color: #374151; }
+.dark .rte-quill-wrapper .ql-tooltip {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #f9fafb;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.4);
+}
+.dark .rte-quill-wrapper .ql-tooltip input[type='text'] {
+  background-color: #374151;
+  border-color: #4b5563;
+  color: #f9fafb;
+}
