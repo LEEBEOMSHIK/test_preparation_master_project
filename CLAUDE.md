@@ -156,6 +156,91 @@ export function MyNewSkeleton({ count = 3 }: { count?: number }) {
 
 ---
 
+## RichTextEditor 콘텐츠 표시 규칙
+
+RichTextEditor(react-quill)는 항상 HTML 문자열을 출력한다. 이 데이터를 화면에 표시하거나 목록에서 미리볼 때는 아래 규칙을 따른다.
+
+### 규칙 요약
+
+| 용도 | 사용 방법 | Import 경로 |
+|------|----------|-------------|
+| **본문 표시** (문제, 개념노트 등 전체 내용) | `<RichContent html={content} className="..." />` | `@/components/ui/RichContent` |
+| **목록 미리보기** (테이블, 피커, line-clamp) | `{stripHtml(content)}` | `@/lib/html` |
+
+### RichContent 컴포넌트
+
+`src/components/ui/RichContent.tsx` — 에디터 HTML을 올바르게 렌더링하는 공유 컴포넌트.  
+내부적으로 `dangerouslySetInnerHTML`을 사용하며 이미지·리스트·링크·헤딩 스타일을 기본 제공한다.
+
+```tsx
+import { RichContent } from '@/components/ui/RichContent';
+
+// ✅ 올바른 패턴 — 문제 본문 표시
+<RichContent html={q.content} className="text-gray-800 text-sm" />
+
+// ❌ 금지 — 직접 dangerouslySetInnerHTML 작성 또는 JSX 텍스트 바인딩
+<div dangerouslySetInnerHTML={{ __html: q.content }} />
+<p>{q.content}</p>  // HTML 태그가 그대로 노출됨
+```
+
+### stripHtml 유틸리티
+
+`src/lib/html.ts` — HTML 태그를 제거하고 순수 텍스트만 반환한다.  
+테이블/피커의 미리보기, 검색·정렬 등 텍스트만 필요한 곳에서 사용한다.
+
+```tsx
+import { stripHtml } from '@/lib/html';
+
+// ✅ 올바른 패턴 — 목록 미리보기
+<p className="line-clamp-2">{stripHtml(q.content)}</p>
+
+// ❌ 금지 — 인라인 replace 직접 작성
+<p>{q.content.replace(/<[^>]+>/g, '')}</p>
+```
+
+### 새 화면 추가 시 체크리스트
+
+- 에디터 필드를 **전체 표시**하는 영역 → `<RichContent>` 사용
+- 에디터 필드를 **잘라서 미리보기**하는 영역 → `stripHtml()` 사용
+- `dangerouslySetInnerHTML` 직접 사용 금지 (RichContent로 위임)
+- `q.content.replace(/<[^>]+>/g, '')` 인라인 작성 금지 (stripHtml로 위임)
+
+---
+
+## 공통 유틸리티 / 공개 호출(Public Calls) 관리
+
+여러 파일에서 동일한 로직이 반복될 경우 반드시 공통 위치로 추출한 뒤 import하여 사용한다.  
+인라인 복붙은 금지한다.
+
+### 파일 구조
+
+| 경로 | 용도 |
+|------|------|
+| `src/lib/html.ts` | HTML 관련 순수 유틸 (`stripHtml` 등) |
+| `src/lib/` | 기타 순수 유틸리티 함수 (도메인 무관, 부수효과 없음) |
+| `src/components/ui/` | 재사용 UI 컴포넌트 (`RichContent`, `Skeleton`, `RichTextEditor` 등) |
+| `src/services/` | API 호출 레이어 |
+| `src/types/` | 공통 타입 정의 |
+
+### 현재 등록된 공통 유틸리티
+
+| 함수/컴포넌트 | 위치 | 역할 |
+|-------------|------|------|
+| `stripHtml(html)` | `src/lib/html.ts` | HTML 태그 제거 → 순수 텍스트 반환 |
+| `<RichContent html className />` | `src/components/ui/RichContent.tsx` | 에디터 HTML 렌더링 (dangerouslySetInnerHTML 래퍼) |
+| `<RichTextEditor value onChange />` | `src/components/ui/RichTextEditor.tsx` | react-quill 기반 에디터 입력 컴포넌트 |
+| `<QuestionDetailModal question onClose />` | `src/components/ui/QuestionDetailModal.tsx` | 문항 상세 모달 (내용·코드·선택지·정답·해설, ESC/배경 클릭 닫기) |
+| `<TableSkeleton />` 외 | `src/components/ui/Skeleton.tsx` | 스켈레톤 UI 컴포넌트 모음 |
+
+### AI 행동 규칙
+
+1. 같은 로직이 2곳 이상에서 필요하면 **먼저 공통 위치에 추출**하고, 각 파일에서 import한다.
+2. 새 유틸 함수는 `src/lib/`에, 새 UI 컴포넌트는 `src/components/ui/`에 추가한다.
+3. 추가 후 이 표(현재 등록된 공통 유틸리티)를 **즉시 업데이트**한다.
+4. 기존 공통 유틸을 수정하면 **모든 사용처에도 함께 반영**한다.
+
+---
+
 ## Modification History Policy
 
 **코드 수정이 발생할 때마다 반드시 히스토리 파일을 생성/갱신한다.**

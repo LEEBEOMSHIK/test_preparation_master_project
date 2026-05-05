@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { examinationService } from '@/services/examinationService';
 import { conceptNoteService } from '@/services/conceptNoteService';
 import type { ExaminationDetail, Question, ConceptNote } from '@/types';
+import { RichContent } from '@/components/ui/RichContent';
 
 const CIRCLED = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
 const circled = (n: number) => CIRCLED[n - 1] ?? `(${n})`;
@@ -38,18 +39,6 @@ function CodeBlock({ code, language }: { code: string; language?: string }) {
   );
 }
 
-// ── 문제 본문 (img 태그 지원) ─────────────────────────────────────────────────
-function QuestionContent({ content }: { content: string }) {
-  if (content.includes('<img')) {
-    return (
-      <div
-        className="text-gray-800 text-sm leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-2 [&_img]:block"
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
-    );
-  }
-  return <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">{content}</p>;
-}
 
 export default function ExamTakingPage() {
   const { id } = useParams<{ id: string }>();
@@ -454,7 +443,7 @@ export default function ExamTakingPage() {
               </div>
 
               {/* 문제 본문 (이미지 포함 가능) */}
-              <QuestionContent content={q.content} />
+              <RichContent html={q.content} className="text-gray-800 text-sm" />
 
               {/* 코드 블록 (CODE 유형 또는 code 필드가 있는 경우) */}
               {q.code && <CodeBlock code={q.code} language={q.language} />}

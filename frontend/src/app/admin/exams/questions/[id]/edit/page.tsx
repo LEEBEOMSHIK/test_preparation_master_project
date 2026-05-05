@@ -9,6 +9,7 @@ import type { QuestionType, DomainMaster, DomainSlave } from '@/types';
 import { CodeEditor } from '@/components/ui/CodeEditor';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { TableSkeleton } from '@/components/ui/Skeleton';
+import { stripHtml } from '@/lib/html';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -119,8 +120,6 @@ export default function AdminQuestionEditPage() {
       language: type === 'CODE' ? (prev.language || 'javascript') : prev.language,
     }));
   };
-
-  const stripHtml = (html: string) => html.replace(/<[^>]+>/g, '').trim();
 
   const handleSubmit = async () => {
     if (!stripHtml(form.content)) { setError('문항 내용을 입력하세요.'); return; }

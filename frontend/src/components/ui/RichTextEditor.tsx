@@ -1,23 +1,8 @@
 'use client';
 
-import React, { useRef, useMemo, useEffect } from 'react';
-import dynamic from 'next/dynamic';
+import React, { useRef, useMemo, useEffect, useState } from 'react';
 import 'react-quill/dist/quill.snow.css';
 import { examService } from '@/services/examService';
-
-// dynamic()은 함수 컴포넌트 래퍼를 생성하므로 ref를 자동으로 전달하지 않음.
-// forwardRef로 감싸서 quillRef가 ReactQuill 클래스 인스턴스에 정확히 도달하도록 처리.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const ReactQuill = dynamic<any>(
-  async () => {
-    const { default: RQ } = await import('react-quill');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, react/display-name
-    const Fwd = React.forwardRef<any, any>((props, ref) => <RQ {...props} ref={ref} />);
-    Fwd.displayName = 'ReactQuill';
-    return Fwd;
-  },
-  { ssr: false },
-);
 
 interface Props {
   value: string;
@@ -28,15 +13,24 @@ interface Props {
 
 export function RichTextEditor({ value, onChange, placeholder = '내용을 입력하세요.', minHeight = 160 }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const quillRef    = useRef<any>(null); // ReactQuill 컴포넌트 인스턴스
+  const quillRef  = useRef<any>(null); // ReactQuill 클래스 인스턴스
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const editorRef   = useRef<any>(null); // 원시 Quill 인스턴스 (insertEmbed 등 privileged API 사용)
-  const fileRef     = useRef<HTMLInputElement>(null);
-  const savedIdx    = useRef<number>(0);
+  const editorRef = useRef<any>(null); // 원시 Quill 인스턴스 (insertEmbed 등 privileged API)
+  const fileRef   = useRef<HTMLInputElement>(null);
+  const savedIdx  = useRef<number>(0);
 
-  // dynamic() 로드는 비동기 → 마운트 직후 getEditor()가 undefined일 수 있음.
-  // 150ms 간격으로 폴링해 인스턴스가 준비되는 즉시 editorRef에 저장.
+  // dynamic()은 함수 컴포넌트 래퍼를 반환하므로 ref가 항상 null이 됨.
+  // 클래스 컴포넌트인 ReactQuill을 useState에 직접 저장해 ref를 클래스 인스턴스에 전달.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [RQ, setRQ] = useState<any>(null);
+
   useEffect(() => {
+    import('react-quill').then((mod) => setRQ(() => mod.default));
+  }, []);
+
+  // RQ 로드 후 마운트 완료까지 150ms 간격으로 폴링 → editorRef에 Quill 인스턴스 저장
+  useEffect(() => {
+    if (!RQ) return;
     let cancelled = false;
     const poll = () => {
       if (cancelled || editorRef.current) return;
@@ -49,7 +43,7 @@ export function RichTextEditor({ value, onChange, placeholder = '내용을 입�
     };
     poll();
     return () => { cancelled = true; editorRef.current = null; };
-  }, []);
+  }, [RQ]);
 
   // modules는 최초 1회만 생성 (재생성 시 Quill이 툴바를 재초기화)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -69,8 +63,9 @@ export function RichTextEditor({ value, onChange, placeholder = '내용을 입�
         // → 다이얼로그 열기 전 커서 위치를 먼저 저장, JSX 파일인풋을 클릭
         image: () => {
           const quill = editorRef.current;
-          const sel = quill?.getSelection();
-          savedIdx.current = sel ? sel.index : Math.max(0, (quill?.getLength() ?? 1) - 1);
+          if (!quill) { alert('에디터가 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.'); return; }
+          const sel = quill.getSelection();
+          savedIdx.current = sel ? sel.index : Math.max(0, (quill.getLength() ?? 1) - 1);
           fileRef.current?.click();
         },
       },
@@ -91,7 +86,7 @@ export function RichTextEditor({ value, onChange, placeholder = '내용을 입�
     if (!file) return;
 
     const quill = editorRef.current;
-    if (!quill) { alert('에디터가 아직 준비되지 않았습니다.'); return; }
+    if (!quill) return;
 
     try {
       const res = await examService.adminUploadQuestionImage(file);
@@ -118,16 +113,26 @@ export function RichTextEditor({ value, onChange, placeholder = '내용을 입�
         className="hidden"
         onChange={handleImageChange}
       />
-      <ReactQuill
-        ref={quillRef}
-        theme="snow"
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        modules={modules}
-        formats={formats}
-        style={{ minHeight }}
-      />
+      {RQ ? (
+        <RQ
+          ref={quillRef}
+          theme="snow"
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          modules={modules}
+          formats={formats}
+          style={{ minHeight }}
+        />
+      ) : (
+        <div className="animate-pulse" style={{ minHeight }}>
+          <div className="h-10 bg-gray-100 border-b border-gray-200 rounded-t-lg" />
+          <div className="p-3 space-y-2">
+            <div className="h-3 bg-gray-200 rounded w-3/4" />
+            <div className="h-3 bg-gray-200 rounded w-1/2" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

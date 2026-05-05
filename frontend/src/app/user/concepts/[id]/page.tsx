@@ -3,19 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { conceptNoteService } from '@/services/conceptNoteService';
+import { RichContent } from '@/components/ui/RichContent';
 import type { ConceptNote } from '@/types';
-
-function QuestionContent({ content }: { content: string }) {
-  if (content.includes('<img')) {
-    return (
-      <div
-        className="text-sm text-gray-700 leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-2 [&_img]:block"
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
-    );
-  }
-  return <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{content}</p>;
-}
 
 function CodeBlock({ code, language }: { code: string; language?: string | null }) {
   return (
@@ -50,7 +39,7 @@ function LinkedQuestionBox({ note }: { note: ConceptNote }) {
         </span>
         <span className="text-xs text-indigo-400">이 문제에서 작성된 개념노트</span>
       </div>
-      <QuestionContent content={content} />
+      <RichContent html={content} className="text-sm text-gray-700" />
       {code && <CodeBlock code={code} language={language} />}
     </div>
   );

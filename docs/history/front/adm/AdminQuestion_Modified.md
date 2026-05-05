@@ -1,3 +1,237 @@
+## HIST-20260505-002
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리
+- **수정 개요**: 문항 관리 테이블에 '상세' 버튼 추가 — 클릭 시 `QuestionDetailModal`로 전체 내용 확인 가능
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | 문항 테이블 관리 컬럼에 '상세' 버튼 추가 (수정·삭제 버튼 좌측) |
+
+### 수정 상세
+
+#### `admin/exams/questions/page.tsx`
+- 변경 전: 관리 컬럼 = [수정, 삭제]
+- 변경 후: 관리 컬럼 = [상세, 수정, 삭제]
+- 이유: 문항 내용이 에디터 HTML이라 테이블 셀에서 전체 확인 불가 → 모달로 상세 보기 제공
+
+### 복원 방법
+
+이 ID(HIST-20260505-002)만으로 복원 시 `questions/page.tsx`에서 '상세' 버튼과 `detailQ` 관련 코드를 제거한다.
+
+---
+
+## HIST-20260504-008
+
+- **날짜**: 2026-05-04
+- **수정 범위**: 관리자 프론트엔드 / 문제 관리
+- **수정 개요**: 문제 등록 화면의 문제 목록 미리보기에서 HTML 태그 노출 수정 → `.replace(/<[^>]+>/g, '')` 적용
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | 가져온 문제 목록 미리보기 `q.content` HTML 태그 제거 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/new/page.tsx` (line 705)
+- 변경 전: `{q.content}`
+- 변경 후: `{q.content.replace(/<[^>]+>/g, '')}`
+- 이유: 가져온 문제 목록 미리보기에 HTML 태그가 노출됨
+
+### 복원 방법
+
+이 ID(HIST-20260504-008)만으로 복원 시 위 "변경 전" 내용을 각 파일에 적용한다.
+
+---
+
+## HIST-20260504-005
+
+- **날짜**: 2026-05-04
+- **수정 범위**: INFRA / Next.js 설정 분리
+- **수정 개요**: `next.config.js`를 공통·개발·프로덕션 3블록으로 분리
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/next.config.js` | 수정 | `sharedConfig` / `devConfig` / `prodConfig` 분리, `NODE_ENV`로 병합 |
+
+### 수정 상세
+
+#### `next.config.js` 구조 변경
+
+| 블록 | 내용 |
+|------|------|
+| `sharedConfig` | `reactStrictMode`, `transpilePackages`, `webpack` — 환경 무관 공통 |
+| `devConfig` | `rewrites()` — `/api/`, `/uploads/` → 백엔드 직접 프록시 (Nginx 없는 개발 환경) |
+| `prodConfig` | 현재 비어 있음 — 향후 프로덕션 전용 설정 추가 지점 |
+
+`module.exports = { ...sharedConfig, ...(isDev ? devConfig : prodConfig) }`
+
+### 복원 방법
+
+HIST-20260504-005 복원 시:
+- 단일 `nextConfig` 객체로 병합, `module.exports = nextConfig`로 복원
+
+---
+
+## HIST-20260504-004
+
+- **날짜**: 2026-05-04
+- **수정 범위**: INFRA / Next.js 개발 프록시 — 업로드 이미지 404 수정 (로컬 개발 환경)
+- **수정 개요**: `next.config.js` rewrites에 `/uploads/` 프록시 추가 — 개발 서버에서 이미지 404 해결
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/next.config.js` | 수정 | `rewrites()`에 `/uploads/:path*` → 백엔드 origin 프록시 항목 추가 |
+
+### 수정 상세
+
+#### 근본 원인
+
+로컬 개발 환경에서 Nginx 없이 Next.js dev server가 직접 실행된다. `next.config.js`의 `rewrites`가 `/api/:path*`만 백엔드(`http://localhost:8080`)로 프록시하고, `/uploads/:path*`는 설정이 없었다. 백엔드가 반환한 `/uploads/images/...` URL을 브라우저가 요청하면 Next.js dev server로 가고 404가 발생했다.
+
+#### `next.config.js`
+
+- 변경 전: `/api/:path*` 프록시 1개
+- 변경 후: `apiBase`에서 `backendOrigin`(`http://localhost:8080`)을 파싱해 `/uploads/:path*` 프록시 추가
+
+```js
+const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+const backendOrigin = apiBase.replace(/\/api\/?$/, '');
+// /uploads/:path* → http://localhost:8080/uploads/:path*
+```
+
+### 복원 방법
+
+HIST-20260504-004 복원 시:
+- `next.config.js` `rewrites()`에서 `backendOrigin` 변수 선언과 `/uploads/:path*` 항목 제거, `apiBase` 변수를 인라인으로 복원
+
+---
+
+## HIST-20260504-003
+
+- **날짜**: 2026-05-04
+- **수정 범위**: INFRA / Nginx — 업로드 이미지 404 수정
+- **수정 개요**: Nginx에 `/uploads/` 경로 프록시 블록 추가 — 에디터 이미지 삽입 후 broken image 현상 해결
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `nginx/nginx.conf` | 수정 | `location /uploads/` 블록 추가 — 백엔드 정적 파일 서빙으로 프록시 |
+
+### 수정 상세
+
+#### 근본 원인
+
+백엔드 `AttachmentService`는 이미지를 저장한 뒤 `/uploads/images/{uuid}.{ext}` 형태의 **상대 경로**를 반환한다.
+Quill 에디터는 이 URL을 `<img src="/uploads/images/...">` 로 삽입한다.
+브라우저가 해당 경로를 요청하면 Nginx가 처리하는데, 기존 nginx.conf에는 `/uploads/` 라우팅이 없었으므로 `location /` → Next.js(프론트엔드)로 전달되어 404가 발생했다.
+
+백엔드 `WebMvcConfig`는 이미 `/uploads/**`를 파일 시스템으로 서빙하도록 설정되어 있으므로, Nginx에 라우팅만 추가하면 된다.
+
+#### `nginx/nginx.conf`
+
+- 변경 전: `/api/` → 백엔드, `/` → 프론트엔드 2개 블록만 존재
+- 변경 후: `/uploads/` → 백엔드 프록시 블록 추가
+
+```nginx
+# 추가된 블록
+location /uploads/ {
+    proxy_pass http://backend;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+### 복원 방법
+
+HIST-20260504-003 복원 시:
+- `nginx/nginx.conf`에서 `location /uploads/ { ... }` 블록 제거
+
+---
+
+## HIST-20260504-002
+
+- **날짜**: 2026-05-04
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리
+- **수정 개요**: RichTextEditor — `dynamic()` 래퍼로 인한 React ref 경고 및 Quill 인스턴스 미확보 문제 근본 해결
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/RichTextEditor.tsx` | 수정 | `dynamic()` 제거 → `useState` + `useEffect`로 클라이언트에서 react-quill 클래스 직접 로드; 폴링 의존성을 `RQ` 상태로 변경; 로딩 중 스켈레톤 플레이스홀더 추가 |
+
+### 수정 상세
+
+#### 근본 원인
+
+`dynamic()`은 내부적으로 **함수 컴포넌트 래퍼**를 반환한다. 함수 컴포넌트에 `ref`를 전달하려면 `React.forwardRef`가 필요한데, `dynamic()` 래퍼 자체는 이를 적용하지 않는다. 팩토리 안에서 `React.forwardRef`로 감싸도 `dynamic()` 바깥 래퍼가 함수 컴포넌트이기 때문에 경고가 사라지지 않고, 결과적으로 `quillRef.current`가 항상 `null`이 된다. `quillRef.current`가 `null`이면 폴링이 Quill 인스턴스를 찾지 못해 이미지 삽입 자체가 동작하지 않는다.
+
+#### `RichTextEditor.tsx`
+
+| 항목 | 변경 전 | 변경 후 |
+|------|---------|---------|
+| 로드 방식 | `dynamic()` + 팩토리 내 `React.forwardRef` 래퍼 | `useState<any>(null)` + `useEffect(() => import('react-quill'))` |
+| ref 수신자 | `dynamic()` 함수 컴포넌트 래퍼 (→ 항상 null) | react-quill 클래스 컴포넌트 직접 (→ 정상 동작) |
+| 폴링 트리거 | 마운트 1회 (`[]`) | `RQ` 상태 변경 시 (`[RQ]`) — 모듈 로드 전 폴링 시작 방지 |
+| 로딩 UI | 없음 (빈 공간) | `animate-pulse` 스켈레톤 플레이스홀더 |
+
+- 변경 이유: `dynamic()` 래퍼를 거치지 않고 클래스를 직접 렌더하면 React가 ref를 클래스 인스턴스에 정상 전달하므로 경고도 없고 `quillRef.current.getEditor()` 호출도 성공한다.
+
+### 복원 방법
+
+HIST-20260504-002 복원 시:
+- `RQ` state 제거, `useState` import 제거
+- `dynamic` import 추가, 팩토리 + `React.forwardRef` 래퍼 패턴 복원
+- 폴링 `useEffect` 의존성을 `[]`로 복원
+- 로딩 스켈레톤 div 제거, `<ReactQuill ref={quillRef} ... />` 무조건 렌더로 복원
+
+---
+
+## HIST-20260504-001
+
+- **날짜**: 2026-05-04
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리
+- **수정 개요**: RichTextEditor — 이미지 등록 시 에디터 미준비 알림 시점 개선 + 하이퍼링크 팝업 좌측 정렬 고정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/RichTextEditor.tsx` | 수정 | 이미지 핸들러(툴바)에 에디터 준비 여부 사전 검사 추가, `handleImageChange` 내 중복 alert 제거 |
+| `frontend/src/app/globals.css` | 수정 | `.ql-tooltip`에 `left: 0 !important` 추가 — 링크 팝업 좌측 정렬 고정 |
+
+### 수정 상세
+
+#### `RichTextEditor.tsx` — 이미지 핸들러
+- 변경 전: 툴바 이미지 버튼 클릭 시 에디터 준비 여부를 확인하지 않고 파일 다이얼로그를 바로 열었다. 사용자가 파일을 선택한 뒤 `handleImageChange`에서 `editorRef.current`가 null이면 "에디터가 아직 준비되지 않았습니다." alert가 표시됐다.
+- 변경 후: 툴바 핸들러에서 `editorRef.current`를 먼저 확인하고, null이면 alert를 즉시 표시하고 파일 다이얼로그를 열지 않는다. `handleImageChange` 내의 중복 alert는 `return`만 남긴다.
+- 이유: 파일을 선택한 후 알림이 뜨면 사용자가 업로드가 됐는지 안 됐는지 혼동한다. 파일 선택 전에 알리는 것이 자연스러운 UX다.
+
+#### `globals.css` — `.ql-tooltip`
+- 변경 전: Quill이 JS로 계산한 `left` 값을 그대로 사용 → 선택 영역 위치에 따라 팝업이 이동
+- 변경 후: `left: 0 !important` 추가 → 링크 팝업이 항상 에디터 컨테이너 좌측에 고정
+- 이유: 선택 위치에 따라 팝업이 좌우로 이동하면 가독성이 떨어지고 화면 밖으로 잘릴 수 있다. 좌측 고정으로 일관된 위치 보장.
+
+### 복원 방법
+
+HIST-20260504-001 복원 시:
+- `RichTextEditor.tsx` 이미지 핸들러: `if (!quill) { alert(...); return; }` 라인 제거, `handleImageChange` 안의 `if (!quill) return;`을 `if (!quill) { alert('에디터가 아직 준비되지 않았습니다.'); return; }`로 되돌림
+- `globals.css` `.ql-tooltip`: `left: 0 !important;` 라인 제거
+
+---
+
 ## HIST-20260503-011
 
 - **날짜**: 2026-05-03

@@ -1,0 +1,155 @@
+'use client';
+
+import { useEffect } from 'react';
+import { RichContent } from '@/components/ui/RichContent';
+import type { QuestionType } from '@/types';
+
+export interface QuestionDetailItem {
+  id: number;
+  content: string;
+  questionType: QuestionType;
+  options?: string[];
+  answer?: string;
+  explanation?: string;
+  code?: string;
+  language?: string;
+}
+
+interface Props {
+  question: QuestionDetailItem | null;
+  onClose: () => void;
+}
+
+const TYPE_LABEL: Record<QuestionType, string> = {
+  MULTIPLE_CHOICE: '객관식',
+  SHORT_ANSWER:    '주관식',
+  OX:              'O/X',
+  CODE:            '코드',
+};
+const TYPE_COLOR: Record<QuestionType, string> = {
+  MULTIPLE_CHOICE: 'bg-blue-50 text-blue-600',
+  SHORT_ANSWER:    'bg-green-50 text-green-600',
+  OX:              'bg-amber-50 text-amber-600',
+  CODE:            'bg-violet-50 text-violet-600',
+};
+
+export function QuestionDetailModal({ question, onClose }: Props) {
+  useEffect(() => {
+    if (!question) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [question, onClose]);
+
+  if (!question) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 헤더 */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-700">문항 상세</span>
+            <span className={[
+              'px-2 py-0.5 rounded-full text-xs font-medium',
+              TYPE_COLOR[question.questionType],
+            ].join(' ')}>
+              {TYPE_LABEL[question.questionType]}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 본문 */}
+        <div className="overflow-y-auto px-5 py-4 space-y-4">
+          {/* 문항 내용 */}
+          <div>
+            <p className="text-xs font-medium text-gray-400 mb-1.5">문항 내용</p>
+            <RichContent html={question.content} className="text-sm text-gray-800" />
+          </div>
+
+          {/* 코드 */}
+          {question.code && (
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1.5">
+                코드{question.language ? ` (${question.language})` : ''}
+              </p>
+              <pre className="bg-[#2b2b2b] text-[#a9b7c6] text-xs p-4 rounded-xl overflow-x-auto font-mono leading-relaxed whitespace-pre">
+                <code>{question.code}</code>
+              </pre>
+            </div>
+          )}
+
+          {/* 선택지 */}
+          {question.questionType === 'MULTIPLE_CHOICE' && question.options && question.options.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1.5">선택지</p>
+              <ol className="space-y-1.5">
+                {question.options.map((opt, i) => (
+                  <li
+                    key={i}
+                    className={[
+                      'flex items-start gap-2 px-3 py-2 rounded-lg text-sm border',
+                      question.answer === String(i + 1)
+                        ? 'border-green-300 bg-green-50 text-green-800 font-medium'
+                        : 'border-gray-100 text-gray-700',
+                    ].join(' ')}
+                  >
+                    <span className="font-semibold shrink-0">({i + 1})</span>
+                    <span>{opt}</span>
+                    {question.answer === String(i + 1) && (
+                      <span className="ml-auto shrink-0 text-xs text-green-600">정답</span>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {/* 정답 (객관식 외) */}
+          {question.questionType !== 'MULTIPLE_CHOICE' && question.answer && (
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1.5">정답</p>
+              <p className="px-3 py-2 bg-green-50 border border-green-200 text-green-800 text-sm rounded-lg font-medium">
+                {question.answer}
+              </p>
+            </div>
+          )}
+
+          {/* 해설 */}
+          {question.explanation && (
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1.5">해설</p>
+              <p className="px-3 py-2 bg-gray-50 border border-gray-100 text-gray-700 text-sm rounded-lg leading-relaxed whitespace-pre-wrap">
+                {question.explanation}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* 푸터 */}
+        <div className="px-5 py-3 border-t border-gray-100">
+          <button
+            onClick={onClose}
+            className="w-full py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-medium hover:bg-gray-200 transition"
+          >
+            닫기
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

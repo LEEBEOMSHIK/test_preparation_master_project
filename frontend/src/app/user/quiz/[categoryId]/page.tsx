@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { quizService, type QuizQuestion, type CheckResult } from '@/services/quizService';
+import { RichContent } from '@/components/ui/RichContent';
 
 type Phase = 'loading' | 'quiz' | 'continue' | 'result';
 
@@ -269,7 +270,7 @@ export default function QuizPlayPage() {
 
       {/* 문제 카드 */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
-        <p className="text-gray-800 font-medium text-base leading-relaxed">{q.content}</p>
+        <RichContent html={q.content} className="text-gray-800 font-medium text-base" />
 
         {q.code && (
           <pre className="bg-gray-900 text-green-400 text-xs p-4 rounded-xl overflow-x-auto">

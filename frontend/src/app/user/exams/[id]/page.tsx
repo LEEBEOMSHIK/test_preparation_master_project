@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { examService } from '@/services/examService';
 import type { ExamDetail, Question } from '@/types';
+import { RichContent } from '@/components/ui/RichContent';
 
 const DEFAULT_MINUTES = 60;
 
@@ -244,7 +245,7 @@ export default function ExamTakingPage() {
               </button>
             </div>
 
-            <p className="text-gray-800 text-sm leading-relaxed">{q.content}</p>
+            <RichContent html={q.content} className="text-gray-800 text-sm" />
 
             {/* 선택지 */}
             {isMultiple && q.options && (

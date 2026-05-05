@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { examService } from '@/services/examService';
 import type { QuestionSummary, QuestionType } from '@/types';
+import { stripHtml } from '@/lib/html';
+import { QuestionDetailModal, type QuestionDetailItem } from '@/components/ui/QuestionDetailModal';
 
 const TYPE_LABEL: Record<QuestionType, string> = {
   MULTIPLE_CHOICE: '객관식',
@@ -32,6 +34,9 @@ export default function AdminExamPaperNewPage() {
   const [searchText, setSearchText] = useState('');
   const [qLoading, setQLoading] = useState(true);
   const [qError, setQError] = useState('');
+
+  // 상세 모달
+  const [detailQ, setDetailQ] = useState<QuestionDetailItem | null>(null);
 
   // 제출
   const [loading, setLoading] = useState(false);
@@ -99,6 +104,8 @@ export default function AdminExamPaperNewPage() {
     filteredQuestions.length > 0 && filteredQuestions.every((q) => selectedIds.has(q.id));
 
   return (
+    <>
+    <QuestionDetailModal question={detailQ} onClose={() => setDetailQ(null)} />
     <div className="max-w-2xl space-y-5">
       {/* 헤더 */}
       <div className="flex items-center gap-3">
@@ -261,7 +268,7 @@ export default function AdminExamPaperNewPage() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-800 line-clamp-2">{q.content}</p>
+                        <p className="text-sm text-gray-800 line-clamp-2">{stripHtml(q.content)}</p>
                         {q.options && q.options.length > 0 && (
                           <p className="text-xs text-gray-400 mt-0.5 truncate">
                             {q.options.slice(0, 3).join(' · ')}{q.options.length > 3 ? ' ...' : ''}
@@ -274,6 +281,13 @@ export default function AdminExamPaperNewPage() {
                       ].join(' ')}>
                         {TYPE_LABEL[q.questionType]}
                       </span>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setDetailQ(q); }}
+                        className="shrink-0 mt-0.5 px-2 py-1 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 text-xs font-medium transition whitespace-nowrap"
+                      >
+                        상세
+                      </button>
                     </li>
                   );
                 })}
@@ -309,5 +323,6 @@ export default function AdminExamPaperNewPage() {
         </div>
       </form>
     </div>
+    </>
   );
 }

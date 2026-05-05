@@ -1,3 +1,71 @@
+## HIST-20260504-009
+
+- **날짜**: 2026-05-04
+- **수정 범위**: 사용자 프론트엔드 / 전체 (공통 컴포넌트 도입)
+- **수정 개요**: 에디터 HTML 렌더링을 `<RichContent>` 공통 컴포넌트로 통일; 로컬 `QuestionContent` 제거
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/RichContent.tsx` | 추가 | 에디터 HTML 렌더링 공통 컴포넌트 신규 생성 |
+| `frontend/src/lib/html.ts` | 추가 | `stripHtml` 유틸리티 함수 신규 생성 |
+| `frontend/src/app/user/concepts/[id]/page.tsx` | 수정 | 로컬 `QuestionContent` → `<RichContent>` 교체 |
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | 로컬 `QuestionContent` → `<RichContent>` 교체 |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | 인라인 `dangerouslySetInnerHTML` → `<RichContent>` 교체 |
+| `frontend/src/app/user/exams/[id]/page.tsx` | 수정 | 인라인 `dangerouslySetInnerHTML` → `<RichContent>` 교체 |
+
+### 수정 상세
+
+#### `src/components/ui/RichContent.tsx` (신규)
+- 변경 후: `<RichContent html={...} className="..." />` — `dangerouslySetInnerHTML` 래퍼, 이미지·리스트·링크·헤딩 스타일 내장
+- 이유: 파일마다 `dangerouslySetInnerHTML` 직접 작성하는 반복 제거
+
+#### `src/lib/html.ts` (신규)
+- 변경 후: `export function stripHtml(html: string): string` — `.replace(/<[^>]+>/g, '')` 래퍼
+- 이유: 인라인 replace 반복 제거
+
+#### 각 사용 파일
+- 변경 전: 로컬 `QuestionContent` 컴포넌트 또는 인라인 `dangerouslySetInnerHTML`
+- 변경 후: `import { RichContent } from '@/components/ui/RichContent'` + `<RichContent html={...} />`
+
+### 복원 방법
+
+이 ID(HIST-20260504-009)만으로 복원 시 각 파일에서 `<RichContent>` import·사용을 제거하고 로컬 `QuestionContent`(img 조건부 렌더링 패턴) 또는 인라인 `dangerouslySetInnerHTML`로 되돌린다.
+
+---
+
+## HIST-20260504-006
+
+- **날짜**: 2026-05-04
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 · 시험 응시
+- **수정 개요**: 에디터(RichTextEditor)로 작성한 문제 내용을 HTML 태그 그대로 표시하던 문제 수정 → `dangerouslySetInnerHTML`로 정상 렌더링
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | 문제 내용(`q.content`) `<p>` → `<div dangerouslySetInnerHTML>` 변환 |
+| `frontend/src/app/user/exams/[id]/page.tsx` | 수정 | 시험 응시 문제 내용(`q.content`) 동일 패턴 적용 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `<p className="text-gray-800 font-medium text-base leading-relaxed">{q.content}</p>`
+- 변경 후: `<div className="... [&_img]:max-w-full ..." dangerouslySetInnerHTML={{ __html: q.content }} />`
+- 이유: RichTextEditor가 HTML 문자열을 생성하므로 JSX 텍스트 바인딩 시 태그가 그대로 노출됨
+
+#### `frontend/src/app/user/exams/[id]/page.tsx`
+- 변경 전: `<p className="text-gray-800 text-sm leading-relaxed">{q.content}</p>`
+- 변경 후: `<div className="... [&_img]:max-w-full ..." dangerouslySetInnerHTML={{ __html: q.content }} />`
+- 이유: 동일 — 에디터 HTML 올바른 렌더링
+
+### 복원 방법
+
+이 ID(HIST-20260504-006)만으로 복원 시 위 "변경 전" 내용을 각 파일에 적용한다.
+
+---
+
 ## HIST-20260422-003
 
 - **날짜**: 2026-04-22

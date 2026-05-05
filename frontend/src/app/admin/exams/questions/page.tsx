@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { examService } from '@/services/examService';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import type { QuestionSummary, QuestionType } from '@/types';
+import { stripHtml } from '@/lib/html';
+import { QuestionDetailModal, type QuestionDetailItem } from '@/components/ui/QuestionDetailModal';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -46,6 +48,7 @@ export default function AdminQuestionsPage() {
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState('');
   const [deletingId,   setDeletingId]   = useState<number | null>(null);
+  const [detailQ,      setDetailQ]      = useState<QuestionDetailItem | null>(null);
 
   // 검색 조건 (입력)
   const [keyword,    setKeyword]    = useState('');
@@ -139,6 +142,8 @@ export default function AdminQuestionsPage() {
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('ko-KR');
 
   return (
+    <>
+    <QuestionDetailModal question={detailQ} onClose={() => setDetailQ(null)} />
     <div className="space-y-4">
       {/* 헤더 */}
       <div className="flex items-center justify-between">
@@ -296,7 +301,7 @@ export default function AdminQuestionsPage() {
                       {page * pageSize + idx + 1}
                     </td>
                     <td className="px-4 py-3.5 text-gray-900 max-w-0">
-                      <p className="truncate">{q.content.replace(/<[^>]+>/g, '')}</p>
+                      <p className="truncate">{stripHtml(q.content)}</p>
                     </td>
                     <td className="px-4 py-3.5 text-center whitespace-nowrap">
                       <span className={[
@@ -314,6 +319,16 @@ export default function AdminQuestionsPage() {
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <div className="inline-flex items-center gap-2">
+                        <button
+                          onClick={() => setDetailQ(q)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 text-xs font-semibold transition whitespace-nowrap"
+                        >
+                          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 3C4.5 3 1.5 8 1.5 8s3 5 6.5 5 6.5-5 6.5-5S11.5 3 8 3z" />
+                            <circle cx="8" cy="8" r="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          상세
+                        </button>
                         <button
                           onClick={() => router.push(`/admin/exams/questions/${q.id}/edit`)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-xs font-semibold transition whitespace-nowrap"
@@ -388,5 +403,6 @@ export default function AdminQuestionsPage() {
         )}
       </div>
     </div>
+    </>
   );
 }

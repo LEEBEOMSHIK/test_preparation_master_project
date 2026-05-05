@@ -1,3 +1,92 @@
+## HIST-20260505-001
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 프론트엔드 / 시험지 관리
+- **수정 개요**: 시험지 등록/수정 화면의 문항 선택 목록에 '상세' 버튼 추가 — 클릭 시 `QuestionDetailModal`로 전체 내용 확인 가능
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/QuestionDetailModal.tsx` | 추가 | 문항 상세 모달 공통 컴포넌트 신규 생성 |
+| `frontend/src/app/admin/exams/papers/new/page.tsx` | 수정 | 문항 선택 목록에 '상세' 버튼 추가 |
+| `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` | 수정 | 현재 문항 목록 + 문항 추가 피커 양쪽에 '상세' 버튼 추가 |
+
+### 수정 상세
+
+#### `src/components/ui/QuestionDetailModal.tsx` (신규)
+- 변경 후: `<QuestionDetailModal question={item|null} onClose={fn} />` — 문항 내용(RichContent)·코드·선택지·정답·해설 표시, ESC 키 닫기, 배경 클릭 닫기 지원
+- 이유: 여러 관리자 페이지에서 동일한 상세 보기 필요 → 공통 컴포넌트화
+
+#### `papers/new/page.tsx` · `papers/[id]/edit/page.tsx`
+- 변경 전: 문항 목록에 선택(체크박스)만 존재
+- 변경 후: 각 문항 행 우측에 '상세' 버튼 추가 (`e.stopPropagation()`으로 체크박스 동작과 분리)
+
+### 복원 방법
+
+이 ID(HIST-20260505-001)만으로 복원 시 각 파일에서 `QuestionDetailModal` import·`detailQ` state·`<QuestionDetailModal>` 렌더링·'상세' 버튼을 제거한다.
+
+---
+
+## HIST-20260504-010
+
+- **날짜**: 2026-05-04
+- **수정 범위**: 관리자 프론트엔드 / 문제 관리 · 시험지 관리 (공통 유틸 도입)
+- **수정 개요**: 인라인 `.replace(/<[^>]+>/g, '')` → `stripHtml()` 공통 유틸로 교체
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | `q.content.replace(...)` → `stripHtml(q.content)` |
+| `frontend/src/app/admin/exams/papers/new/page.tsx` | 수정 | 동일 |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | 동일 |
+| `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` | 수정 | 동일 (2곳) |
+
+### 수정 상세
+
+#### 각 파일 공통
+- 변경 전: `{q.content.replace(/<[^>]+>/g, '')}`
+- 변경 후: `import { stripHtml } from '@/lib/html'` + `{stripHtml(q.content)}`
+- 이유: 동일한 HTML 제거 로직을 한 곳에서 관리
+
+### 복원 방법
+
+이 ID(HIST-20260504-010)만으로 복원 시 `stripHtml` import를 제거하고 `.replace(/<[^>]+>/g, '')` 인라인으로 되돌린다.
+
+---
+
+## HIST-20260504-007
+
+- **날짜**: 2026-05-04
+- **수정 범위**: 관리자 프론트엔드 / 시험지 관리
+- **수정 개요**: 문제 피커 목록에서 에디터 HTML이 태그 그대로 노출되던 문제 수정 → `.replace(/<[^>]+>/g, '')` 적용
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/papers/new/page.tsx` | 수정 | 문제 선택 목록 `q.content` → HTML 태그 제거 후 표시 |
+| `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` | 수정 | 시험지 수정 문제 목록 2곳 동일 패턴 적용 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/papers/new/page.tsx` (line 264)
+- 변경 전: `{q.content}`
+- 변경 후: `{q.content.replace(/<[^>]+>/g, '')}`
+- 이유: line-clamp-2 미리보기 영역에 HTML 태그가 노출됨
+
+#### `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` (line 243, 336)
+- 변경 전: `{q.content}`
+- 변경 후: `{q.content.replace(/<[^>]+>/g, '')}`
+- 이유: 동일 — 피커/목록 미리보기는 순수 텍스트로만 표시
+
+### 복원 방법
+
+이 ID(HIST-20260504-007)만으로 복원 시 위 "변경 전" 내용을 각 파일에 적용한다.
+
+---
+
 ## HIST-20260430-011
 
 - **날짜**: 2026-04-30

@@ -5,6 +5,8 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { examService } from '@/services/examService';
 import type { ExamQuestion, QuestionSummary, QuestionType } from '@/types';
+import { stripHtml } from '@/lib/html';
+import { QuestionDetailModal, type QuestionDetailItem } from '@/components/ui/QuestionDetailModal';
 
 const TYPE_LABEL: Record<QuestionType, string> = {
   MULTIPLE_CHOICE: '객관식',
@@ -43,6 +45,7 @@ export default function AdminExamPaperEditPage() {
 
   const [fetching, setFetching]   = useState(true);
   const [error,    setError]      = useState('');
+  const [detailQ,  setDetailQ]    = useState<QuestionDetailItem | null>(null);
 
   // ── 초기 로드 ──
   useEffect(() => {
@@ -151,6 +154,8 @@ export default function AdminExamPaperEditPage() {
   }
 
   return (
+    <>
+    <QuestionDetailModal question={detailQ} onClose={() => setDetailQ(null)} />
     <div className="max-w-2xl space-y-6">
       {/* 헤더 */}
       <div className="flex items-center gap-3">
@@ -240,7 +245,7 @@ export default function AdminExamPaperEditPage() {
                   {q.seq}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-800 line-clamp-2">{q.content}</p>
+                  <p className="text-sm text-gray-800 line-clamp-2">{stripHtml(q.content)}</p>
                   {q.options && q.options.length > 0 && (
                     <p className="text-xs text-gray-400 mt-0.5 truncate">
                       {q.options.slice(0, 3).join(' · ')}{q.options.length > 3 ? ' ...' : ''}
@@ -250,6 +255,13 @@ export default function AdminExamPaperEditPage() {
                 <span className={['shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium', TYPE_COLOR[q.questionType]].join(' ')}>
                   {TYPE_LABEL[q.questionType]}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setDetailQ(q)}
+                  className="shrink-0 mt-0.5 px-2 py-1 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 text-xs font-medium transition whitespace-nowrap"
+                >
+                  상세
+                </button>
                 <button
                   type="button"
                   onClick={() => handleRemoveQuestion(q.id)}
@@ -333,11 +345,18 @@ export default function AdminExamPaperEditPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-800 line-clamp-2">{q.content}</p>
+                      <p className="text-sm text-gray-800 line-clamp-2">{stripHtml(q.content)}</p>
                     </div>
                     <span className={['shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium', TYPE_COLOR[q.questionType]].join(' ')}>
                       {TYPE_LABEL[q.questionType]}
                     </span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setDetailQ(q); }}
+                      className="shrink-0 mt-0.5 px-2 py-1 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 text-xs font-medium transition whitespace-nowrap"
+                    >
+                      상세
+                    </button>
                   </li>
                 );
               })}
@@ -370,5 +389,6 @@ export default function AdminExamPaperEditPage() {
         </Link>
       </div>
     </div>
+    </>
   );
 }
