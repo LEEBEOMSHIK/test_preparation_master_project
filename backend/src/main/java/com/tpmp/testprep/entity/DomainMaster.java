@@ -16,6 +16,10 @@ public class DomainMaster {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** 시스템 식별 코드 (EXAM_YEAR, EXAM_ROUND 등) — 프로그램에서 name 대신 이 값으로 조회 */
+    @Column(unique = true, length = 50)
+    private String code;
+
     @Column(nullable = false, length = 100)
     private String name;
 
@@ -24,11 +28,16 @@ public class DomainMaster {
     private List<DomainSlave> slaves = new ArrayList<>();
 
     @Builder
-    public DomainMaster(String name) {
+    public DomainMaster(String code, String name) {
+        this.code = code;
         this.name = name;
     }
 
     public void updateName(String name) {
         this.name = name;
+    }
+
+    public void updateCode(String code) {
+        this.code = code;
     }
 }

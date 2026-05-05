@@ -19,6 +19,12 @@ export function RichTextEditor({ value, onChange, placeholder = '내용을 입�
   const fileRef   = useRef<HTMLInputElement>(null);
   const savedIdx  = useRef<number>(0);
 
+  // 리사이즈 상태
+  const [currentMinH, setCurrentMinH] = useState(minHeight);
+  const isDragging = useRef(false);
+  const dragStartY = useRef(0);
+  const dragStartH = useRef(0);
+
   // dynamic()은 함수 컴포넌트 래퍼를 반환하므로 ref가 항상 null이 됨.
   // 클래스 컴포넌트인 ReactQuill을 useState에 직접 저장해 ref를 클래스 인스턴스에 전달.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -80,6 +86,31 @@ export function RichTextEditor({ value, onChange, placeholder = '내용을 입�
     'link', 'image',
   ];
 
+  const onResizeStart = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    dragStartY.current = clientY;
+    dragStartH.current = currentMinH;
+
+    const onMove = (ev: MouseEvent | TouchEvent) => {
+      if (!isDragging.current) return;
+      const y = 'touches' in ev ? (ev as TouchEvent).touches[0].clientY : (ev as MouseEvent).clientY;
+      setCurrentMinH(Math.max(minHeight, dragStartH.current + (y - dragStartY.current)));
+    };
+    const onEnd = () => {
+      isDragging.current = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+  };
+
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ''; // 같은 파일 재선택 허용
@@ -104,7 +135,7 @@ export function RichTextEditor({ value, onChange, placeholder = '내용을 입�
 
   return (
     // overflow-hidden 제거 — Quill의 링크·색상 피커 팝업이 잘리지 않도록 overflow:visible 유지
-    <div className="rte-quill-wrapper rounded-lg border border-gray-200 transition focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent">
+    <div className="relative rte-quill-wrapper rounded-lg border border-gray-200 transition focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent">
       {/* JSX 파일인풋 — createElement 방식보다 안정적으로 onChange 수신 */}
       <input
         ref={fileRef}
@@ -122,10 +153,10 @@ export function RichTextEditor({ value, onChange, placeholder = '내용을 입�
           placeholder={placeholder}
           modules={modules}
           formats={formats}
-          style={{ minHeight }}
+          style={{ minHeight: currentMinH }}
         />
       ) : (
-        <div className="animate-pulse" style={{ minHeight }}>
+        <div className="animate-pulse" style={{ minHeight: currentMinH }}>
           <div className="h-10 bg-gray-100 border-b border-gray-200 rounded-t-lg" />
           <div className="p-3 space-y-2">
             <div className="h-3 bg-gray-200 rounded w-3/4" />
@@ -133,6 +164,20 @@ export function RichTextEditor({ value, onChange, placeholder = '내용을 입�
           </div>
         </div>
       )}
+      {/* 드래그 리사이즈 핸들 */}
+      <div
+        onMouseDown={onResizeStart}
+        onTouchStart={onResizeStart}
+        className="absolute bottom-0 right-0 w-5 h-5 flex items-end justify-end pb-0.5 pr-0.5 cursor-ns-resize select-none text-gray-300 hover:text-gray-500 transition-colors"
+        style={{ touchAction: 'none' }}
+        aria-label="에디터 크기 조절"
+      >
+        <svg viewBox="0 0 10 10" fill="currentColor" className="w-3 h-3">
+          <circle cx="8" cy="8" r="1.2" />
+          <circle cx="4.5" cy="8" r="1.2" />
+          <circle cx="8" cy="4.5" r="1.2" />
+        </svg>
+      </div>
     </div>
   );
 }

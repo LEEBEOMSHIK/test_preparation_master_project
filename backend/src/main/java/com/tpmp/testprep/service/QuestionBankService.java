@@ -49,6 +49,9 @@ public class QuestionBankService {
         DomainSlave category = resolveCategory(request.categoryId());
         DomainSlave examType = resolveCategory(request.examTypeId());
         QuestionBank qb = QuestionBank.builder()
+                .title(request.title())
+                .examYear(request.examYear())
+                .examRound(request.examRound())
                 .content(request.content())
                 .questionType(request.questionType())
                 .category(category)
@@ -69,6 +72,9 @@ public class QuestionBankService {
         Long adminId = resolveAdminId(adminEmail);
         List<QuestionBank> entities = bulkRequest.questions().stream()
                 .map(req -> QuestionBank.builder()
+                        .title(req.title())
+                        .examYear(req.examYear())
+                        .examRound(req.examRound())
                         .content(req.content())
                         .questionType(req.questionType())
                         .category(resolveCategory(req.categoryId()))
@@ -92,7 +98,8 @@ public class QuestionBankService {
         DomainSlave category = resolveCategory(request.categoryId());
         DomainSlave examType = resolveCategory(request.examTypeId());
         QuestionBank qb = findActive(id);
-        qb.update(request.content(), request.questionType(),
+        qb.update(request.title(), request.examYear(), request.examRound(),
+                  request.content(), request.questionType(),
                   category, examType,
                   request.options(), request.answer(),
                   request.code(), request.language(),

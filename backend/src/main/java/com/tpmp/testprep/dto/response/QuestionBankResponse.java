@@ -7,6 +7,9 @@ import java.util.List;
 
 public record QuestionBankResponse(
         Long id,
+        String title,
+        Integer examYear,
+        Integer examRound,
         String content,
         String questionType,
         Long categoryId,
@@ -24,6 +27,9 @@ public record QuestionBankResponse(
     public static QuestionBankResponse from(QuestionBank qb) {
         return new QuestionBankResponse(
                 qb.getId(),
+                qb.getTitle(),
+                qb.getExamYear(),
+                qb.getExamRound(),
                 qb.getContent(),
                 qb.getQuestionType().name(),
                 qb.getCategory() != null ? qb.getCategory().getId() : null,

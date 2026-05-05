@@ -13,6 +13,13 @@ import java.util.List;
  * code 필드(SQL/코드 문제)도 TEXT 컬럼에 값으로 저장되므로 SQL Injection 위험 없음.
  */
 public record QuestionBankRequest(
+        @Size(max = 200, message = "문항 제목은 200자를 초과할 수 없습니다.")
+        String title,
+
+        Integer examYear,
+
+        Integer examRound,
+
         @NotBlank(message = "문항 내용은 필수입니다.")
         @Size(max = 5000, message = "문항 내용은 5000자를 초과할 수 없습니다.")
         String content,
@@ -20,8 +27,10 @@ public record QuestionBankRequest(
         @NotNull(message = "문항 유형은 필수입니다.")
         QuestionBank.QuestionType questionType,
 
+        @NotNull(message = "문항 유형은 필수입니다.")
         Long categoryId,
 
+        @NotNull(message = "시험 유형은 필수입니다.")
         Long examTypeId,
 
         List<String> options,

@@ -1,3 +1,67 @@
+## HIST-20260505-002
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 백엔드 / 문항 관리
+- **수정 개요**: `QuestionBankRequest`에서 `categoryId`(문항 유형), `examTypeId`(시험 유형) 필수값 처리
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../dto/request/QuestionBankRequest.java` | 수정 | `categoryId`, `examTypeId`에 `@NotNull` 추가 |
+
+### 수정 상세
+
+#### `QuestionBankRequest.java`
+- 변경 전: `Long categoryId`, `Long examTypeId` (nullable, 검증 없음)
+- 변경 후: `@NotNull Long categoryId`, `@NotNull Long examTypeId`
+- 이유: 문항 풀 단독 등록·수정 API에서 유형 미지정 데이터 차단
+
+### 복원 방법
+
+이 ID(HIST-20260505-002)만으로 복원 시 `categoryId`, `examTypeId`에서 `@NotNull` 어노테이션을 제거한다.
+
+---
+
+## HIST-20260505-001
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 백엔드 / 문항 관리
+- **수정 개요**: `question_bank` 테이블에 `title`, `exam_year`, `exam_round` 컬럼 추가 — 문항 제목 및 시험 연도/회차 관리
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../entity/QuestionBank.java` | 수정 | `title`, `examYear`, `examRound` 필드 추가; builder/update 메서드 파라미터 추가 |
+| `backend/.../dto/request/QuestionBankRequest.java` | 수정 | `title`, `examYear`, `examRound` 필드 추가 (선택) |
+| `backend/.../dto/response/QuestionBankResponse.java` | 수정 | 동일 필드 추가; `from()` 매핑 추가 |
+| `backend/.../service/QuestionBankService.java` | 수정 | createQuestion·createQuestionsBulk·updateQuestion에서 새 필드 builder/update에 전달 |
+
+### 수정 상세
+
+#### `QuestionBank.java`
+- 변경 전: `content`, `questionType`, ... 순
+- 변경 후: `title`(VARCHAR 200, nullable), `examYear`(INTEGER, nullable), `examRound`(INTEGER, nullable) 필드 앞쪽 추가
+- 이유: ddl-auto=update 환경에서 Hibernate가 컬럼 자동 추가
+
+#### `QuestionBankRequest.java` / `QuestionBankResponse.java`
+- 변경 전: title/examYear/examRound 없음
+- 변경 후: 세 필드 추가 (request는 `@Size` 검증만, examYear/examRound는 null 허용)
+
+#### `QuestionBankService.java`
+- createQuestion, createQuestionsBulk, updateQuestion 모두 새 필드를 builder/update에 전달
+
+### 복원 방법
+
+이 ID(HIST-20260505-001)만으로 복원 시:
+- 엔티티에서 세 필드 제거, builder/update 시그니처 복원
+- Request/Response에서 세 필드 제거
+- Service에서 세 필드 전달 구문 제거
+- DB 컬럼(`title`, `exam_year`, `exam_round`)은 수동 DROP COLUMN 필요
+
+---
+
 ## HIST-20260501-001
 
 - **날짜**: 2026-05-01

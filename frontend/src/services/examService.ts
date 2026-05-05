@@ -75,6 +75,9 @@ export const examService = {
     apiClient.get<ApiResponse<QuestionSummary>>(`/admin/questions/${id}`),
 
   adminCreateQuestionsBulk: (questions: Array<{
+    title?: string;
+    examYear?: number;
+    examRound?: number;
     content: string;
     questionType: QuestionType;
     categoryId?: number;
@@ -91,6 +94,9 @@ export const examService = {
     apiClient.delete<ApiResponse<void>>(`/admin/questions/${id}`),
 
   adminUpdateQuestion: (id: number, data: {
+    title?: string;
+    examYear?: number;
+    examRound?: number;
     content: string;
     questionType: QuestionType;
     categoryId?: number;

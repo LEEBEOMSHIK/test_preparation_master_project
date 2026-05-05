@@ -14,4 +14,6 @@ public interface DomainMasterRepository extends JpaRepository<DomainMaster, Long
     List<DomainMaster> findAllWithSlaves();
 
     Optional<DomainMaster> findByName(String name);
+
+    Optional<DomainMaster> findByCode(String code);
 }

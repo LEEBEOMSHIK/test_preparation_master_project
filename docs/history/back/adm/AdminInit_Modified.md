@@ -1,3 +1,47 @@
+## HIST-20260505-008
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 백엔드 / DataInitializer
+- **수정 개요**: `ensureDomainMaster` → `ensureDomainMasterWithCode` 리팩토링, EXAM_YEAR·EXAM_ROUND 도메인 마스터 데이터 추가 (기존 코드 없는 마스터에 code 자동 할당 포함)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../config/DataInitializer.java` | 수정 | `ensureDomainMaster` 제거 → `ensureDomainMasterWithCode` 추가; `run()`에 EXAM_YEAR·EXAM_ROUND 초기화 호출 추가 |
+
+### 수정 상세
+
+#### `DataInitializer.java`
+
+- 변경 전: `ensureDomainMaster(String masterName, String[] slaveNames)` — 이름으로만 마스터를 찾고 code 미설정
+- 변경 후: `ensureDomainMasterWithCode(String code, String masterName, String[] slaveNames)` — 3단계 처리:
+  1. `findByCode(code)` → 이미 code 있으면 skip
+  2. `findByName(masterName)` → code 없는 기존 레코드면 code 할당 후 skip (마이그레이션)
+  3. 둘 다 없으면 새 마스터 + 슬레이브 생성
+
+- `run()` 변경:
+  ```java
+  // 변경 전
+  ensureDomainMaster("문제 유형", new String[]{"운영체제", "SQL", ...});
+  ensureDomainMaster("시험 유형", new String[]{"SQLD", ...});
+
+  // 변경 후
+  ensureDomainMasterWithCode("QUESTION_TYPE", "문제 유형", new String[]{"운영체제", "SQL", ...});
+  ensureDomainMasterWithCode("EXAM_TYPE",     "시험 유형", new String[]{"SQLD", ...});
+  ensureDomainMasterWithCode("EXAM_YEAR",     "시험 연도", new String[]{"2026","2025","2024","2023","2022"});
+  ensureDomainMasterWithCode("EXAM_ROUND",    "시험 회차", new String[]{"1","2","3","4","5","6","7","8","9","10"});
+  ```
+
+### 복원 방법
+
+HIST-20260505-008 복원 시:
+- `ensureDomainMasterWithCode` → `ensureDomainMaster(String masterName, String[] slaveNames)` 시그니처로 복원 (code 파라미터·할당 로직 제거)
+- `run()`에서 EXAM_YEAR·EXAM_ROUND 두 호출 제거
+- 기존 QUESTION_TYPE·EXAM_TYPE 호출을 이름만 전달하는 형태로 복원
+
+---
+
 ## HIST-20260428-009
 
 - **날짜**: 2026-04-28

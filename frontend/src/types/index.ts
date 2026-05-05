@@ -112,6 +112,9 @@ export interface ExamQuestion {
 
 export interface QuestionSummary {
   id: number;
+  title?: string;
+  examYear?: number;
+  examRound?: number;
   content: string;
   questionType: QuestionType;
   options?: string[];
@@ -139,6 +142,7 @@ export interface DomainSlave {
 
 export interface DomainMaster {
   id: number;
+  code?: string;
   name: string;
   slaves: DomainSlave[];
 }

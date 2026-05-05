@@ -41,6 +41,9 @@ const LANGUAGES: { value: string; label: string }[] = [
 // ── Form State ─────────────────────────────────────────────────────────────────
 
 interface FormState {
+  title:        string;
+  examYear:     string;
+  examRound:    string;
   content:      string;
   questionType: QuestionType;
   options:      string[];
@@ -53,6 +56,9 @@ interface FormState {
 }
 
 const defaultForm = (): FormState => ({
+  title:        '',
+  examYear:     '',
+  examRound:    '',
   content:      '',
   questionType: 'MULTIPLE_CHOICE',
   options:      ['', '', '', ''],
@@ -77,8 +83,10 @@ export default function AdminQuestionEditPage() {
   const [error,   setError]   = useState('');
   const [domains, setDomains] = useState<DomainMaster[]>([]);
 
-  const examTypeSlaves: DomainSlave[]     = domains.find((m) => m.name === '시험 유형')?.slaves ?? [];
-  const questionTypeSlaves: DomainSlave[] = domains.find((m) => m.name === '문제 유형')?.slaves ?? [];
+  const examTypeSlaves: DomainSlave[]     = domains.find((m) => m.code === 'EXAM_TYPE')?.slaves ?? [];
+  const questionTypeSlaves: DomainSlave[] = domains.find((m) => m.code === 'QUESTION_TYPE')?.slaves ?? [];
+  const examYearSlaves: DomainSlave[]     = domains.find((m) => m.code === 'EXAM_YEAR')?.slaves ?? [];
+  const examRoundSlaves: DomainSlave[]    = domains.find((m) => m.code === 'EXAM_ROUND')?.slaves ?? [];
 
   useEffect(() => {
     domainService.getDomains()
@@ -93,6 +101,9 @@ export default function AdminQuestionEditPage() {
         const q = res.data.data;
         if (!q) return;
         setForm({
+          title:        q.title ?? '',
+          examYear:     q.examYear != null ? String(q.examYear) : '',
+          examRound:    q.examRound != null ? String(q.examRound) : '',
           content:      q.content,
           questionType: q.questionType,
           options:      q.options?.length ? q.options : ['', '', '', ''],
@@ -122,6 +133,9 @@ export default function AdminQuestionEditPage() {
   };
 
   const handleSubmit = async () => {
+    if (!form.title.trim())  { setError('문항 제목을 입력하세요.'); return; }
+    if (!form.examTypeId)    { setError('시험 유형을 선택하세요.'); return; }
+    if (!form.categoryId)    { setError('문항 유형을 선택하세요.'); return; }
     if (!stripHtml(form.content)) { setError('문항 내용을 입력하세요.'); return; }
     if (form.questionType === 'CODE' && !form.code.trim()) { setError('코드를 입력하세요.'); return; }
 
@@ -129,6 +143,9 @@ export default function AdminQuestionEditPage() {
     setLoading(true);
     try {
       await examService.adminUpdateQuestion(id, {
+        title:        form.title.trim() || undefined,
+        examYear:     form.examYear ? Number(form.examYear) : undefined,
+        examRound:    form.examRound ? Number(form.examRound) : undefined,
         content:      form.content.trim(),
         questionType: form.questionType,
         categoryId:   form.categoryId ?? undefined,
@@ -151,14 +168,14 @@ export default function AdminQuestionEditPage() {
 
   if (fetching) {
     return (
-      <div className="max-w-2xl">
+      <div className="max-w-3xl">
         <TableSkeleton rows={5} cols={2} />
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl space-y-5">
+    <div className="max-w-3xl space-y-5">
       {/* 헤더 */}
       <div className="flex items-center gap-3">
         <Link href="/admin/exams/questions"
@@ -176,6 +193,55 @@ export default function AdminQuestionEditPage() {
       {/* 폼 카드 */}
       <div className="bg-white border border-gray-100 rounded-xl shadow-sm">
         <div className="p-5 space-y-5">
+
+          {/* 문항 제목 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              문항 제목 <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.title}
+              onChange={(e) => update('title', e.target.value)}
+              maxLength={200}
+              placeholder="관리용 제목 (예: 2024년 1회 1번)"
+              className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+            />
+          </div>
+
+          {/* 시험 연도 / 회차 */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                시험 연도 <span className="text-gray-300 font-normal">(선택)</span>
+              </label>
+              <select
+                value={form.examYear}
+                onChange={(e) => update('examYear', e.target.value)}
+                className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              >
+                <option value="">연도 선택</option>
+                {examYearSlaves.map((s) => (
+                  <option key={s.id} value={s.name}>{s.name}년</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                시험 회차 <span className="text-gray-300 font-normal">(선택)</span>
+              </label>
+              <select
+                value={form.examRound}
+                onChange={(e) => update('examRound', e.target.value)}
+                className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              >
+                <option value="">회차 선택</option>
+                {examRoundSlaves.map((s) => (
+                  <option key={s.id} value={s.name}>제{s.name}회</option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           {/* 유형 선택 */}
           <div>
@@ -205,7 +271,9 @@ export default function AdminQuestionEditPage() {
 
           {/* 시험 유형 선택 */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">시험 유형</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              시험 유형 <span className="text-red-400">*</span>
+            </label>
             <select
               value={form.examTypeId ?? ''}
               onChange={(e) => update('examTypeId', e.target.value ? Number(e.target.value) : null)}
@@ -220,7 +288,9 @@ export default function AdminQuestionEditPage() {
 
           {/* 문항 유형 선택 */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">문항 유형</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              문항 유형 <span className="text-red-400">*</span>
+            </label>
             <select
               value={form.categoryId ?? ''}
               onChange={(e) => update('categoryId', e.target.value ? Number(e.target.value) : null)}

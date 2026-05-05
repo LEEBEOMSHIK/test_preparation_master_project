@@ -1,3 +1,50 @@
+## HIST-20260505-009
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 프론트엔드 / 테이블 관리 > 도메인 관리
+- **수정 개요**: `DomainMaster` 타입에 `code` 필드 추가; 도메인 관리 화면에 code 배지 표시; 마스터 생성 시 code 전송 지원
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `DomainMaster` 인터페이스에 `code?: string` 추가 |
+| `frontend/src/services/domainService.ts` | 수정 | `createMaster(name, code?)` — `{ name, code }` body 전송 |
+| `frontend/src/app/admin/tables/domains/page.tsx` | 수정 | 마스터 헤더에 code 배지(`font-mono bg-slate-100`) 조건부 표시 |
+
+### 수정 상세
+
+#### `types/index.ts`
+- 변경 전: `interface DomainMaster { id: number; name: string; slaves: DomainSlave[]; }`
+- 변경 후: `code?: string` 필드 추가
+
+#### `domainService.ts`
+- 변경 전: `createMaster: (name: string) => apiClient.post(..., { name })`
+- 변경 후: `createMaster: (name: string, code?: string) => apiClient.post(..., { name, code })`
+
+#### `domains/page.tsx`
+- 변경 전: 마스터 이름만 표시
+- 변경 후:
+  ```tsx
+  <p className="flex-1 text-sm font-semibold text-gray-800 flex items-center gap-2">
+    {master.name}
+    {master.code && (
+      <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-slate-100 text-slate-500 select-all">
+        {master.code}
+      </span>
+    )}
+  </p>
+  ```
+
+### 복원 방법
+
+HIST-20260505-009 복원 시:
+- `types/index.ts`: `DomainMaster`에서 `code?` 제거
+- `domainService.ts`: `createMaster`를 `(name: string)` 단일 파라미터로 복원, body를 `{ name }`으로 복원
+- `domains/page.tsx`: 마스터 이름 표시를 단순 `<p>{master.name}</p>` 형태로 복원, code 배지 제거
+
+---
+
 ## HIST-20260501-005
 
 - **날짜**: 2026-05-01

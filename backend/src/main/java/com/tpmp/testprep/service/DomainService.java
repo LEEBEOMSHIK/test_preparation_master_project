@@ -34,9 +34,9 @@ public class DomainService {
     }
 
     @Transactional
-    public DomainMasterResponse createMaster(String name) {
+    public DomainMasterResponse createMaster(String code, String name) {
         DomainMaster master = domainMasterRepository.save(
-                DomainMaster.builder().name(name).build());
+                DomainMaster.builder().code(code).name(name).build());
         return DomainMasterResponse.from(master);
     }
 

@@ -1,3 +1,182 @@
+## HIST-20260505-010
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리
+- **수정 개요**: 도메인 마스터 조회를 이름(`m.name`) 기반에서 코드(`m.code`) 기반으로 변경 — 마스터명이 바뀌어도 도메인 슬레이브를 안정적으로 참조
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | `examTypeSlaves`·`questionTypeSlaves`·`examYearSlaves`·`examRoundSlaves` 조회를 `m.code`로 변경 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | 동일 4개 슬레이브 조회를 `m.code`로 변경 |
+
+### 수정 상세
+
+#### `questions/new/page.tsx` 및 `questions/[id]/edit/page.tsx`
+
+- 변경 전:
+  ```ts
+  const examTypeSlaves     = domains.find((m) => m.name === '시험 유형')?.slaves ?? [];
+  const questionTypeSlaves = domains.find((m) => m.name === '문제 유형')?.slaves ?? [];
+  const examYearSlaves     = domains.find((m) => m.name === '시험 연도')?.slaves ?? [];
+  const examRoundSlaves    = domains.find((m) => m.name === '시험 회차')?.slaves ?? [];
+  ```
+- 변경 후:
+  ```ts
+  const examTypeSlaves     = domains.find((m) => m.code === 'EXAM_TYPE')?.slaves ?? [];
+  const questionTypeSlaves = domains.find((m) => m.code === 'QUESTION_TYPE')?.slaves ?? [];
+  const examYearSlaves     = domains.find((m) => m.code === 'EXAM_YEAR')?.slaves ?? [];
+  const examRoundSlaves    = domains.find((m) => m.code === 'EXAM_ROUND')?.slaves ?? [];
+  ```
+- 이유: 마스터 이름은 관리자가 변경 가능하므로 이름 기반 조회는 취약. 코드(`DomainMaster.code`)는 시스템이 부여하는 불변 식별자이므로 안정적.
+
+### 복원 방법
+
+HIST-20260505-010 복원 시:
+- `questions/new/page.tsx`, `questions/[id]/edit/page.tsx` 각 슬레이브 조회를 `m.name === '...'` 형태로 되돌림
+
+---
+
+## HIST-20260505-006
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리 · 공통 UI
+- **수정 개요**: 시험 연도/회차 hardcoded number input → 도메인 슬레이브 기반 콤보박스; RichTextEditor 하단 우측 드래그 리사이즈 핸들 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/RichTextEditor.tsx` | 수정 | 드래그 리사이즈 핸들 추가 (마우스·터치 지원), `currentMinH` state로 높이 관리 |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | `examYearSlaves`·`examRoundSlaves` 도메인 추출; `ManualQuestionCard`에 전달; number input → select |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | 동일 슬레이브 추출; number input → select |
+
+### 수정 상세
+
+#### `RichTextEditor.tsx`
+- 변경 전: `minHeight` prop 고정, 리사이즈 불가
+- 변경 후: `currentMinH` state(초깃값=minHeight); 하단 우측 핸들 `onMouseDown`/`onTouchStart` 드래그로 높이 조절; 최소 minHeight 아래로 축소 불가
+
+#### 시험 연도/회차 (questions/new, questions/[id]/edit)
+- 변경 전: `type="number"` input (하드코딩된 min/max)
+- 변경 후: `DomainSlave` 기반 `<select>` — 도메인 마스터명 `"시험 연도"` · `"시험 회차"` 슬레이브를 옵션으로 표시
+- 표시 형식: `{s.name}년` / `제{s.name}회` (예: "2024년", "제1회")
+- 저장값: `Number(s.name)` → `examYear`/`examRound` Integer 컬럼 (기존 DB 스키마 유지)
+- 도메인 마스터(`시험 연도`, `시험 회차`)는 관리자 도메인 관리 페이지에서 추가
+
+### 복원 방법
+
+이 ID(HIST-20260505-006)만으로 복원 시:
+- `RichTextEditor.tsx`: `currentMinH` state/핸들/이벤트 제거, `style={{ minHeight }}` 원복
+- questions/new, questions/[id]/edit: `examYearSlaves`·`examRoundSlaves` 제거, select → number input 원복
+
+---
+
+## HIST-20260505-005
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리, 시험 관리
+- **수정 개요**: 문항 제목·시험 유형·문항 유형 필수값 처리; 등록/수정 폼 max-w를 max-w-3xl로 확대; 시험 등록/수정 max-w-lg → max-w-2xl 수정; 시험 수정 로딩 텍스트 → 스켈레톤
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | 제목·시험유형·문항유형 라벨 `*` 추가; handleSubmit 필수 검증; 가져오기 탭 유형 선택 필수; 컨테이너 max-w-3xl |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | 동일 필드 `*` 추가; handleSubmit 필수 검증 추가; 컨테이너 max-w-3xl |
+| `frontend/src/app/admin/exams/new/page.tsx` | 수정 | max-w-lg → max-w-2xl |
+| `frontend/src/app/admin/exams/[id]/edit/page.tsx` | 수정 | max-w-lg → max-w-2xl; 로딩 텍스트 → TableSkeleton |
+
+### 수정 상세
+
+#### 필수값 처리 (questions/new, questions/[id]/edit)
+- 변경 전: 문항 제목·시험 유형·문항 유형 `(선택)` 표시, 제출 시 검증 없음
+- 변경 후: 세 필드 모두 `*` 표시; 제출 시 미입력 시 에러 메시지 표시
+- 직접입력 탭: 카드별로 순서대로 검증 (예: "문항 2: 시험 유형은 필수입니다.")
+- 가져오기 탭: 전체 적용 시험 유형·문항 유형 미선택 시 에러
+
+#### max-w 수정
+- 변경 전: questions/new, questions/[id]/edit → max-w-2xl; exams/new, exams/[id]/edit → max-w-lg
+- 변경 후: questions/* → max-w-3xl; exams/* → max-w-2xl
+
+### 복원 방법
+
+이 ID(HIST-20260505-005)만으로 복원 시:
+- questions/new, questions/[id]/edit: 라벨 `*` → `(선택)`, handleSubmit 필수 검증 제거
+- 각 컨테이너 max-w 이전 값으로 복원
+- exams/[id]/edit: TableSkeleton → 텍스트 div 복원
+
+---
+
+## HIST-20260505-004
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리
+- **수정 개요**: 문항 등록·수정 화면에 [문항 제목], [시험 연도/회차] 필드 추가; 문항 목록에서 제목으로 표시 + 제목/내용 통합 검색; 상세 모달에 제목·연도/회차 표시
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `QuestionSummary`에 `title?`, `examYear?`, `examRound?` 추가 |
+| `frontend/src/components/ui/QuestionDetailModal.tsx` | 수정 | `QuestionDetailItem`에 새 필드 추가; 헤더에 제목·연도/회차 배지 표시 |
+| `frontend/src/services/examService.ts` | 수정 | `adminCreateQuestionsBulk`, `adminUpdateQuestion` 타입에 새 필드 추가 |
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | 목록 컬럼 title 우선 표시, 검색 시 title+content 통합 |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | `QuestionDraft`·`emptyDraft`에 새 필드; 카드 상단에 제목·연도/회차 입력 UI; API 전송 포함 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | `FormState`·`defaultForm`에 새 필드; 로드 시 매핑; 폼 상단에 입력 UI; 저장 시 포함 |
+
+### 수정 상세
+
+#### 문항 목록 (`questions/page.tsx`)
+- 변경 전: 항상 `stripHtml(q.content)` 표시
+- 변경 후: `q.title`이 있으면 제목(+연도/회차 서브텍스트), 없으면 `stripHtml(q.content)` 폴백
+- 검색 필터: 기존 content만 검색 → title과 content 모두 검색
+
+#### 상세 모달 (`QuestionDetailModal.tsx`)
+- 헤더: 제목 있으면 상단에 bold 표시, 연도+회차 있으면 `2024년 제1회` 형태 배지 표시
+
+#### 등록·수정 폼
+- 폼 최상단에 [문항 제목](text, max 200), [시험 연도](number), [시험 회차](number) 입력 필드 추가
+- 모두 선택 항목 — 미입력 시 undefined로 전송
+
+### 복원 방법
+
+이 ID(HIST-20260505-004)만으로 복원 시:
+- `types/index.ts`: `QuestionSummary`에서 title/examYear/examRound 제거
+- `QuestionDetailModal.tsx`: QuestionDetailItem에서 새 필드 제거, 헤더를 이전 형태로 복원
+- `examService.ts`: 두 메서드 타입에서 새 필드 제거
+- `questions/page.tsx`: 컬럼 로직·검색 필터를 content 단독으로 복원
+- `questions/new/page.tsx`: QuestionDraft·emptyDraft에서 새 필드 제거, 카드 UI 제거, API 전송에서 제거
+- `questions/[id]/edit/page.tsx`: FormState·defaultForm에서 새 필드 제거, 로드·저장·UI 복원
+
+---
+
+## HIST-20260505-003
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 프론트엔드 / 공통 UI
+- **수정 개요**: `QuestionDetailModal` 푸터에 '수정' 버튼 추가 — 클릭 시 `/admin/exams/questions/{id}/edit` 이동 + 모달 닫기
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/QuestionDetailModal.tsx` | 수정 | 푸터에 '수정' Link 버튼 추가, `next/link` import 추가 |
+
+### 수정 상세
+
+#### `src/components/ui/QuestionDetailModal.tsx`
+- 변경 전: 푸터에 '닫기' 버튼 하나만 존재 (full-width)
+- 변경 후: '닫기' + '수정' 버튼 나란히 배치; '수정' 클릭 시 `/admin/exams/questions/${question.id}/edit`로 이동 및 `onClose` 호출
+- 이유: 상세 확인 후 즉시 수정 화면으로 이동하는 UX 추가
+
+### 복원 방법
+
+이 ID(HIST-20260505-003)만으로 복원 시 `Link` import 제거, 푸터를 '닫기' 단독 full-width 버튼으로 되돌린다.
+
+---
+
 ## HIST-20260505-002
 
 - **날짜**: 2026-05-05

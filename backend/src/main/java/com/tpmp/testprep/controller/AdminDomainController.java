@@ -36,7 +36,7 @@ public class AdminDomainController {
     public ResponseEntity<ApiResponse<DomainMasterResponse>> createMaster(
             @Valid @RequestBody DomainMasterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(domainService.createMaster(request.name())));
+                .body(ApiResponse.success(domainService.createMaster(request.code(), request.name())));
     }
 
     /** 도메인 마스터 이름 수정 */

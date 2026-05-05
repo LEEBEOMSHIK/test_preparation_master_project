@@ -8,8 +8,8 @@ export const domainService = {
 
   // ── 마스터 CRUD ──────────────────────────────────────────────────────────────
 
-  createMaster: (name: string) =>
-    apiClient.post<ApiResponse<DomainMaster>>('/admin/domains/masters', { name }),
+  createMaster: (name: string, code?: string) =>
+    apiClient.post<ApiResponse<DomainMaster>>('/admin/domains/masters', { name, code }),
 
   updateMaster: (masterId: number, name: string) =>
     apiClient.put<ApiResponse<DomainMaster>>(`/admin/domains/masters/${masterId}`, { name }),

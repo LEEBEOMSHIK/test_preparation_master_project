@@ -41,6 +41,9 @@ const LANGUAGES: { value: string; label: string }[] = [
 
 interface QuestionDraft {
   localId:      string;
+  title:        string;
+  examYear:     string;
+  examRound:    string;
   content:      string;
   questionType: QuestionType;
   options:      string[];
@@ -63,6 +66,9 @@ const uid = () => `q-${++_seq}-${Date.now()}`;
 
 const emptyDraft = (): QuestionDraft => ({
   localId:      uid(),
+  title:        '',
+  examYear:     '',
+  examRound:    '',
   content:      '',
   questionType: 'MULTIPLE_CHOICE',
   options:      ['', '', '', ''],
@@ -82,7 +88,7 @@ function parseTextToQuestions(text: string): ImportedDraft[] {
     const content = current.join(' ').trim();
     if (content.length > 3) {
       drafts.push({
-        localId: uid(), content,
+        localId: uid(), title: '', examYear: '', examRound: '', content,
         questionType: 'SHORT_ANSWER', options: [], answer: '',
         code: '', language: 'other',
         categoryId: null,
@@ -122,6 +128,7 @@ async function simulateFileParse(file: File): Promise<ImportedDraft[]> {
       resolve(
         Array.from({ length: count }, (_, i) => ({
           localId: uid(),
+          title: '', examYear: '', examRound: '',
           content: `[${file.name}에서 추출] 문항 ${i + 1} — 서버 파싱 후 내용이 채워집니다.`,
           questionType: 'MULTIPLE_CHOICE' as QuestionType,
           options: ['보기 1', '보기 2', '보기 3', '보기 4'],
@@ -138,7 +145,8 @@ async function simulateFileParse(file: File): Promise<ImportedDraft[]> {
 // ── ManualQuestionCard ─────────────────────────────────────────────────────────
 
 function ManualQuestionCard({
-  draft, index, total, onChange, onRemove, examTypeSlaves, questionTypeSlaves,
+  draft, index, total, onChange, onRemove,
+  examTypeSlaves, questionTypeSlaves, examYearSlaves, examRoundSlaves,
 }: {
   draft:              QuestionDraft;
   index:              number;
@@ -147,6 +155,8 @@ function ManualQuestionCard({
   onRemove:           () => void;
   examTypeSlaves:     DomainSlave[];
   questionTypeSlaves: DomainSlave[];
+  examYearSlaves:     DomainSlave[];
+  examRoundSlaves:    DomainSlave[];
 }) {
   const isCode = draft.questionType === 'CODE';
 
@@ -166,6 +176,55 @@ function ManualQuestionCard({
       </div>
 
       <div className="p-5 space-y-4">
+        {/* 문항 제목 */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">
+            문항 제목 <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="text"
+            value={draft.title}
+            onChange={(e) => onChange('title', e.target.value)}
+            maxLength={200}
+            placeholder="관리용 제목 (예: 2024년 1회 1번)"
+            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+          />
+        </div>
+
+        {/* 시험 연도 / 회차 */}
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              시험 연도 <span className="text-gray-300 font-normal">(선택)</span>
+            </label>
+            <select
+              value={draft.examYear}
+              onChange={(e) => onChange('examYear', e.target.value)}
+              className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+            >
+              <option value="">연도 선택</option>
+              {examYearSlaves.map((s) => (
+                <option key={s.id} value={s.name}>{s.name}년</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              시험 회차 <span className="text-gray-300 font-normal">(선택)</span>
+            </label>
+            <select
+              value={draft.examRound}
+              onChange={(e) => onChange('examRound', e.target.value)}
+              className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+            >
+              <option value="">회차 선택</option>
+              {examRoundSlaves.map((s) => (
+                <option key={s.id} value={s.name}>제{s.name}회</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {/* 유형 선택 */}
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-2">유형</label>
@@ -202,7 +261,7 @@ function ManualQuestionCard({
         {/* 시험 유형 선택 */}
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1.5">
-            시험 유형
+            시험 유형 <span className="text-red-400">*</span>
           </label>
           <select
             value={draft.examTypeId ?? ''}
@@ -219,7 +278,7 @@ function ManualQuestionCard({
         {/* 문항 유형 선택 */}
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1.5">
-            문항 유형
+            문항 유형 <span className="text-red-400">*</span>
           </label>
           <select
             value={draft.categoryId ?? ''}
@@ -400,8 +459,10 @@ export default function AdminQuestionNewPage() {
   const [importCategory, setImportCategory]   = useState<number | null>(null);
   const [importExamType, setImportExamType]   = useState<number | null>(null);
 
-  const examTypeSlaves: DomainSlave[]     = domains.find((m) => m.name === '시험 유형')?.slaves ?? [];
-  const questionTypeSlaves: DomainSlave[] = domains.find((m) => m.name === '문제 유형')?.slaves ?? [];
+  const examTypeSlaves: DomainSlave[]     = domains.find((m) => m.code === 'EXAM_TYPE')?.slaves ?? [];
+  const questionTypeSlaves: DomainSlave[] = domains.find((m) => m.code === 'QUESTION_TYPE')?.slaves ?? [];
+  const examYearSlaves: DomainSlave[]     = domains.find((m) => m.code === 'EXAM_YEAR')?.slaves ?? [];
+  const examRoundSlaves: DomainSlave[]    = domains.find((m) => m.code === 'EXAM_ROUND')?.slaves ?? [];
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -482,13 +543,30 @@ export default function AdminQuestionNewPage() {
 
   // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    const manualValid = manualQuestions.filter((q) =>
+    const manualFilled = manualQuestions.filter((q) =>
       stripHtml(q.content) && (q.questionType !== 'CODE' || q.code.trim()),
     );
     const importedValid = importedQuestions.filter((q) => !q.excluded && q.content.trim());
 
+    // 직접 입력 탭 필수 필드 검증
+    if (tab === 'manual' || manualFilled.length > 0) {
+      for (let i = 0; i < manualFilled.length; i++) {
+        const q = manualFilled[i];
+        const idx = manualQuestions.indexOf(q) + 1;
+        if (!q.title.trim())   { setError(`문항 ${idx}: 문항 제목은 필수입니다.`); return; }
+        if (!q.examTypeId)     { setError(`문항 ${idx}: 시험 유형은 필수입니다.`); return; }
+        if (!q.categoryId)     { setError(`문항 ${idx}: 문항 유형은 필수입니다.`); return; }
+      }
+    }
+
+    // 가져오기 탭 필수 필드 검증
+    if (importedValid.length > 0) {
+      if (!importExamType) { setError('가져온 문항에 적용할 시험 유형을 선택해주세요.'); return; }
+      if (!importCategory) { setError('가져온 문항에 적용할 문항 유형을 선택해주세요.'); return; }
+    }
+
     const all = [
-      ...manualValid,
+      ...manualFilled,
       ...importedValid.map((q) => ({ ...q, categoryId: importCategory, examTypeId: importExamType })),
     ];
 
@@ -502,6 +580,9 @@ export default function AdminQuestionNewPage() {
     try {
       await examService.adminCreateQuestionsBulk(
         all.map((q) => ({
+          title:        q.title.trim() || undefined,
+          examYear:     q.examYear ? Number(q.examYear) : undefined,
+          examRound:    q.examRound ? Number(q.examRound) : undefined,
           content:      q.content.trim(),
           questionType: q.questionType,
           categoryId:   q.categoryId ?? undefined,
@@ -522,14 +603,14 @@ export default function AdminQuestionNewPage() {
 
   // ── Counts ───────────────────────────────────────────────────────────────────
   const manualFilledCount = manualQuestions.filter((q) =>
-    stripHtml(q.content) && (q.questionType !== 'CODE' || q.code.trim()),
+    stripHtml(q.content) && (q.questionType !== 'CODE' || q.code.trim()) && q.title.trim() && q.examTypeId && q.categoryId,
   ).length;
   const importedAppliedCount = importedQuestions.filter((q) => !q.excluded).length;
   const totalCount           = manualFilledCount + importedAppliedCount;
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-2xl space-y-5">
+    <div className="max-w-3xl space-y-5">
       {/* 헤더 */}
       <div className="flex items-center gap-3">
         <Link href="/admin/exams/questions"
@@ -577,6 +658,8 @@ export default function AdminQuestionNewPage() {
               total={manualQuestions.length}
               examTypeSlaves={examTypeSlaves}
               questionTypeSlaves={questionTypeSlaves}
+              examYearSlaves={examYearSlaves}
+              examRoundSlaves={examRoundSlaves}
               onChange={(field, value) => updateManualQuestion(q.localId, field, value)}
               onRemove={() => removeManualQuestion(q.localId)}
             />

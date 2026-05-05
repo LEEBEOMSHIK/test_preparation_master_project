@@ -1,11 +1,15 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { RichContent } from '@/components/ui/RichContent';
 import type { QuestionType } from '@/types';
 
 export interface QuestionDetailItem {
   id: number;
+  title?: string;
+  examYear?: number;
+  examRound?: number;
   content: string;
   questionType: QuestionType;
   options?: string[];
@@ -53,24 +57,40 @@ export function QuestionDetailModal({ question, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-700">문항 상세</span>
-            <span className={[
-              'px-2 py-0.5 rounded-full text-xs font-medium',
-              TYPE_COLOR[question.questionType],
-            ].join(' ')}>
-              {TYPE_LABEL[question.questionType]}
-            </span>
+        <div className="px-5 py-4 border-b border-gray-100">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              {question.title && (
+                <p className="text-sm font-semibold text-gray-900 truncate mb-1">{question.title}</p>
+              )}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className={[
+                  'px-2 py-0.5 rounded-full text-xs font-medium',
+                  TYPE_COLOR[question.questionType],
+                ].join(' ')}>
+                  {TYPE_LABEL[question.questionType]}
+                </span>
+                {(question.examYear || question.examRound) && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                    {question.examYear ? `${question.examYear}년` : ''}
+                    {question.examYear && question.examRound ? ' ' : ''}
+                    {question.examRound ? `제${question.examRound}회` : ''}
+                  </span>
+                )}
+                {!question.title && (
+                  <span className="text-xs text-gray-400">문항 상세</span>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition shrink-0"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
         </div>
 
         {/* 본문 */}
@@ -141,13 +161,20 @@ export function QuestionDetailModal({ question, onClose }: Props) {
         </div>
 
         {/* 푸터 */}
-        <div className="px-5 py-3 border-t border-gray-100">
+        <div className="px-5 py-3 border-t border-gray-100 flex gap-2">
           <button
             onClick={onClose}
-            className="w-full py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-medium hover:bg-gray-200 transition"
+            className="flex-1 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-medium hover:bg-gray-200 transition"
           >
             닫기
           </button>
+          <Link
+            href={`/admin/exams/questions/${question.id}/edit`}
+            onClick={onClose}
+            className="flex-1 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition text-center"
+          >
+            수정
+          </Link>
         </div>
       </div>
     </div>

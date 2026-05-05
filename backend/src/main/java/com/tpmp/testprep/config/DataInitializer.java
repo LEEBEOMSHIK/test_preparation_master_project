@@ -38,10 +38,14 @@ public class DataInitializer implements ApplicationRunner {
         fixQuestionTypeConstraints();
         ensureAdminUser();
         ensureTestUser();
-        ensureDomainMaster("문제 유형",
+        ensureDomainMasterWithCode("QUESTION_TYPE", "문제 유형",
                 new String[]{"운영체제", "SQL", "프로그래밍 언어", "네트워크", "정보보안"});
-        ensureDomainMaster("시험 유형",
+        ensureDomainMasterWithCode("EXAM_TYPE", "시험 유형",
                 new String[]{"SQLD", "정보처리기사 실기", "정보처리기사 필기", "리눅스마스터 1급"});
+        ensureDomainMasterWithCode("EXAM_YEAR", "시험 연도",
+                new String[]{"2026", "2025", "2024", "2023", "2022"});
+        ensureDomainMasterWithCode("EXAM_ROUND", "시험 회차",
+                new String[]{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"});
         ensurePermissionMasters();
         ensureDefaultMenus();
         ensureAdminUsersMenu();
@@ -110,13 +114,22 @@ public class DataInitializer implements ApplicationRunner {
     }
 
     @Transactional
-    public void ensureDomainMaster(String masterName, String[] slaveNames) {
-        if (domainMasterRepository.findByName(masterName).isPresent()) {
-            log.debug("[DataInitializer] 도메인 마스터 '{}' 이미 존재 — 건너뜀", masterName);
+    public void ensureDomainMasterWithCode(String code, String masterName, String[] slaveNames) {
+        // 코드로 먼저 조회 — 이미 있으면 건너뜀
+        if (domainMasterRepository.findByCode(code).isPresent()) {
+            log.debug("[DataInitializer] 도메인 마스터 코드 '{}' 이미 존재 — 건너뜀", code);
             return;
         }
+        // 이름으로 조회 — 기존 데이터(코드 없는)에 코드만 부여
+        var byName = domainMasterRepository.findByName(masterName);
+        if (byName.isPresent()) {
+            byName.get().updateCode(code);
+            log.info("[DataInitializer] 도메인 마스터 '{}' 코드 부여: {}", masterName, code);
+            return;
+        }
+        // 신규 생성
         DomainMaster master = domainMasterRepository.save(
-                DomainMaster.builder().name(masterName).build());
+                DomainMaster.builder().code(code).name(masterName).build());
         for (int i = 0; i < slaveNames.length; i++) {
             domainSlaveRepository.save(DomainSlave.builder()
                     .master(master)
@@ -124,7 +137,7 @@ public class DataInitializer implements ApplicationRunner {
                     .displayOrder(i + 1)
                     .build());
         }
-        log.info("[DataInitializer] 도메인 '{}' 생성 완료 — 슬레이브 {}개", masterName, slaveNames.length);
+        log.info("[DataInitializer] 도메인 '{}' (code={}) 생성 완료 — 슬레이브 {}개", masterName, code, slaveNames.length);
     }
 
     @Transactional

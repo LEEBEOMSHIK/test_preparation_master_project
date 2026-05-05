@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { examinationService } from '@/services/examinationService';
 import { examService } from '@/services/examService';
 import { domainService } from '@/services/domainService';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 import type { ExamSummary, DomainSlave } from '@/types';
 
 const TIME_OPTIONS = [
@@ -84,14 +85,14 @@ export default function AdminExamEditPage() {
 
   if (fetching) {
     return (
-      <div className="max-w-lg">
-        <div className="p-10 text-center text-gray-400 text-sm">불러오는 중...</div>
+      <div className="max-w-2xl">
+        <TableSkeleton rows={4} cols={2} />
       </div>
     );
   }
 
   return (
-    <div className="max-w-lg">
+    <div className="max-w-2xl">
       {/* 헤더 */}
       <div className="flex items-center gap-3 mb-6">
         <Link href="/admin/exams" className="text-gray-400 hover:text-gray-600 transition" aria-label="뒤로가기">

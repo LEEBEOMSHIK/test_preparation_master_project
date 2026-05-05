@@ -271,7 +271,14 @@ export default function AdminDomainsPage() {
                 </>
               ) : (
                 <>
-                  <p className="flex-1 text-sm font-semibold text-gray-800">{master.name}</p>
+                  <p className="flex-1 text-sm font-semibold text-gray-800 flex items-center gap-2">
+                    {master.name}
+                    {master.code && (
+                      <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-slate-100 text-slate-500 select-all">
+                        {master.code}
+                      </span>
+                    )}
+                  </p>
                   <span className="text-xs text-gray-400">{master.slaves.length}개</span>
                   <button
                     type="button"

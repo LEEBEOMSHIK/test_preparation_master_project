@@ -115,7 +115,11 @@ export default function AdminQuestionsPage() {
     const toMs   = appliedDateTo   ? new Date(appliedDateTo + 'T23:59:59').getTime() : null;
 
     const base = allQuestions.filter((q) => {
-      if (kw && !q.content.toLowerCase().includes(kw)) return false;
+      if (kw) {
+        const inTitle   = q.title?.toLowerCase().includes(kw) ?? false;
+        const inContent = q.content.toLowerCase().includes(kw);
+        if (!inTitle && !inContent) return false;
+      }
       if (appliedTypeFilter && q.questionType !== appliedTypeFilter) return false;
       const created = new Date(q.createdAt).getTime();
       if (fromMs && created < fromMs) return false;
@@ -271,7 +275,7 @@ export default function AdminQuestionsPage() {
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs text-gray-500 font-medium uppercase tracking-wide">
                   <th className="px-4 py-3 w-12 text-center whitespace-nowrap">No.</th>
-                  <th className="px-4 py-3">문항 내용</th>
+                  <th className="px-4 py-3">문항 제목 / 내용</th>
                   <th className="px-4 py-3 w-24 text-center whitespace-nowrap">유형</th>
                   <th className="px-4 py-3 w-28 whitespace-nowrap">
                     <button
@@ -301,7 +305,20 @@ export default function AdminQuestionsPage() {
                       {page * pageSize + idx + 1}
                     </td>
                     <td className="px-4 py-3.5 text-gray-900 max-w-0">
-                      <p className="truncate">{stripHtml(q.content)}</p>
+                      {q.title ? (
+                        <div>
+                          <p className="truncate font-medium">{q.title}</p>
+                          {(q.examYear || q.examRound) && (
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              {q.examYear ? `${q.examYear}년` : ''}
+                              {q.examYear && q.examRound ? ' ' : ''}
+                              {q.examRound ? `제${q.examRound}회` : ''}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="truncate text-gray-500">{stripHtml(q.content)}</p>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 text-center whitespace-nowrap">
                       <span className={[

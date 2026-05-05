@@ -1,3 +1,60 @@
+## HIST-20260505-007
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 백엔드 / 도메인 테이블 관리
+- **수정 개요**: `DomainMaster`에 `code` 필드 추가 — 이름 대신 코드로 도메인 마스터를 식별할 수 있도록 변경 (EXAM_TYPE, QUESTION_TYPE, EXAM_YEAR, EXAM_ROUND 등)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `entity/DomainMaster.java` | 수정 | `code` 필드 추가 (`UNIQUE, VARCHAR 50`); `updateCode()` 메서드 추가; 생성자 파라미터에 code 추가 |
+| `repository/DomainMasterRepository.java` | 수정 | `findByCode(String code): Optional<DomainMaster>` 추가 |
+| `dto/request/DomainMasterRequest.java` | 수정 | 선택 필드 `@Size(max=50) @Pattern(regexp="^[A-Z_]*$") String code` 추가 |
+| `dto/response/DomainMasterResponse.java` | 수정 | record에 `String code` 필드 추가, `from()` 매핑 포함 |
+| `service/DomainService.java` | 수정 | `createMaster(String code, String name)` — code를 엔티티 생성자에 전달 |
+| `controller/AdminDomainController.java` | 수정 | `createMaster` 호출 시 `request.code()` 전달 |
+
+### 수정 상세
+
+#### `DomainMaster.java`
+- 변경 전: `name`만 존재, code 필드 없음
+- 변경 후:
+  ```java
+  @Column(unique = true, length = 50)
+  private String code;
+  ```
+  - `public DomainMaster(String code, String name)` 생성자 추가
+  - `public void updateCode(String code)` 메서드 추가
+
+#### `DomainMasterRepository.java`
+- 변경 전: `findByName` 등 기존 메서드만 존재
+- 변경 후: `Optional<DomainMaster> findByCode(String code)` 추가
+
+#### `DomainMasterRequest.java`
+- 변경 전: `@NotBlank @Size(max=100) String name` 단일 필드
+- 변경 후: `@Size(max=50) @Pattern(regexp="^[A-Z_]*$") String code` 선택 필드 추가
+
+#### `DomainMasterResponse.java`
+- 변경 전: `record(Long id, String name, List<DomainSlaveResponse> slaves)`
+- 변경 후: `record(Long id, String code, String name, List<DomainSlaveResponse> slaves)` — `master.getCode()` 매핑 추가
+
+#### `DomainService.java`
+- 변경 전: `createMaster(String name)` — `new DomainMaster(name)` 생성
+- 변경 후: `createMaster(String code, String name)` — `new DomainMaster(code, name)` 생성
+
+### 복원 방법
+
+HIST-20260505-007 복원 시:
+- `DomainMaster.java`: `code` 필드 제거, `updateCode()` 제거, 생성자를 `(String name)` 단일 파라미터로 복원
+- `DomainMasterRepository.java`: `findByCode` 제거
+- `DomainMasterRequest.java`: `code` 필드 제거
+- `DomainMasterResponse.java`: record에서 `String code` 제거, `from()` 매핑 제거
+- `DomainService.java`: `createMaster` 파라미터를 `(String name)`으로 복원
+- `AdminDomainController.java`: `domainService.createMaster(request.name())`으로 복원
+
+---
+
 ## HIST-20260501-004
 
 - **날짜**: 2026-05-01

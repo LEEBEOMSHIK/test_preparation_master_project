@@ -71,7 +71,7 @@ export default function AdminExamNewPage() {
   };
 
   return (
-    <div className="max-w-lg">
+    <div className="max-w-2xl">
       {/* 헤더 */}
       <div className="flex items-center gap-3 mb-6">
         <Link href="/admin/exams" className="text-gray-400 hover:text-gray-600 transition" aria-label="뒤로가기">

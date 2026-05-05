@@ -24,6 +24,18 @@ public class QuestionBank extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** 문항 제목 (관리용, 선택) */
+    @Column(length = 200)
+    private String title;
+
+    /** 시험 연도 (선택, 예: 2024) */
+    @Column(name = "exam_year")
+    private Integer examYear;
+
+    /** 시험 회차 (선택, 예: 1) */
+    @Column(name = "exam_round")
+    private Integer examRound;
+
     /** 문항 내용 (문제 본문) */
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
@@ -64,11 +76,15 @@ public class QuestionBank extends BaseEntity {
     private String explanation;
 
     @Builder
-    public QuestionBank(String content, QuestionType questionType,
+    public QuestionBank(String title, Integer examYear, Integer examRound,
+                        String content, QuestionType questionType,
                         DomainSlave category, DomainSlave examType,
                         List<String> options, String answer,
                         String code, String language,
                         String explanation, Long createdByUno) {
+        this.title = title;
+        this.examYear = examYear;
+        this.examRound = examRound;
         this.content = content;
         this.questionType = questionType;
         this.category = category;
@@ -81,11 +97,15 @@ public class QuestionBank extends BaseEntity {
         initAudit(createdByUno);
     }
 
-    public void update(String content, QuestionType questionType,
+    public void update(String title, Integer examYear, Integer examRound,
+                       String content, QuestionType questionType,
                        DomainSlave category, DomainSlave examType,
                        List<String> options, String answer,
                        String code, String language,
                        String explanation, Long modifiedByUno) {
+        this.title = title;
+        this.examYear = examYear;
+        this.examRound = examRound;
         this.content = content;
         this.questionType = questionType;
         this.category = category;
