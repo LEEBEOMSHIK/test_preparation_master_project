@@ -31,7 +31,7 @@ export default function SignupPage() {
     setLoading(true);
     try {
       await authService.signup(email, password, name);
-      router.push('/auth/login?registered=1');
+      router.push('/user/login?registered=1');
     } catch {
       setError('이미 사용 중인 이메일이거나 입력값을 확인해주세요.');
     } finally {
@@ -134,7 +134,7 @@ export default function SignupPage() {
 
         <p className="text-center text-sm text-gray-500 mt-5">
           이미 계정이 있으신가요?{' '}
-          <Link href="/auth/login" className="text-indigo-600 font-medium hover:underline">
+          <Link href="/user/login" className="text-indigo-600 font-medium hover:underline">
             로그인
           </Link>
         </p>

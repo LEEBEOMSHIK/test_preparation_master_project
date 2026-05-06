@@ -92,15 +92,16 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
   const [navItems, setNavItems] = useState<MenuConfig[]>(USER_FALLBACK_NAV);
 
   useEffect(() => {
+    if (pathname === '/user/login') return;
     const token = sessionStorage.getItem('accessToken');
     if (!token) {
-      router.replace('/auth/login');
+      router.replace('/user/login');
       return;
     }
     // 새로고침 후 user 상태 복원 (interestedExamSlaveIds 포함 최신 정보)
     authService.me()
       .then(res => { if (res.data.data) setAuth(res.data.data, token); })
-      .catch(() => { clearAuth(); router.replace('/auth/login'); });
+      .catch(() => { clearAuth(); router.replace('/user/login'); });
     menuService.getMyMenus('USER')
       .then((res) => {
         if (res.data.success && res.data.data && res.data.data.length > 0) {
@@ -111,11 +112,15 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
         }
       })
       .catch(() => {});
-  }, [router]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [router, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (pathname === '/user/login') {
+    return <>{children}</>;
+  }
 
   const handleLogout = () => {
     clearAuth();
-    router.push('/auth/login');
+    router.push('/user/login');
   };
 
   const initials = user?.name ? user.name.slice(0, 1).toUpperCase() : 'U';

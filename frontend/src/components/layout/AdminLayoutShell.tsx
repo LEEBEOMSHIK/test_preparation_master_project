@@ -144,9 +144,10 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
   const [navItems, setNavItems] = useState<MenuConfig[]>(FALLBACK_NAV);
 
   useEffect(() => {
+    if (pathname === '/admin/login') return;
     const token = sessionStorage.getItem('accessToken');
     if (!token) {
-      router.replace('/auth/login');
+      router.replace('/admin/login');
       return;
     }
     menuService.getMyMenus('ADMIN')
@@ -168,8 +169,12 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
 
   const handleLogout = () => {
     clearAuth();
-    router.push('/auth/login');
+    router.push('/admin/login');
   };
+
+  if (pathname === '/admin/login') {
+    return <>{children}</>;
+  }
 
   const initials = user?.name ? user.name.slice(0, 1).toUpperCase() : 'A';
 

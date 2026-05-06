@@ -1,3 +1,39 @@
+## HIST-20260506-006
+
+- **날짜**: 2026-05-06
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보
+- **수정 개요**: 시험 정보 카드에 현재 날짜 기준 단계 상태(진행 중 / 예정 / 종료) 배지 및 배경색 표시 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | `getPhaseStatus()`, `PHASE_STYLES` 추가 및 접수 기간·시험 일정·합격 발표 박스에 상태별 색상/배지 적용, `resultDate` 표시를 `fmtRange()` 경유로 변경 |
+
+### 수정 상세
+
+#### `user/exam-info/page.tsx`
+- **추가**: `PhaseStatus` 타입 (`'active' | 'upcoming' | 'past' | 'none'`)
+- **추가**: `getPhaseStatus(rangeStr)` — `"YYYY-MM-DD ~ YYYY-MM-DD"` 형식 파싱, 오늘 날짜 기준으로 상태 반환; 비날짜 문자열은 `'none'` 반환
+- **추가**: `PHASE_STYLES` 상수 맵:
+  - `active` → 에메랄드 배경 + "진행 중" 배지
+  - `upcoming` → 파란색 배경 + "예정" 배지
+  - `past` → 회색 배경 + "종료" 배지 + 흐린 텍스트
+  - `none` → 기존 회색 배경 (배지 없음)
+- **변경**: `displayed.map` 을 arrow function body로 전환, 각 카드에서 `appStatus/schStatus/resStatus` 사전 계산
+- **변경**: 3개 정보 박스(접수 기간·시험 일정·합격 발표) — 기존 `bg-gray-50` 고정 → `PHASE_STYLES[status].box` 동적 배경, 상단에 라벨 + 배지 행 추가
+- **변경**: `{item.resultDate}` 직접 출력 → `fmtRange(item.resultDate)` 경유 (날짜 포맷 통일)
+
+### 복원 방법
+
+HIST-20260506-006 복원 시:
+- `PhaseStatus` 타입, `getPhaseStatus` 함수, `PHASE_STYLES` 상수 제거
+- `displayed.map(item => (...))` 형태로 복원 (상태 계산 변수 제거)
+- 3개 정보 박스를 `bg-gray-50 rounded-xl p-3` 고정 배경, 라벨만 있는 단순 구조로 복원
+- `fmtRange(item.resultDate)` → `{item.resultDate}` 복원
+
+---
+
 ## HIST-20260505-016
 
 - **날짜**: 2026-05-05

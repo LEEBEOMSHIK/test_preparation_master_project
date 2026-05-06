@@ -20,36 +20,42 @@ export default function HomePage() {
       <h1 className="text-3xl font-bold text-indigo-700 mb-2">TPMP</h1>
       <p className="text-gray-500 mb-8 text-center">시험 준비와 개념 정리를 위한 서비스</p>
 
-      <div className="flex gap-4 mb-10">
+      <div className="flex gap-3 mb-4">
         <Link
-          href="/auth/login"
+          href="/user/login"
           className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition"
         >
-          로그인
+          사용자 로그인
         </Link>
         <Link
-          href="/auth/signup"
-          className="border border-indigo-600 text-indigo-600 px-6 py-2 rounded-lg font-semibold hover:bg-indigo-50 transition"
+          href="/admin/login"
+          className="bg-gray-800 text-white px-6 py-2 rounded-lg font-semibold hover:bg-gray-700 transition"
         >
-          회원가입
+          관리자 로그인
         </Link>
       </div>
+      <Link
+        href="/auth/signup"
+        className="mb-10 border border-indigo-600 text-indigo-600 px-6 py-2 rounded-lg font-semibold hover:bg-indigo-50 transition"
+      >
+        회원가입
+      </Link>
 
       {/* 테스트용 바로가기 */}
       <div className="border border-dashed border-gray-300 rounded-xl p-5 text-center w-full max-w-xs">
         <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide">테스트 바로가기</p>
         <div className="flex flex-col gap-2">
           <Link
-            href="/user/exams"
-            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
+            href="/user/login"
+            className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-100 transition"
           >
-            사용자 홈 (User)
+            사용자 로그인 (User)
           </Link>
           <Link
-            href="/admin/exams"
-            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
+            href="/admin/login"
+            className="bg-gray-100 text-gray-700 border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
           >
-            관리자 홈 (Admin)
+            관리자 로그인 (Admin)
           </Link>
         </div>
       </div>

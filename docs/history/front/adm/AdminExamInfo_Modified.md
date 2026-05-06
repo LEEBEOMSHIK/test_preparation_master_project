@@ -1,3 +1,77 @@
+## HIST-20260506-007
+
+- **날짜**: 2026-05-06
+- **수정 범위**: 관리자 프론트엔드 / 시험 정보 관리
+- **수정 개요**: 합격 발표 필드를 날짜 범위 피커 → 단일 날짜 피커로 변경, 수정 폼을 상단 고정에서 해당 카드 위치 인라인으로 변경
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exam-info/page.tsx` | 수정 | `resultDateStart/End` 제거 → `resultDate` 단일 필드, `showForm` → `showCreateForm`으로 분리, 수정 폼 인라인 렌더링, `renderFormFields()` 함수 추출 |
+
+### 수정 상세
+
+#### `admin/exam-info/page.tsx`
+- **변경**: `EMPTY_FORM`에서 `resultDateStart: ''`, `resultDateEnd: ''` 제거 → `resultDate: ''` 단일 필드
+- **변경**: `openEdit()`에서 `parseRange(item.resultDate).start`만 추출해 `resultDate`에 할당 (기존 range 데이터 하위 호환)
+- **변경**: `handleSave` payload에서 `buildRange(form.resultDateStart, form.resultDateEnd)` → `form.resultDate` (단일 날짜 문자열)
+- **변경**: 합격 발표 폼 영역 — 날짜 피커 2개 + "~" 구분자 제거 → `<input type="date">` 단일 필드
+- **변경**: `showForm: boolean` → `showCreateForm: boolean` 분리; 수정 시 인라인 렌더링으로 전환
+  - 추가 폼: `showCreateForm` 이 true일 때 목록 위에 표시 (기존 동작 유지)
+  - 수정 폼: `editingId === item.id` 조건으로 해당 카드 위치에 인라인 표시 (새 동작)
+- **추가**: `cancelEdit()` — `setEditingId(null)` + `setShowCreateForm(false)` 통합
+- **추가**: `renderFormFields()` — 추가/수정 공통 폼 필드 렌더 함수 (코드 중복 제거)
+- **변경**: 목록의 발표일 표시: `fmtRange(item.resultDate)` → `fmtDate(parseRange(item.resultDate).start || item.resultDate)` (단일 날짜 형식)
+
+### 복원 방법
+
+HIST-20260506-007 복원 시:
+- `EMPTY_FORM`에서 `resultDate` 제거 → `resultDateStart: ''`, `resultDateEnd: ''` 복원
+- `openEdit()`에서 `resStart` 추출 제거 → `resultDateStart: resRange.start, resultDateEnd: resRange.end` 복원
+- `handleSave` payload에서 `resultDate: form.resultDate` → `resultDate: buildRange(form.resultDateStart, form.resultDateEnd)` 복원
+- 합격 발표 폼: 단일 `<input type="date">` → 2개 날짜 피커 + "~" 구분자로 복원
+- `showCreateForm` → `showForm`으로 복원, `editingId` 기반 인라인 렌더링 제거 → 단일 `showForm` 조건 블록으로 복원
+- `renderFormFields()` 제거, 인라인 JSX로 복원
+
+---
+
+## HIST-20260506-005
+
+- **날짜**: 2026-05-06
+- **수정 범위**: 관리자 프론트엔드 / 시험 정보 관리
+- **수정 개요**: 합격 발표(`resultDate`) 입력을 자유 텍스트 → 날짜 범위 피커(시작일 ~ 종료일)로 교체
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exam-info/page.tsx` | 수정 | `resultDate` 단일 text 입력 제거 → `resultDateStart/End` date 피커 2개로 교체, 공식 URL 필드를 별도 행으로 이동 |
+
+### 수정 상세
+
+#### `admin/exam-info/page.tsx`
+- **변경 전**: `EMPTY_FORM`에 `resultDate: ''` (단일 문자열), 폼에 `<input type="text" placeholder="예: 시험 후 약 4주">`, 목록에 `{item.resultDate}` 직접 출력
+- **변경 후**:
+  - `EMPTY_FORM`에 `resultDateStart: ''`, `resultDateEnd: ''` 분리
+  - 폼에 `<input type="date">` 2개 + `~` 구분자 (접수 기간·시험 일정과 동일한 패턴)
+  - `openEdit` 에서 `parseRange(item.resultDate)` 로 start/end 분리해 피커에 채움
+  - `handleSave` 에서 `buildRange(form.resultDateStart, form.resultDateEnd)` 로 직렬화
+  - 목록 표시에 `fmtRange(item.resultDate)` 적용 (날짜 포맷 통일)
+  - 공식 홈페이지 URL 필드를 기존 3열 그리드(합격발표와 함께)에서 독립 행으로 분리
+
+### 복원 방법
+
+HIST-20260506-005 복원 시:
+- `EMPTY_FORM`에서 `resultDateStart/End` 제거 → `resultDate: ''` 복원
+- `openEdit`에서 `resRange` 파싱 제거 → `resultDate: item.resultDate ?? ''` 복원
+- `handleSave` payload에서 `buildRange(form.resultDateStart, form.resultDateEnd)` → `form.resultDate` 복원
+- 합격 발표 날짜 범위 `<div>` 블록 제거 → text input 복원
+- 공식 URL을 다시 3열 grid 안으로 이동
+- 목록 표시에서 `fmtRange(item.resultDate)` → `{item.resultDate}` 복원
+
+---
+
 ## HIST-20260430-006
 
 - **날짜**: 2026-04-30

@@ -1,3 +1,43 @@
+## HIST-20260506-004
+
+- **날짜**: 2026-05-06
+- **수정 범위**: 관리자 백엔드 / DataInitializer
+- **수정 개요**: 기본 세부 권한(PermissionDetail) 2개 및 테스트 케이스 관리 메뉴 자동 시딩 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../repository/PermissionDetailRepository.java` | 수정 | `existsByCode(String code)` 메서드 추가 |
+| `backend/.../config/DataInitializer.java` | 수정 | `PermissionDetailRepository` 주입, `ensureDefaultPermissionDetails()`, `ensureTestCaseMenu()` 추가 및 `run()` 호출 등록 |
+
+### 수정 상세
+
+#### `PermissionDetailRepository.java`
+- 변경 전: `findByMasterId(Long masterId)`만 존재
+- 변경 후: `boolean existsByCode(String code)` 추가 (중복 삽입 방지용)
+
+#### `DataInitializer.java`
+- **`ensureDefaultPermissionDetails()`** 신규 추가 — DB에 없을 때만 다음 2개 생성:
+  - `GENERAL_USER` / "일반 사용자" — PermissionMaster `USER` 하위
+  - `MASTER_ADMIN` / "총괄 관리자" — PermissionMaster `ADMIN` 하위
+- **`ensureTestCaseMenu()`** 신규 추가 — `/admin/exams/test-cases` 가 없을 때만 "테스트 케이스 관리" 메뉴 생성 (시험 관리 하위, displayOrder=3)
+- `run()` 실행 순서:
+  ```
+  ensurePermissionMasters() → ensureDefaultPermissionDetails() → ensureDefaultMenus()
+  → ensureAdminUsersMenu() → ensureExamInfoMenus() → ensureTestCaseMenu()
+  ```
+
+### 복원 방법
+
+HIST-20260506-004 복원 시:
+- `PermissionDetailRepository`에서 `existsByCode` 제거
+- `DataInitializer`에서 `permissionDetailRepository` 필드·주입 제거
+- `ensureDefaultPermissionDetails()`, `ensurePermissionDetail()`, `ensureTestCaseMenu()` 메서드 삭제
+- `run()`에서 두 호출 제거
+
+---
+
 ## HIST-20260505-011
 
 - **날짜**: 2026-05-05

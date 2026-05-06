@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface PermissionDetailRepository extends JpaRepository<PermissionDetail, Long> {
     List<PermissionDetail> findByMasterId(Long masterId);
+    boolean existsByCode(String code);
 }

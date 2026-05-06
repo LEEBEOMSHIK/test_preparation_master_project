@@ -41,13 +41,15 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch {
         sessionStorage.removeItem('accessToken');
-        window.location.href = '/auth/login';
+        const loginPath = window.location.pathname.startsWith('/admin/') ? '/admin/login' : '/user/login';
+        window.location.href = loginPath;
       }
     }
 
     if (status === 403) {
       sessionStorage.removeItem('accessToken');
-      window.location.href = '/auth/login';
+      const loginPath = window.location.pathname.startsWith('/admin/') ? '/admin/login' : '/user/login';
+      window.location.href = loginPath;
     }
 
     return Promise.reject(error);

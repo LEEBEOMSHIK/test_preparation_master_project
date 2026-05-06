@@ -15,7 +15,7 @@ export default function OAuthCallbackPage() {
     const error = searchParams.get('error');
 
     if (error || !token) {
-      router.push('/auth/login?error=oauth_failed');
+      router.push('/user/login?error=oauth_failed');
       return;
     }
 
@@ -35,7 +35,7 @@ export default function OAuthCallbackPage() {
       })
       .catch(() => {
         sessionStorage.removeItem('accessToken');
-        router.push('/auth/login?error=oauth_failed');
+        router.push('/user/login?error=oauth_failed');
       });
   }, [searchParams, router, setAuth]);
 

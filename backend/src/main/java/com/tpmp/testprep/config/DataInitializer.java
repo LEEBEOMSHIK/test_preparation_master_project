@@ -30,6 +30,7 @@ public class DataInitializer implements ApplicationRunner {
     private final DomainMasterRepository domainMasterRepository;
     private final DomainSlaveRepository domainSlaveRepository;
     private final PermissionMasterRepository permissionMasterRepository;
+    private final PermissionDetailRepository permissionDetailRepository;
     private final MenuConfigRepository menuConfigRepository;
 
     @Override
@@ -47,9 +48,11 @@ public class DataInitializer implements ApplicationRunner {
         ensureDomainMasterWithCode("EXAM_ROUND", "시험 회차",
                 new String[]{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"});
         ensurePermissionMasters();
+        ensureDefaultPermissionDetails();
         ensureDefaultMenus();
         ensureAdminUsersMenu();
         ensureExamInfoMenus();
+        ensureTestCaseMenu();
     }
 
     private void fixAnswerNullable() {
@@ -221,6 +224,39 @@ public class DataInitializer implements ApplicationRunner {
         if (!menuConfigRepository.existsByUrl("/user/exam-info")) {
             saveMenu(null, "시험 정보", "/user/exam-info", "examinfo", 0, MenuConfig.MenuType.USER, "USER,ADMIN");
             log.info("[DataInitializer] 시험 정보 사용자 메뉴 추가 완료");
+        }
+    }
+
+    @Transactional
+    public void ensureDefaultPermissionDetails() {
+        ensurePermissionDetail("USER",  "GENERAL_USER",  "일반 사용자", "일반 사용자 기본 세부 권한");
+        ensurePermissionDetail("ADMIN", "MASTER_ADMIN",  "총괄 관리자", "전체 시스템 총괄 관리자 세부 권한");
+    }
+
+    private void ensurePermissionDetail(String masterCode, String detailCode, String name, String description) {
+        if (permissionDetailRepository.existsByCode(detailCode)) {
+            log.debug("[DataInitializer] 세부 권한 '{}' 이미 존재 — 건너뜀", detailCode);
+            return;
+        }
+        permissionMasterRepository.findByCode(masterCode).ifPresent(master -> {
+            permissionDetailRepository.save(PermissionDetail.builder()
+                    .master(master)
+                    .code(detailCode)
+                    .name(name)
+                    .description(description)
+                    .build());
+            log.info("[DataInitializer] 세부 권한 '{}' ({}) 생성 완료", name, detailCode);
+        });
+    }
+
+    private void ensureTestCaseMenu() {
+        if (!menuConfigRepository.existsByUrl("/admin/exams/test-cases")) {
+            Long examParentId = menuConfigRepository
+                    .findByMenuTypeOrderByDisplayOrderAsc(MenuConfig.MenuType.ADMIN)
+                    .stream().filter(m -> "/admin/exams".equals(m.getUrl()))
+                    .findFirst().map(MenuConfig::getId).orElse(null);
+            saveMenu(examParentId, "테스트 케이스 관리", "/admin/exams/test-cases", null, 3, MenuConfig.MenuType.ADMIN, "ADMIN");
+            log.info("[DataInitializer] 테스트 케이스 관리 메뉴 추가 완료");
         }
     }
 
