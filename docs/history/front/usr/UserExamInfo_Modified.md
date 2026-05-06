@@ -1,3 +1,48 @@
+## HIST-20260505-016
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보, 온보딩
+- **수정 개요**: 관심 시험 선택 화면을 하드코딩 EXAM_TYPES → EXAM_TYPE 도메인 슬레이브 동적 조회로 전환, ID 기반 저장
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `User`에 `interestedExamSlaveIds?: number[]` 추가; `EXAM_TYPES` 상수·`ExamType` 타입 제거 |
+| `frontend/src/services/examInfoService.ts` | 수정 | `ExamTypeOption` 인터페이스 추가, `getExamTypes()` 추가, `completeOnboarding`/`updateInterests` 인자 `string[]`→`number[]` 변경 |
+| `frontend/src/app/onboarding/page.tsx` | 수정 | `useEffect`로 `getExamTypes()` 호출, 선택 상태를 `Set<number>` (ID) 기반으로 변경, 스켈레톤 로딩 추가 |
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | 동적 슬레이브 조회, `pendingInterests: Set<number>`, `interestedExamSlaveIds`로 초기화, `examTypeColor()` 팔레트 함수 추가 |
+
+### 수정 상세
+
+#### `types/index.ts`
+- 변경 전: `EXAM_TYPES` const(8개 고정), `ExamType` 타입, `User.interestedExamTypes?: string[]`
+- 변경 후: 위 const/타입 제거, `User.interestedExamSlaveIds?: number[]` 추가
+
+#### `examInfoService.ts`
+- `getExamTypes()`: `GET /user/exam-types` → `ExamTypeOption[]` (id, name, displayOrder, masterId)
+- `completeOnboarding(slaveIds: number[])` / `updateInterests(slaveIds: number[])`: body `{ slaveIds }`
+
+#### `onboarding/page.tsx`
+- 마운트 시 `getExamTypes()` 호출 → 동적 슬레이브 목록 표시
+- 선택 상태: `Set<string>(name)` → `Set<number>(slaveId)`
+- 로딩 중 그리드 스켈레톤 표시
+
+#### `user/exam-info/page.tsx`
+- 모달 열 때 `getExamTypes()` 호출, `interestedExamSlaveIds`로 pendingInterests 초기화
+- `pendingInterests: Set<number>` (ID 기반)
+- 하드코딩 `TYPE_COLOR` 맵 → `examTypeColor(name)` 해시 팔레트 함수
+
+### 복원 방법
+
+HIST-20260505-016 복원 시:
+- `types/index.ts`: `EXAM_TYPES`, `ExamType` 복원; `interestedExamSlaveIds` 제거
+- `examInfoService.ts`: `getExamTypes()` 제거, `completeOnboarding/updateInterests` 인자를 `string[]`로 복원
+- `onboarding/page.tsx`: 하드코딩 `EXAM_TYPES` 기반으로 복원, `Set<string>` 사용
+- `user/exam-info/page.tsx`: `TYPE_COLOR` Record, `EXAM_TYPES` import, `Set<string>` 기반으로 복원
+
+---
+
 ## HIST-20260427-001
 
 - **날짜**: 2026-04-27

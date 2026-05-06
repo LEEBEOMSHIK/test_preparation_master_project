@@ -1,6 +1,13 @@
 import apiClient from './apiClient';
 import type { ApiResponse, ExamInfo, User } from '@/types';
 
+export interface ExamTypeOption {
+  id: number;
+  masterId: number;
+  name: string;
+  displayOrder: number;
+}
+
 export const examInfoService = {
   // Admin
   adminGetAll: () =>
@@ -16,12 +23,15 @@ export const examInfoService = {
     apiClient.delete<ApiResponse<void>>(`/admin/exam-info/${id}`),
 
   // User
+  getExamTypes: () =>
+    apiClient.get<ApiResponse<ExamTypeOption[]>>('/user/exam-types'),
+
   getMyExamInfo: () =>
     apiClient.get<ApiResponse<ExamInfo[]>>('/user/exam-info'),
 
-  completeOnboarding: (examTypes: string[]) =>
-    apiClient.post<ApiResponse<User>>('/user/onboarding', { examTypes }),
+  completeOnboarding: (slaveIds: number[]) =>
+    apiClient.post<ApiResponse<User>>('/user/onboarding', { slaveIds }),
 
-  updateInterests: (examTypes: string[]) =>
-    apiClient.put<ApiResponse<User>>('/user/exam-info/interests', { examTypes }),
+  updateInterests: (slaveIds: number[]) =>
+    apiClient.put<ApiResponse<User>>('/user/exam-info/interests', { slaveIds }),
 };

@@ -1,13 +1,29 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
 import { examInfoService } from '@/services/examInfoService';
+import type { ExamTypeOption } from '@/services/examInfoService';
 import { ExamInfoCardSkeleton } from '@/components/ui/Skeleton';
-import { EXAM_TYPES } from '@/types';
 import type { ExamInfo } from '@/types';
+
+const PALETTE = [
+  'bg-blue-100 text-blue-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-yellow-100 text-yellow-700',
+  'bg-amber-100 text-amber-700',
+  'bg-red-100 text-red-700',
+  'bg-purple-100 text-purple-700',
+  'bg-indigo-100 text-indigo-700',
+  'bg-pink-100 text-pink-700',
+  'bg-teal-100 text-teal-700',
+  'bg-orange-100 text-orange-700',
+];
+
+function examTypeColor(name: string): string {
+  const idx = name.split('').reduce((sum, c) => sum + c.charCodeAt(0), 0) % PALETTE.length;
+  return PALETTE[idx];
+}
 
 function fmtRange(val: string | undefined): string {
   if (!val) return '';
@@ -15,25 +31,14 @@ function fmtRange(val: string | undefined): string {
   return end ? `${start} ~ ${end}` : start;
 }
 
-const TYPE_COLOR: Record<string, string> = {
-  'IT 자격증':  'bg-blue-100 text-blue-700',
-  '공무원':     'bg-emerald-100 text-emerald-700',
-  '어학':       'bg-yellow-100 text-yellow-700',
-  '금융/회계':  'bg-amber-100 text-amber-700',
-  '의료/보건':  'bg-red-100 text-red-700',
-  '법무/행정':  'bg-purple-100 text-purple-700',
-  '공기업':     'bg-indigo-100 text-indigo-700',
-  '수능/입시':  'bg-pink-100 text-pink-700',
-};
-
 export default function UserExamInfoPage() {
-  const router = useRouter();
   const { user, setAuth } = useAuthStore();
   const [items, setItems] = useState<ExamInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>('전체');
   const [showInterestModal, setShowInterestModal] = useState(false);
-  const [pendingInterests, setPendingInterests] = useState<Set<string>>(new Set());
+  const [examTypes, setExamTypes] = useState<ExamTypeOption[]>([]);
+  const [pendingInterests, setPendingInterests] = useState<Set<number>>(new Set());
   const [savingInterests, setSavingInterests] = useState(false);
 
   const userInterests = user?.interestedExamTypes ?? [];
@@ -46,7 +51,10 @@ export default function UserExamInfoPage() {
   }, []);
 
   const openInterestModal = () => {
-    setPendingInterests(new Set(userInterests));
+    examInfoService.getExamTypes()
+      .then(res => setExamTypes(res.data.data ?? []))
+      .catch(() => {});
+    setPendingInterests(new Set(user?.interestedExamSlaveIds ?? []));
     setShowInterestModal(true);
   };
 
@@ -60,7 +68,6 @@ export default function UserExamInfoPage() {
         setAuth({ ...user, ...updatedUser }, token);
       }
       setShowInterestModal(false);
-      // Reload filtered items
       setLoading(true);
       const infoRes = await examInfoService.getMyExamInfo();
       setItems(infoRes.data.data ?? []);
@@ -85,7 +92,7 @@ export default function UserExamInfoPage() {
             <p className="text-sm text-gray-500 mt-1">
               관심 시험:&nbsp;
               {userInterests.map(t => (
-                <span key={t} className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium mr-1 ${TYPE_COLOR[t] ?? 'bg-gray-100 text-gray-600'}`}>
+                <span key={t} className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium mr-1 ${examTypeColor(t)}`}>
                   {t}
                 </span>
               ))}
@@ -145,7 +152,7 @@ export default function UserExamInfoPage() {
             <div key={item.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${TYPE_COLOR[item.examType] ?? 'bg-gray-100 text-gray-600'}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${examTypeColor(item.examType)}`}>
                     {item.examType}
                   </span>
                   <h3 className="text-base font-bold text-gray-900">{item.title}</h3>
@@ -201,34 +208,42 @@ export default function UserExamInfoPage() {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowInterestModal(false)} />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
             <h3 className="text-base font-semibold text-gray-900">관심 시험 유형 설정</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {EXAM_TYPES.map(type => {
-                const sel = pendingInterests.has(type);
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => {
-                      setPendingInterests(prev => {
-                        const next = new Set(prev);
-                        if (next.has(type)) next.delete(type); else next.add(type);
-                        return next;
-                      });
-                    }}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-left text-sm transition-all ${
-                      sel ? 'border-indigo-500 bg-indigo-50 text-indigo-800 font-medium' : 'border-gray-100 text-gray-600 hover:border-gray-200'
-                    }`}
-                  >
-                    {sel && (
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-indigo-600 shrink-0">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                    {type}
-                  </button>
-                );
-              })}
-            </div>
+            {examTypes.length === 0 ? (
+              <div className="grid grid-cols-2 gap-2 animate-pulse">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-10 rounded-xl bg-gray-100" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {examTypes.map(type => {
+                  const sel = pendingInterests.has(type.id);
+                  return (
+                    <button
+                      key={type.id}
+                      type="button"
+                      onClick={() => {
+                        setPendingInterests(prev => {
+                          const next = new Set(prev);
+                          if (next.has(type.id)) next.delete(type.id); else next.add(type.id);
+                          return next;
+                        });
+                      }}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-left text-sm transition-all ${
+                        sel ? 'border-indigo-500 bg-indigo-50 text-indigo-800 font-medium' : 'border-gray-100 text-gray-600 hover:border-gray-200'
+                      }`}
+                    >
+                      {sel && (
+                        <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-indigo-600 shrink-0">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                      {type.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <div className="flex gap-2 pt-2">
               <button type="button" onClick={() => setShowInterestModal(false)}
                 className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition">

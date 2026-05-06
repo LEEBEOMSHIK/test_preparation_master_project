@@ -1,3 +1,29 @@
+## HIST-20260505-012
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 프론트엔드 / 시험 정보 관리, 시험 등록/수정
+- **수정 개요**: 도메인 마스터 name 기반 조회 → code 기반 조회로 일괄 수정 (누락된 3개 화면)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exam-info/page.tsx` | 수정 | `m.name === '시험 유형'` → `m.code === 'EXAM_TYPE'` |
+| `frontend/src/app/admin/exams/new/page.tsx` | 수정 | 동일 변경 |
+| `frontend/src/app/admin/exams/[id]/edit/page.tsx` | 수정 | 동일 변경 |
+
+### 수정 상세
+
+- 변경 전: `masters.find(m => m.name === '시험 유형')`
+- 변경 후: `masters.find(m => m.code === 'EXAM_TYPE')`
+- 이유: HIST-20260505-010에서 questions/new, questions/[id]/edit은 code 기반으로 수정했으나, 위 3개 파일이 누락되어 code 부여 후에도 시험 유형 콤보박스가 비어 있는 사이드 이펙트 발생
+
+### 복원 방법
+
+HIST-20260505-012 복원 시: 위 3개 파일에서 `m.code === 'EXAM_TYPE'`를 `m.name === '시험 유형'`으로 되돌림.
+
+---
+
 ## HIST-20260505-009
 
 - **날짜**: 2026-05-05

@@ -2,6 +2,7 @@ package com.tpmp.testprep.controller;
 
 import com.tpmp.testprep.dto.request.OnboardingRequest;
 import com.tpmp.testprep.dto.response.ApiResponse;
+import com.tpmp.testprep.dto.response.DomainSlaveResponse;
 import com.tpmp.testprep.dto.response.ExamInfoResponse;
 import com.tpmp.testprep.dto.response.UserResponse;
 import com.tpmp.testprep.service.ExamInfoService;
@@ -19,6 +20,11 @@ import java.util.List;
 public class UserExamInfoController {
 
     private final ExamInfoService examInfoService;
+
+    @GetMapping("/exam-types")
+    public ResponseEntity<ApiResponse<List<DomainSlaveResponse>>> getExamTypes() {
+        return ResponseEntity.ok(ApiResponse.success(examInfoService.getExamTypes()));
+    }
 
     @GetMapping("/exam-info")
     public ResponseEntity<ApiResponse<List<ExamInfoResponse>>> getExamInfo(

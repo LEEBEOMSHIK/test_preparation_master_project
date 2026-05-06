@@ -104,7 +104,7 @@ export default function AdminExamInfoPage() {
     domainService.getDomains()
       .then(res => {
         const masters = res.data.data ?? [];
-        const examTypeMaster = masters.find(m => m.name === '시험 유형');
+        const examTypeMaster = masters.find(m => m.code === 'EXAM_TYPE');
         const names = examTypeMaster?.slaves?.map(s => s.name) ?? [];
         setExamTypeOptions(names);
         if (names.length > 0) {

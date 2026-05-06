@@ -1,3 +1,46 @@
+## HIST-20260505-011
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 백엔드 / DataInitializer
+- **수정 개요**: `ensureDomainMasterWithCode` — 기존 마스터에 code 부여 후 `save()` 미호출 버그 수정 (변경이 DB에 반영되지 않던 문제)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../config/DataInitializer.java` | 수정 | `byName` 분기에서 `updateCode()` 후 `domainMasterRepository.save(existing)` 추가 |
+
+### 수정 상세
+
+#### `DataInitializer.java`
+- **근본 원인**: `@Transactional` 어노테이션이 self-invocation(같은 빈 내부 호출)으로 인해 프록시를 거치지 않아 실제 트랜잭션이 열리지 않음. `findByName()`이 반환한 엔티티는 세션이 닫힌 detached 상태이므로 `updateCode()`만으로는 dirty-checking이 동작하지 않음.
+- 변경 전:
+  ```java
+  var byName = domainMasterRepository.findByName(masterName);
+  if (byName.isPresent()) {
+      byName.get().updateCode(code);
+      log.info(...);
+      return;
+  }
+  ```
+- 변경 후:
+  ```java
+  var byName = domainMasterRepository.findByName(masterName);
+  if (byName.isPresent()) {
+      DomainMaster existing = byName.get();
+      existing.updateCode(code);
+      domainMasterRepository.save(existing);  // detached 엔티티 → merge → DB 반영
+      log.info(...);
+      return;
+  }
+  ```
+
+### 복원 방법
+
+HIST-20260505-011 복원 시: `domainMasterRepository.save(existing)` 한 줄 및 `existing` 변수 선언 제거.
+
+---
+
 ## HIST-20260505-008
 
 - **날짜**: 2026-05-05

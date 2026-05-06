@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { examinationService } from '@/services/examinationService';
+import { examInfoService } from '@/services/examInfoService';
+import type { ExamTypeOption } from '@/services/examInfoService';
 import { quoteService } from '@/services/quoteService';
+import { useAuthStore } from '@/store/authStore';
 import { CardListSkeleton } from '@/components/ui/Skeleton';
 import type { Examination, Quote } from '@/types';
 
@@ -12,7 +15,9 @@ type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 
 export default function UserExamsPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [allExams, setAllExams] = useState<Examination[]>([]);
+  const [examTypes, setExamTypes] = useState<ExamTypeOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [showQuote, setShowQuote] = useState(false);
@@ -21,6 +26,7 @@ export default function UserExamsPage() {
 
   const [searchTitle, setSearchTitle] = useState('');
   const [filterCategory, setFilterCategory] = useState('ALL');
+  const [showAllExams, setShowAllExams] = useState(false);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<PageSize>(20);
   const [selectedExam, setSelectedExam] = useState<Examination | null>(null);
@@ -34,7 +40,8 @@ export default function UserExamsPage() {
     Promise.all([
       examinationService.userGetExaminations(0, 500),
       !quoteFetched.current && !isHidden ? quoteService.getRandom() : Promise.resolve(null),
-    ]).then(([examRes, quoteRes]) => {
+      examInfoService.getExamTypes(),
+    ]).then(([examRes, quoteRes, typesRes]) => {
       if (examRes.data.success && examRes.data.data) {
         setAllExams(examRes.data.data.content);
       }
@@ -42,6 +49,9 @@ export default function UserExamsPage() {
         setQuote(quoteRes.data.data);
         setShowQuote(true);
         quoteFetched.current = true;
+      }
+      if (typesRes.data.success && typesRes.data.data) {
+        setExamTypes(typesRes.data.data);
       }
     }).finally(() => setLoading(false));
   }, []);
@@ -51,18 +61,30 @@ export default function UserExamsPage() {
     setShowQuote(false);
   };
 
-  const categories = Array.from(new Set(allExams.map(e => e.categoryName).filter(Boolean)));
+  const interestedNames = user?.interestedExamTypes ?? [];
+  const hasInterests = interestedNames.length > 0;
+
+  const comboOptions = (!showAllExams && hasInterests)
+    ? examTypes.filter(t => interestedNames.includes(t.name))
+    : examTypes;
 
   const filteredExams = allExams.filter(exam => {
     const titleMatch = !searchTitle.trim() || exam.title.toLowerCase().includes(searchTitle.toLowerCase());
     const categoryMatch = filterCategory === 'ALL' || exam.categoryName === filterCategory;
-    return titleMatch && categoryMatch;
+    const interestedMatch = showAllExams || !hasInterests || interestedNames.includes(exam.categoryName);
+    return titleMatch && categoryMatch && interestedMatch;
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredExams.length / pageSize));
   const pagedExams = filteredExams.slice(page * pageSize, (page + 1) * pageSize);
 
   const resetPage = () => setPage(0);
+
+  const handleToggleShowAll = () => {
+    setShowAllExams(v => !v);
+    setFilterCategory('ALL');
+    resetPage();
+  };
 
   return (
     <div className="space-y-4">
@@ -131,9 +153,24 @@ export default function UserExamsPage() {
         </div>
       )}
 
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900">시험 목록</h2>
-        <p className="text-sm text-gray-500 mt-1">응시 가능한 시험 목록입니다.</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900">시험 목록</h2>
+          <p className="text-sm text-gray-500 mt-1">응시 가능한 시험 목록입니다.</p>
+        </div>
+        {hasInterests && (
+          <button
+            onClick={handleToggleShowAll}
+            className={[
+              'text-xs px-3 py-1.5 rounded-full border transition',
+              showAllExams
+                ? 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'
+                : 'bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100',
+            ].join(' ')}
+          >
+            {showAllExams ? '관심 유형만 보기' : '전체 보기'}
+          </button>
+        )}
       </div>
 
       {/* 필터 */}
@@ -151,7 +188,7 @@ export default function UserExamsPage() {
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
         >
           <option value="ALL">전체 유형</option>
-          {categories.map(c => <option key={c} value={c!}>{c}</option>)}
+          {comboOptions.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
         </select>
       </div>
 
@@ -166,7 +203,7 @@ export default function UserExamsPage() {
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">
               총 <span className="font-semibold text-gray-900">{filteredExams.length}</span>건
-              {(searchTitle || filterCategory !== 'ALL') && (
+              {(searchTitle || filterCategory !== 'ALL' || (!showAllExams && hasInterests)) && (
                 <span className="ml-1 text-indigo-500 text-xs">(필터 적용)</span>
               )}
             </p>

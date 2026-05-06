@@ -1,3 +1,47 @@
+## HIST-20260506-001
+
+- **날짜**: 2026-05-06
+- **수정 범위**: 사용자 프론트엔드 / 시험 목록, 데일리 퀴즈
+- **수정 개요**: 시험 목록 유형 콤보박스를 도메인 EXAM_TYPE 슬레이브 기반으로 전환 + 관심 유형만 표시 필터 적용; 데일리 퀴즈 카테고리를 관심 유형 슬레이브로 필터링
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exams/page.tsx` | 수정 | 유형 콤보박스를 `getExamTypes()` API 기반으로 전환; 관심 유형 필터(기본 활성) + '전체 보기' 토글 추가 |
+| `frontend/src/app/user/quiz/page.tsx` | 수정 | `useAuthStore`에서 `interestedExamSlaveIds` 조회 후 slaves 필터링 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exams/page.tsx`
+- 변경 전: 유형 콤보박스 options = 불러온 시험 목록에서 `categoryName` 유니크 추출
+- 변경 후:
+  - `examInfoService.getExamTypes()` 호출 → `examTypes: ExamTypeOption[]` 상태로 저장
+  - 콤보박스 options = `examTypes` (도메인 슬레이브 기반)
+  - `showAllExams: boolean` 토글 추가 (기본값 `false` = 관심 유형만)
+  - `hasInterests`가 true이면 헤더 우측에 '전체 보기 / 관심 유형만 보기' 토글 버튼 표시
+  - `showAllExams=false` 시: 콤보 options → 관심 유형만, 시험 목록 → `interestedExamTypes.includes(categoryName)` 필터
+  - `showAllExams=true` 시: 콤보 options → 전체 도메인 유형, 시험 목록 → 전체
+  - 토글 전환 시 `filterCategory='ALL'`, `page=0` 리셋
+  - "필터 적용" 표시 조건: `searchTitle`, `filterCategory !== 'ALL'`, 관심 필터 적용 중 세 가지 OR
+
+#### `frontend/src/app/user/quiz/page.tsx`
+- 변경 전: `masters` 전체를 그대로 렌더링
+- 변경 후:
+  - `useAuthStore`에서 `user` 조회
+  - `interestedIds = user?.interestedExamSlaveIds ?? []`
+  - `visibleMasters` = masters의 slaves를 `interestedIds`로 필터 → slaves 없는 master 제거
+  - `interestedIds`가 비어있으면 전체 표시 (기존 동작 유지)
+  - 빈 상태 문구: 카테고리 자체가 없는 경우 vs 관심 유형 미매칭 경우 구분
+
+### 복원 방법
+
+HIST-20260506-001 복원 시:
+- `user/exams/page.tsx`: `examInfoService`, `ExamTypeOption`, `useAuthStore` import 제거; `examTypes`, `showAllExams` 상태 제거; `comboOptions` 제거 → `categories` (유니크 추출)로 복원; 토글 버튼 제거; `interestedMatch` 필터 제거
+- `user/quiz/page.tsx`: `useAuthStore` import 제거; `interestedIds`, `visibleMasters` 제거; `masters` 직접 렌더링 복원; 빈 상태 문구 단일 문자열로 복원
+
+---
+
 ## HIST-20260504-009
 
 - **날짜**: 2026-05-04

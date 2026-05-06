@@ -44,7 +44,7 @@ export default function AdminExamEditPage() {
       .then(([papersRes, domainsRes, examRes]) => {
         setPapers(papersRes.data.data?.content ?? []);
 
-        const master = (domainsRes.data.data ?? []).find((m) => m.name === '시험 유형');
+        const master = (domainsRes.data.data ?? []).find((m) => m.code === 'EXAM_TYPE');
         setExamCategories(master?.slaves ?? []);
 
         const exam = examRes.data.data;

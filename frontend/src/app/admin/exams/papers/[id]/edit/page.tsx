@@ -60,7 +60,7 @@ export default function AdminExamPaperEditPage() {
           setTitle(exam.title);
           setQuestionMode(exam.questionMode as 'SEQUENTIAL' | 'RANDOM');
         }
-        setExamQuestions((questionsRes.data.data as ExamQuestion[]) ?? []);
+        setExamQuestions((questionsRes.data.data as unknown as ExamQuestion[]) ?? []);
         setAllQuestions(bankRes.data.data?.content ?? []);
       })
       .catch(() => setError('데이터를 불러오지 못했습니다.'))
@@ -136,7 +136,7 @@ export default function AdminExamPaperEditPage() {
       );
       // 문항 목록 새로고침
       const refreshed = await examService.adminGetExamQuestions(id);
-      setExamQuestions((refreshed.data.data as ExamQuestion[]) ?? []);
+      setExamQuestions((refreshed.data.data as unknown as ExamQuestion[]) ?? []);
       setSelectedIds(new Set());
     } catch {
       setError('문항 추가에 실패했습니다.');

@@ -1,3 +1,34 @@
+## HIST-20260505-018
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 사용자 프론트엔드 / 레이아웃
+- **수정 개요**: 페이지 새로고침 후 user 상태 미복원 버그 수정 — `UserLayoutShell` 마운트 시 `authService.me()` 호출로 `interestedExamSlaveIds` 포함 최신 사용자 정보 복원
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | `authService` import 추가; useEffect에 `authService.me()` 호출 추가 |
+
+### 수정 상세
+
+#### `UserLayoutShell.tsx`
+- **근본 원인**: Zustand store는 in-memory 상태이므로 페이지 새로고침 시 `user`가 `null`로 초기화됨. 기존 코드는 `sessionStorage`에서 토큰 존재 여부만 확인하고 `authService.me()`를 호출하지 않아 `user.interestedExamSlaveIds`가 `undefined`인 채로 유지. 결과: 관심 설정 모달이 선택된 항목 없이 열림.
+- 변경 전: 토큰 존재 시 메뉴만 조회, user 상태 복원 없음
+- 변경 후:
+  ```javascript
+  authService.me()
+    .then(res => { if (res.data.data) setAuth(res.data.data, token); })
+    .catch(() => { clearAuth(); router.replace('/auth/login'); });
+  ```
+  마운트 시 최신 사용자 정보(관심 시험 ID 포함)를 가져와 store에 반영
+
+### 복원 방법
+
+HIST-20260505-018 복원 시: `authService` import 제거, useEffect에서 `authService.me()` 블록 제거, `setAuth` destructuring 제거.
+
+---
+
 ## HIST-20260502-009
 
 - **날짜**: 2026-05-02

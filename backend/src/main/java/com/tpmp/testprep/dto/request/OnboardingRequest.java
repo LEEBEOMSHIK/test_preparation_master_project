@@ -5,5 +5,5 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 public record OnboardingRequest(
-        @NotNull List<String> examTypes
+        @NotNull List<Long> slaveIds
 ) {}

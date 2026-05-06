@@ -160,6 +160,15 @@ function ManualQuestionCard({
 }) {
   const isCode = draft.questionType === 'CODE';
 
+  const examTypeName   = examTypeSlaves.find((s) => s.id === draft.examTypeId)?.name ?? '';
+  const categoryName   = questionTypeSlaves.find((s) => s.id === draft.categoryId)?.name ?? '';
+  const titleSuggestion = [
+    draft.examYear  ? `${draft.examYear}년`    : '',
+    draft.examRound ? `제${draft.examRound}회` : '',
+    examTypeName,
+    categoryName,
+  ].filter(Boolean).join(' / ');
+
   return (
     <div className="bg-white border border-gray-100 rounded-xl shadow-sm">
       {/* Card header */}
@@ -189,6 +198,18 @@ function ManualQuestionCard({
             placeholder="관리용 제목 (예: 2024년 1회 1번)"
             className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           />
+          {titleSuggestion && (
+            <div className="mt-1.5 flex items-center gap-2 min-w-0">
+              <span className="text-xs text-gray-400 truncate">예: {titleSuggestion}</span>
+              <button
+                type="button"
+                onClick={() => onChange('title', titleSuggestion)}
+                className="shrink-0 text-xs text-indigo-500 hover:text-indigo-700 transition"
+              >
+                자동완성
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 시험 연도 / 회차 */}

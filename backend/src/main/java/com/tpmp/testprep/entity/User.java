@@ -39,9 +39,6 @@ public class User {
     @Column(name = "is_first_login")
     private Boolean isFirstLogin;
 
-    @Column(name = "interested_exam_types", length = 500)
-    private String interestedExamTypes;
-
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -87,11 +84,9 @@ public class User {
     public void updateName(String name) { this.name = name; }
     public void updateRole(Role role) { this.role = role; }
     public void updatePassword(String encodedPassword) { this.password = encodedPassword; }
-    public void completeOnboarding(String examTypes) {
+    public void completeOnboarding() {
         this.isFirstLogin = false;
-        this.interestedExamTypes = examTypes;
     }
-    public void updateInterests(String examTypes) { this.interestedExamTypes = examTypes; }
     public void setGrantedPermissions(Set<PermissionDetail> permissions) {
         this.grantedPermissions.clear();
         if (permissions != null) this.grantedPermissions.addAll(permissions);

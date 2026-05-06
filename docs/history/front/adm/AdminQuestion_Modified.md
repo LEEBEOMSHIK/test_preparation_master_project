@@ -1,3 +1,91 @@
+## HIST-20260505-014
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 프론트엔드 / 공통 유틸 (문항 목록 미리보기)
+- **수정 개요**: `stripHtml` — HTML 엔티티(`&nbsp;` 등)가 목록에 그대로 노출되던 문제 수정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/html.ts` | 수정 | 태그 제거 후 HTML 엔티티 디코딩 로직 추가 |
+
+### 수정 상세
+
+#### `src/lib/html.ts`
+- 변경 전: `html.replace(/<[^>]+>/g, '').trim()` — 태그만 제거, 엔티티 미처리
+- 변경 후: 태그 제거 → `&nbsp;` 등 엔티티 치환(`HTML_ENTITIES` 맵) → 연속 공백 정규화
+- 이유: react-quill 에디터가 공백을 `&nbsp;`로 인코딩하여 저장하는데, 목록 미리보기에서 `stripHtml`을 거쳐도 엔티티가 남아 화면에 `&nbsp;` 문자열이 그대로 노출되던 사이드 이펙트
+
+### 복원 방법
+
+HIST-20260505-014 복원 시: `html.ts`에서 `HTML_ENTITIES` 상수와 엔티티 치환/공백 정규화 체인을 제거하고 `return html.replace(/<[^>]+>/g, '').trim();` 단일 줄로 복원.
+
+---
+
+## HIST-20260505-013
+
+- **날짜**: 2026-05-05
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리
+- **수정 개요**: 문항 제목 필드 아래 자동완성 제안 표시 — 시험 연도 / 회차 / 시험 유형 / 문항 유형 값을 조합한 예시 제목과 "자동완성" 버튼 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | `ManualQuestionCard`에 `titleSuggestion` 계산 로직 + 제안 UI 추가 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | `titleSuggestion` 계산 로직 + 제안 UI 추가 |
+
+### 수정 상세
+
+#### 제안 문자열 생성 규칙
+- 시험 연도 있으면 `{년도}년`, 없으면 생략
+- 시험 회차 있으면 `제{회차}회`, 없으면 생략
+- 시험 유형 선택 시 슬레이브 name 추가
+- 문항 유형 선택 시 슬레이브 name 추가
+- 비어 있는 항목은 제외하고 ` / `로 결합
+
+예시:
+- 연도·회차·유형 모두: `2024년 / 제1회 / SQLD / SQL`
+- 연도 없음: `제1회 / SQLD / SQL`
+- 회차 없음: `2024년 / SQLD / SQL`
+- 유형만 선택: `SQLD / SQL`
+
+#### UI
+- 변경 전: 제목 input만 존재, 정적 placeholder
+- 변경 후: input 아래에 `예: {제안}` 회색 텍스트 + "자동완성" 버튼 표시 (제안이 비어 있으면 미표시)
+- "자동완성" 클릭 시 title 필드에 제안 문자열 설정 — 이후 사용자가 직접 수정 가능
+
+#### `new/page.tsx` (`ManualQuestionCard` 내부)
+```tsx
+const examTypeName    = examTypeSlaves.find((s) => s.id === draft.examTypeId)?.name ?? '';
+const categoryName    = questionTypeSlaves.find((s) => s.id === draft.categoryId)?.name ?? '';
+const titleSuggestion = [
+  draft.examYear  ? `${draft.examYear}년`    : '',
+  draft.examRound ? `제${draft.examRound}회` : '',
+  examTypeName, categoryName,
+].filter(Boolean).join(' / ');
+```
+
+#### `[id]/edit/page.tsx`
+```tsx
+const editExamTypeName = examTypeSlaves.find((s) => s.id === form.examTypeId)?.name ?? '';
+const editCategoryName = questionTypeSlaves.find((s) => s.id === form.categoryId)?.name ?? '';
+const titleSuggestion  = [
+  form.examYear  ? `${form.examYear}년`    : '',
+  form.examRound ? `제${form.examRound}회` : '',
+  editExamTypeName, editCategoryName,
+].filter(Boolean).join(' / ');
+```
+
+### 복원 방법
+
+HIST-20260505-013 복원 시:
+- `new/page.tsx` `ManualQuestionCard`: `examTypeName`, `categoryName`, `titleSuggestion` 변수 제거; 제안 UI div 제거
+- `[id]/edit/page.tsx`: 동일하게 변수 3개와 제안 UI div 제거
+
+---
+
 ## HIST-20260505-010
 
 - **날짜**: 2026-05-05

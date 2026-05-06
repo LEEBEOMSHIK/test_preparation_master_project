@@ -40,7 +40,7 @@ export default function AdminExamNewPage() {
     // 시험 유형 카테고리 로드
     domainService.getDomains()
       .then((res) => {
-        const master = (res.data.data ?? []).find((m) => m.name === '시험 유형');
+        const master = (res.data.data ?? []).find((m) => m.code === 'EXAM_TYPE');
         setExamCategories(master?.slaves ?? []);
       })
       .catch(() => {});

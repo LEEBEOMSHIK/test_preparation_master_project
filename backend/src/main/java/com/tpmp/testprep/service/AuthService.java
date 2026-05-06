@@ -6,8 +6,10 @@ import com.tpmp.testprep.dto.response.LoginResponse;
 import com.tpmp.testprep.dto.response.UserResponse;
 import com.tpmp.testprep.entity.PermissionDetail;
 import com.tpmp.testprep.entity.User;
+import com.tpmp.testprep.entity.UserInterestedExam;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
+import com.tpmp.testprep.repository.UserInterestedExamRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import com.tpmp.testprep.security.jwt.JwtTokenProvider;
 import jakarta.servlet.http.Cookie;
@@ -26,6 +28,7 @@ import java.util.List;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final UserInterestedExamRepository userInterestedExamRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -67,7 +70,8 @@ public class AuthService {
         cookie.setMaxAge((int) (refreshTokenExpiry / 1000));
         response.addCookie(cookie);
 
-        return new LoginResponse(accessToken, UserResponse.from(user));
+        List<UserInterestedExam> interests = userInterestedExamRepository.findByUser(user);
+        return new LoginResponse(accessToken, UserResponse.from(user, interests));
     }
 
     public LoginResponse refresh(String refreshToken) {
@@ -82,12 +86,14 @@ public class AuthService {
                 .filter(c -> c != null && !c.isBlank())
                 .toList();
         String newAccessToken = jwtTokenProvider.createAccessToken(email, user.getRole().name(), permCodes);
-        return new LoginResponse(newAccessToken, UserResponse.from(user));
+        List<UserInterestedExam> interests = userInterestedExamRepository.findByUser(user);
+        return new LoginResponse(newAccessToken, UserResponse.from(user, interests));
     }
 
     public UserResponse me(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
-        return UserResponse.from(user);
+        List<UserInterestedExam> interests = userInterestedExamRepository.findByUser(user);
+        return UserResponse.from(user, interests);
     }
 }

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
+import { authService } from '@/services/authService';
 import { menuService } from '@/services/menuService';
 import type { MenuConfig } from '@/types';
 
@@ -86,7 +87,7 @@ function ThemeToggle() {
 export default function UserLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, clearAuth } = useAuthStore();
+  const { user, setAuth, clearAuth } = useAuthStore();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [navItems, setNavItems] = useState<MenuConfig[]>(USER_FALLBACK_NAV);
 
@@ -96,6 +97,10 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
       router.replace('/auth/login');
       return;
     }
+    // 새로고침 후 user 상태 복원 (interestedExamSlaveIds 포함 최신 정보)
+    authService.me()
+      .then(res => { if (res.data.data) setAuth(res.data.data, token); })
+      .catch(() => { clearAuth(); router.replace('/auth/login'); });
     menuService.getMyMenus('USER')
       .then((res) => {
         if (res.data.success && res.data.data && res.data.data.length > 0) {
@@ -106,7 +111,7 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
         }
       })
       .catch(() => {});
-  }, [router]);
+  }, [router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogout = () => {
     clearAuth();

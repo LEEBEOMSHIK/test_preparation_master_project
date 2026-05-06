@@ -1,3 +1,28 @@
+## HIST-20260506-001
+
+- **날짜**: 2026-05-06
+- **수정 범위**: 관리자 프론트엔드 / 시험지 수정
+- **수정 개요**: `adminGetExamQuestions` 응답 데이터를 `ExamQuestion[]`으로 캐스팅 시 발생하는 TypeScript 타입 오류 수정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` | 수정 | `as ExamQuestion[]` → `as unknown as ExamQuestion[]` (2곳) |
+
+### 수정 상세
+
+#### `admin/exams/papers/[id]/edit/page.tsx`
+- **원인**: `questionsRes.data.data`의 추론 타입이 `QuestionSummary[] | undefined`이고, `ExamQuestion`에는 `seq` 필드가 있어 두 타입 간 겹치는 구조가 충분하지 않다고 TypeScript가 판단하여 직접 캐스팅 불가
+- 변경 전: `(questionsRes.data.data as ExamQuestion[]) ?? []` (2곳)
+- 변경 후: `(questionsRes.data.data as unknown as ExamQuestion[]) ?? []` (2곳) — `unknown` 경유 이중 캐스팅으로 의도적 변환임을 명시
+
+### 복원 방법
+
+HIST-20260506-001 복원 시: `as unknown as ExamQuestion[]` → `as ExamQuestion[]` 으로 되돌림 (단, TS 타입 오류 재발).
+
+---
+
 ## HIST-20260505-001
 
 - **날짜**: 2026-05-05

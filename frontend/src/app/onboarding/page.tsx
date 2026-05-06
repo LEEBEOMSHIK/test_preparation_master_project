@@ -1,33 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { examInfoService } from '@/services/examInfoService';
-import { EXAM_TYPES } from '@/types';
-
-const TYPE_EMOJI: Record<string, string> = {
-  'IT 자격증': '💻',
-  '공무원': '🏛️',
-  '어학': '🌍',
-  '금융/회계': '📊',
-  '의료/보건': '🏥',
-  '법무/행정': '⚖️',
-  '공기업': '🏢',
-  '수능/입시': '📚',
-};
+import type { ExamTypeOption } from '@/services/examInfoService';
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { user, setAuth } = useAuthStore();
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [examTypes, setExamTypes] = useState<ExamTypeOption[]>([]);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const toggle = (type: string) => {
+  useEffect(() => {
+    examInfoService.getExamTypes()
+      .then(res => setExamTypes(res.data.data ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const toggle = (id: number) => {
     setSelected(prev => {
       const next = new Set(prev);
-      if (next.has(type)) next.delete(type); else next.add(type);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
@@ -78,31 +76,38 @@ export default function OnboardingPage() {
         {/* Exam type grid */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
           <p className="text-sm font-semibold text-gray-700">관심 시험 유형 선택 (복수 선택 가능)</p>
-          <div className="grid grid-cols-2 gap-3">
-            {EXAM_TYPES.map((type) => {
-              const isSelected = selected.has(type);
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => toggle(type)}
-                  className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${
-                    isSelected
-                      ? 'border-indigo-500 bg-indigo-50 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200 dark:border-indigo-400'
-                      : 'border-gray-100 hover:border-gray-200 text-gray-700 dark:border-gray-700 dark:hover:border-gray-600 dark:text-gray-300'
-                  }`}
-                >
-                  <span className="text-2xl shrink-0">{TYPE_EMOJI[type] ?? '📋'}</span>
-                  <span className="text-sm font-medium leading-tight">{type}</span>
-                  {isSelected && (
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-indigo-600 ml-auto shrink-0">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          {loading ? (
+            <div className="grid grid-cols-2 gap-3 animate-pulse">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-14 rounded-xl bg-gray-100" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {examTypes.map((type) => {
+                const isSelected = selected.has(type.id);
+                return (
+                  <button
+                    key={type.id}
+                    type="button"
+                    onClick={() => toggle(type.id)}
+                    className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${
+                      isSelected
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200 dark:border-indigo-400'
+                        : 'border-gray-100 hover:border-gray-200 text-gray-700 dark:border-gray-700 dark:hover:border-gray-600 dark:text-gray-300'
+                    }`}
+                  >
+                    <span className="text-sm font-medium leading-tight">{type.name}</span>
+                    {isSelected && (
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-indigo-600 ml-auto shrink-0">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {selected.size > 0 && (
             <p className="text-xs text-indigo-600 text-center">

@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { quizService } from '@/services/quizService';
+import { useAuthStore } from '@/store/authStore';
 import { CardGridSkeleton } from '@/components/ui/Skeleton';
 import type { DomainMaster, DomainSlave } from '@/types';
 
 export default function QuizCategoryPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [masters, setMasters] = useState<DomainMaster[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -22,6 +24,15 @@ export default function QuizCategoryPage() {
   const handleSelect = (slave: DomainSlave) => {
     router.push(`/user/quiz/${slave.id}?name=${encodeURIComponent(slave.name)}`);
   };
+
+  const interestedIds = user?.interestedExamSlaveIds ?? [];
+
+  const visibleMasters = masters.map(master => ({
+    ...master,
+    slaves: interestedIds.length > 0
+      ? master.slaves.filter(s => interestedIds.includes(s.id))
+      : master.slaves,
+  })).filter(master => master.slaves.length > 0);
 
   if (loading) {
     return (
@@ -42,12 +53,12 @@ export default function QuizCategoryPage() {
         <p className="text-sm text-gray-500 mt-1">풀고 싶은 문제 유형을 선택하세요.</p>
       </div>
 
-      {masters.length === 0 ? (
+      {visibleMasters.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-400 text-sm">
-          등록된 카테고리가 없습니다.
+          {masters.length === 0 ? '등록된 카테고리가 없습니다.' : '관심 유형에 해당하는 퀴즈 카테고리가 없습니다.'}
         </div>
       ) : (
-        masters.map(master => (
+        visibleMasters.map(master => (
           <div key={master.id}>
             <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-wide">
               {master.name}

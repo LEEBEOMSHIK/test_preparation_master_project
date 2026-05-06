@@ -123,7 +123,9 @@ public class DataInitializer implements ApplicationRunner {
         // 이름으로 조회 — 기존 데이터(코드 없는)에 코드만 부여
         var byName = domainMasterRepository.findByName(masterName);
         if (byName.isPresent()) {
-            byName.get().updateCode(code);
+            DomainMaster existing = byName.get();
+            existing.updateCode(code);
+            domainMasterRepository.save(existing);
             log.info("[DataInitializer] 도메인 마스터 '{}' 코드 부여: {}", masterName, code);
             return;
         }

@@ -32,22 +32,12 @@ export interface User {
   role: Role;
   isFirstLogin?: boolean;
   interestedExamTypes?: string[];
+  interestedExamSlaveIds?: number[];
 }
 
 // ──────────────────────────────────────────
 // ExamInfo
 // ──────────────────────────────────────────
-export const EXAM_TYPES = [
-  'IT 자격증',
-  '공무원',
-  '어학',
-  '금융/회계',
-  '의료/보건',
-  '법무/행정',
-  '공기업',
-  '수능/입시',
-] as const;
-export type ExamType = typeof EXAM_TYPES[number];
 
 export interface ExamInfo {
   id: number;
