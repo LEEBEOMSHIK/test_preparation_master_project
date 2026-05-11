@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
 import { authService } from '@/services/authService';
 import { menuService } from '@/services/menuService';
+import { PermissionDeniedModal } from '@/components/ui/PermissionDeniedModal';
 import type { MenuConfig } from '@/types';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -40,6 +41,11 @@ const ICON_MAP: Record<string, React.ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
     </svg>
   ),
+  practice: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4m0 0h18" />
+    </svg>
+  ),
 };
 
 const DEFAULT_ICON = (
@@ -55,7 +61,15 @@ const USER_FALLBACK_NAV: MenuConfig[] = [
   { id: 104, parentId: undefined, name: '데일리 퀴즈', url: '/user/quiz',       iconKey: 'quiz',     displayOrder: 4, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
   { id: 105, parentId: undefined, name: 'FAQ',         url: '/user/faq',        iconKey: 'faq',      displayOrder: 5, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
   { id: 106, parentId: undefined, name: '1:1 문의',    url: '/user/inquiries',  iconKey: 'inquiry',  displayOrder: 6, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
+  { id: 107, parentId: undefined, name: '연습장',      url: '/user/practice',   iconKey: 'practice', displayOrder: 7, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
 ];
+
+function getUserPageTitle(pathname: string, navItems: MenuConfig[]): string {
+  for (const item of navItems) {
+    if (pathname.startsWith(item.url)) return item.name;
+  }
+  return '';
+}
 
 function ThemeToggle() {
   const { theme, toggleTheme } = useThemeStore();
@@ -92,6 +106,15 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
   const [navItems, setNavItems] = useState<MenuConfig[]>(USER_FALLBACK_NAV);
 
   useEffect(() => {
+    if (pathname === '/user/login') {
+      document.title = '로그인 | TPMP';
+      return;
+    }
+    const name = getUserPageTitle(pathname, navItems);
+    document.title = name ? `${name} | TPMP` : 'TPMP - 시험 준비 마스터';
+  }, [pathname, navItems]);
+
+  useEffect(() => {
     if (pathname === '/user/login') return;
     const token = sessionStorage.getItem('accessToken');
     if (!token) {
@@ -106,9 +129,19 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
       .then((res) => {
         if (res.data.success && res.data.data && res.data.data.length > 0) {
           const apiMenus = res.data.data;
-          const coveredUrls = new Set<string>(apiMenus.map((m) => m.url));
-          const missing = USER_FALLBACK_NAV.filter((m) => !coveredUrls.has(m.url));
-          setNavItems(missing.length > 0 ? [...apiMenus, ...missing] : apiMenus);
+          // API 결과만 사용 — FALLBACK 보충 없음 (권한 제한이 무력화되지 않도록)
+          setNavItems(apiMenus);
+
+          // 현재 페이지가 접근 가능한 메뉴에 포함되지 않으면 권한 없음 팝업 + 문의 페이지로 이동
+          const accessibleUrls = apiMenus.flatMap((m) => [
+            m.url,
+            ...(m.children ?? []).map((c) => c.url),
+          ]);
+          const isAccessible = accessibleUrls.some((url) => pathname.startsWith(url));
+          if (!isAccessible && !pathname.startsWith('/user/inquiries')) {
+            window.dispatchEvent(new CustomEvent('permission-denied'));
+            router.replace('/user/inquiries');
+          }
         }
       })
       .catch(() => {});
@@ -127,6 +160,8 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
+      <PermissionDeniedModal />
+
       {/* ── Top Header ── */}
       <header className="fixed top-0 inset-x-0 z-40 h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="max-w-5xl mx-auto h-full flex items-center justify-between px-4 sm:px-6">

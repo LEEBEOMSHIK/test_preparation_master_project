@@ -76,16 +76,34 @@ public class MenuConfigService {
         menuConfigRepository.delete(findMenu(id));
     }
 
-    /** 권한 코드 집합 기반 메뉴 트리 반환 — codes가 비어 있으면 해당 타입 전체 반환 */
+    /**
+     * 권한 코드 집합 기반 메뉴 트리 반환.
+     * - ADMIN 타입 + 권한 없음 → 전체 반환 (슈퍼 어드민 폴백)
+     * - USER 타입 + 권한 없음  → PUBLIC 메뉴만 반환 (1:1 문의 등 항상 접근 가능한 메뉴)
+     * - 권한 있음              → 매칭 메뉴 + PUBLIC 메뉴 반환
+     */
     public List<MenuConfigResponse> getMenuTreeByPermissions(MenuConfig.MenuType menuType, Set<String> codes) {
         List<MenuConfig> menus = menuConfigRepository
                 .findByMenuTypeAndIsActiveOrderByDisplayOrderAsc(menuType, true);
 
-        List<MenuConfig> filtered = codes.isEmpty()
-                ? menus
-                : menus.stream()
-                        .filter(m -> codes.stream().anyMatch(c -> containsRole(m.getAllowedRoles(), c)))
+        List<MenuConfig> filtered;
+        if (codes.isEmpty()) {
+            if (MenuConfig.MenuType.ADMIN.equals(menuType)) {
+                // 관리자 권한 없으면 전체 표시 (슈퍼 어드민 폴백)
+                filtered = menus;
+            } else {
+                // 사용자 권한 없으면 PUBLIC 메뉴만 표시
+                filtered = menus.stream()
+                        .filter(m -> containsRole(m.getAllowedRoles(), "PUBLIC"))
                         .toList();
+            }
+        } else {
+            // 권한 있으면: 권한 코드 매칭 메뉴 + PUBLIC 메뉴 포함
+            filtered = menus.stream()
+                    .filter(m -> containsRole(m.getAllowedRoles(), "PUBLIC") ||
+                                 codes.stream().anyMatch(c -> containsRole(m.getAllowedRoles(), c)))
+                    .toList();
+        }
 
         Map<Long, List<MenuConfig>> childMap = filtered.stream()
                 .filter(m -> m.getParentId() != null)

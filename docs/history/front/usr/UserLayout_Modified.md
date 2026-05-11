@@ -1,3 +1,84 @@
+## HIST-20260510-005
+
+- **날짜**: 2026-05-10
+- **수정 범위**: 사용자 프론트엔드 / 레이아웃
+- **수정 개요**: 세부 권한 없는 사용자 — 접근 불가 페이지 진입 시 권한 없음 팝업 + 1:1 문의 페이지로 자동 이동
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | 메뉴 API 결과만 사용(FALLBACK 보충 제거), 현재 페이지 접근 불가 시 팝업+리다이렉트 |
+
+### 수정 상세
+
+#### `UserLayoutShell.tsx` — `menuService.getMyMenus()` then 블록
+- **변경 전**:
+  ```ts
+  const coveredUrls = new Set<string>(apiMenus.map((m) => m.url));
+  const missing = USER_FALLBACK_NAV.filter((m) => !coveredUrls.has(m.url));
+  setNavItems(missing.length > 0 ? [...apiMenus, ...missing] : apiMenus);
+  ```
+- **변경 후**:
+  ```ts
+  setNavItems(apiMenus); // API 결과만 사용, FALLBACK 보충 없음
+  const accessibleUrls = apiMenus.flatMap((m) => [m.url, ...(m.children ?? []).map(c => c.url)]);
+  const isAccessible = accessibleUrls.some((url) => pathname.startsWith(url));
+  if (!isAccessible && !pathname.startsWith('/user/inquiries')) {
+    window.dispatchEvent(new CustomEvent('permission-denied'));
+    router.replace('/user/inquiries');
+  }
+  ```
+- **이유**:
+  - FALLBACK 보충 로직이 API 반환 메뉴가 부분적일 때(권한 제한 시) 나머지 FALLBACK 메뉴를 모두 추가해 권한 제한을 무력화하던 버그 수정
+  - 권한 없는 사용자가 1:1 문의 이외의 페이지 진입 시 팝업 + 자동 이동
+
+### 복원 방법
+
+HIST-20260510-005 복원 시:
+```ts
+// 기존 FALLBACK 보충 로직으로 복원
+const coveredUrls = new Set<string>(apiMenus.map((m) => m.url));
+const missing = USER_FALLBACK_NAV.filter((m) => !coveredUrls.has(m.url));
+setNavItems(missing.length > 0 ? [...apiMenus, ...missing] : apiMenus);
+```
+- 접근 불가 체크 블록 제거
+
+---
+
+## HIST-20260510-002
+
+- **날짜**: 2026-05-10
+- **수정 범위**: 관리자/사용자 프론트엔드 / 레이아웃 + API 클라이언트
+- **수정 개요**: 세부 권한 없음(403) 시 로그인 리다이렉트 → 팝업 표시로 변경 (토큰 유지)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/apiClient.ts` | 수정 | 403 처리: 토큰 삭제·리다이렉트 → `permission-denied` 커스텀 이벤트 발행 |
+| `frontend/src/components/ui/PermissionDeniedModal.tsx` | 추가 | 권한 없음 팝업 컴포넌트 신규 생성 |
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | `PermissionDeniedModal` import 및 JSX에 렌더링 추가 |
+
+### 수정 상세
+
+#### `components/ui/PermissionDeniedModal.tsx` (신규)
+- `window.addEventListener('permission-denied', ...)` 로 전역 이벤트 수신
+- "접근 권한 없음 / 관리자에게 권한을 요청하세요." 문구 + 확인 버튼
+- 배경 클릭 또는 확인 버튼으로 닫기, 다크 모드 지원
+
+#### `UserLayoutShell.tsx`
+- **변경 전**: `<PermissionDeniedModal />` 없음
+- **변경 후**: 최상위 `<div>` 내부 최초 위치에 `<PermissionDeniedModal />` 추가
+
+### 복원 방법
+
+HIST-20260510-002 복원 시:
+- `UserLayoutShell.tsx`에서 import 및 `<PermissionDeniedModal />` 제거
+- (공통 파일 복원은 관리자 프론트엔드 히스토리 HIST-20260510-002 참조)
+
+---
+
 ## HIST-20260505-018
 
 - **날짜**: 2026-05-05

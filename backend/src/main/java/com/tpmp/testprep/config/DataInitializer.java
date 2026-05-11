@@ -32,6 +32,7 @@ public class DataInitializer implements ApplicationRunner {
     private final PermissionMasterRepository permissionMasterRepository;
     private final PermissionDetailRepository permissionDetailRepository;
     private final MenuConfigRepository menuConfigRepository;
+    private final com.tpmp.testprep.service.PracticeService practiceService;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -49,10 +50,15 @@ public class DataInitializer implements ApplicationRunner {
                 new String[]{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"});
         ensurePermissionMasters();
         ensureDefaultPermissionDetails();
+        ensureAdminUserPermissions();
         ensureDefaultMenus();
         ensureAdminUsersMenu();
         ensureExamInfoMenus();
         ensureTestCaseMenu();
+        ensurePracticeMenu();
+        ensurePracticeAdminMenus();
+        ensurePermissionMenuAssociations();
+        ensurePracticeSchema();
     }
 
     private void fixAnswerNullable() {
@@ -166,6 +172,60 @@ public class DataInitializer implements ApplicationRunner {
         log.info("[DataInitializer] 권한 마스터 '{}' 생성 완료", code);
     }
 
+    /** admin@tpmp.com 계정에 MASTER_ADMIN 세부 권한을 부여 (이미 있으면 건너뜀) */
+    @Transactional
+    public void ensureAdminUserPermissions() {
+        try {
+            Long adminId = jdbcTemplate.queryForObject(
+                    "SELECT id FROM users WHERE email = ?", Long.class, ADMIN_EMAIL);
+            Long masterAdminId = jdbcTemplate.queryForObject(
+                    "SELECT id FROM permission_detail WHERE code = 'MASTER_ADMIN'", Long.class);
+            if (adminId == null || masterAdminId == null) return;
+
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM user_granted_permissions WHERE user_id = ? AND detail_id = ?",
+                    Integer.class, adminId, masterAdminId);
+            if (count == null || count == 0) {
+                jdbcTemplate.update(
+                        "INSERT INTO user_granted_permissions (user_id, detail_id) VALUES (?, ?)",
+                        adminId, masterAdminId);
+                log.info("[DataInitializer] 관리자 계정에 MASTER_ADMIN 권한 부여 완료 — {}", ADMIN_EMAIL);
+            } else {
+                log.debug("[DataInitializer] 관리자 MASTER_ADMIN 권한 이미 존재 — 건너뜀");
+            }
+        } catch (Exception e) {
+            log.warn("[DataInitializer] 관리자 MASTER_ADMIN 권한 부여 실패: {}", e.getMessage());
+        }
+    }
+
+    /** USER 메뉴에 GENERAL_USER, ADMIN 메뉴에 MASTER_ADMIN 권한 코드를 allowedRoles에 추가 */
+    @Transactional
+    public void ensurePermissionMenuAssociations() {
+        jdbcTemplate.update(
+                "UPDATE menu_config SET allowed_roles = " +
+                "CASE WHEN COALESCE(allowed_roles, '') = '' THEN 'GENERAL_USER' " +
+                "     ELSE allowed_roles || ',GENERAL_USER' END " +
+                "WHERE menu_type = 'USER' " +
+                "AND COALESCE(allowed_roles, '') NOT LIKE '%GENERAL_USER%'"
+        );
+        jdbcTemplate.update(
+                "UPDATE menu_config SET allowed_roles = " +
+                "CASE WHEN COALESCE(allowed_roles, '') = '' THEN 'MASTER_ADMIN' " +
+                "     ELSE allowed_roles || ',MASTER_ADMIN' END " +
+                "WHERE menu_type = 'ADMIN' " +
+                "AND COALESCE(allowed_roles, '') NOT LIKE '%MASTER_ADMIN%'"
+        );
+        // 1:1 문의는 세부 권한 없어도 항상 접근 가능 (관리자에게 권한 요청용)
+        jdbcTemplate.update(
+                "UPDATE menu_config SET allowed_roles = " +
+                "CASE WHEN COALESCE(allowed_roles, '') = '' THEN 'PUBLIC' " +
+                "     ELSE allowed_roles || ',PUBLIC' END " +
+                "WHERE url = '/user/inquiries' " +
+                "AND COALESCE(allowed_roles, '') NOT LIKE '%PUBLIC%'"
+        );
+        log.info("[DataInitializer] 권한-메뉴 기본 연결(GENERAL_USER/MASTER_ADMIN/PUBLIC) 완료");
+    }
+
     @Transactional
     public void ensureDefaultMenus() {
         if (menuConfigRepository.count() > 0) {
@@ -250,13 +310,108 @@ public class DataInitializer implements ApplicationRunner {
     }
 
     private void ensureTestCaseMenu() {
-        if (!menuConfigRepository.existsByUrl("/admin/exams/test-cases")) {
-            Long examParentId = menuConfigRepository
-                    .findByMenuTypeOrderByDisplayOrderAsc(MenuConfig.MenuType.ADMIN)
-                    .stream().filter(m -> "/admin/exams".equals(m.getUrl()))
-                    .findFirst().map(MenuConfig::getId).orElse(null);
-            saveMenu(examParentId, "테스트 케이스 관리", "/admin/exams/test-cases", null, 3, MenuConfig.MenuType.ADMIN, "ADMIN");
+        // 기존에 시험 관리 하위(/admin/exams/test-cases)로 잘못 등록된 경우 최상위로 이동
+        int migrated = jdbcTemplate.update(
+                "UPDATE menu_config SET url = '/admin/test-cases', parent_id = NULL, " +
+                "icon_key = 'test', display_order = 99 WHERE url = '/admin/exams/test-cases'");
+        if (migrated > 0) {
+            log.info("[DataInitializer] 테스트 케이스 관리 메뉴 URL 마이그레이션 완료 (/admin/exams/test-cases → /admin/test-cases)");
+        }
+        if (!menuConfigRepository.existsByUrl("/admin/test-cases")) {
+            saveMenu(null, "테스트 케이스 관리", "/admin/test-cases", "test", 99, MenuConfig.MenuType.ADMIN, "ADMIN");
             log.info("[DataInitializer] 테스트 케이스 관리 메뉴 추가 완료");
+        }
+    }
+
+    private void ensurePracticeMenu() {
+        if (!menuConfigRepository.existsByUrl("/user/practice")) {
+            saveMenu(null, "연습장", "/user/practice", "practice", 7, MenuConfig.MenuType.USER, "USER,ADMIN");
+            log.info("[DataInitializer] 연습장 사용자 메뉴 추가 완료");
+        }
+    }
+
+    private void ensurePracticeAdminMenus() {
+        if (!menuConfigRepository.existsByUrl("/admin/practice")) {
+            MenuConfig parent = menuConfigRepository.save(MenuConfig.builder()
+                    .name("연습장 관리")
+                    .url("/admin/practice")
+                    .iconKey("practice")
+                    .displayOrder(11)
+                    .menuType(MenuConfig.MenuType.ADMIN)
+                    .isActive(true)
+                    .allowedRoles("ADMIN")
+                    .build());
+            saveMenu(parent.getId(), "규칙 관리", "/admin/practice/rules", null, 1, MenuConfig.MenuType.ADMIN, "ADMIN");
+            saveMenu(parent.getId(), "기록 관리", "/admin/practice/history", null, 2, MenuConfig.MenuType.ADMIN, "ADMIN");
+            log.info("[DataInitializer] 연습장 관리 메뉴 추가 완료");
+        } else {
+            // 부모는 있지만 자식이 누락된 경우 보완
+            Long parentId = jdbcTemplate.queryForObject(
+                    "SELECT id FROM menu_config WHERE url = '/admin/practice'", Long.class);
+            if (parentId != null) {
+                if (!menuConfigRepository.existsByUrl("/admin/practice/rules")) {
+                    saveMenu(parentId, "규칙 관리", "/admin/practice/rules", null, 1, MenuConfig.MenuType.ADMIN, "ADMIN");
+                    log.info("[DataInitializer] 연습장 규칙 관리 메뉴 추가 완료");
+                }
+                if (!menuConfigRepository.existsByUrl("/admin/practice/history")) {
+                    saveMenu(parentId, "기록 관리", "/admin/practice/history", null, 2, MenuConfig.MenuType.ADMIN, "ADMIN");
+                    log.info("[DataInitializer] 연습장 기록 관리 메뉴 추가 완료");
+                }
+            }
+        }
+    }
+
+    @Transactional
+    public void ensurePracticeSchema() {
+        try {
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS prac_departments (
+                    id       SERIAL PRIMARY KEY,
+                    name     VARCHAR(100) NOT NULL,
+                    location VARCHAR(100),
+                    budget   NUMERIC(15,2)
+                )
+            """);
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS prac_employees (
+                    id            SERIAL PRIMARY KEY,
+                    name          VARCHAR(100) NOT NULL,
+                    department_id INT REFERENCES prac_departments(id),
+                    salary        NUMERIC(10,2),
+                    hire_date     DATE,
+                    email         VARCHAR(100),
+                    job_title     VARCHAR(100)
+                )
+            """);
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS prac_products (
+                    id       SERIAL PRIMARY KEY,
+                    name     VARCHAR(200) NOT NULL,
+                    category VARCHAR(100),
+                    price    NUMERIC(10,2),
+                    stock    INT DEFAULT 0
+                )
+            """);
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS prac_orders (
+                    id            SERIAL PRIMARY KEY,
+                    customer_name VARCHAR(100) NOT NULL,
+                    product_id    INT REFERENCES prac_products(id),
+                    quantity      INT NOT NULL,
+                    total_amount  NUMERIC(10,2),
+                    order_date    DATE NOT NULL
+                )
+            """);
+            // 데이터가 없을 때만 시드
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM prac_departments", Integer.class);
+            if (count == null || count == 0) {
+                practiceService.seedDefaultData();
+                log.info("[DataInitializer] 연습장 기본 데이터 시딩 완료");
+            }
+            log.info("[DataInitializer] 연습장 스키마 준비 완료");
+        } catch (Exception e) {
+            log.warn("[DataInitializer] 연습장 스키마 초기화 실패: {}", e.getMessage());
         }
     }
 

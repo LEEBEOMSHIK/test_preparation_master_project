@@ -27,7 +27,7 @@ export default function OAuthCallbackPage() {
         setAuth(user, token);
         if (user.role === 'ADMIN') {
           router.push('/admin/exams');
-        } else if (user.isFirstLogin) {
+        } else if (!user.interestedExamSlaveIds || user.interestedExamSlaveIds.length === 0) {
           router.push('/onboarding');
         } else {
           router.push('/user/exam-info');

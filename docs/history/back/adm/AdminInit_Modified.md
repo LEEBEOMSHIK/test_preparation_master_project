@@ -1,3 +1,142 @@
+## HIST-20260511-007
+
+- **날짜**: 2026-05-11
+- **수정 범위**: 관리자 백엔드 / DataInitializer
+- **수정 개요**: 연습장 관리 관리자 메뉴 자동 시딩 추가 — "연습장 관리" 부모 메뉴 + "규칙 관리"/"기록 관리" 하위 메뉴
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../config/DataInitializer.java` | 수정 | `ensurePracticeAdminMenus()` 추가 + `run()` 호출 등록 |
+
+### 수정 상세
+
+#### `DataInitializer.java`
+- **`ensurePracticeAdminMenus()`** 신규 추가:
+  - `/admin/practice` 없으면 부모 메뉴("연습장 관리", iconKey='practice', displayOrder=11) 생성 후 자식 2개 연결
+  - `/admin/practice/rules` : "규칙 관리" (displayOrder=1)
+  - `/admin/practice/history` : "기록 관리" (displayOrder=2)
+  - 부모만 있고 자식이 없는 경우에도 JdbcTemplate으로 parentId 조회 후 자식 보완 (멱등)
+- **`run()` 실행 순서** (변경 후):
+  ```
+  ... → ensurePracticeMenu() → ensurePracticeAdminMenus() → ensurePermissionMenuAssociations() → ...
+  ```
+
+### 복원 방법
+
+HIST-20260511-007 복원 시:
+- `ensurePracticeAdminMenus()` 메서드 삭제
+- `run()`에서 호출 제거
+- DB: `DELETE FROM menu_config WHERE url IN ('/admin/practice', '/admin/practice/rules', '/admin/practice/history')`
+
+---
+
+## HIST-20260511-004
+
+- **날짜**: 2026-05-11
+- **수정 범위**: 백엔드 / 연습장 (DataInitializer + 신규 파일)
+- **수정 개요**: 연습장 기능 신규 구현 — prac_* 테이블 스키마/시딩, 연습장 메뉴 추가, SQL 실행 API
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../service/PracticeService.java` | 추가 | SQL 실행·검증·시드·초기화 로직 |
+| `backend/.../controller/UserPracticeController.java` | 추가 | `/api/user/practice/sql/*` REST 엔드포인트 |
+| `backend/.../config/DataInitializer.java` | 수정 | PracticeService 주입 + `ensurePracticeMenu()` + `ensurePracticeSchema()` 추가 |
+
+### 수정 상세
+
+#### `PracticeService.java`
+- `execute(sql)`: 멀티 스테이트먼트 차단, 시스템 파괴 명령 차단, prac_ 접두사 검증, SELECT/DML 분기 실행
+- `resetData()`: 사용자 생성 prac_ 테이블 DROP + 기본 4개 테이블 TRUNCATE + 재시딩
+- `seedDefaultData()`: prac_departments(5) / prac_employees(10) / prac_products(8) / prac_orders(12) 시딩
+
+#### `DataInitializer.java`
+- `run()` 에 `ensurePracticeMenu()`, `ensurePracticeSchema()` 호출 추가
+- `ensurePracticeSchema()`: prac_* 4개 테이블 CREATE TABLE IF NOT EXISTS + 최초 시딩
+- `ensurePracticeMenu()`: `/user/practice` 메뉴 없으면 추가
+
+### 복원 방법
+
+HIST-20260511-004 복원 시:
+- `PracticeService.java`, `UserPracticeController.java` 삭제
+- `DataInitializer.java`에서 PracticeService 필드 및 `ensurePracticeMenu()`, `ensurePracticeSchema()` 호출/메서드 제거
+- DB: `DROP TABLE IF EXISTS prac_orders, prac_employees, prac_products, prac_departments CASCADE`
+
+---
+
+## HIST-20260510-003
+
+- **날짜**: 2026-05-10
+- **수정 범위**: 관리자 백엔드 / DataInitializer
+- **수정 개요**: 테스트 케이스 관리 메뉴 URL 수정 — `/admin/exams/test-cases`(시험 관리 하위) → `/admin/test-cases`(최상위)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../config/DataInitializer.java` | 수정 | `ensureTestCaseMenu()` — 기존 DB 레코드 마이그레이션 + 신규 생성 URL 변경 |
+
+### 수정 상세
+
+#### `DataInitializer.java` — `ensureTestCaseMenu()`
+- **변경 전**: 시험 관리(`/admin/exams`) 하위 자식으로 `/admin/exams/test-cases` 생성
+- **변경 후**:
+  1. 기존 `/admin/exams/test-cases` 레코드가 있으면 URL → `/admin/test-cases`, `parent_id → NULL`, `icon_key → 'test'`, `display_order → 99`로 UPDATE (멱등 마이그레이션)
+  2. `/admin/test-cases`가 없으면 최상위 메뉴로 신규 생성
+- **이유**: 실제 페이지 파일이 `src/app/admin/test-cases/page.tsx`에 위치하며 FALLBACK_NAV도 `/admin/test-cases`를 사용하고 있어, DB 메뉴 URL과 불일치
+
+### 복원 방법
+
+HIST-20260510-003 복원 시:
+- `ensureTestCaseMenu()`를 `existsByUrl("/admin/exams/test-cases")` 체크 + `examParentId` 기반 하위 생성 형태로 복원
+- DB에서 `UPDATE menu_config SET url='/admin/exams/test-cases', parent_id=<exam_id> WHERE url='/admin/test-cases'` 수동 실행
+
+---
+
+## HIST-20260510-001
+
+- **날짜**: 2026-05-10
+- **수정 범위**: 관리자 백엔드 / DataInitializer
+- **수정 개요**: admin@tpmp.com에 MASTER_ADMIN 세부 권한 자동 부여 + 기본 메뉴에 GENERAL_USER·MASTER_ADMIN 권한 코드 연결
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../config/DataInitializer.java` | 수정 | `ensureAdminUserPermissions()`, `ensurePermissionMenuAssociations()` 추가; `run()` 호출 순서 갱신 |
+
+### 수정 상세
+
+#### `DataInitializer.java`
+
+- **`ensureAdminUserPermissions()`** 신규 추가
+  - `user_granted_permissions` 테이블에 admin@tpmp.com–MASTER_ADMIN 연결이 없을 때만 INSERT
+  - JdbcTemplate 사용 (JPA self-invocation 우회)
+
+- **`ensurePermissionMenuAssociations()`** 신규 추가 (매 기동 시 실행)
+  - `menu_type = 'USER'`인 메뉴 전체에 `GENERAL_USER` 코드가 없으면 `allowedRoles`에 추가
+  - `menu_type = 'ADMIN'`인 메뉴 전체에 `MASTER_ADMIN` 코드가 없으면 `allowedRoles`에 추가
+  - PostgreSQL `COALESCE + ||` 연산 사용
+
+- **`run()` 실행 순서** (변경 후):
+  ```
+  ... → ensurePermissionMasters() → ensureDefaultPermissionDetails()
+  → ensureAdminUserPermissions()
+  → ensureDefaultMenus() → ensureAdminUsersMenu() → ensureExamInfoMenus() → ensureTestCaseMenu()
+  → ensurePermissionMenuAssociations()
+  ```
+
+### 복원 방법
+
+HIST-20260510-001 복원 시:
+- `ensureAdminUserPermissions()`, `ensurePermissionMenuAssociations()` 메서드 삭제
+- `run()`에서 두 호출 제거
+
+---
+
 ## HIST-20260506-004
 
 - **날짜**: 2026-05-06

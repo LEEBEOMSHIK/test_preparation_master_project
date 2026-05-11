@@ -18,7 +18,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor: 401 → 토큰 갱신 시도, 403 → 로그인 리다이렉트
+// Response interceptor: 401 → 토큰 갱신 시도, 403 → 권한 없음 팝업
 // /auth/ 엔드포인트는 인터셉트하지 않음 (로그인 실패 401이 갱신 루프에 빠지는 것 방지)
 apiClient.interceptors.response.use(
   (response) => response,
@@ -47,9 +47,10 @@ apiClient.interceptors.response.use(
     }
 
     if (status === 403) {
-      sessionStorage.removeItem('accessToken');
-      const loginPath = window.location.pathname.startsWith('/admin/') ? '/admin/login' : '/user/login';
-      window.location.href = loginPath;
+      // 인증된 사용자의 권한 부족 — 토큰 유지, 팝업으로 안내
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('permission-denied'));
+      }
     }
 
     return Promise.reject(error);

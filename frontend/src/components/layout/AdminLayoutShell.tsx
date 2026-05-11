@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
 import { menuService } from '@/services/menuService';
+import { PermissionDeniedModal } from '@/components/ui/PermissionDeniedModal';
 import type { MenuConfig } from '@/types';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -69,6 +70,11 @@ const ICON_MAP: Record<string, React.ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7l2 2 4-4" />
     </svg>
   ),
+  practice: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4m0 0h18" />
+    </svg>
+  ),
 };
 
 const DEFAULT_ICON = (
@@ -94,6 +100,10 @@ const FALLBACK_NAV: MenuConfig[] = [
   { id: 8,  parentId: undefined, name: '메뉴 관리',     url: '/admin/menus',       iconKey: 'menu',       displayOrder: 8,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 9,  parentId: undefined, name: '계정 관리',       url: '/admin/users',      iconKey: 'users',      displayOrder: 9,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 10, parentId: undefined, name: '시험 정보 관리', url: '/admin/exam-info',  iconKey: 'examinfo',   displayOrder: 10, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  { id: 11,   parentId: undefined, name: '연습장 관리',  url: '/admin/practice', iconKey: 'practice',   displayOrder: 11, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [
+    { id: 111, parentId: 11, name: '규칙 관리', url: '/admin/practice/rules',   iconKey: undefined, displayOrder: 1, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+    { id: 112, parentId: 11, name: '기록 관리', url: '/admin/practice/history', iconKey: undefined, displayOrder: 2, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  ]},
   { id: 9901, parentId: undefined, name: '테스트 케이스', url: '/admin/test-cases', iconKey: 'test',       displayOrder: 99, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
 ];
 
@@ -142,6 +152,15 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
   const router = useRouter();
   const { user, clearAuth } = useAuthStore();
   const [navItems, setNavItems] = useState<MenuConfig[]>(FALLBACK_NAV);
+
+  useEffect(() => {
+    if (pathname === '/admin/login') {
+      document.title = '관리자 로그인 | TPMP';
+      return;
+    }
+    const name = getPageTitle(pathname, navItems);
+    document.title = name ? `${name} | TPMP 관리자` : 'TPMP 관리자';
+  }, [pathname, navItems]);
 
   useEffect(() => {
     if (pathname === '/admin/login') return;
@@ -278,6 +297,8 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
           </button>
         </div>
       </aside>
+
+      <PermissionDeniedModal />
 
       {/* ── Main area ── */}
       <div className="flex-1 flex flex-col min-w-0 ml-56">

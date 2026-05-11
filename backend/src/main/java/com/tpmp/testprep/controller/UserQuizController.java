@@ -2,7 +2,9 @@ package com.tpmp.testprep.controller;
 
 import com.tpmp.testprep.dto.response.ApiResponse;
 import com.tpmp.testprep.dto.response.DomainMasterResponse;
+import com.tpmp.testprep.dto.response.DomainSlaveResponse;
 import com.tpmp.testprep.dto.response.QuestionBankResponse;
+import com.tpmp.testprep.entity.DomainMaster;
 import com.tpmp.testprep.entity.QuestionBank;
 import com.tpmp.testprep.repository.DomainMasterRepository;
 import com.tpmp.testprep.repository.QuestionBankRepository;
@@ -10,7 +12,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/user/quiz")
@@ -20,15 +26,47 @@ public class UserQuizController {
     private final DomainMasterRepository domainMasterRepository;
     private final QuestionBankRepository questionBankRepository;
 
-    /** 퀴즈 카테고리 목록 (문제 유형 / 시험 유형 도메인만 반환) */
+    /** 퀴즈 카테고리 목록 (문제 유형 / 시험 유형 도메인만 반환)
+     *  examTypeIds: 쉼표 구분 시험 유형 슬레이브 ID — 전달 시 해당 유형 문항이 있는 문제 유형만 반환 */
     @GetMapping("/categories")
-    public ResponseEntity<ApiResponse<List<DomainMasterResponse>>> getCategories() {
+    public ResponseEntity<ApiResponse<List<DomainMasterResponse>>> getCategories(
+            @RequestParam(required = false) String examTypeIds) {
+
+        List<Long> examTypeIdList = null;
+        if (examTypeIds != null && !examTypeIds.isBlank()) {
+            examTypeIdList = Arrays.stream(examTypeIds.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(Long::parseLong)
+                    .collect(Collectors.toList());
+        }
+
         List<String> quizMasterNames = List.of("문제 유형", "시험 유형");
-        List<DomainMasterResponse> masters = domainMasterRepository.findAllWithSlaves().stream()
+        List<DomainMaster> allMasters = domainMasterRepository.findAllWithSlaves().stream()
                 .filter(m -> quizMasterNames.contains(m.getName()))
-                .map(DomainMasterResponse::from)
                 .toList();
-        return ResponseEntity.ok(ApiResponse.success(masters));
+
+        Set<Long> allowedCategoryIds = null;
+        if (examTypeIdList != null && !examTypeIdList.isEmpty()) {
+            allowedCategoryIds = new HashSet<>(
+                    questionBankRepository.findDistinctCategoryIdsByExamTypeIds(examTypeIdList));
+        }
+        final Set<Long> finalAllowedIds = allowedCategoryIds;
+
+        List<DomainMasterResponse> result = allMasters.stream()
+                .map(m -> {
+                    if (finalAllowedIds != null && "QUESTION_TYPE".equals(m.getCode())) {
+                        List<DomainSlaveResponse> filtered = m.getSlaves().stream()
+                                .filter(s -> finalAllowedIds.contains(s.getId()))
+                                .map(DomainSlaveResponse::from)
+                                .toList();
+                        return new DomainMasterResponse(m.getId(), m.getCode(), m.getName(), filtered);
+                    }
+                    return DomainMasterResponse.from(m);
+                })
+                .toList();
+
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     /** 카테고리별 랜덤 퀴즈 문항 (기본 10개) */

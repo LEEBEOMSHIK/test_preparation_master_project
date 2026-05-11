@@ -20,4 +20,10 @@ public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long
     java.util.List<QuestionBank> findRandomByCategory(
             @org.springframework.data.repository.query.Param("categoryId") Long categoryId,
             @org.springframework.data.repository.query.Param("limit") int limit);
+
+    /** 주어진 시험 유형 ID들에 문항이 존재하는 문제 유형(category) ID 목록 조회 */
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT DISTINCT qb.category.id FROM QuestionBank qb WHERE qb.examType.id IN :examTypeIds AND qb.delYn = 'N' AND qb.category IS NOT NULL")
+    java.util.List<Long> findDistinctCategoryIdsByExamTypeIds(
+            @org.springframework.data.repository.query.Param("examTypeIds") java.util.List<Long> examTypeIds);
 }

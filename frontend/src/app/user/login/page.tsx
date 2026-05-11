@@ -35,7 +35,7 @@ export default function UserLoginPage() {
         return;
       }
       setAuth(user, accessToken);
-      if (user.isFirstLogin) {
+      if (!user.interestedExamSlaveIds || user.interestedExamSlaveIds.length === 0) {
         router.push('/onboarding');
       } else {
         router.push('/user/exams');

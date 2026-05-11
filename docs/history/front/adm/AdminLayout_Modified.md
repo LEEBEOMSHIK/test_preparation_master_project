@@ -1,3 +1,109 @@
+## HIST-20260511-016
+
+- **날짜**: 2026-05-11
+- **수정 범위**: 관리자 프론트엔드 / 레이아웃 Shell
+- **수정 개요**: 브라우저 탭 타이틀을 현재 메뉴명에 맞게 자동 변경
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/AdminLayoutShell.tsx` | 수정 | `document.title` 자동 설정 useEffect 추가 (기존 `getPageTitle()` 재활용) |
+
+### 수정 상세
+
+#### `AdminLayoutShell.tsx`
+
+기존 `getPageTitle(pathname, navItems)` 함수를 재활용하여 `useEffect` 추가:
+
+```typescript
+useEffect(() => {
+  if (pathname === '/admin/login') {
+    document.title = '관리자 로그인 | TPMP';
+    return;
+  }
+  const name = getPageTitle(pathname, navItems);
+  document.title = name ? `${name} | TPMP 관리자` : 'TPMP 관리자';
+}, [pathname, navItems]);
+```
+
+**타이틀 패턴:**
+- `/admin/login` → `관리자 로그인 | TPMP`
+- `/admin/exams` → `시험 관리 | TPMP 관리자`
+- `/admin/exams/questions` → `문항 관리 | TPMP 관리자`
+- `/admin/exams/papers` → `시험지 관리 | TPMP 관리자`
+- `/admin/concepts` → `개념노트 관리 | TPMP 관리자`
+- `/admin/inquiries` → `1:1 문의 관리 | TPMP 관리자`
+- `/admin/faq` → `FAQ 관리 | TPMP 관리자`
+- `/admin/quotes` → `명언 관리 | TPMP 관리자`
+- `/admin/tables` → `테이블 관리 | TPMP 관리자`
+- `/admin/permissions` → `권한 관리 | TPMP 관리자`
+- `/admin/menus` → `메뉴 관리 | TPMP 관리자`
+- `/admin/users` → `계정 관리 | TPMP 관리자`
+- `/admin/exam-info` → `시험 정보 관리 | TPMP 관리자`
+- `/admin/practice` → `연습장 관리 | TPMP 관리자`
+- 미매칭 → `TPMP 관리자`
+
+### 복원 방법
+
+HIST-20260511-016 복원 시: `AdminLayoutShell.tsx`에서 `document.title` 설정 `useEffect` 제거
+
+---
+
+## HIST-20260510-002
+
+- **날짜**: 2026-05-10
+- **수정 범위**: 관리자/사용자 프론트엔드 / 레이아웃 + API 클라이언트
+- **수정 개요**: 세부 권한 없음(403) 시 로그인 리다이렉트 → 팝업 표시로 변경 (토큰 유지)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/apiClient.ts` | 수정 | 403 처리: 토큰 삭제·리다이렉트 → `permission-denied` 커스텀 이벤트 발행 |
+| `frontend/src/components/ui/PermissionDeniedModal.tsx` | 추가 | 권한 없음 팝업 컴포넌트 신규 생성 |
+| `frontend/src/components/layout/AdminLayoutShell.tsx` | 수정 | `PermissionDeniedModal` import 및 JSX에 렌더링 추가 |
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | `PermissionDeniedModal` import 및 JSX에 렌더링 추가 |
+
+### 수정 상세
+
+#### `services/apiClient.ts`
+- **변경 전**:
+  ```ts
+  if (status === 403) {
+    sessionStorage.removeItem('accessToken');
+    window.location.href = loginPath;
+  }
+  ```
+- **변경 후**:
+  ```ts
+  if (status === 403) {
+    window.dispatchEvent(new CustomEvent('permission-denied'));
+  }
+  ```
+- **이유**: 403은 인증 실패(401)가 아닌 인가 실패 — 사용자는 이미 로그인 상태이므로 토큰을 유지하고 팝업으로 안내해야 함
+
+#### `components/ui/PermissionDeniedModal.tsx`
+- **변경 전**: 파일 없음
+- **변경 후**: 신규 생성
+  - `window.addEventListener('permission-denied', ...)` 로 전역 이벤트 수신
+  - 자물쇠 아이콘 + "접근 권한 없음 / 관리자에게 문의하세요." 문구
+  - 배경 클릭 또는 확인 버튼으로 닫기
+  - z-index 9999, 다크 모드 지원
+
+#### `AdminLayoutShell.tsx`, `UserLayoutShell.tsx`
+- **변경 전**: `<PermissionDeniedModal />` 없음
+- **변경 후**: 최상위 `<div>` 내부 최초 위치에 `<PermissionDeniedModal />` 추가
+
+### 복원 방법
+
+HIST-20260510-002 복원 시:
+- `PermissionDeniedModal.tsx` 삭제
+- `apiClient.ts` 403 블록을 기존 토큰 제거 + 리다이렉트 코드로 복원
+- `AdminLayoutShell.tsx`, `UserLayoutShell.tsx`에서 import 및 `<PermissionDeniedModal />` 제거
+
+---
+
 ## HIST-20260502-008
 
 - **날짜**: 2026-05-02

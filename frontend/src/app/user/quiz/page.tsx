@@ -13,23 +13,27 @@ export default function QuizCategoryPage() {
   const [masters, setMasters] = useState<DomainMaster[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const interestedIds = user?.interestedExamSlaveIds ?? [];
+  const examTypeIdsKey = interestedIds.join(',');
+
   useEffect(() => {
-    quizService.getCategories().then(res => {
-      if (res.data.success && res.data.data) {
-        setMasters(res.data.data);
-      }
-    }).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    quizService.getCategories(interestedIds.length > 0 ? interestedIds : undefined)
+      .then(res => {
+        if (res.data.success && res.data.data) {
+          setMasters(res.data.data);
+        }
+      }).finally(() => setLoading(false));
+  }, [examTypeIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelect = (slave: DomainSlave) => {
     router.push(`/user/quiz/${slave.id}?name=${encodeURIComponent(slave.name)}`);
   };
 
-  const interestedIds = user?.interestedExamSlaveIds ?? [];
-
+  // EXAM_TYPE 마스터만 프론트에서 관심 유형 필터링 (QUESTION_TYPE은 백엔드에서 이미 필터됨)
   const visibleMasters = masters.map(master => ({
     ...master,
-    slaves: interestedIds.length > 0
+    slaves: (interestedIds.length > 0 && master.code === 'EXAM_TYPE')
       ? master.slaves.filter(s => interestedIds.includes(s.id))
       : master.slaves,
   })).filter(master => master.slaves.length > 0);

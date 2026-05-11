@@ -17,8 +17,12 @@ export interface CheckResult {
 }
 
 export const quizService = {
-  getCategories: () =>
-    apiClient.get<ApiResponse<DomainMaster[]>>('/user/quiz/categories'),
+  getCategories: (examTypeIds?: number[]) =>
+    apiClient.get<ApiResponse<DomainMaster[]>>('/user/quiz/categories', {
+      params: examTypeIds && examTypeIds.length > 0
+        ? { examTypeIds: examTypeIds.join(',') }
+        : undefined,
+    }),
 
   getQuestions: (categoryId: number, limit = 10) =>
     apiClient.get<ApiResponse<QuizQuestion[]>>('/user/quiz/questions', {

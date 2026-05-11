@@ -238,6 +238,7 @@ import { stripHtml } from '@/lib/html';
 | `<RichContent html className />` | `src/components/ui/RichContent.tsx` | 에디터 HTML 렌더링 (dangerouslySetInnerHTML 래퍼) |
 | `<RichTextEditor value onChange />` | `src/components/ui/RichTextEditor.tsx` | react-quill 기반 에디터 입력 컴포넌트 |
 | `<QuestionDetailModal question onClose />` | `src/components/ui/QuestionDetailModal.tsx` | 문항 상세 모달 (내용·코드·선택지·정답·해설, ESC/배경 클릭 닫기) |
+| `<PermissionDeniedModal />` | `src/components/ui/PermissionDeniedModal.tsx` | 권한 없음 팝업 — `permission-denied` 커스텀 이벤트 수신, 레이아웃 Shell에 마운트 |
 | `<TableSkeleton />` 외 | `src/components/ui/Skeleton.tsx` | 스켈레톤 UI 컴포넌트 모음 |
 
 ### AI 행동 규칙

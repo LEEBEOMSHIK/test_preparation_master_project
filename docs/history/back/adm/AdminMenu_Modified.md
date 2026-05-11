@@ -1,3 +1,40 @@
+## HIST-20260510-004
+
+- **날짜**: 2026-05-10
+- **수정 범위**: 관리자 백엔드 / 메뉴 관리
+- **수정 개요**: 세부 권한 없는 USER 사용자에게 PUBLIC(1:1 문의) 메뉴만 반환하도록 `getMenuTreeByPermissions` 로직 변경 + 1:1 문의 메뉴에 PUBLIC 마킹
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../service/MenuConfigService.java` | 수정 | `getMenuTreeByPermissions()` — USER 타입 권한 없음 시 PUBLIC 메뉴만 반환, 권한 있음 시 매칭+PUBLIC 포함 |
+| `backend/.../config/DataInitializer.java` | 수정 | `ensurePermissionMenuAssociations()` — `/user/inquiries`에 `PUBLIC` 권한 코드 추가 |
+
+### 수정 상세
+
+#### `MenuConfigService.getMenuTreeByPermissions()`
+- **변경 전**: `codes.isEmpty()` → 해당 타입 전체 메뉴 반환 (USER/ADMIN 구분 없음)
+- **변경 후**:
+  ```
+  codes 비어 있음 + ADMIN 타입 → 전체 반환 (슈퍼 어드민 폴백 유지)
+  codes 비어 있음 + USER 타입  → PUBLIC 마킹된 메뉴만 반환
+  codes 있음                   → 권한 매칭 메뉴 + PUBLIC 메뉴 반환
+  ```
+
+#### `DataInitializer.ensurePermissionMenuAssociations()`
+- 기존: GENERAL_USER(USER 메뉴), MASTER_ADMIN(ADMIN 메뉴) 코드만 추가
+- 추가: `/user/inquiries` 메뉴에 `PUBLIC` 코드 추가 (세부 권한 없이도 항상 접근 가능)
+
+### 복원 방법
+
+HIST-20260510-004 복원 시:
+- `MenuConfigService`: `codes.isEmpty()` → `menus` (단순 전체 반환)으로 되돌림
+- `DataInitializer`: PUBLIC UPDATE 구문 제거
+- DB: `UPDATE menu_config SET allowed_roles = REPLACE(allowed_roles, ',PUBLIC', '') WHERE url = '/user/inquiries'`
+
+---
+
 ## HIST-20260426-005
 
 - **날짜**: 2026-04-26
