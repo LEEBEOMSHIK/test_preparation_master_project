@@ -31,17 +31,22 @@ public class PracticeHistory {
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
+    /** postgresql / mysql / oracle */
+    @Column(name = "dialect", length = 20)
+    private String dialect;
+
     @Column(name = "executed_at", nullable = false)
     private LocalDateTime executedAt;
 
     @Builder
     public PracticeHistory(String userEmail, String sqlContent, String resultType,
-                           Integer rowCount, String errorMessage) {
+                           Integer rowCount, String errorMessage, String dialect) {
         this.userEmail = userEmail;
         this.sqlContent = sqlContent;
         this.resultType = resultType;
         this.rowCount = rowCount;
         this.errorMessage = errorMessage;
+        this.dialect = dialect;
         this.executedAt = LocalDateTime.now();
     }
 }

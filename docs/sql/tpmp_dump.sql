@@ -270,7 +270,7 @@ CREATE TABLE public.inquiries (
     user_id bigint NOT NULL,
     image_urls text,
     inquiry_type character varying(255) NOT NULL,
-    CONSTRAINT inquiries_inquiry_type_check CHECK (((inquiry_type)::text = ANY ((ARRAY['EXAM'::character varying, 'CONCEPT_NOTE'::character varying, 'DAILY_QUIZ'::character varying, 'OTHER'::character varying])::text[]))),
+    CONSTRAINT inquiries_inquiry_type_check CHECK (((inquiry_type)::text = ANY ((ARRAY['EXAM'::character varying, 'CONCEPT_NOTE'::character varying, 'DAILY_QUIZ'::character varying, 'PRACTICE'::character varying, 'OTHER'::character varying])::text[]))),
     CONSTRAINT inquiries_status_check CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'ANSWERED'::character varying])::text[])))
 );
 
@@ -547,6 +547,7 @@ COPY public.domain_master (id, name) FROM stdin;
 1	문제 유형
 2	시험 유형
 3	문의 유형
+4	문의 카테고리
 \.
 
 
@@ -566,6 +567,11 @@ COPY public.domain_slave (id, display_order, name, master_id) FROM stdin;
 9	4	리눅스마스터 1급	2
 10	1	답변 대기	3
 11	2	답변 완료	3
+12	1	EXAM	4
+13	2	CONCEPT_NOTE	4
+14	3	DAILY_QUIZ	4
+15	4	PRACTICE	4
+16	5	OTHER	4
 \.
 
 
@@ -727,14 +733,14 @@ SELECT pg_catalog.setval('public.concept_notes_id_seq', 3, true);
 -- Name: domain_master_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.domain_master_id_seq', 3, true);
+SELECT pg_catalog.setval('public.domain_master_id_seq', 4, true);
 
 
 --
 -- Name: domain_slave_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.domain_slave_id_seq', 11, true);
+SELECT pg_catalog.setval('public.domain_slave_id_seq', 16, true);
 
 
 --

@@ -38,6 +38,7 @@ public class DataInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         fixAnswerNullable();
         fixQuestionTypeConstraints();
+        fixInquiryTypeConstraint();
         ensureAdminUser();
         ensureTestUser();
         ensureDomainMasterWithCode("QUESTION_TYPE", "문제 유형",
@@ -48,6 +49,8 @@ public class DataInitializer implements ApplicationRunner {
                 new String[]{"2026", "2025", "2024", "2023", "2022"});
         ensureDomainMasterWithCode("EXAM_ROUND", "시험 회차",
                 new String[]{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"});
+        ensureDomainMasterWithCode("INQUIRY_CATEGORY", "문의 카테고리",
+                new String[]{"EXAM", "CONCEPT_NOTE", "DAILY_QUIZ", "PRACTICE", "OTHER"});
         ensurePermissionMasters();
         ensureDefaultPermissionDetails();
         ensureAdminUserPermissions();
@@ -83,6 +86,19 @@ public class DataInitializer implements ApplicationRunner {
             } catch (Exception e) {
                 log.warn("[DataInitializer] {}.question_type_check 제약 재생성 실패: {}", table, e.getMessage());
             }
+        }
+    }
+
+    private void fixInquiryTypeConstraint() {
+        try {
+            jdbcTemplate.execute(
+                "ALTER TABLE inquiries DROP CONSTRAINT IF EXISTS inquiries_inquiry_type_check");
+            jdbcTemplate.execute(
+                "ALTER TABLE inquiries ADD CONSTRAINT inquiries_inquiry_type_check " +
+                "CHECK (inquiry_type IN ('EXAM','CONCEPT_NOTE','DAILY_QUIZ','PRACTICE','OTHER'))");
+            log.info("[DataInitializer] inquiries.inquiry_type_check 제약 재생성 완료");
+        } catch (Exception e) {
+            log.warn("[DataInitializer] inquiries.inquiry_type_check 제약 재생성 실패: {}", e.getMessage());
         }
     }
 

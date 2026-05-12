@@ -6,6 +6,10 @@ export const domainService = {
   getDomains: () =>
     apiClient.get<ApiResponse<DomainMaster[]>>('/admin/domains'),
 
+  /** 코드로 슬레이브 목록 조회 (인증 사용자 공통) */
+  getSlavesByCode: (code: string) =>
+    apiClient.get<ApiResponse<DomainSlave[]>>('/domains/slaves', { params: { code } }),
+
   // ── 마스터 CRUD ──────────────────────────────────────────────────────────────
 
   createMaster: (name: string, code?: string) =>

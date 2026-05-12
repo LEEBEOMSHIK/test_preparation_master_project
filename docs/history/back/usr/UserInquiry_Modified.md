@@ -1,3 +1,80 @@
+## HIST-20260512-002
+
+- **날짜**: 2026-05-12
+- **수정 범위**: 사용자 백엔드 / 1:1 문의 + 도메인
+- **수정 개요**: 인증 사용자용 도메인 슬레이브 조회 API 추가, DataInitializer INQUIRY_CATEGORY 슬레이브 이름 enum 코드로 수정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../service/DomainService.java` | 수정 | `getSlavesByCode(String code)` 메서드 추가 |
+| `backend/.../controller/DomainController.java` | 추가 | `GET /api/domains/slaves?code=` 엔드포인트 (인증 사용자 공통) |
+| `backend/.../config/DataInitializer.java` | 수정 | INQUIRY_CATEGORY 슬레이브 이름을 한글 표시명 → InquiryType enum 코드로 변경 |
+| `docs/sql/tpmp_dump.sql` | 수정 | domain_slave ID 12~16 이름을 enum 코드(EXAM/CONCEPT_NOTE/…)로 변경 |
+
+### 수정 상세
+
+#### `DomainService.java`
+- `getSlavesByCode(String code)`: 코드로 master 조회 후 slave 목록 반환; master 없으면 `DOMAIN_NOT_FOUND` 예외
+
+#### `DomainController.java` (신규)
+- `GET /api/domains/slaves?code={code}` — `@RequestParam String code`로 `DomainService.getSlavesByCode` 호출
+- `/api/admin/**` 가 아닌 `/api/domains/**` 경로 → `anyRequest().authenticated()` 적용 (일반 사용자 접근 가능)
+
+#### `DataInitializer.java`
+- 변경 전: `"시험", "개념노트", "데일리 퀴즈", "연습장", "기타"`
+- 변경 후: `"EXAM", "CONCEPT_NOTE", "DAILY_QUIZ", "PRACTICE", "OTHER"` (InquiryType enum 코드 그대로 저장, FE에서 INQUIRY_TYPE_LABEL로 번역)
+
+### 복원 방법
+
+HIST-20260512-002 복원 시:
+- `DomainService.java` — `getSlavesByCode` 메서드 제거
+- `DomainController.java` — 파일 삭제
+- `DataInitializer.java` — INQUIRY_CATEGORY 슬레이브를 한글 표시명으로 복원
+- `tpmp_dump.sql` — domain_slave ID 12~16 이름 한글로 복원
+
+---
+
+## HIST-20260512-001
+
+- **날짜**: 2026-05-12
+- **수정 범위**: 사용자 백엔드 / 1:1 문의
+- **수정 개요**: `InquiryType` enum에 `PRACTICE` 추가, `DataInitializer`에 CHECK 제약 자동 재생성 및 "문의 카테고리" 도메인 시딩 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../entity/Inquiry.java` | 수정 | `InquiryType` enum에 `PRACTICE` 추가 (DAILY_QUIZ 뒤, OTHER 앞) |
+| `backend/.../config/DataInitializer.java` | 수정 | `fixInquiryTypeConstraint()` 메서드 추가, `run()`에서 호출; `ensureDomainMasterWithCode("INQUIRY_CATEGORY", ...)` 호출 추가 |
+| `docs/sql/tpmp_dump.sql` | 수정 | `inquiries_inquiry_type_check` 제약 조건에 `'PRACTICE'` 추가, `domain_master` ID=4 "문의 카테고리" 추가, `domain_slave` ID 12~16 (시험·개념노트·데일리 퀴즈·연습장·기타) 추가, 시퀀스 값 갱신 |
+
+### 수정 상세
+
+#### `Inquiry.java`
+- 변경 전: `public enum InquiryType { EXAM, CONCEPT_NOTE, DAILY_QUIZ, OTHER }`
+- 변경 후: `public enum InquiryType { EXAM, CONCEPT_NOTE, DAILY_QUIZ, PRACTICE, OTHER }`
+
+#### `DataInitializer.java`
+- `fixInquiryTypeConstraint()` 신규 추가: `inquiries` 테이블의 `inquiry_type` CHECK 제약을 DROP 후 `PRACTICE` 포함 5개 값으로 재생성 (기동 시 자동 적용)
+- `run()`에 `fixInquiryTypeConstraint()` 호출 추가 (fixQuestionTypeConstraints 직후)
+- `run()`에 `ensureDomainMasterWithCode("INQUIRY_CATEGORY", "문의 카테고리", ...)` 추가 — 슬레이브: 시험/개념노트/데일리 퀴즈/연습장/기타 (이미 존재하면 건너뜀)
+
+#### `tpmp_dump.sql`
+- CHECK 제약 조건: `ARRAY[...'OTHER'...]` → `ARRAY[...'PRACTICE'::character varying, 'OTHER'...]`
+- domain_master: ID=4 "문의 카테고리" 신규 추가 (시퀀스 3→4)
+- domain_slave: ID 12~16 (시험/개념노트/데일리 퀴즈/연습장/기타, master_id=4) 추가 (시퀀스 11→16)
+
+### 복원 방법
+
+HIST-20260512-001 복원 시:
+- `Inquiry.java` — `PRACTICE` enum 값 제거
+- `DataInitializer.java` — `fixInquiryTypeConstraint()` 메서드 및 `run()` 호출 제거, `INQUIRY_CATEGORY` ensureDomainMasterWithCode 호출 제거
+- `tpmp_dump.sql` — CHECK 배열에서 `'PRACTICE'::character varying` 제거, domain_master ID=4 행 제거, domain_slave ID 12~16 제거, 시퀀스 domain_master=3, domain_slave=11로 복원
+
+---
+
 ## HIST-20260426-008
 
 - **날짜**: 2026-04-26

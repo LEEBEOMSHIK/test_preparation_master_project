@@ -33,6 +33,14 @@ public class DomainService {
                 .toList();
     }
 
+    public List<DomainSlaveResponse> getSlavesByCode(String code) {
+        DomainMaster master = domainMasterRepository.findByCode(code)
+                .orElseThrow(() -> new BusinessException(ErrorCode.DOMAIN_NOT_FOUND));
+        return master.getSlaves().stream()
+                .map(DomainSlaveResponse::from)
+                .toList();
+    }
+
     @Transactional
     public DomainMasterResponse createMaster(String code, String name) {
         DomainMaster master = domainMasterRepository.save(

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
+import { authService } from '@/services/authService';
 import { menuService } from '@/services/menuService';
 import { PermissionDeniedModal } from '@/components/ui/PermissionDeniedModal';
 import type { MenuConfig } from '@/types';
@@ -150,7 +151,7 @@ function ThemeToggle() {
 export default function AdminLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, clearAuth } = useAuthStore();
+  const { user, setAuth, clearAuth } = useAuthStore();
   const [navItems, setNavItems] = useState<MenuConfig[]>(FALLBACK_NAV);
 
   useEffect(() => {
@@ -169,6 +170,21 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
       router.replace('/admin/login');
       return;
     }
+    // 토큰 role 검증 — USER 토큰으로 관리자 화면 진입 방지
+    authService.me()
+      .then((res) => {
+        const me = res.data.data;
+        if (!me || me.role !== 'ADMIN') {
+          clearAuth();
+          router.replace('/admin/login');
+          return;
+        }
+        setAuth(me, token);
+      })
+      .catch(() => {
+        clearAuth();
+        router.replace('/admin/login');
+      });
     menuService.getMyMenus('ADMIN')
       .then((res) => {
         if (res.data.success && res.data.data && res.data.data.length > 0) {

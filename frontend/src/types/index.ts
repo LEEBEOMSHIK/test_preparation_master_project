@@ -202,7 +202,7 @@ export interface ConceptNote {
 // Inquiry
 // ──────────────────────────────────────────
 export type InquiryStatus = 'PENDING' | 'ON_HOLD' | 'ANSWERED';
-export type InquiryType = 'EXAM' | 'CONCEPT_NOTE' | 'DAILY_QUIZ' | 'OTHER';
+export type InquiryType = 'EXAM' | 'CONCEPT_NOTE' | 'DAILY_QUIZ' | 'PRACTICE' | 'OTHER';
 
 export const INQUIRY_STATUS_LABEL: Record<InquiryStatus, string> = {
   PENDING: '답변 대기',
@@ -214,6 +214,7 @@ export const INQUIRY_TYPE_LABEL: Record<InquiryType, string> = {
   EXAM: '시험',
   CONCEPT_NOTE: '개념노트',
   DAILY_QUIZ: '데일리 퀴즈',
+  PRACTICE: '연습장',
   OTHER: '기타',
 };
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { practiceService } from '@/services/practiceService';
-import type { SqlResult } from '@/services/practiceService';
+import type { SqlResult, PracticeRules } from '@/services/practiceService';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -767,6 +767,7 @@ export default function PracticePage() {
   // Tab
   const [tab, setTab] = useState<Tab>('sql');
   const [guideTab, setGuideTab] = useState<'sql' | 'os'>('sql');
+  const [sqlDialectTab, setSqlDialectTab] = useState<'postgresql' | 'mysql' | 'oracle'>('postgresql');
 
   // SQL state
   const [dialect, setDialect] = useState<Dialect>('postgresql');
@@ -793,8 +794,17 @@ export default function PracticePage() {
   const [histIdx, setHistIdx] = useState(-1);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
 
+  // 연습장 운영 규칙
+  const [rules, setRules] = useState<PracticeRules | null>(null);
+
   const termEndRef = useRef<HTMLDivElement>(null);
   const termInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    practiceService.getRules()
+      .then(res => { if (res.data.success && res.data.data) setRules(res.data.data); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     termEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1126,6 +1136,13 @@ export default function PracticePage() {
                       </div>
                     );
                   })()}
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    오류가 반복되거나 예상치 못한 문제가 발생했나요?{' '}
+                    <a href="/user/inquiries/new" className="text-indigo-600 dark:text-indigo-400 underline hover:text-indigo-800 dark:hover:text-indigo-300">
+                      1:1 문의
+                    </a>
+                    로 알려주세요.
+                  </p>
                 </div>
               )}
             </div>
@@ -1363,175 +1380,256 @@ export default function PracticePage() {
                 </div>
               </div>
 
-              {/* Testable SQL List */}
-              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4 lg:col-span-2">
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">테스트 가능 항목</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">아래 목록에 포함된 SQL은 연습장에서 실행하거나 시뮬레이션할 수 있습니다.</p>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-2">조회 (SELECT)</p>
-                    <ul className="space-y-1 text-xs text-gray-700 dark:text-gray-300">
-                      {[
-                        '기본 SELECT / WHERE / ORDER BY',
-                        'LIMIT / OFFSET (Oracle: FETCH FIRST N ROWS ONLY)',
-                        'INNER / LEFT / RIGHT / FULL OUTER / CROSS JOIN',
-                        'GROUP BY / HAVING / 집계 함수 (COUNT, SUM, AVG, MAX, MIN)',
-                        '스칼라 서브쿼리 / IN / EXISTS 서브쿼리',
-                        'WITH (CTE) / WITH RECURSIVE',
-                        'CASE WHEN THEN ELSE END',
-                        '윈도우 함수 (ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD)',
-                        'COALESCE / NULLIF / NVL (Oracle→COALESCE 자동 변환)',
-                        'CAST / 타입 변환',
-                        'information_schema 조회 (테이블·컬럼·권한 정보)',
-                        'pg_catalog 조회 (인덱스, 시퀀스, 함수 메타데이터)',
-                      ].map(item => (
-                        <li key={item} className="flex gap-1.5 items-start">
-                          <span className="text-indigo-400 mt-0.5 shrink-0">•</span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-2">DML 시뮬레이션 (DB 미반영)</p>
-                      <ul className="space-y-1 text-xs text-gray-700 dark:text-gray-300">
-                        {[
-                          'INSERT INTO ... VALUES / SELECT',
-                          'INSERT ... ON CONFLICT (PostgreSQL)',
-                          'UPDATE ... SET ... WHERE / FROM',
-                          'DELETE FROM ... WHERE',
-                          'TRUNCATE TABLE',
-                        ].map(item => (
-                          <li key={item} className="flex gap-1.5 items-start">
-                            <span className="text-emerald-400 mt-0.5 shrink-0">•</span>
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 mb-2">DCL 시뮬레이션 (DB 미반영)</p>
-                      <ul className="space-y-1 text-xs text-gray-700 dark:text-gray-300">
-                        {[
-                          'GRANT (SELECT, INSERT, UPDATE, DELETE, ALL)',
-                          'REVOKE',
-                        ].map(item => (
-                          <li key={item} className="flex gap-1.5 items-start">
-                            <span className="text-violet-400 mt-0.5 shrink-0">•</span>
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-2">DDL 시뮬레이션 (DB 미반영)</p>
-                    <ul className="space-y-1 text-xs text-gray-700 dark:text-gray-300">
-                      {[
-                        'CREATE TABLE (PK/FK/UNIQUE/CHECK/DEFAULT)',
-                        'ALTER TABLE ADD / DROP COLUMN',
-                        'ALTER TABLE ALTER/MODIFY COLUMN (타입·NOT NULL)',
-                        'ALTER TABLE ADD / DROP CONSTRAINT',
-                        'DROP TABLE / DROP TABLE IF EXISTS',
-                        'CREATE INDEX / UNIQUE INDEX / DROP INDEX',
-                        'CREATE VIEW / CREATE OR REPLACE VIEW / DROP VIEW',
-                        'CREATE FUNCTION ($$ 미종료 시 자동 완성)',
-                        'CREATE PROCEDURE (MySQL·Oracle 자동 변환)',
-                        'CREATE TRIGGER (참조 함수 없어도 스텁 자동 생성)',
-                        'DROP FUNCTION / PROCEDURE / TRIGGER',
-                        'CREATE SEQUENCE (PostgreSQL)',
-                      ].map(item => (
-                        <li key={item} className="flex gap-1.5 items-start">
-                          <span className="text-amber-400 mt-0.5 shrink-0">•</span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
-                  <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">방언별 특수 문법 (자동 변환)</p>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-[11px] font-medium text-orange-600 dark:text-orange-400 mb-1">MySQL 방언</p>
-                      <ul className="space-y-1 text-xs text-gray-700 dark:text-gray-300">
-                        {[
-                          'AUTO_INCREMENT → GENERATED ALWAYS AS IDENTITY',
-                          'DATETIME, TINYINT, UNSIGNED, CHARACTER SET 등 자동 변환',
-                          'DELIMITER // ... END // DELIMITER ; (MySQL 모드 전용)',
-                          'BEGIN...END 인라인 트리거·프로시저 → 함수+트리거로 분리',
-                        ].map(item => (
-                          <li key={item} className="flex gap-1.5 items-start">
-                            <span className="text-orange-400 mt-0.5 shrink-0">•</span>
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-medium text-red-600 dark:text-red-400 mb-1">Oracle 방언</p>
-                      <ul className="space-y-1 text-xs text-gray-700 dark:text-gray-300">
-                        {[
-                          'NUMBER, VARCHAR2, CLOB, BLOB, NCHAR, SYSDATE, NVL 자동 변환',
-                          'IS/AS BEGIN...END 프로시저 → LANGUAGE plpgsql AS $$...$$',
-                          ':NEW.col / :OLD.col 트리거 → NEW.col / OLD.col',
-                          'MODIFY(col RESTART START WITH n) → ALTER SEQUENCE 자동 분기',
-                          'FROM DUAL → FROM (SELECT 1) AS dual',
-                        ].map(item => (
-                          <li key={item} className="flex gap-1.5 items-start">
-                            <span className="text-red-400 mt-0.5 shrink-0">•</span>
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
+              {/* SQL 방언 탭 선택 */}
+              <div className="lg:col-span-2 flex gap-2 flex-wrap items-center">
+                <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">방언 선택:</span>
+                {([
+                  { key: 'postgresql', label: 'PostgreSQL', active: 'bg-blue-600 text-white', inactive: 'hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800' },
+                  { key: 'mysql', label: 'MySQL', active: 'bg-orange-500 text-white', inactive: 'hover:bg-orange-50 dark:hover:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800' },
+                  { key: 'oracle', label: 'Oracle', active: 'bg-rose-600 text-white', inactive: 'hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800' },
+                ] as const).map(({ key, label, active, inactive }) => (
+                  <button
+                    key={key}
+                    onClick={() => setSqlDialectTab(key)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${sqlDialectTab === key ? active : `bg-white dark:bg-gray-900 ${inactive}`}`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
 
-              {/* Untestable SQL List */}
-              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4 lg:col-span-2">
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">테스트 불가 항목</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">보안·무결성·운영 환경 보호를 위해 아래 항목은 차단되거나 시뮬레이션으로만 응답합니다.</p>
+              {/* ── PostgreSQL 탭 ── */}
+              {sqlDialectTab === 'postgresql' && (
+                <>
+                  {/* Testable */}
+                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4 lg:col-span-2">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">테스트 가능 항목</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">PostgreSQL 엔진이 기본 DB이므로 아래 SQL은 모두 연습장에서 실행하거나 시뮬레이션할 수 있습니다.</p>
 
-                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-gray-50 dark:bg-gray-800">
-                        <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap">분류</th>
-                        <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400">차단 항목</th>
-                        <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400">사유</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {[
-                        ['트랜잭션 명시 제어', 'BEGIN / COMMIT / ROLLBACK / SAVEPOINT / SET TRANSACTION', '연습장 자체가 트랜잭션 시뮬레이션 방식으로 동작'],
-                        ['시퀀스 함수 직접 실행', 'SELECT setval(...) / SELECT nextval(...)', '비트랜잭션 연산으로 롤백 불가 — 시뮬레이션 메시지만 반환'],
-                        ['DO 블록 내 시퀀스 함수', 'DO $$ ... setval/nextval ... $$', '동일 사유 — 시뮬레이션 메시지만 반환'],
-                        ['DB 관리 함수', 'pg_terminate_backend() / pg_cancel_backend() / pg_reload_conf()', '세션 종료·서버 설정 변경 등 운영 영향'],
-                        ['계정·역할 관리 DDL', 'CREATE/ALTER/DROP USER, CREATE/ALTER/DROP ROLE', '실제 DB 계정 변경 방지'],
-                        ['데이터베이스·스키마 관리', 'CREATE/DROP DATABASE, CREATE/DROP SCHEMA', '연습용 스키마 외 영역 변경 방지'],
-                        ['확장 관리', 'CREATE EXTENSION / DROP EXTENSION', '서버 수준 설정 변경'],
-                        ['prac_ 외 테이블 DML', 'INSERT/UPDATE/DELETE 대상이 prac_* 아닌 경우', '시스템 테이블 보호'],
-                        ['DELIMITER (MySQL 외)', 'PostgreSQL·Oracle 모드에서 DELIMITER // 사용', 'MySQL 클라이언트 전용 명령'],
-                        ['비-DDL 멀티 스테이트먼트', 'SELECT·DML·DCL에서 세미콜론으로 분리된 여러 문장', '실행 범위 제한'],
-                      ].map(([category, blocked, reason]) => (
-                        <tr key={category} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                          <td className="px-3 py-2 font-medium text-rose-700 dark:text-rose-400 whitespace-nowrap align-top">{category}</td>
-                          <td className="px-3 py-2 font-mono text-gray-700 dark:text-gray-300 align-top">{blocked}</td>
-                          <td className="px-3 py-2 text-gray-500 dark:text-gray-400 align-top">{reason}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-2">조회 (SELECT)</p>
+                        <ul className="space-y-1 text-xs text-gray-700 dark:text-gray-300">
+                          {[
+                            '기본 SELECT / WHERE / ORDER BY',
+                            'LIMIT / OFFSET',
+                            'INNER / LEFT / RIGHT / FULL OUTER / CROSS JOIN',
+                            'GROUP BY / HAVING / 집계 함수 (COUNT, SUM, AVG, MAX, MIN)',
+                            '스칼라 서브쿼리 / IN / EXISTS 서브쿼리',
+                            'WITH (CTE) / WITH RECURSIVE',
+                            'CASE WHEN THEN ELSE END',
+                            '윈도우 함수 (ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD)',
+                            'COALESCE / NULLIF',
+                            'CAST / 타입 변환',
+                            'information_schema 조회 (테이블·컬럼·권한 정보)',
+                            'pg_catalog 조회 (인덱스, 시퀀스, 함수 메타데이터)',
+                          ].map(item => (
+                            <li key={item} className="flex gap-1.5 items-start">
+                              <span className="text-indigo-400 mt-0.5 shrink-0">•</span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-2">DML 시뮬레이션 (DB 미반영)</p>
+                          <ul className="space-y-1 text-xs text-gray-700 dark:text-gray-300">
+                            {[
+                              'INSERT INTO ... VALUES / SELECT',
+                              'INSERT ... ON CONFLICT',
+                              'UPDATE ... SET ... WHERE / FROM',
+                              'DELETE FROM ... WHERE',
+                              'TRUNCATE TABLE',
+                            ].map(item => (
+                              <li key={item} className="flex gap-1.5 items-start">
+                                <span className="text-emerald-400 mt-0.5 shrink-0">•</span>
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 mb-2">DCL 시뮬레이션 (DB 미반영)</p>
+                          <ul className="space-y-1 text-xs text-gray-700 dark:text-gray-300">
+                            {[
+                              'GRANT (SELECT, INSERT, UPDATE, DELETE, ALL)',
+                              'REVOKE',
+                            ].map(item => (
+                              <li key={item} className="flex gap-1.5 items-start">
+                                <span className="text-violet-400 mt-0.5 shrink-0">•</span>
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-2">DDL 시뮬레이션 (DB 미반영)</p>
+                        <ul className="space-y-1 text-xs text-gray-700 dark:text-gray-300">
+                          {[
+                            'CREATE TABLE (PK/FK/UNIQUE/CHECK/DEFAULT)',
+                            'ALTER TABLE ADD / DROP COLUMN',
+                            'ALTER TABLE ALTER COLUMN (타입·NOT NULL)',
+                            'ALTER TABLE ADD / DROP CONSTRAINT',
+                            'DROP TABLE / DROP TABLE IF EXISTS',
+                            'CREATE INDEX / UNIQUE INDEX / DROP INDEX',
+                            'CREATE VIEW / CREATE OR REPLACE VIEW / DROP VIEW',
+                            'CREATE FUNCTION ($$ 미종료 시 자동 완성)',
+                            'CREATE PROCEDURE',
+                            'CREATE TRIGGER (스텁 자동 생성)',
+                            'DROP FUNCTION / PROCEDURE / TRIGGER',
+                            'CREATE SEQUENCE',
+                          ].map(item => (
+                            <li key={item} className="flex gap-1.5 items-start">
+                              <span className="text-amber-400 mt-0.5 shrink-0">•</span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Non-testable */}
+                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4 lg:col-span-2">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">테스트 불가 항목</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">보안·무결성·운영 환경 보호를 위해 아래 항목은 차단되거나 시뮬레이션으로만 응답합니다.</p>
+
+                    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-gray-50 dark:bg-gray-800">
+                            <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap">분류</th>
+                            <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400">차단 항목</th>
+                            <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400">사유</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                          {[
+                            ['트랜잭션 명시 제어', 'BEGIN / COMMIT / ROLLBACK / SAVEPOINT / SET TRANSACTION', '연습장 자체가 트랜잭션 시뮬레이션 방식으로 동작'],
+                            ['시퀀스 함수 직접 실행', 'SELECT setval(...) / SELECT nextval(...)', '비트랜잭션 연산으로 롤백 불가 — 시뮬레이션 메시지만 반환'],
+                            ['DO 블록 내 시퀀스 함수', 'DO $$ ... setval/nextval ... $$', '동일 사유 — 시뮬레이션 메시지만 반환'],
+                            ['DB 관리 함수', 'pg_terminate_backend() / pg_cancel_backend() / pg_reload_conf()', '세션 종료·서버 설정 변경 등 운영 영향'],
+                            ['계정·역할 관리 DDL', 'CREATE/ALTER/DROP USER, CREATE/ALTER/DROP ROLE', '실제 DB 계정 변경 방지'],
+                            ['데이터베이스·스키마 관리', 'CREATE/DROP DATABASE, CREATE/DROP SCHEMA', '연습용 스키마 외 영역 변경 방지'],
+                            ['확장 관리', 'CREATE EXTENSION / DROP EXTENSION', '서버 수준 설정 변경'],
+                            ['prac_ 외 테이블 DML', 'INSERT/UPDATE/DELETE 대상이 prac_* 아닌 경우', '시스템 테이블 보호'],
+                            ['DELIMITER', 'PostgreSQL 모드에서 DELIMITER // 사용', 'MySQL 클라이언트 전용 명령'],
+                            ['비-DDL 멀티 스테이트먼트', 'SELECT·DML·DCL에서 세미콜론으로 분리된 여러 문장', '실행 범위 제한'],
+                          ].map(([category, blocked, reason]) => (
+                            <tr key={category} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                              <td className="px-3 py-2 font-medium text-rose-700 dark:text-rose-400 whitespace-nowrap align-top">{category}</td>
+                              <td className="px-3 py-2 font-mono text-gray-700 dark:text-gray-300 align-top">{blocked}</td>
+                              <td className="px-3 py-2 text-gray-500 dark:text-gray-400 align-top">{reason}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ── MySQL / Oracle 탭 공통 렌더러 ── */}
+              {(sqlDialectTab === 'mysql' || sqlDialectTab === 'oracle') && (() => {
+                const isMySQL = sqlDialectTab === 'mysql';
+                const convRules = isMySQL
+                  ? (rules?.mysqlConversionRules ?? [])
+                  : (rules?.oracleConversionRules ?? []);
+                const enabledRules = convRules.filter(r => r.enabled);
+                const disabledRules = convRules.filter(r => !r.enabled);
+                const accentEnabled = isMySQL
+                  ? 'text-orange-600 dark:text-orange-400'
+                  : 'text-rose-600 dark:text-rose-400';
+                const bulletEnabled = isMySQL ? 'text-orange-400' : 'text-rose-400';
+                const dialectLabel = isMySQL ? 'MySQL' : 'Oracle';
+
+                return (
+                  <>
+                    {/* Testable */}
+                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4 lg:col-span-2">
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">테스트 가능 항목</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {dialectLabel} 방언 선택 시 아래 항목을 테스트할 수 있습니다. 백엔드가 자동으로 PostgreSQL로 변환하여 실행합니다.
+                      </p>
+
+                      {/* 기본 SQL — 항상 지원 */}
+                      <div className="rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/40 px-4 py-3">
+                        <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">기본 SQL (항상 지원)</p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400">
+                          표준 SELECT · JOIN · DML · DCL · DDL 기본 구문은 {dialectLabel} 방언 모드에서도 동일하게 실행됩니다.
+                          <span className="ml-1 opacity-70">자세한 항목은 PostgreSQL 탭을 참조하세요.</span>
+                        </p>
+                      </div>
+
+                      {/* 활성화된 변환 규칙 */}
+                      <div>
+                        <p className={`text-xs font-semibold ${accentEnabled} mb-2`}>
+                          {dialectLabel} 방언 전용 구문
+                          <span className="ml-1.5 font-normal text-gray-400 dark:text-gray-500">
+                            ({enabledRules.length}개 활성화)
+                          </span>
+                        </p>
+                        {enabledRules.length === 0 ? (
+                          <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                            활성화된 {dialectLabel} 변환 규칙이 없습니다. {dialectLabel} 전용 구문은 지원되지 않습니다.
+                          </p>
+                        ) : (
+                          <ul className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-700 dark:text-gray-300">
+                            {enabledRules.map(r => (
+                              <li key={r.ruleKey} className="flex gap-1.5 items-start">
+                                <span className={`${bulletEnabled} mt-0.5 shrink-0`}>•</span>
+                                <span>{r.userLabel}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Non-testable */}
+                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4 lg:col-span-2">
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">테스트 불가 항목</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        관리자가 비활성화한 변환 규칙은 {dialectLabel} 전용 구문이 지원되지 않습니다. 공통 제한사항은 PostgreSQL 탭을 참조하세요.
+                      </p>
+
+                      {disabledRules.length === 0 ? (
+                        <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/40 px-4 py-3">
+                          <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                            모든 {dialectLabel} 변환 규칙이 활성화되어 있습니다. {dialectLabel} 전용 구문 제한이 없습니다.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="bg-gray-50 dark:bg-gray-800">
+                                <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap">분류</th>
+                                <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400">미지원 항목</th>
+                                <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400">사유</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                              {disabledRules.map(r => (
+                                <tr key={r.ruleKey} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                                  <td className="px-3 py-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap align-top">변환 규칙 비활성화</td>
+                                  <td className="px-3 py-2 text-gray-700 dark:text-gray-300 align-top">{r.userLabel}</td>
+                                  <td className="px-3 py-2 text-gray-500 dark:text-gray-400 align-top">관리자에 의해 비활성화됨</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
 
             </div>
           )}

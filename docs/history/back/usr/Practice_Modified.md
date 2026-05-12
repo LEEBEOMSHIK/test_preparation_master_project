@@ -1,3 +1,73 @@
+## HIST-20260512-009
+
+- **날짜**: 2026-05-12
+- **수정 범위**: 사용자 백엔드 / 연습장
+- **수정 개요**: `GET /user/practice/rules` 응답에 변환 규칙 활성화 상태 추가 — `ConversionRuleDto`, `PracticeRules.of()` 신규
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../controller/UserPracticeController.java` | 수정 | `conversionRuleRepository` 주입, `getRules()` DB에서 변환 규칙 로드, `ConversionRuleDto` record 추가, `PracticeRules.of(mysql, oracle)` 정적 팩토리로 변경 |
+
+### 수정 상세
+
+#### `UserPracticeController.java`
+- 변경 전: `PracticeRules.defaults()` 하드코딩 응답
+- 변경 후: `conversionRuleRepository.findAllByOrderByDialectAscDisplayOrderAsc()` 조회 후 mysql/oracle 분리하여 `PracticeRules.of(mysql, oracle)` 반환
+- `ConversionRuleDto(id, dialect, ruleKey, userLabel, enabled, complex)` — 관리자용보다 필드 축소(adminLabel 제외)
+
+### 복원 방법
+
+HIST-20260512-009 복원 시:
+- `UserPracticeController.java` — `conversionRuleRepository` 주입 제거, `getRules()` → `PracticeRules.defaults()` 복원, `ConversionRuleDto` 제거, `PracticeRules.of()` → `PracticeRules.defaults()` 복원
+
+---
+
+## HIST-20260512-008
+
+- **날짜**: 2026-05-12
+- **수정 범위**: 사용자 백엔드 / 연습장
+- **수정 개요**: `PracticeService.saveAndReturn()`에 `dialect` 파라미터 추가 — `UserPracticeController` 경유 방언 기록
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../service/PracticeService.java` | 수정 | `saveAndReturn()` 시그니처 변경(dialect 추가), 9개 호출부 반영 |
+
+### 복원 방법
+
+HIST-20260512-008은 HIST-20260512-002(back/adm)와 묶여 있음. 복원 시 두 항목을 함께 적용한다.
+
+---
+
+## HIST-20260512-007
+
+- **날짜**: 2026-05-12
+- **수정 범위**: 사용자 백엔드 / 연습장
+- **수정 개요**: `GET /api/user/practice/rules` 엔드포인트 추가 — 인증된 사용자도 연습장 운영 규칙 조회 가능
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../controller/UserPracticeController.java` | 수정 | `/rules` GET 엔드포인트 + `PracticeRules`, `TypoPattern` 레코드 추가 |
+
+### 수정 상세
+
+#### `UserPracticeController.java`
+- 변경 전: `/sql/execute`, `/sql/reset`, `/sql/tables` 3개 엔드포인트만 존재
+- 변경 후: `GET /rules` 추가 — 금지 명령어, 허용 테이블 접두사, 멀티 스테이트먼트 규칙, 오타 패턴 반환
+- 이유: 사용자 연습 가이드 화면에서 관리자가 설정한 실제 운영 규칙을 동적으로 표시하기 위해
+
+### 복원 방법
+
+HIST-20260512-007 복원 시:
+- `UserPracticeController.java` — `getRules()` 메서드, `PracticeRules` 레코드, `TypoPattern` 레코드 제거
+
+---
+
 ## HIST-20260512-006
 
 - **날짜**: 2026-05-12

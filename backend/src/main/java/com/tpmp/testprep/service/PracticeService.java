@@ -1,6 +1,8 @@
 package com.tpmp.testprep.service;
 
+import com.tpmp.testprep.entity.DialectConversionRule;
 import com.tpmp.testprep.entity.PracticeHistory;
+import com.tpmp.testprep.repository.DialectConversionRuleRepository;
 import com.tpmp.testprep.repository.PracticeHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +15,7 @@ import org.springframework.transaction.support.DefaultTransactionDefinition;
 
 import java.util.*;
 import java.util.regex.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -21,7 +24,35 @@ public class PracticeService {
 
     private final JdbcTemplate jdbcTemplate;
     private final PracticeHistoryRepository practiceHistoryRepository;
+    private final DialectConversionRuleRepository conversionRuleRepository;
     private final PlatformTransactionManager transactionManager;
+
+    /** 활성화된 변환 규칙 키 캐시 (volatile — 참조 교체는 스레드-세이프) */
+    private volatile Set<String> enabledRuleKeys = null;
+
+    public Set<String> getEnabledKeys() {
+        Set<String> keys = enabledRuleKeys;
+        if (keys == null) {
+            synchronized (this) {
+                keys = enabledRuleKeys;
+                if (keys == null) {
+                    keys = loadEnabledKeys();
+                    enabledRuleKeys = keys;
+                }
+            }
+        }
+        return keys;
+    }
+
+    public void refreshRuleCache() {
+        enabledRuleKeys = loadEnabledKeys();
+    }
+
+    private Set<String> loadEnabledKeys() {
+        return conversionRuleRepository.findByEnabledTrue().stream()
+                .map(DialectConversionRule::getRuleKey)
+                .collect(Collectors.toSet());
+    }
 
     private static final Set<String> DEFAULT_PRAC_TABLES =
             Set.of("prac_departments", "prac_employees", "prac_products", "prac_orders");
@@ -34,12 +65,18 @@ public class PracticeService {
 
         // MySQL 클라이언트 전용 DELIMITER 명령어 처리
         // MySQL 모드: 제거 후 실제 SQL 추출 / 그 외 모드: DELIMITER 자체가 오류 (오류 반환 시 위치 오차 없음)
+        Set<String> enabledKeys = getEnabledKeys();
         if (sql.toUpperCase().stripLeading().startsWith("DELIMITER")) {
             if (!"mysql".equals(dialect)) {
                 String dialectName = "oracle".equals(dialect) ? "Oracle" : "PostgreSQL";
-                return saveAndReturn(userEmail, sql, SqlResult.error(
+                return saveAndReturn(userEmail, sql, dialect, SqlResult.error(
                         "DELIMITER는 MySQL 클라이언트 전용 명령어입니다. " + dialectName + "에서는 지원하지 않습니다.\n" +
                         "→ " + dialectName + "에서는 DELIMITER 없이 트리거·프로시저를 직접 작성하세요."));
+            }
+            if (!enabledKeys.contains("mysql_delimiter")) {
+                return saveAndReturn(userEmail, sql, dialect, SqlResult.error(
+                        "DELIMITER 처리 규칙이 현재 비활성화되어 있습니다.\n" +
+                        "→ 관리자 > 연습장 관리 > 규칙 관리에서 활성화 상태를 확인하세요."));
             }
             Matcher delimDef = Pattern.compile("(?i)\\bDELIMITER\\s+(\\S+)").matcher(sql);
             String customDelim = delimDef.find() ? delimDef.group(1) : "//";
@@ -58,7 +95,7 @@ public class PracticeService {
             String withoutStrings = sql.replaceAll("'[^']*'", "''")
                     .replaceAll("(?s)\\$\\$.*?\\$\\$", "\\$\\$\\$\\$");
             if (withoutStrings.contains(";") && withoutStrings.indexOf(";") < withoutStrings.length() - 1) {
-                return saveAndReturn(userEmail, sql, SqlResult.error("여러 SQL 문을 동시에 실행할 수 없습니다. 한 번에 하나씩 실행해주세요."));
+                return saveAndReturn(userEmail, sql, dialect, SqlResult.error("여러 SQL 문을 동시에 실행할 수 없습니다. 한 번에 하나씩 실행해주세요."));
             }
         }
         if (sql.endsWith(";")) sql = sql.substring(0, sql.length() - 1).trim();
@@ -74,20 +111,20 @@ public class PracticeService {
 
         // setval()/nextval()은 트랜잭션 롤백 대상이 아닌 비트랜잭션 연산 — 실행 없이 시뮬레이션
         if (isSelect && (upper.contains("SETVAL(") || upper.contains("NEXTVAL("))) {
-            return saveAndReturn(userEmail, sql, SqlResult.sim("SETVAL",
+            return saveAndReturn(userEmail, sql, dialect, SqlResult.sim("SETVAL",
                     "시퀀스 함수 시뮬레이션 완료\n화면에서만 실행되며 실제 DB에는 반영되지 않습니다.\n실제 시퀀스 값은 변경되지 않습니다."));
         }
         // DB 관리 함수(pg_terminate_backend 등)는 세션·설정에 영구 영향 — 차단
         if (isSelect && (upper.contains("PG_TERMINATE_BACKEND(") || upper.contains("PG_CANCEL_BACKEND(")
                 || upper.contains("PG_RELOAD_CONF(") || upper.contains("PG_ROTATE_LOGFILE("))) {
-            return saveAndReturn(userEmail, sql, SqlResult.error(
+            return saveAndReturn(userEmail, sql, dialect, SqlResult.error(
                     "연습장에서는 DB 관리 함수(pg_terminate_backend 등)를 사용할 수 없습니다."));
         }
         // DO 블록 내 시퀀스 함수 — 비트랜잭션 연산은 트랜잭션 롤백 대상이 아님
         if (!isSelect && sqlUpper0.startsWith("DO") && sqlUpper0.length() > 2
                 && !Character.isLetterOrDigit(sqlUpper0.charAt(2))
                 && (upper.contains("SETVAL(") || upper.contains("NEXTVAL("))) {
-            return saveAndReturn(userEmail, sql, SqlResult.sim("DO",
+            return saveAndReturn(userEmail, sql, dialect, SqlResult.sim("DO",
                     "DO 블록 내 시퀀스 함수 시뮬레이션 완료\n화면에서만 실행되며 실제 DB에는 반영되지 않습니다.\n실제 시퀀스 값은 변경되지 않습니다."));
         }
 
@@ -95,10 +132,10 @@ public class PracticeService {
         SqlResult dialectError = validateDialectSyntax(sql, userEmail, dialect);
         if (dialectError != null) return dialectError;
 
-        // 방언 변환: MySQL/Oracle → PostgreSQL 자동 변환
-        String translatedSql = translateToPostgres(sql, dialect);
-        // Oracle MODIFY RESTART → SERIAL/IDENTITY 분기 (SERIAL 컬럼은 ALTER SEQUENCE로 교체)
-        if ("oracle".equals(dialect)) {
+        // 방언 변환: MySQL/Oracle → PostgreSQL 자동 변환 (활성화된 규칙만 적용)
+        String translatedSql = translateToPostgres(sql, dialect, enabledKeys);
+        // Oracle MODIFY RESTART → SERIAL/IDENTITY 분기 (oracle_modify 규칙이 활성화된 경우만)
+        if ("oracle".equals(dialect) && enabledKeys.contains("oracle_modify")) {
             translatedSql = resolveRestartWith(translatedSql);
         }
 
@@ -125,7 +162,7 @@ public class PracticeService {
 
         // DML/DDL/DCL — 트랜잭션 내 실행 후 롤백 (문법 검증 + 행 수 반환, DB 미반영)
         if (!isSelect) {
-            return saveAndReturn(userEmail, sql, simulateDml(translatedSql, upper, dialect));
+            return saveAndReturn(userEmail, sql, dialect, simulateDml(translatedSql, upper, dialect));
         }
 
         // SELECT — prac_* 또는 허용된 시스템 스키마만 조회 가능 (테이블 검증은 원본 SQL 기준)
@@ -135,17 +172,17 @@ public class PracticeService {
                 .filter(t -> !t.startsWith("prac_") && !allowedSchemas.contains(t))
                 .toList();
         if (!invalid.isEmpty()) {
-            return saveAndReturn(userEmail, sql, SqlResult.error(
+            return saveAndReturn(userEmail, sql, dialect, SqlResult.error(
                     "연습장에서는 'prac_' 접두사 테이블 또는 information_schema / pg_catalog만 조회할 수 있습니다.\n" +
                     "잘못된 테이블: " + String.join(", ", invalid) + "\n" +
                     "예) SELECT * FROM prac_employees;"));
         }
 
         try {
-            return saveAndReturn(userEmail, sql, runSelect(translatedSql));
+            return saveAndReturn(userEmail, sql, dialect, runSelect(translatedSql));
         } catch (Exception e) {
             ErrorInfo info = extractErrorInfo(e);
-            return saveAndReturn(userEmail, sql, SqlResult.error(info.message(), info.position()));
+            return saveAndReturn(userEmail, sql, dialect, SqlResult.error(info.message(), info.position()));
         }
     }
 
@@ -323,184 +360,169 @@ public class PracticeService {
             String dialectName = "mysql".equals(dialect) ? "MySQL" : "Oracle";
             String msg = "[" + dialectName + " 방언] 선택한 방언에서 지원하지 않는 문법이 포함되어 있습니다:\n\n"
                     + errors.stream().map(e -> "• " + e).collect(java.util.stream.Collectors.joining("\n\n"));
-            return saveAndReturn(userEmail, sql, SqlResult.error(msg));
+            return saveAndReturn(userEmail, sql, dialect, SqlResult.error(msg));
         }
         return null;
     }
 
     // ── 방언 변환: MySQL/Oracle → PostgreSQL ───────────────────────────────────
 
-    private String translateToPostgres(String sql, String dialect) {
+    private String translateToPostgres(String sql, String dialect, Set<String> enabledKeys) {
         if (dialect == null || "postgresql".equals(dialect)) return sql;
-        if ("mysql".equals(dialect))  return translateMysql(sql);
-        if ("oracle".equals(dialect)) return translateOracle(sql);
+        if ("mysql".equals(dialect))  return translateMysql(sql, enabledKeys);
+        if ("oracle".equals(dialect)) return translateOracle(sql, enabledKeys);
         return sql;
     }
 
-    private String translateMysql(String sql) {
-        // 백틱 식별자 → 제거 (PostgreSQL은 큰따옴표를 사용하지만 식별자 유지가 목적)
-        sql = sql.replace("`", "");
-        // UNIQUE KEY name (cols) → CONSTRAINT name UNIQUE (cols)
-        sql = sql.replaceAll("(?i)\\bUNIQUE\\s+KEY\\s+(\\w+)\\s*\\(", "CONSTRAINT $1 UNIQUE (");
-        // KEY name (cols) 인덱스 전용 정의 제거 (UNIQUE KEY 치환 후 남은 것)
-        sql = sql.replaceAll("(?i),?\\s*\\bKEY\\s+\\w+\\s*\\([^)]*\\)", "");
-        // AUTO_INCREMENT → GENERATED ALWAYS AS IDENTITY
-        sql = sql.replaceAll("(?i)\\bAUTO_INCREMENT\\b", "GENERATED ALWAYS AS IDENTITY");
-        // DATETIME → TIMESTAMP
-        sql = sql.replaceAll("(?i)\\bDATETIME\\b", "TIMESTAMP");
-        // TINYINT → SMALLINT
-        sql = sql.replaceAll("(?i)\\bTINYINT\\b", "SMALLINT");
-        // MEDIUMINT → INTEGER
-        sql = sql.replaceAll("(?i)\\bMEDIUMINT\\b", "INTEGER");
-        // UNSIGNED 제거
-        sql = sql.replaceAll("(?i)\\bUNSIGNED\\b", "");
-        // CHARACTER SET 제거
-        sql = sql.replaceAll("(?i)\\bCHARACTER\\s+SET\\s+\\w+", "");
-        // COLLATE 제거
-        sql = sql.replaceAll("(?i)\\bCOLLATE\\s+\\S+", "");
-        // 컬럼 뒤 COMMENT '...' 제거
-        sql = sql.replaceAll("(?i)\\bCOMMENT\\s+'[^']*'", "");
-        // CREATE TABLE 끝 테이블 옵션(ENGINE=, DEFAULT CHARSET= 등) 제거
-        sql = sql.replaceAll("(?si)(\\))\\s*(ENGINE|DEFAULT\\s+CHARSET|CHARSET|ROW_FORMAT|COLLATE|AUTO_INCREMENT\\s*=|PACK_KEYS|MIN_ROWS|MAX_ROWS)[^;]*", "$1");
-        // IFNULL → COALESCE
-        sql = sql.replaceAll("(?i)\\bIFNULL\\s*\\(", "COALESCE(");
-        // KEY 제거 후 남은 `,)` 정리
-        sql = sql.replaceAll(",\\s*\\)", ")");
-
-        // ── MySQL 전용 DDL 변환 ────────────────────────────────────────────────
-
-        // ALTER TABLE t AUTO_INCREMENT = N → ALTER TABLE t ALTER COLUMN id RESTART WITH N (시퀀스 리셋)
-        sql = sql.replaceAll(
-                "(?i)\\bALTER\\s+TABLE\\s+(\\w+)\\s+AUTO_INCREMENT\\s*=\\s*(\\d+)",
-                "ALTER TABLE $1 ALTER COLUMN id RESTART WITH $2");
-
-        // CREATE PROCEDURE (MySQL 인라인 문법) → PostgreSQL 형식
-        // MySQL:      CREATE PROCEDURE name(params) BEGIN...END
-        // PostgreSQL: CREATE OR REPLACE PROCEDURE name(params) LANGUAGE plpgsql AS $$BEGIN...END;$$
-        Matcher procM = Pattern.compile(
-                "(?si)\\bCREATE\\s+PROCEDURE\\s+(\\w+)\\s*(\\((?:[^()]|\\([^()]*\\))*\\))\\s*BEGIN(.*?)END\\s*$"
-        ).matcher(sql);
-        if (procM.find()) {
-            sql = "CREATE OR REPLACE PROCEDURE " + procM.group(1) + procM.group(2) + "\n" +
-                  "LANGUAGE plpgsql\nAS $$\nBEGIN" + procM.group(3) + "END;\n$$";
+    private String translateMysql(String sql, Set<String> enabledKeys) {
+        if (enabledKeys.contains("mysql_datatypes")) {
+            // 백틱 식별자 → 제거
+            sql = sql.replace("`", "");
+            // UNIQUE KEY name (cols) → CONSTRAINT name UNIQUE (cols)
+            sql = sql.replaceAll("(?i)\\bUNIQUE\\s+KEY\\s+(\\w+)\\s*\\(", "CONSTRAINT $1 UNIQUE (");
+            // KEY name (cols) 인덱스 전용 정의 제거
+            sql = sql.replaceAll("(?i),?\\s*\\bKEY\\s+\\w+\\s*\\([^)]*\\)", "");
         }
 
-        // CREATE TRIGGER (MySQL BEGIN...END 인라인) → PostgreSQL 함수 + 트리거 (SPLIT 마커로 분리)
-        // MySQL:      CREATE TRIGGER name AFTER INSERT ON table FOR EACH ROW BEGIN...END
-        // PostgreSQL: CREATE FUNCTION func_name() RETURNS TRIGGER + CREATE TRIGGER ... EXECUTE FUNCTION
-        Matcher trigM = Pattern.compile(
-                "(?si)\\bCREATE\\s+TRIGGER\\s+(\\w+)\\s+(BEFORE|AFTER)\\s+(INSERT|UPDATE|DELETE)\\s+" +
-                "ON\\s+(\\w+)\\s+FOR\\s+EACH\\s+ROW\\s+BEGIN(.*?)END\\s*$"
-        ).matcher(sql);
-        if (trigM.find()) {
-            String trigName  = trigM.group(1);
-            String timing    = trigM.group(2).toUpperCase();
-            String event     = trigM.group(3).toUpperCase();
-            String tableName = trigM.group(4);
-            String body      = trigM.group(5).trim();
-            String funcName  = "func_" + trigName.toLowerCase();
-            sql = "CREATE OR REPLACE FUNCTION " + funcName + "() RETURNS TRIGGER AS $$\n" +
-                  "BEGIN\n    " + body + "\n    RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql" +
-                  "\n---SPLIT---\n" +
-                  "CREATE TRIGGER " + trigName + "\n" + timing + " " + event + " ON " + tableName + "\n" +
-                  "FOR EACH ROW EXECUTE FUNCTION " + funcName + "()";
+        if (enabledKeys.contains("mysql_auto_increment")) {
+            sql = sql.replaceAll("(?i)\\bAUTO_INCREMENT\\b", "GENERATED ALWAYS AS IDENTITY");
+        }
+
+        if (enabledKeys.contains("mysql_datatypes")) {
+            sql = sql.replaceAll("(?i)\\bDATETIME\\b", "TIMESTAMP");
+            sql = sql.replaceAll("(?i)\\bTINYINT\\b", "SMALLINT");
+            sql = sql.replaceAll("(?i)\\bMEDIUMINT\\b", "INTEGER");
+            sql = sql.replaceAll("(?i)\\bUNSIGNED\\b", "");
+            sql = sql.replaceAll("(?i)\\bCHARACTER\\s+SET\\s+\\w+", "");
+            sql = sql.replaceAll("(?i)\\bCOLLATE\\s+\\S+", "");
+            sql = sql.replaceAll("(?i)\\bCOMMENT\\s+'[^']*'", "");
+            // CREATE TABLE 끝 테이블 옵션(ENGINE=, DEFAULT CHARSET= 등) 제거
+            sql = sql.replaceAll("(?si)(\\))\\s*(ENGINE|DEFAULT\\s+CHARSET|CHARSET|ROW_FORMAT|COLLATE|AUTO_INCREMENT\\s*=|PACK_KEYS|MIN_ROWS|MAX_ROWS)[^;]*", "$1");
+            sql = sql.replaceAll("(?i)\\bIFNULL\\s*\\(", "COALESCE(");
+            // KEY 제거 후 남은 `,)` 정리
+            sql = sql.replaceAll(",\\s*\\)", ")");
+            // ALTER TABLE t AUTO_INCREMENT = N → ALTER TABLE t ALTER COLUMN id RESTART WITH N
+            sql = sql.replaceAll(
+                    "(?i)\\bALTER\\s+TABLE\\s+(\\w+)\\s+AUTO_INCREMENT\\s*=\\s*(\\d+)",
+                    "ALTER TABLE $1 ALTER COLUMN id RESTART WITH $2");
+        }
+
+        if (enabledKeys.contains("mysql_procedure")) {
+            // CREATE PROCEDURE (MySQL 인라인 문법) → PostgreSQL 형식
+            Matcher procM = Pattern.compile(
+                    "(?si)\\bCREATE\\s+PROCEDURE\\s+(\\w+)\\s*(\\((?:[^()]|\\([^()]*\\))*\\))\\s*BEGIN(.*?)END\\s*$"
+            ).matcher(sql);
+            if (procM.find()) {
+                sql = "CREATE OR REPLACE PROCEDURE " + procM.group(1) + procM.group(2) + "\n" +
+                      "LANGUAGE plpgsql\nAS $$\nBEGIN" + procM.group(3) + "END;\n$$";
+            }
+        }
+
+        if (enabledKeys.contains("mysql_trigger")) {
+            // CREATE TRIGGER (MySQL BEGIN...END 인라인) → PostgreSQL 함수 + 트리거 (SPLIT 마커로 분리)
+            Matcher trigM = Pattern.compile(
+                    "(?si)\\bCREATE\\s+TRIGGER\\s+(\\w+)\\s+(BEFORE|AFTER)\\s+(INSERT|UPDATE|DELETE)\\s+" +
+                    "ON\\s+(\\w+)\\s+FOR\\s+EACH\\s+ROW\\s+BEGIN(.*?)END\\s*$"
+            ).matcher(sql);
+            if (trigM.find()) {
+                String trigName  = trigM.group(1);
+                String timing    = trigM.group(2).toUpperCase();
+                String event     = trigM.group(3).toUpperCase();
+                String tableName = trigM.group(4);
+                String body      = trigM.group(5).trim();
+                String funcName  = "func_" + trigName.toLowerCase();
+                sql = "CREATE OR REPLACE FUNCTION " + funcName + "() RETURNS TRIGGER AS $$\n" +
+                      "BEGIN\n    " + body + "\n    RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql" +
+                      "\n---SPLIT---\n" +
+                      "CREATE TRIGGER " + trigName + "\n" + timing + " " + event + " ON " + tableName + "\n" +
+                      "FOR EACH ROW EXECUTE FUNCTION " + funcName + "()";
+            }
         }
 
         return sql;
     }
 
-    private String translateOracle(String sql) {
-        // VARCHAR2 → VARCHAR
-        sql = sql.replaceAll("(?i)\\bVARCHAR2\\b", "VARCHAR");
-        // NVARCHAR2 → VARCHAR
-        sql = sql.replaceAll("(?i)\\bNVARCHAR2\\b", "VARCHAR");
-        // NUMBER(p,s) / NUMBER(p) → NUMERIC (정밀도·스케일이 있는 경우 NUMERIC 유지)
-        sql = sql.replaceAll("(?i)\\bNUMBER\\b(\\s*\\()", "NUMERIC$1");
-        // NUMBER 단독 (괄호 없음) → INTEGER (정수 ID·FK 참조 호환, prac_employees.id 등 SERIAL=INTEGER와 타입 일치)
-        sql = sql.replaceAll("(?i)\\bNUMBER\\b", "INTEGER");
-        // CLOB → TEXT
-        sql = sql.replaceAll("(?i)\\bCLOB\\b", "TEXT");
-        // BLOB → BYTEA
-        sql = sql.replaceAll("(?i)\\bBLOB\\b", "BYTEA");
-        // NCHAR → CHAR
-        sql = sql.replaceAll("(?i)\\bNCHAR\\b", "CHAR");
-        // SYSDATE → CURRENT_TIMESTAMP
-        sql = sql.replaceAll("(?i)\\bSYSDATE\\b", "CURRENT_TIMESTAMP");
-        // NVL → COALESCE
-        sql = sql.replaceAll("(?i)\\bNVL\\s*\\(", "COALESCE(");
-        // FROM DUAL → FROM (SELECT 1) AS dual
-        sql = sql.replaceAll("(?i)\\bFROM\\s+DUAL\\b", "FROM (SELECT 1) AS dual");
-        // Oracle MODIFY(...) → PostgreSQL ALTER COLUMN 변환
-        // MODIFY(col RESTART START WITH n): IDENTITY 시퀀스 재시작 위치 지정
-        sql = sql.replaceAll(
-                "(?i)\\bMODIFY\\s*\\(\\s*(\\w+)\\s+RESTART\\s+START\\s+WITH\\s+(\\d+)\\s*\\)",
-                "ALTER COLUMN $1 RESTART WITH $2");
-        // MODIFY(col RESTART): 원래 시작값으로 재시작
-        sql = sql.replaceAll(
-                "(?i)\\bMODIFY\\s*\\(\\s*(\\w+)\\s+RESTART\\s*\\)",
-                "ALTER COLUMN $1 RESTART");
-        // MODIFY(col NOT NULL): NOT NULL 제약 추가
-        sql = sql.replaceAll(
-                "(?i)\\bMODIFY\\s*\\(\\s*(\\w+)\\s+NOT\\s+NULL\\s*\\)",
-                "ALTER COLUMN $1 SET NOT NULL");
-        // MODIFY(col NULL): NOT NULL 제약 해제
-        sql = sql.replaceAll(
-                "(?i)\\bMODIFY\\s*\\(\\s*(\\w+)\\s+NULL\\s*\\)",
-                "ALTER COLUMN $1 DROP NOT NULL");
-        // NUMBER → NUMERIC 변환 후 IDENTITY 컬럼에 NUMERIC이 남으면 PostgreSQL 오류 발생
-        // (PostgreSQL identity column은 SMALLINT/INTEGER/BIGINT만 허용)
-        sql = sql.replaceAll(
-                "(?i)\\b(?:NUMERIC|DECIMAL)\\b(\\s+GENERATED\\b)",
-                "INTEGER$1");
-        // Oracle 프로시저(IS/AS BEGIN...END) → PostgreSQL (LANGUAGE plpgsql)
-        // 파라미터: Oracle name mode type → PostgreSQL mode name type 순서 변환
-        // SYS_REFCURSOR OUT → INOUT REFCURSOR 변환
-        Matcher oProcM = Pattern.compile(
-                "(?si)\\bCREATE\\s+(?:OR\\s+REPLACE\\s+)?PROCEDURE\\s+(\\w+)\\s*" +
-                "(\\((?:[^()]|\\([^()]*\\))*\\))\\s*(?:IS|AS)\\s+BEGIN(.*?)END\\s*;?\\s*$"
-        ).matcher(sql);
-        if (oProcM.find()) {
-            String procName = oProcM.group(1);
-            String params   = oProcM.group(2);
-            String body     = oProcM.group(3);
-            // SYS_REFCURSOR → REFCURSOR
-            params = params.replaceAll("(?i)\\bSYS_REFCURSOR\\b", "REFCURSOR");
-            // Oracle name mode type → PostgreSQL mode name type 순서 변환
-            params = params.replaceAll(
-                    "(?i)\\b(\\w+)\\s+(IN\\s+OUT|IN|OUT)\\s+(\\w+(?:\\s*\\([^)]*\\))?)",
-                    "$2 $1 $3");
-            // IN OUT → INOUT
-            params = params.replaceAll("(?i)\\bIN\\s+OUT\\b", "INOUT");
-            // OUT name REFCURSOR → INOUT name REFCURSOR (PostgreSQL 커서 출력 표준 패턴)
-            params = params.replaceAll("(?i)\\bOUT\\s+(\\w+)\\s+REFCURSOR\\b", "INOUT $1 REFCURSOR");
-            sql = "CREATE OR REPLACE PROCEDURE " + procName + params + "\n" +
-                  "LANGUAGE plpgsql\nAS $$\nBEGIN" + body + "END;\n$$";
+    private String translateOracle(String sql, Set<String> enabledKeys) {
+        if (enabledKeys.contains("oracle_datatypes")) {
+            sql = sql.replaceAll("(?i)\\bVARCHAR2\\b", "VARCHAR");
+            sql = sql.replaceAll("(?i)\\bNVARCHAR2\\b", "VARCHAR");
+            // NUMBER(p,s) / NUMBER(p) → NUMERIC
+            sql = sql.replaceAll("(?i)\\bNUMBER\\b(\\s*\\()", "NUMERIC$1");
+            // NUMBER 단독 → INTEGER
+            sql = sql.replaceAll("(?i)\\bNUMBER\\b", "INTEGER");
+            sql = sql.replaceAll("(?i)\\bCLOB\\b", "TEXT");
+            sql = sql.replaceAll("(?i)\\bBLOB\\b", "BYTEA");
+            sql = sql.replaceAll("(?i)\\bNCHAR\\b", "CHAR");
+            sql = sql.replaceAll("(?i)\\bSYSDATE\\b", "CURRENT_TIMESTAMP");
+            sql = sql.replaceAll("(?i)\\bNVL\\s*\\(", "COALESCE(");
         }
 
-        // Oracle 인라인 트리거(BEGIN...END) → PostgreSQL 함수 + 트리거 (SPLIT 마커로 분리)
-        // Oracle:      CREATE [OR REPLACE] TRIGGER name BEFORE|AFTER event ON table FOR EACH ROW BEGIN...END;
-        // PostgreSQL:  CREATE OR REPLACE FUNCTION func_name() RETURNS TRIGGER + CREATE OR REPLACE TRIGGER
-        Matcher oTrigM = Pattern.compile(
-                "(?si)\\bCREATE\\s+(?:OR\\s+REPLACE\\s+)?TRIGGER\\s+(\\w+)\\s+" +
-                "(BEFORE|AFTER)\\s+(INSERT|UPDATE|DELETE)\\s+" +
-                "ON\\s+(\\w+)\\s+FOR\\s+EACH\\s+ROW\\s+BEGIN(.*?)END\\s*;?\\s*$"
-        ).matcher(sql);
-        if (oTrigM.find()) {
-            String trigName  = oTrigM.group(1);
-            String timing    = oTrigM.group(2).toUpperCase();
-            String event     = oTrigM.group(3).toUpperCase();
-            String tableName = oTrigM.group(4);
-            String body      = oTrigM.group(5).trim();
-            // Oracle 행 참조 :NEW → NEW, :OLD → OLD
-            body = body.replaceAll("(?i):NEW\\.", "NEW.");
-            body = body.replaceAll("(?i):OLD\\.", "OLD.");
-            String funcName  = "func_" + trigName.toLowerCase();
-            sql = "CREATE OR REPLACE FUNCTION " + funcName + "() RETURNS TRIGGER AS $$\n" +
-                  "BEGIN\n    " + body + "\n    RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql" +
-                  "\n---SPLIT---\n" +
-                  "CREATE OR REPLACE TRIGGER " + trigName + "\n" + timing + " " + event + " ON " + tableName + "\n" +
-                  "FOR EACH ROW EXECUTE FUNCTION " + funcName + "()";
+        if (enabledKeys.contains("oracle_dual")) {
+            sql = sql.replaceAll("(?i)\\bFROM\\s+DUAL\\b", "FROM (SELECT 1) AS dual");
         }
+
+        if (enabledKeys.contains("oracle_modify")) {
+            sql = sql.replaceAll(
+                    "(?i)\\bMODIFY\\s*\\(\\s*(\\w+)\\s+RESTART\\s+START\\s+WITH\\s+(\\d+)\\s*\\)",
+                    "ALTER COLUMN $1 RESTART WITH $2");
+            sql = sql.replaceAll(
+                    "(?i)\\bMODIFY\\s*\\(\\s*(\\w+)\\s+RESTART\\s*\\)",
+                    "ALTER COLUMN $1 RESTART");
+            sql = sql.replaceAll(
+                    "(?i)\\bMODIFY\\s*\\(\\s*(\\w+)\\s+NOT\\s+NULL\\s*\\)",
+                    "ALTER COLUMN $1 SET NOT NULL");
+            sql = sql.replaceAll(
+                    "(?i)\\bMODIFY\\s*\\(\\s*(\\w+)\\s+NULL\\s*\\)",
+                    "ALTER COLUMN $1 DROP NOT NULL");
+            // NUMERIC GENERATED → INTEGER GENERATED (IDENTITY 컬럼 타입 보정)
+            sql = sql.replaceAll(
+                    "(?i)\\b(?:NUMERIC|DECIMAL)\\b(\\s+GENERATED\\b)",
+                    "INTEGER$1");
+        }
+
+        if (enabledKeys.contains("oracle_procedure")) {
+            Matcher oProcM = Pattern.compile(
+                    "(?si)\\bCREATE\\s+(?:OR\\s+REPLACE\\s+)?PROCEDURE\\s+(\\w+)\\s*" +
+                    "(\\((?:[^()]|\\([^()]*\\))*\\))\\s*(?:IS|AS)\\s+BEGIN(.*?)END\\s*;?\\s*$"
+            ).matcher(sql);
+            if (oProcM.find()) {
+                String procName = oProcM.group(1);
+                String params   = oProcM.group(2);
+                String body     = oProcM.group(3);
+                params = params.replaceAll("(?i)\\bSYS_REFCURSOR\\b", "REFCURSOR");
+                params = params.replaceAll(
+                        "(?i)\\b(\\w+)\\s+(IN\\s+OUT|IN|OUT)\\s+(\\w+(?:\\s*\\([^)]*\\))?)",
+                        "$2 $1 $3");
+                params = params.replaceAll("(?i)\\bIN\\s+OUT\\b", "INOUT");
+                params = params.replaceAll("(?i)\\bOUT\\s+(\\w+)\\s+REFCURSOR\\b", "INOUT $1 REFCURSOR");
+                sql = "CREATE OR REPLACE PROCEDURE " + procName + params + "\n" +
+                      "LANGUAGE plpgsql\nAS $$\nBEGIN" + body + "END;\n$$";
+            }
+        }
+
+        if (enabledKeys.contains("oracle_trigger")) {
+            Matcher oTrigM = Pattern.compile(
+                    "(?si)\\bCREATE\\s+(?:OR\\s+REPLACE\\s+)?TRIGGER\\s+(\\w+)\\s+" +
+                    "(BEFORE|AFTER)\\s+(INSERT|UPDATE|DELETE)\\s+" +
+                    "ON\\s+(\\w+)\\s+FOR\\s+EACH\\s+ROW\\s+BEGIN(.*?)END\\s*;?\\s*$"
+            ).matcher(sql);
+            if (oTrigM.find()) {
+                String trigName  = oTrigM.group(1);
+                String timing    = oTrigM.group(2).toUpperCase();
+                String event     = oTrigM.group(3).toUpperCase();
+                String tableName = oTrigM.group(4);
+                String body      = oTrigM.group(5).trim();
+                body = body.replaceAll("(?i):NEW\\.", "NEW.");
+                body = body.replaceAll("(?i):OLD\\.", "OLD.");
+                String funcName  = "func_" + trigName.toLowerCase();
+                sql = "CREATE OR REPLACE FUNCTION " + funcName + "() RETURNS TRIGGER AS $$\n" +
+                      "BEGIN\n    " + body + "\n    RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql" +
+                      "\n---SPLIT---\n" +
+                      "CREATE OR REPLACE TRIGGER " + trigName + "\n" + timing + " " + event + " ON " + tableName + "\n" +
+                      "FOR EACH ROW EXECUTE FUNCTION " + funcName + "()";
+            }
+        }
+
         return sql;
     }
 
@@ -584,7 +606,7 @@ public class PracticeService {
         return new ErrorInfo(msg.length() > 0 ? msg.toString() : raw.split("\n")[0], position);
     }
 
-    private SqlResult saveAndReturn(String userEmail, String sql, SqlResult result) {
+    private SqlResult saveAndReturn(String userEmail, String sql, String dialect, SqlResult result) {
         try {
             practiceHistoryRepository.save(PracticeHistory.builder()
                     .userEmail(userEmail != null ? userEmail : "unknown")
@@ -592,6 +614,7 @@ public class PracticeService {
                     .resultType(result.type())
                     .rowCount(result.rowCount())
                     .errorMessage(result.success() ? null : result.message())
+                    .dialect(dialect != null ? dialect : "postgresql")
                     .build());
         } catch (Exception e) {
             log.warn("[Practice] 히스토리 저장 실패: {}", e.getMessage());

@@ -79,6 +79,6 @@ public class Inquiry {
     }
 
     public enum InquiryType {
-        EXAM, CONCEPT_NOTE, DAILY_QUIZ, OTHER
+        EXAM, CONCEPT_NOTE, DAILY_QUIZ, PRACTICE, OTHER
     }
 }

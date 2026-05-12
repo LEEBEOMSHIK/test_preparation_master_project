@@ -1,6 +1,8 @@
 package com.tpmp.testprep.controller;
 
 import com.tpmp.testprep.dto.response.ApiResponse;
+import com.tpmp.testprep.entity.DialectConversionRule;
+import com.tpmp.testprep.repository.DialectConversionRuleRepository;
 import com.tpmp.testprep.service.PracticeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -8,6 +10,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/user/practice")
@@ -15,6 +18,7 @@ import java.util.List;
 public class UserPracticeController {
 
     private final PracticeService practiceService;
+    private final DialectConversionRuleRepository conversionRuleRepository;
 
     /** SQL 실행 — prac_* 테이블만 허용 */
     @PostMapping("/sql/execute")
@@ -50,6 +54,62 @@ public class UserPracticeController {
         return ResponseEntity.ok(ApiResponse.success(tables));
     }
 
+    /** 연습장 운영 규칙 조회 (변환 규칙 활성화 상태 포함) */
+    @GetMapping("/rules")
+    public ResponseEntity<ApiResponse<PracticeRules>> getRules() {
+        List<DialectConversionRule> all = conversionRuleRepository.findAllByOrderByDialectAscDisplayOrderAsc();
+        List<ConversionRuleDto> mysql = all.stream()
+                .filter(r -> "mysql".equals(r.getDialect()))
+                .map(ConversionRuleDto::from).collect(Collectors.toList());
+        List<ConversionRuleDto> oracle = all.stream()
+                .filter(r -> "oracle".equals(r.getDialect()))
+                .map(ConversionRuleDto::from).collect(Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.success(PracticeRules.of(mysql, oracle)));
+    }
+
     public record SqlRequest(String sql, String dialect) {}
     public record TableInfo(String tableName, String description, List<String> columns) {}
+
+    public record TypoPattern(String typo, String correction) {}
+
+    public record ConversionRuleDto(
+            Long id, String dialect, String ruleKey,
+            String userLabel, boolean enabled, boolean complex) {
+
+        public static ConversionRuleDto from(DialectConversionRule r) {
+            return new ConversionRuleDto(r.getId(), r.getDialect(), r.getRuleKey(),
+                    r.getUserLabel(), r.isEnabled(), r.isComplex());
+        }
+    }
+
+    public record PracticeRules(
+            List<String> blockedCommands,
+            String allowedTablePrefix,
+            String multiStatementRule,
+            List<TypoPattern> typoPatterns,
+            List<ConversionRuleDto> mysqlConversionRules,
+            List<ConversionRuleDto> oracleConversionRules) {
+
+        public static PracticeRules of(List<ConversionRuleDto> mysql, List<ConversionRuleDto> oracle) {
+            return new PracticeRules(
+                    List.of("DROP DATABASE", "DROP SCHEMA", "TRUNCATE"),
+                    "prac_",
+                    "하나의 SQL 문만 실행 가능 (멀티 스테이트먼트 불가)",
+                    List.of(
+                            new TypoPattern("CREATE TALBE", "CREATE TABLE"),
+                            new TypoPattern("SLECT / SELCT", "SELECT"),
+                            new TypoPattern("SELECT ... FORM", "FROM"),
+                            new TypoPattern("INSERT INOT / ITNO", "INSERT INTO"),
+                            new TypoPattern("UPDTAE / UPDTE", "UPDATE"),
+                            new TypoPattern("DELETE FORM / DELTE", "DELETE FROM / DELETE"),
+                            new TypoPattern("GRUOP BY / GROP BY", "GROUP BY"),
+                            new TypoPattern("ORDRER BY", "ORDER BY"),
+                            new TypoPattern("WHER (E 누락)", "WHERE"),
+                            new TypoPattern("JION", "JOIN")
+                    ),
+                    mysql,
+                    oracle
+            );
+        }
+    }
 }

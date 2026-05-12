@@ -112,6 +112,13 @@ export default function ExamTakingPage() {
         <button onClick={() => router.back()} className="text-sm text-indigo-600 hover:underline">
           돌아가기
         </button>
+        <p className="text-xs text-gray-400">
+          문제가 지속 발생하면{' '}
+          <a href="/user/inquiries/new" className="text-indigo-500 underline hover:text-indigo-700">
+            1:1 문의
+          </a>
+          로 알려주세요.
+        </p>
       </div>
     );
   }
@@ -169,6 +176,13 @@ export default function ExamTakingPage() {
         >
           {submitting ? '채점 중...' : '결과 확인'}
         </button>
+        <p className="text-xs text-gray-400">
+          진행 중 문제가 발생했나요?{' '}
+          <a href="/user/inquiries/new" className="text-indigo-500 underline hover:text-indigo-700">
+            1:1 문의
+          </a>
+          로 알려주세요.
+        </p>
       </div>
     );
   }

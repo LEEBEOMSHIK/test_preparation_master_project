@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { inquiryService } from '@/services/inquiryService';
+import { domainService } from '@/services/domainService';
 import type { InquiryType } from '@/types';
 import { INQUIRY_TYPE_LABEL } from '@/types';
-
-const INQUIRY_TYPES: InquiryType[] = ['EXAM', 'CONCEPT_NOTE', 'DAILY_QUIZ', 'OTHER'];
 
 interface UploadedImage {
   id: number;
@@ -21,10 +20,31 @@ export default function NewInquiryPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [inquiryType, setInquiryType] = useState<InquiryType>('OTHER');
+  const [inquiryTypes, setInquiryTypes] = useState<InquiryType[]>([]);
+  const [typesLoading, setTypesLoading] = useState(true);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    domainService.getSlavesByCode('INQUIRY_CATEGORY')
+      .then(res => {
+        if (res.data.success && res.data.data) {
+          const loaded = res.data.data
+            .map(s => s.name as InquiryType)
+            .filter(t => t in INQUIRY_TYPE_LABEL);
+          if (loaded.length > 0) {
+            setInquiryTypes(loaded);
+            setInquiryType(loaded[0]);
+          }
+        }
+      })
+      .catch(() => {
+        setInquiryTypes(['EXAM', 'CONCEPT_NOTE', 'DAILY_QUIZ', 'PRACTICE', 'OTHER']);
+      })
+      .finally(() => setTypesLoading(false));
+  }, []);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -96,11 +116,16 @@ export default function NewInquiryPage() {
           <select
             value={inquiryType}
             onChange={(e) => setInquiryType(e.target.value as InquiryType)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            disabled={typesLoading}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 disabled:bg-gray-50"
           >
-            {INQUIRY_TYPES.map((t) => (
-              <option key={t} value={t}>{INQUIRY_TYPE_LABEL[t]}</option>
-            ))}
+            {typesLoading ? (
+              <option>불러오는 중...</option>
+            ) : (
+              inquiryTypes.map((t) => (
+                <option key={t} value={t}>{INQUIRY_TYPE_LABEL[t]}</option>
+              ))
+            )}
           </select>
         </div>
 

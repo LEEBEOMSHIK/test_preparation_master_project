@@ -1,3 +1,67 @@
+## HIST-20260512-002
+
+- **날짜**: 2026-05-12
+- **수정 범위**: 사용자 프론트엔드 / 1:1 문의
+- **수정 개요**: 문의 등록 유형 콤보박스를 DB 도메인 값 기반으로 동적 로딩으로 전환
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/domainService.ts` | 수정 | `getSlavesByCode(code)` 메서드 추가 — `GET /api/domains/slaves?code={code}` 호출 |
+| `frontend/src/app/user/inquiries/new/page.tsx` | 수정 | 하드코딩 `INQUIRY_TYPES` 배열 제거, `useEffect`로 DB에서 동적 로딩; 로딩 중 select 비활성화; 실패 시 기본값 fallback |
+
+### 수정 상세
+
+#### `domainService.ts`
+- 변경 전: `getDomains()` (관리자 전체 조회)만 존재
+- 변경 후: `getSlavesByCode(code: string)` 추가 — `GET /api/domains/slaves?code=` 호출
+
+#### `new/page.tsx`
+- 변경 전: `const INQUIRY_TYPES: InquiryType[] = ['EXAM', 'CONCEPT_NOTE', 'DAILY_QUIZ', 'PRACTICE', 'OTHER']` 하드코딩
+- 변경 후: `useState<InquiryType[]>([])` + `useEffect`로 `domainService.getSlavesByCode('INQUIRY_CATEGORY')` 호출 → `slave.name`을 `InquiryType`으로 사용; API 실패 시 기본 5개 fallback; 로딩 중 `disabled` 처리
+
+### 복원 방법
+
+HIST-20260512-002 복원 시:
+- `domainService.ts` — `getSlavesByCode` 메서드 제거
+- `new/page.tsx` — `inquiryTypes`/`typesLoading` 상태 제거, `useEffect` 제거, `INQUIRY_TYPES` 하드코딩 배열로 복원, `domainService` import 제거
+
+---
+
+## HIST-20260512-001
+
+- **날짜**: 2026-05-12
+- **수정 범위**: 사용자 프론트엔드 / 1:1 문의
+- **수정 개요**: 문의 유형 콤보박스에 '연습장(PRACTICE)' 항목 추가, types/index.ts InquiryType 확장
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `InquiryType`에 `'PRACTICE'` 추가, `INQUIRY_TYPE_LABEL`에 `PRACTICE: '연습장'` 추가 |
+| `frontend/src/app/user/inquiries/new/page.tsx` | 수정 | `INQUIRY_TYPES` 배열에 `'PRACTICE'` 추가 (DAILY_QUIZ 뒤, OTHER 앞) |
+
+### 수정 상세
+
+#### `types/index.ts`
+- 변경 전: `InquiryType = 'EXAM' | 'CONCEPT_NOTE' | 'DAILY_QUIZ' | 'OTHER'`
+- 변경 후: `InquiryType = 'EXAM' | 'CONCEPT_NOTE' | 'DAILY_QUIZ' | 'PRACTICE' | 'OTHER'`
+- `INQUIRY_TYPE_LABEL` 변경 전: `{ EXAM, CONCEPT_NOTE, DAILY_QUIZ, OTHER }` 4개
+- `INQUIRY_TYPE_LABEL` 변경 후: `{ EXAM, CONCEPT_NOTE, DAILY_QUIZ, PRACTICE: '연습장', OTHER }` 5개
+
+#### `app/user/inquiries/new/page.tsx`
+- 변경 전: `const INQUIRY_TYPES: InquiryType[] = ['EXAM', 'CONCEPT_NOTE', 'DAILY_QUIZ', 'OTHER'];`
+- 변경 후: `const INQUIRY_TYPES: InquiryType[] = ['EXAM', 'CONCEPT_NOTE', 'DAILY_QUIZ', 'PRACTICE', 'OTHER'];`
+
+### 복원 방법
+
+HIST-20260512-001 복원 시:
+- `types/index.ts` — `InquiryType`에서 `'PRACTICE'` 제거, `INQUIRY_TYPE_LABEL`에서 `PRACTICE` 항목 제거
+- `new/page.tsx` — `INQUIRY_TYPES` 배열에서 `'PRACTICE'` 제거
+
+---
+
 ## HIST-20260426-002
 
 - **날짜**: 2026-04-26
