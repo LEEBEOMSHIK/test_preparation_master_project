@@ -6,6 +6,7 @@ import com.tpmp.testprep.dto.response.ApiResponse;
 import com.tpmp.testprep.dto.response.LoginResponse;
 import com.tpmp.testprep.dto.response.UserResponse;
 import com.tpmp.testprep.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +31,9 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(
             @Valid @RequestBody LoginRequest request,
-            HttpServletResponse response) {
-        LoginResponse loginResponse = authService.login(request, response);
+            HttpServletResponse response,
+            HttpServletRequest httpRequest) {
+        LoginResponse loginResponse = authService.login(request, response, httpRequest);
         return ResponseEntity.ok(ApiResponse.success(loginResponse));
     }
 

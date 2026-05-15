@@ -13,6 +13,7 @@ import com.tpmp.testprep.repository.UserInterestedExamRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import com.tpmp.testprep.security.jwt.JwtTokenProvider;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +32,7 @@ public class AuthService {
     private final UserInterestedExamRepository userInterestedExamRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final LoginHistoryService loginHistoryService;
 
     @Value("${app.jwt.refresh-token-expiry}")
     private long refreshTokenExpiry;
@@ -49,7 +51,7 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    public LoginResponse login(LoginRequest request, HttpServletResponse response) {
+    public LoginResponse login(LoginRequest request, HttpServletResponse response, HttpServletRequest httpRequest) {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
 
@@ -70,8 +72,20 @@ public class AuthService {
         cookie.setMaxAge((int) (refreshTokenExpiry / 1000));
         response.addCookie(cookie);
 
+        String ip = resolveClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+        loginHistoryService.recordLogin(user.getName(), user.getEmail(), ip, userAgent);
+
         List<UserInterestedExam> interests = userInterestedExamRepository.findByUser(user);
         return new LoginResponse(accessToken, UserResponse.from(user, interests));
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 
     public LoginResponse refresh(String refreshToken) {

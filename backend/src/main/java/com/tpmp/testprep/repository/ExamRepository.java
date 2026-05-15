@@ -13,6 +13,8 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
 
     java.util.Optional<Exam> findByIdAndDelYn(Long id, String delYn);
 
+    long countByDelYn(String delYn);
+
     @Query("SELECT COALESCE(MAX(e.orderNo), 0) + 1 FROM Exam e")
     int nextOrderNo();
 }

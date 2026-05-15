@@ -5,8 +5,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDateTime;
+
 public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
     Page<Inquiry> findByUserId(Long userId, Pageable pageable);
     Page<Inquiry> findByStatus(Inquiry.Status status, Pageable pageable);
     Page<Inquiry> findByUserIdAndStatus(Long userId, Inquiry.Status status, Pageable pageable);
+    long countByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
+    long countByStatus(Inquiry.Status status);
 }

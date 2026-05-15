@@ -11,6 +11,16 @@ import { PermissionDeniedModal } from '@/components/ui/PermissionDeniedModal';
 import type { MenuConfig } from '@/types';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
+  dashboard: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+    </svg>
+  ),
+  loginhistory: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
   exam: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -85,6 +95,7 @@ const DEFAULT_ICON = (
 );
 
 const FALLBACK_NAV: MenuConfig[] = [
+  { id: 0,  parentId: undefined, name: '대시보드',       url: '/admin/dashboard',    iconKey: 'dashboard',  displayOrder: 0,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 1,  parentId: undefined, name: '시험 관리',     url: '/admin/exams',        iconKey: 'exam',       displayOrder: 1,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [
     { id: 11, parentId: 1, name: '문항 관리',   url: '/admin/exams/questions', iconKey: undefined, displayOrder: 1, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
     { id: 12, parentId: 1, name: '시험지 관리', url: '/admin/exams/papers',    iconKey: undefined, displayOrder: 2, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
@@ -99,7 +110,10 @@ const FALLBACK_NAV: MenuConfig[] = [
   ]},
   { id: 7,  parentId: undefined, name: '권한 관리',     url: '/admin/permissions', iconKey: 'permission', displayOrder: 7,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 8,  parentId: undefined, name: '메뉴 관리',     url: '/admin/menus',       iconKey: 'menu',       displayOrder: 8,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
-  { id: 9,  parentId: undefined, name: '계정 관리',       url: '/admin/users',      iconKey: 'users',      displayOrder: 9,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  { id: 9,  parentId: undefined, name: '계정 관리',       url: '/admin/users',      iconKey: 'users',      displayOrder: 9,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [
+    { id: 91, parentId: 9, name: '계정 목록',     url: '/admin/users',          iconKey: undefined, displayOrder: 1, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+    { id: 92, parentId: 9, name: '로그인 히스토리', url: '/admin/login-history', iconKey: undefined, displayOrder: 2, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  ]},
   { id: 10, parentId: undefined, name: '시험 정보 관리', url: '/admin/exam-info',  iconKey: 'examinfo',   displayOrder: 10, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 11,   parentId: undefined, name: '연습장 관리',  url: '/admin/practice', iconKey: 'practice',   displayOrder: 11, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [
     { id: 111, parentId: 11, name: '규칙 관리', url: '/admin/practice/rules',   iconKey: undefined, displayOrder: 1, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
@@ -230,8 +244,9 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
           </p>
           <ul className="space-y-0.5">
             {navItems.map((item) => {
-              const isParentActive = pathname.startsWith(item.url);
               const hasChildren = item.children && item.children.length > 0;
+              const isParentActive = pathname.startsWith(item.url) ||
+                (hasChildren && item.children!.some((c) => pathname.startsWith(c.url)));
               const icon = item.iconKey ? (ICON_MAP[item.iconKey] ?? DEFAULT_ICON) : DEFAULT_ICON;
 
               return (
