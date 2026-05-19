@@ -7,6 +7,7 @@ export interface DashboardStats {
   pendingInquiryCount: number;
   totalExamCount: number;
   totalMemberCount: number;
+  todayExamAttemptCount: number;
 }
 
 export const adminDashboardService = {

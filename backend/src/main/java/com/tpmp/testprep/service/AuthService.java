@@ -51,6 +51,7 @@ public class AuthService {
         userRepository.save(user);
     }
 
+    @Transactional
     public LoginResponse login(LoginRequest request, HttpServletResponse response, HttpServletRequest httpRequest) {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));

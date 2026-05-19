@@ -86,6 +86,11 @@ const ICON_MAP: Record<string, React.ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4m0 0h18" />
     </svg>
   ),
+  examhistory: (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    </svg>
+  ),
 };
 
 const DEFAULT_ICON = (
@@ -99,6 +104,7 @@ const FALLBACK_NAV: MenuConfig[] = [
   { id: 1,  parentId: undefined, name: '시험 관리',     url: '/admin/exams',        iconKey: 'exam',       displayOrder: 1,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [
     { id: 11, parentId: 1, name: '문항 관리',   url: '/admin/exams/questions', iconKey: undefined, displayOrder: 1, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
     { id: 12, parentId: 1, name: '시험지 관리', url: '/admin/exams/papers',    iconKey: undefined, displayOrder: 2, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+    { id: 13, parentId: 1, name: '시험 이력',   url: '/admin/exams/history',   iconKey: undefined, displayOrder: 3, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   ]},
   { id: 2,  parentId: undefined, name: '개념노트 관리', url: '/admin/concepts',    iconKey: 'concept',    displayOrder: 2,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 3,  parentId: undefined, name: '1:1 문의 관리', url: '/admin/inquiries',   iconKey: 'inquiry',    displayOrder: 3,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
@@ -203,14 +209,23 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
       .then((res) => {
         if (res.data.success && res.data.data && res.data.data.length > 0) {
           const apiMenus = res.data.data;
-          // DB에 없는 FALLBACK_NAV 항목을 보완 (예: 테스트 케이스 등 미등록 시스템 메뉴)
-          const coveredUrls = new Set<string>();
-          apiMenus.forEach((m) => {
-            coveredUrls.add(m.url);
-            (m.children ?? []).forEach((c) => coveredUrls.add(c.url));
+          const coveredUrls = new Set<string>(apiMenus.map((m) => m.url));
+
+          // DB 메뉴에 FALLBACK 자식메뉴 보완 (DB에 children이 없고 FALLBACK에 있는 경우)
+          const enriched = apiMenus.map((m) => {
+            const fallback = FALLBACK_NAV.find((f) => f.url === m.url);
+            const hasApiChildren = m.children && m.children.length > 0;
+            const hasFallbackChildren = fallback?.children && fallback.children.length > 0;
+            if (!hasApiChildren && hasFallbackChildren) {
+              return { ...m, children: fallback!.children };
+            }
+            return m;
           });
+
+          // DB에 없는 FALLBACK 항목 추가 후 displayOrder 기준 정렬 (대시보드 최상단 보장)
           const missing = FALLBACK_NAV.filter((m) => !coveredUrls.has(m.url));
-          setNavItems(missing.length > 0 ? [...apiMenus, ...missing] : apiMenus);
+          const merged = [...enriched, ...missing].sort((a, b) => a.displayOrder - b.displayOrder);
+          setNavItems(merged);
         }
       })
       .catch(() => {});

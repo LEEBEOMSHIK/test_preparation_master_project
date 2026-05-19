@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 public class DashboardService {
 
     private final LoginHistoryService loginHistoryService;
+    private final ExamHistoryService examHistoryService;
     private final InquiryRepository inquiryRepository;
     private final ExamRepository examRepository;
     private final UserRepository userRepository;
@@ -31,13 +32,15 @@ public class DashboardService {
         long pendingInquiryCount = inquiryRepository.countByStatus(Inquiry.Status.PENDING);
         long totalExamCount = examRepository.countByDelYn("N");
         long totalMemberCount = userRepository.count();
+        long todayExamAttemptCount = examHistoryService.countTodayExamAttempts();
 
         return new DashboardStatsResponse(
                 todayLoginCount,
                 todayInquiryCount,
                 pendingInquiryCount,
                 totalExamCount,
-                totalMemberCount
+                totalMemberCount,
+                todayExamAttemptCount
         );
     }
 }

@@ -5,5 +5,6 @@ public record DashboardStatsResponse(
         long todayInquiryCount,
         long pendingInquiryCount,
         long totalExamCount,
-        long totalMemberCount
+        long totalMemberCount,
+        long todayExamAttemptCount
 ) {}
