@@ -1,6 +1,6 @@
-# CLAUDE.md — AI Development Guide
+# AGENTS.md — AI Development Guide
 
-이 파일은 Claude Code가 프로젝트를 이해하고 일관되게 기여하기 위한 핵심 가이드입니다.
+이 파일은 AI 코딩 에이전트(Codex 등)가 이 프로젝트를 이해하고 일관되게 기여하기 위한 핵심 가이드입니다.
 
 ---
 
@@ -61,16 +61,19 @@ docker-compose.yml
 
 ---
 
-## Agent Role Division
+## Task Execution Guidelines
 
-분석 → **codebase-explorer** | 설계 → **plan** | 구현 → **webapp-developer**
-→ 상세 워크플로우 및 판단 기준: [`docs/claude-config/agent-roles.md`](docs/claude-config/agent-roles.md)
+작업 규모와 복잡도에 따라 단계를 나눠 진행한다.
 
-**핵심 규칙**
-1. 탐색 범위가 3쿼리 이상이면 codebase-explorer에 위임한다.
-2. 수정 파일 3개↑ · 파일 간 의존관계 있음 · 설계 옵션 2개↑ → plan 사용.
-3. 단순 파일 읽기(경로가 이미 알려진 경우)는 Read·Grep 직접 사용한다.
-4. 작업 결과가 CLAUDE.md에 영향 시 webapp-developer가 즉시 이 파일을 업데이트한다.
+**탐색 먼저, 구현은 나중에**
+1. 관련 파일·패턴·레이어 의존 관계를 먼저 파악한다.
+2. 수정 파일이 3개 이상이거나 파일 간 의존관계가 있으면 구현 전에 수정 계획(파일 목록·순서·인터페이스)을 수립한다.
+3. 설계가 명확한 단순 작업(신규 파일 1개 추가 등)은 바로 구현한다.
+
+**구현 시 준수 사항**
+- TypeScript strict · Tailwind · Controller-Service-Repository 3레이어 컨벤션 준수
+- 수정 완료 후 히스토리 파일 자동 작성 (아래 Modification History Policy 참조)
+- AGENTS.md에 영향을 주는 변경(새 유틸 추가 등) 시 이 파일을 즉시 업데이트한다.
 
 ---
 
