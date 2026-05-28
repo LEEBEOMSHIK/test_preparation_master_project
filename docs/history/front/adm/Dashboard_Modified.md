@@ -1,3 +1,31 @@
+## HIST-20260528-004
+
+- **날짜**: 2026-05-28
+- **수정 범위**: 관리자 프론트엔드 / 대시보드
+- **수정 개요**: 최근 7일 막대 그래프 추이 섹션 추가 (recharts 설치), 통계 카드 로딩 상태 분리
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/adminDashboardService.ts` | 수정 | DayCount·DashboardTrend 인터페이스 추가, getTrend() API 추가 |
+| `frontend/src/app/admin/dashboard/page.tsx` | 수정 | TrendChart 컴포넌트 추가, 최근 7일 추이 섹션(로그인·시험응시·문의) 추가, loadingStats/loadingTrend 분리 |
+| `frontend/package.json` | 수정 | recharts 의존성 추가 |
+
+### 수정 상세
+
+#### `dashboard/page.tsx`
+- 변경 전: 통계 카드 6개(3섹션) + 단일 loading 상태
+- 변경 후: 기존 3섹션 유지 + "최근 7일 추이" 섹션 추가 (violet 도트), loadingStats·loadingTrend 분리
+  - TrendChart: recharts BarChart 사용, 오늘 날짜 막대는 진한 색·이전 날짜는 60% 투명도로 강조
+  - 로딩 중: 막대형 Skeleton 7개
+
+### 복원 방법
+
+이 ID(HIST-20260528-004)만으로 복원 시 adminDashboardService.ts에서 trend 관련 코드 제거, page.tsx를 HIST-20260516-004 기준으로 되돌리고 recharts 제거.
+
+---
+
 ## HIST-20260516-004
 
 - **날짜**: 2026-05-16

@@ -75,7 +75,9 @@ public class AuthService {
 
         String ip = resolveClientIp(httpRequest);
         String userAgent = httpRequest.getHeader("User-Agent");
-        loginHistoryService.recordLogin(user.getName(), user.getEmail(), ip, userAgent);
+        if (user.getRole() == User.Role.USER) {
+            loginHistoryService.recordLogin(user.getName(), user.getEmail(), ip, userAgent);
+        }
 
         List<UserInterestedExam> interests = userInterestedExamRepository.findByUser(user);
         return new LoginResponse(accessToken, UserResponse.from(user, interests));

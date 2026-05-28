@@ -1,3 +1,33 @@
+## HIST-20260528-007
+
+- **날짜**: 2026-05-28
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리
+- **수정 개요**: 문항 등록·수정 화면에 AI 키워드 추출 버튼 및 결과 패널 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/questionAnalysisService.ts` | 추가 | AI 분석 API 서비스 (QuestionAnalysis 타입 포함) |
+| `frontend/src/components/ui/QuestionAnalysisPanel.tsx` | 추가 | "키워드 추출" 버튼 + 결과 패널 공통 컴포넌트 |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | ManualQuestionCard 내 에디터 하단에 QuestionAnalysisPanel 추가 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | 에디터 하단에 QuestionAnalysisPanel 추가 |
+| `CLAUDE.md` / `AGENTS.md` | 수정 | Shared Utilities 표에 QuestionAnalysisPanel 추가 |
+
+### 수정 상세
+
+#### `QuestionAnalysisPanel.tsx`
+- 버튼: 문항 내용 10자 이상일 때 활성화, 분석 중 스피너 표시
+- 결과 패널: 핵심 키워드(violet 태그) / 도메인(indigo 태그) / 난이도(색상 뱃지) / 요약 텍스트
+- 에러 처리: API 키 미설정 또는 분석 실패 시 오류 메시지 표시
+- 상태: 컴포넌트 로컬 상태 (`analyzing`, `result`, `error`) — 부모 상태 영향 없음
+
+### 복원 방법
+
+`QuestionAnalysisPanel` import 제거 및 컴포넌트 태그 제거, `questionAnalysisService.ts` 및 `QuestionAnalysisPanel.tsx` 삭제.
+
+---
+
 ## HIST-20260505-014
 
 - **날짜**: 2026-05-05

@@ -75,6 +75,20 @@ docker-compose.yml
 - 수정 완료 후 히스토리 파일 자동 작성 (아래 Modification History Policy 참조)
 - AGENTS.md에 영향을 주는 변경(새 유틸 추가 등) 시 이 파일을 즉시 업데이트한다.
 
+**검증 단계 — webapp-verifier (신규 기능·보안 변경·리팩토링 후 필수)**
+
+구현 완료 후 독립적인 검증을 수행한다. 검증은 코드를 수정하지 않으며, 문제 발견 시 항목과 위치를 보고한 뒤 구현 단계로 되돌린다.
+
+| 검증 항목 | 확인 방법 |
+|----------|----------|
+| TypeScript strict 오류 | import 경로·타입 선언·`any` 사용 여부 |
+| Java 타입 안전성 | 제네릭 누락·raw type 여부 |
+| 스켈레톤 UI 누락 | 데이터 페칭 화면에 Skeleton 컴포넌트 적용 여부 |
+| 공통 유틸 미사용 | `dangerouslySetInnerHTML` 직접 사용, 인라인 replace 여부 |
+| 히스토리 파일 | `docs/history/` 내 해당 HIST ID 존재 여부 |
+| API 3레이어 완결 | Controller·Service·Repository 모두 작성 여부 |
+| 보안 정책 준수 | 파일 업로드 확장자 검증·UUID 변환 여부 |
+
 ---
 
 ## AI Task Guidelines
@@ -118,6 +132,7 @@ docker-compose.yml
 | `<QuestionDetailModal question onClose />` | `src/components/ui/QuestionDetailModal.tsx` | 문항 상세 모달 |
 | `<PermissionDeniedModal />` | `src/components/ui/PermissionDeniedModal.tsx` | 권한 없음 팝업 |
 | `<TableSkeleton />` 외 | `src/components/ui/Skeleton.tsx` | 스켈레톤 UI 모음 |
+| `<QuestionAnalysisPanel content />` | `src/components/ui/QuestionAnalysisPanel.tsx` | 문항 AI 키워드·도메인 추출 패널 |
 
 새 유틸 함수는 `src/lib/`에, 새 UI 컴포넌트는 `src/components/ui/`에 추가하고 위 표를 즉시 갱신한다.
 

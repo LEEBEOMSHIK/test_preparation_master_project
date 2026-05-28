@@ -1,3 +1,51 @@
+## HIST-20260528-008
+
+- **날짜**: 2026-05-28
+- **수정 범위**: 관리자 백엔드·프론트엔드 / 문항 관리
+- **수정 개요**: UI 미리보기 기능 + 문제 재구성(키워드 기반 새 문제 생성) 기능 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../dto/request/QuestionRegenerateRequest.java` | 추가 | 재구성 요청 DTO (keywords, domains, difficulty, originalContent) |
+| `backend/.../dto/response/QuestionRegenerateResponse.java` | 추가 | 재구성 응답 DTO (content: HTML) |
+| `backend/.../service/QuestionAnalysisService.java` | 수정 | callAnthropicText() 공통 헬퍼 추출, regenerate() 메서드 추가 |
+| `backend/.../controller/AdminQuestionController.java` | 수정 | POST /admin/questions/regenerate 엔드포인트 추가 |
+| `frontend/src/services/questionAnalysisService.ts` | 수정 | RegenerateRequest·QuestionRegenerate 타입 + regenerate() API 추가 |
+| `frontend/src/components/ui/QuestionAnalysisPanel.tsx` | 수정 | UI 미리보기 버튼(MOCK_RESULT), 문제 재구성 버튼, 재구성 결과 패널 추가 |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | onApplyContent 콜백 연결 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | onApplyContent 콜백 연결 |
+
+### 복원 방법
+
+regenerate 엔드포인트·서비스 메서드·DTO 제거, QuestionAnalysisPanel을 이전 버전으로 롤백.
+
+---
+
+## HIST-20260528-006
+
+- **날짜**: 2026-05-28
+- **수정 범위**: 관리자 백엔드 / 문항 관리
+- **수정 개요**: 문항 내용 AI 키워드·도메인 추출 API 추가 (Claude Haiku 연동)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../exception/ErrorCode.java` | 수정 | AI_SERVICE_UNAVAILABLE, AI_ANALYSIS_FAILED 에러 코드 추가 |
+| `backend/src/main/resources/application.yml` | 수정 | app.anthropic.api-key, app.anthropic.model 설정 추가 |
+| `backend/.../dto/request/QuestionAnalysisRequest.java` | 추가 | AI 분석 요청 DTO |
+| `backend/.../dto/response/QuestionAnalysisResponse.java` | 추가 | AI 분석 응답 DTO (keywords, domains, difficulty, summary) |
+| `backend/.../service/QuestionAnalysisService.java` | 추가 | Anthropic API 호출 서비스 (RestClient, HTML 스트리핑, JSON 파싱) |
+| `backend/.../controller/AdminQuestionController.java` | 수정 | POST /api/admin/questions/analyze 엔드포인트 추가 |
+
+### 복원 방법
+
+`AdminQuestionController`에서 analyze 엔드포인트 제거, `QuestionAnalysisService` 삭제, DTO 2개 삭제, `ErrorCode` AI 코드 2개 제거, `application.yml` anthropic 설정 제거.
+
+---
+
 ## HIST-20260505-002
 
 - **날짜**: 2026-05-05

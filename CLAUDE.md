@@ -63,7 +63,7 @@ docker-compose.yml
 
 ## Agent Role Division
 
-분석 → **codebase-explorer** | 설계 → **plan** | 구현 → **webapp-developer**
+분석 → **codebase-explorer** | 설계 → **plan** | 구현 → **webapp-developer** | 검증 → **webapp-verifier**
 → 상세 워크플로우 및 판단 기준: [`docs/claude-config/agent-roles.md`](docs/claude-config/agent-roles.md)
 
 **핵심 규칙**
@@ -71,6 +71,7 @@ docker-compose.yml
 2. 수정 파일 3개↑ · 파일 간 의존관계 있음 · 설계 옵션 2개↑ → plan 사용.
 3. 단순 파일 읽기(경로가 이미 알려진 경우)는 Read·Grep 직접 사용한다.
 4. 작업 결과가 CLAUDE.md에 영향 시 webapp-developer가 즉시 이 파일을 업데이트한다.
+5. 신규 기능 구현·보안 변경·리팩토링 완료 후 webapp-verifier가 컨벤션 준수·타입 안전성·히스토리 작성 여부를 검증한다.
 
 ---
 
@@ -115,6 +116,7 @@ docker-compose.yml
 | `<QuestionDetailModal question onClose />` | `src/components/ui/QuestionDetailModal.tsx` | 문항 상세 모달 |
 | `<PermissionDeniedModal />` | `src/components/ui/PermissionDeniedModal.tsx` | 권한 없음 팝업 |
 | `<TableSkeleton />` 외 | `src/components/ui/Skeleton.tsx` | 스켈레톤 UI 모음 |
+| `<QuestionAnalysisPanel content />` | `src/components/ui/QuestionAnalysisPanel.tsx` | 문항 AI 키워드·도메인 추출 패널 |
 
 새 유틸 함수는 `src/lib/`에, 새 UI 컴포넌트는 `src/components/ui/`에 추가하고 위 표를 즉시 갱신한다.
 

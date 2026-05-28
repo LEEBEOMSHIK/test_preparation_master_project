@@ -8,6 +8,7 @@ import { domainService } from '@/services/domainService';
 import type { QuestionType, DomainSlave, DomainMaster } from '@/types';
 import { CodeEditor } from '@/components/ui/CodeEditor';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { QuestionAnalysisPanel } from '@/components/ui/QuestionAnalysisPanel';
 import { stripHtml } from '@/lib/html';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -324,6 +325,10 @@ function ManualQuestionCard({
             onChange={(html) => onChange('content', html)}
             placeholder={isCode ? '예: 아래 코드의 실행 결과를 작성하시오.' : '문항 내용을 입력하세요.'}
             minHeight={isCode ? 100 : 150}
+          />
+          <QuestionAnalysisPanel
+            content={draft.content}
+            onApplyContent={(html) => onChange('content', html)}
           />
         </div>
 

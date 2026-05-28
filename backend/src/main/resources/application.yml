@@ -77,3 +77,6 @@ app:
     path: ${UPLOAD_PATH:./uploads}
   oauth2:
     frontend-redirect-uri: ${OAUTH2_FRONTEND_REDIRECT_URI:http://localhost:3000/auth/oauth/callback}
+  anthropic:
+    api-key: ${ANTHROPIC_API_KEY:}
+    model: claude-haiku-4-5-20251001

@@ -56,6 +56,39 @@ codebase-explorer 결과를 바탕으로 구현 전략을 수립한다. 코드�
 
 ---
 
+## webapp-verifier — 검증 전담
+
+구현 완료 후 코드 품질·컨벤션 준수·누락 항목을 독립적으로 점검한다.
+에이전트 정의: `.claude/agents/webapp-verifier.md`
+
+**검증 대상 및 체크리스트**
+
+| 검증 항목 | 확인 방법 |
+|----------|----------|
+| TypeScript strict 오류 | import 경로·타입 선언·`any` 사용 여부 확인 |
+| Java 타입 안전성 | 제네릭 누락·raw type 사용 여부 확인 |
+| 스켈레톤 UI 누락 | 데이터 페칭 화면에 `TableSkeleton`/`CardListSkeleton` 적용 여부 |
+| 공통 유틸 미사용 | `dangerouslySetInnerHTML` 직접 사용, 인라인 `replace` 여부 |
+| 히스토리 파일 | `docs/history/` 내 해당 HIST ID 파일 존재 여부 |
+| API 3레이어 완결 | Controller·Service·Repository 모두 작성됐는지 |
+| 보안 정책 준수 | 파일 업로드 시 확장자 검증·UUID 변환 여부 |
+| CLAUDE.md 동기화 | 새 유틸·스켈레톤 추가 시 표 갱신 여부 |
+
+**검증 실행 조건**
+
+| 상황 | 검증 필요 |
+|------|---------|
+| 신규 기능 구현 (파일 3개↑) | 필수 |
+| 보안 관련 변경 (인증·인가·파일업로드) | 필수 |
+| 공통 유틸·컴포넌트 추가 | 필수 |
+| 단순 텍스트·스타일 수정 | 생략 가능 |
+| 히스토리 파일만 작성 | 생략 가능 |
+
+- webapp-verifier는 코드를 수정하지 않는다. 문제 발견 시 항목과 위치를 보고하고 webapp-developer에 재전달한다.
+- 검증 결과 이상 없으면 "검증 완료" 한 줄로 종료한다.
+
+---
+
 ## 표준 워크플로우
 
 ```
@@ -73,11 +106,15 @@ codebase-explorer 결과를 바탕으로 구현 전략을 수립한다. 코드�
     │       ▼
     │   [4] webapp-developer — 코드 구현
     │       ▼
-    │   [5] webapp-developer — 정리·검증·히스토리 작성
+    │   [5] webapp-developer — 정리·히스토리 작성
+    │       ▼
+    │   [6] claude — 검증 (컨벤션·타입·누락 항목 점검)
     │
     └─ [plan 생략]
             ▼
         [3] webapp-developer — 구현 직행
             ▼
-        [4] webapp-developer — 정리·검증·히스토리 작성
+        [4] webapp-developer — 정리·히스토리 작성
+            ▼
+        [5] claude — 검증 (신규 기능·보안 변경 시)
 ```

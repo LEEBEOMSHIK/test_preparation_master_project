@@ -2,8 +2,23 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { adminDashboardService, type DashboardStats } from '@/services/adminDashboardService';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+} from 'recharts';
+import {
+  adminDashboardService,
+  type DashboardStats,
+  type DashboardTrend,
+  type DayCount,
+} from '@/services/adminDashboardService';
 import { Skeleton } from '@/components/ui/Skeleton';
+
+type Period = 7 | 30 | 90;
+const PERIODS: { label: string; value: Period }[] = [
+  { label: '7일', value: 7 },
+  { label: '30일', value: 30 },
+  { label: '3개월', value: 90 },
+];
 
 interface StatCardProps {
   title: string;
@@ -19,6 +34,14 @@ interface SectionProps {
   title: string;
   dot: string;
   children: React.ReactNode;
+}
+
+interface TrendChartProps {
+  title: string;
+  data: DayCount[];
+  barColor: string;
+  loading: boolean;
+  period: Period;
 }
 
 function StatCard({ title, value, description, href, icon, color, loading }: StatCardProps) {
@@ -70,16 +93,81 @@ function Section({ title, dot, children }: SectionProps) {
   );
 }
 
+function TrendChart({ title, data, barColor, loading, period }: TrendChartProps) {
+  const maxVal = Math.max(...data.map((d) => d.count), 1);
+  // 막대가 많으면 일부 레이블만 표시
+  const tickInterval = period === 7 ? 0 : period === 30 ? 4 : 13;
+
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">
+        {title}
+      </p>
+      {loading ? (
+        <div className="flex items-end gap-1 h-24">
+          {Array.from({ length: Math.min(period, 15) }).map((_, i) => (
+            <Skeleton key={i} className="flex-1 rounded-sm" style={{ height: `${30 + (i % 4) * 18}%` }} />
+          ))}
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={96}>
+          <BarChart data={data} barCategoryGap={period > 30 ? '10%' : '30%'}>
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 10, fill: '#9ca3af' }}
+              axisLine={false}
+              tickLine={false}
+              interval={tickInterval}
+            />
+            <YAxis hide domain={[0, maxVal + 1]} />
+            <Tooltip
+              cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+              contentStyle={{
+                fontSize: 12,
+                borderRadius: 8,
+                border: '1px solid #e5e7eb',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+              }}
+              formatter={(v: number) => [v.toLocaleString(), '건수']}
+            />
+            <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+              {data.map((_, index) => (
+                <Cell
+                  key={index}
+                  fill={index === data.length - 1 ? barColor : `${barColor}55`}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  );
+}
+
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [trend, setTrend] = useState<DashboardTrend | null>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingTrend, setLoadingTrend] = useState(true);
+  const [period, setPeriod] = useState<Period>(7);
 
   useEffect(() => {
     adminDashboardService.getStats()
       .then((res) => { if (res.data.success) setStats(res.data.data!); })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingStats(false));
   }, []);
+
+  useEffect(() => {
+    setLoadingTrend(true);
+    adminDashboardService.getTrend(period)
+      .then((res) => { if (res.data.success) setTrend(res.data.data!); })
+      .catch(() => {})
+      .finally(() => setLoadingTrend(false));
+  }, [period]);
+
+  const empty: DayCount[] = Array.from({ length: period }, () => ({ date: '', count: 0 }));
 
   return (
     <div className="space-y-6">
@@ -98,7 +186,7 @@ export default function AdminDashboardPage() {
             description="오늘 로그인한 사용자 수"
             href="/admin/login-history"
             color="bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400"
-            loading={loading}
+            loading={loadingStats}
             icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
@@ -111,7 +199,7 @@ export default function AdminDashboardPage() {
             description="등록된 전체 회원 수"
             href="/admin/users"
             color="bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
-            loading={loading}
+            loading={loadingStats}
             icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -128,7 +216,7 @@ export default function AdminDashboardPage() {
             description="등록된 시험 수"
             href="/admin/exams"
             color="bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
-            loading={loading}
+            loading={loadingStats}
             icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -141,7 +229,7 @@ export default function AdminDashboardPage() {
             description="오늘 시험을 응시한 횟수"
             href="/admin/exams/history"
             color="bg-teal-50 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400"
-            loading={loading}
+            loading={loadingStats}
             icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -158,7 +246,7 @@ export default function AdminDashboardPage() {
             description="오늘 접수된 1:1 문의 건수"
             href="/admin/inquiries"
             color="bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"
-            loading={loading}
+            loading={loadingStats}
             icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -171,7 +259,7 @@ export default function AdminDashboardPage() {
             description="미처리(대기) 문의 건수"
             href="/admin/inquiries"
             color="bg-rose-50 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400"
-            loading={loading}
+            loading={loadingStats}
             icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -179,6 +267,55 @@ export default function AdminDashboardPage() {
             }
           />
         </Section>
+
+        {/* 최근 추이 */}
+        <div>
+          {/* 섹션 헤더 + 기간 탭 */}
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-violet-500" />
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">추이</h3>
+            <div className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+              {PERIODS.map(({ label, value }) => (
+                <button
+                  key={value}
+                  onClick={() => setPeriod(value)}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                    period === value
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <TrendChart
+              title="로그인"
+              data={trend?.loginTrend ?? empty}
+              barColor="#6366f1"
+              loading={loadingTrend}
+              period={period}
+            />
+            <TrendChart
+              title="시험 응시"
+              data={trend?.examTrend ?? empty}
+              barColor="#10b981"
+              loading={loadingTrend}
+              period={period}
+            />
+            <TrendChart
+              title="문의 접수"
+              data={trend?.inquiryTrend ?? empty}
+              barColor="#f59e0b"
+              loading={loadingTrend}
+              period={period}
+            />
+          </div>
+        </div>
 
       </div>
     </div>

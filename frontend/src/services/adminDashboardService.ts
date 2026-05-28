@@ -10,7 +10,20 @@ export interface DashboardStats {
   todayExamAttemptCount: number;
 }
 
+export interface DayCount {
+  date: string;
+  count: number;
+}
+
+export interface DashboardTrend {
+  loginTrend: DayCount[];
+  examTrend: DayCount[];
+  inquiryTrend: DayCount[];
+}
+
 export const adminDashboardService = {
   getStats: () =>
     apiClient.get<ApiResponse<DashboardStats>>('/admin/dashboard/stats'),
+  getTrend: (days: 7 | 30 | 90 = 7) =>
+    apiClient.get<ApiResponse<DashboardTrend>>('/admin/dashboard/trend', { params: { days } }),
 };

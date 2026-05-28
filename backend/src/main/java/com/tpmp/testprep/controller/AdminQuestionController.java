@@ -1,9 +1,14 @@
 package com.tpmp.testprep.controller;
 
+import com.tpmp.testprep.dto.request.QuestionAnalysisRequest;
 import com.tpmp.testprep.dto.request.QuestionBankBulkRequest;
 import com.tpmp.testprep.dto.request.QuestionBankRequest;
+import com.tpmp.testprep.dto.request.QuestionRegenerateRequest;
 import com.tpmp.testprep.dto.response.ApiResponse;
+import com.tpmp.testprep.dto.response.QuestionAnalysisResponse;
 import com.tpmp.testprep.dto.response.QuestionBankResponse;
+import com.tpmp.testprep.dto.response.QuestionRegenerateResponse;
+import com.tpmp.testprep.service.QuestionAnalysisService;
 import com.tpmp.testprep.service.QuestionBankService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +31,7 @@ import java.util.Map;
 public class AdminQuestionController {
 
     private final QuestionBankService questionBankService;
+    private final QuestionAnalysisService questionAnalysisService;
 
     /** 문항 목록 조회 (페이징) */
     @GetMapping
@@ -73,6 +79,20 @@ public class AdminQuestionController {
             @RequestPart("image") MultipartFile image) {
         String url = questionBankService.uploadImage(image);
         return ResponseEntity.ok(ApiResponse.success(Map.of("url", url)));
+    }
+
+    /** 문항 AI 키워드·도메인 분석 */
+    @PostMapping("/analyze")
+    public ResponseEntity<ApiResponse<QuestionAnalysisResponse>> analyze(
+            @Valid @RequestBody QuestionAnalysisRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(questionAnalysisService.analyze(request.content())));
+    }
+
+    /** 문항 AI 재구성 (키워드 기반 새 문제 생성) */
+    @PostMapping("/regenerate")
+    public ResponseEntity<ApiResponse<QuestionRegenerateResponse>> regenerate(
+            @RequestBody QuestionRegenerateRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(questionAnalysisService.regenerate(request)));
     }
 
     /** 문항 삭제 (소프트 삭제) */
