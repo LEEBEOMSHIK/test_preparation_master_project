@@ -18,6 +18,18 @@ const DIFFICULTY_STYLE: Record<string, string> = {
   '상': 'text-rose-700 bg-rose-100 border-rose-300 dark:text-rose-300 dark:bg-rose-900/50 dark:border-rose-700',
 };
 
+const MOCK_REGENERATED = `def g(a):
+    m = [[x] for x in a]
+    b = [row[:] for row in m]
+    for i in range(len(b) - 1):
+        b[i+1] += b[i]
+    return sum(len(x) for x in m)
+
+print(g([1, 2, 3, 4]))
+
+# 위 코드의 실행 결과를 고르시오.
+# ① 4  ② 6  ③ 10  ④ 4`;
+
 const MOCK_RESULT: QuestionAnalysis = {
   keywords:   ['얕은 복사', '리스트 참조', 'in-place 연산', '중첩 리스트', '+=', '슬라이싱'],
   domains:    ['Python', '자료구조', '알고리즘'],
@@ -72,7 +84,11 @@ export function QuestionAnalysisPanel({ content, onApplyContent }: Props) {
       if (res.data.success && res.data.data) setRegenerated(res.data.data.content);
       else setRegenError('재구성 결과를 받아오지 못했습니다.');
     } catch (err) {
-      setRegenError(isUnavailable(err) ? '__unavailable__' : '문제 재구성 중 오류가 발생했습니다.');
+      if (isUnavailable(err)) {
+        setRegenerated(MOCK_REGENERATED);
+      } else {
+        setRegenError('문제 재구성 중 오류가 발생했습니다.');
+      }
     } finally {
       setRegenerating(false);
     }
