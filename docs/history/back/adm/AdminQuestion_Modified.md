@@ -1,3 +1,85 @@
+## HIST-20260529-002
+
+- **날짜**: 2026-05-29
+- **수정 범위**: 관리자 백엔드 / 문항 관리 — 기출 데이터 등록
+- **수정 개요**: chobopark.tistory.com/495(2024년 3회 정보처리기사 실기 복원 문제) 1~20번을 `POST /api/admin/questions`로 일괄 등록
+
+### 등록 데이터 요약
+
+- **출처**: https://chobopark.tistory.com/495
+- **공통 필드**: examType=정보처리기사 실기(slaveId 7), examYear=2024, examRound=3
+- **등록 건수**: 20건 (question_bank id 81~100)
+- **분류**: CODE 10건(1·2·7·10·11·12·16·18·19번 + …), SHORT_ANSWER 10건
+- **이미지 표/그림 반영**: 3번 employee/project 테이블, 8번 무결성 위반 테이블(StudentID PK)은 HTML `<table>`로, 9번 URL 구조·14번 UML 관계도는 본문 텍스트로 재구성
+- **카테고리 매핑 (QUESTION_TYPE 슬레이브)**
+
+| 번호 | 주제 | questionType | categoryId(이름) |
+|------|------|--------------|------------------|
+| 1·2 | Java/Python 코드 | CODE | 3(프로그래밍 언어) |
+| 3 | SQL 서브쿼리 | SHORT_ANSWER | 2(SQL) |
+| 4 | LRU 페이지 부재 | SHORT_ANSWER | 1(운영체제) |
+| 5 | 스머프 공격 | SHORT_ANSWER | 5(정보보안) |
+| 6 | GoF 행위 패턴 | SHORT_ANSWER | 30(소프트웨어공학) |
+| 7 | C언어 static | CODE | 3(프로그래밍 언어) |
+| 8 | 개체 무결성 위반 | SHORT_ANSWER | 31(관계형 DB 이론) |
+| 9 | URL 구조 | SHORT_ANSWER | 33(웹 기술) |
+| 10·11·12 | Python/Java/C 코드 | CODE | 3(프로그래밍 언어) |
+| 13 | 테스트 커버리지 | SHORT_ANSWER | 30(소프트웨어공학) |
+| 14 | UML 클래스 관계 | SHORT_ANSWER | 30(소프트웨어공학) |
+| 15 | DB 키 종류 | SHORT_ANSWER | 31(관계형 DB 이론) |
+| 16 | C언어 이중 포인터 | CODE | 3(프로그래밍 언어) |
+| 17 | VPN | SHORT_ANSWER | 5(정보보안) |
+| 18·19 | Java 코드 | CODE | 3(프로그래밍 언어) |
+| 20 | Ad-hoc Network | SHORT_ANSWER | 4(네트워크) |
+
+> 비고: 9번 URL 구조는 웹 기술(slaveId 33)로 분류함. 원문 이미지의 표 2종(3·8번)을 HTML `<table>`로 보강 등록함.
+
+### 복원 방법
+
+`DELETE /api/admin/questions/{id}` (id 81~100) 또는 `DELETE FROM question_bank WHERE exam_year=2024 AND exam_round=3` (소프트 삭제는 del_yn='Y').
+
+---
+
+## HIST-20260529-001
+
+- **날짜**: 2026-05-29
+- **수정 범위**: 관리자 백엔드 / 문항 관리 — 기출 데이터 등록
+- **수정 개요**: chobopark.tistory.com/540(2025년 1회 정보처리기사 실기 복원 문제) 1~20번을 `POST /api/admin/questions`로 일괄 등록
+
+### 등록 데이터 요약
+
+- **출처**: https://chobopark.tistory.com/540
+- **공통 필드**: examType=정보처리기사 실기(slaveId 7), examYear=2025, examRound=1
+- **등록 건수**: 20건 (question_bank id 61~80)
+- **분류**: CODE 9건(5·10·11·13·16·17·18·19·20번), SHORT_ANSWER 11건
+- **카테고리 매핑 (QUESTION_TYPE 슬레이브)**
+
+| 번호 | 주제 | questionType | categoryId(이름) |
+|------|------|--------------|------------------|
+| 1 | 세션 하이재킹 | SHORT_ANSWER | 5(정보보안) |
+| 2 | 무결성 제약조건 | SHORT_ANSWER | 31(관계형 DB 이론) |
+| 3 | CRC 오류 검출 | SHORT_ANSWER | 4(네트워크) |
+| 4 | 악성코드(스캐어웨어) | SHORT_ANSWER | 5(정보보안) |
+| 5 | Java 예외 처리 | CODE | 3(프로그래밍 언어) |
+| 6 | ARP/RARP | SHORT_ANSWER | 4(네트워크) |
+| 7 | SQL 조인 | SHORT_ANSWER | 2(SQL) |
+| 8 | 관계형 DB 용어 | SHORT_ANSWER | 31(관계형 DB 이론) |
+| 9 | 서브넷 브로드캐스트 | SHORT_ANSWER | 4(네트워크) |
+| 10·11 | C언어 배열/포인터 | CODE | 3(프로그래밍 언어) |
+| 12 | 결합도 | SHORT_ANSWER | 30(소프트웨어공학) |
+| 13 | Java 상속/static | CODE | 3(프로그래밍 언어) |
+| 14 | 디자인 패턴(Adapter) | SHORT_ANSWER | 30(소프트웨어공학) |
+| 15 | 문장 커버리지 | SHORT_ANSWER | 30(소프트웨어공학) |
+| 16~20 | Java/Python/C 코드 | CODE | 3(프로그래밍 언어) |
+
+> 비고: 원문 이미지에 있던 표를 모두 HTML `<table>`로 보강 등록함(PUT 갱신) — 2번 무결성 제약조건 비교표(id 62), 7번 emp/sal 테이블(id 67), 14번 GoF 디자인 패턴 분류표(id 74).
+
+### 복원 방법
+
+`DELETE /api/admin/questions/{id}` (id 61~80) 또는 `DELETE FROM question_bank WHERE exam_year=2025 AND exam_round=1` (소프트 삭제는 del_yn='Y').
+
+---
+
 ## HIST-20260528-009
 
 - **날짜**: 2026-05-28

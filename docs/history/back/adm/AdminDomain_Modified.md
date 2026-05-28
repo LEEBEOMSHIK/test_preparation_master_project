@@ -1,3 +1,23 @@
+## HIST-20260529-001
+
+- **날짜**: 2026-05-29
+- **수정 범위**: 관리자 백엔드 / 도메인 데이터 정리 (코드 변경 없음)
+- **수정 개요**: QUESTION_TYPE(masterId=1) 하위에 중복 존재하던 "웹 기술" 슬레이브(id 32, 33) 중 미사용 슬레이브 32를 삭제하여 중복 제거
+
+### 작업 내용
+
+- **현상**: "웹 기술" 슬레이브가 id 32·33 두 건으로 중복, 둘 다 displayOrder=8
+- **참조 현황**: id 32 참조 문항 0건(미사용), id 33 참조 문항 1건(question_bank id 89, 2024년 3회 9번 URL 구조)
+- **조치**: `DELETE /api/admin/domains/masters/1/slaves/32` 호출로 미사용 슬레이브 32 삭제 → "웹 기술"은 id 33만 유지
+- **안전성**: `DomainService.deleteSlave`의 `isSlaveInUse`(question_bank category/examType + examination category) 검사 통과(32 미사용). 33은 문항 참조로 보존
+- **재생성 여부**: `DataInitializer.ensureDomainMasterWithCode`는 QUESTION_TYPE 코드가 이미 존재하면 전체 스킵하므로 재시작 시 32가 재생성되지 않음
+
+### 복원 방법
+
+`POST /api/admin/domains/masters/1/slaves` `{"name":"웹 기술","displayOrder":8}` 호출로 재생성(새 id 발급).
+
+---
+
 ## HIST-20260505-007
 
 - **날짜**: 2026-05-05
