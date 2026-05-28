@@ -1,3 +1,29 @@
+## HIST-20260528-009
+
+- **날짜**: 2026-05-28
+- **수정 범위**: 관리자 백엔드·프론트엔드 / 문항 관리 — AI 태그 시스템
+- **수정 개요**: keyword_tag 테이블 및 태그 저장·조회 API 추가, AI 패널에 태그 저장·콤보박스·태그 기반 문제 생성 통합
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../entity/KeywordTag.java` | 추가 | keyword_tag 엔티티 (KEYWORD/DOMAIN, use_count, uq 제약) |
+| `backend/.../repository/KeywordTagRepository.java` | 추가 | 이름+타입 단건 조회, 타입별 use_count 내림차순 목록 |
+| `backend/.../dto/request/KeywordTagBulkRequest.java` | 추가 | 태그 일괄 저장 요청 DTO |
+| `backend/.../dto/response/KeywordTagResponse.java` | 추가 | 태그 응답 DTO |
+| `backend/.../service/KeywordTagService.java` | 추가 | saveBulk (upsert + use_count 증가), search |
+| `backend/.../controller/AdminKeywordTagController.java` | 추가 | POST /bulk, GET /?type&q 엔드포인트 |
+| `backend/.../service/QuestionAnalysisService.java` | 수정 | originalContent 없이도 regenerate 가능하도록 프롬프트 분기 |
+| `frontend/src/services/keywordTagService.ts` | 추가 | saveBulk, search API |
+| `frontend/src/components/ui/QuestionAnalysisPanel.tsx` | 수정 | 태그 저장 버튼, TagMultiSelect 컴포넌트, 저장된 태그로 문제 생성 섹션 추가 |
+
+### 복원 방법
+
+KeywordTag 관련 백엔드 파일 삭제, QuestionAnalysisPanel에서 태그 관련 섹션 제거, keywordTagService.ts 삭제.
+
+---
+
 ## HIST-20260528-008
 
 - **날짜**: 2026-05-28

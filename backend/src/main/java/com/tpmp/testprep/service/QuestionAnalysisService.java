@@ -118,25 +118,31 @@ public class QuestionAnalysisService {
     }
 
     private String buildRegeneratePrompt(QuestionRegenerateRequest req) {
+        boolean hasOriginal = req.originalContent() != null && !req.originalContent().isBlank();
+        String originalSection = hasOriginal
+                ? "\n참고할 원본 문제:\n" + stripHtml(req.originalContent()) + "\n"
+                : "";
+        String requirement = hasOriginal
+                ? "원본 문제와 같은 형식·난이도를 유지하되 내용은 다르게 작성하세요"
+                : "주어진 키워드와 도메인을 활용하여 새로운 문제를 만들어주세요";
+
         return """
                 다음 정보를 바탕으로 새로운 시험 문제를 작성해주세요.
 
                 핵심 키워드: %s
                 도메인: %s
                 난이도: %s
-
-                참고할 원본 문제:
                 %s
-
                 요구사항:
-                - 원본 문제와 같은 형식·난이도를 유지하되 내용은 다르게 작성하세요
+                - %s
                 - 같은 개념을 다른 각도에서 묻는 새로운 문제를 만들어주세요
                 - 문제 본문만 작성하고 번호, 보기(①②③), 정답은 포함하지 마세요
                 """.formatted(
                 String.join(", ", req.keywords()),
                 String.join(", ", req.domains()),
                 req.difficulty(),
-                stripHtml(req.originalContent())
+                originalSection,
+                requirement
         );
     }
 }
