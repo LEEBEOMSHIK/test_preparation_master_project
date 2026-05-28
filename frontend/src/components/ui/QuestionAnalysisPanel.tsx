@@ -13,17 +13,16 @@ interface Props {
 }
 
 const DIFFICULTY_STYLE: Record<string, string> = {
-  '하': 'text-emerald-700 bg-emerald-50 border-emerald-200',
-  '중': 'text-amber-700 bg-amber-50 border-amber-200',
-  '상': 'text-rose-700 bg-rose-50 border-rose-200',
+  '하': 'text-emerald-700 bg-emerald-100 border-emerald-300 dark:text-emerald-300 dark:bg-emerald-900/50 dark:border-emerald-700',
+  '중': 'text-amber-700 bg-amber-100 border-amber-300 dark:text-amber-300 dark:bg-amber-900/50 dark:border-amber-700',
+  '상': 'text-rose-700 bg-rose-100 border-rose-300 dark:text-rose-300 dark:bg-rose-900/50 dark:border-rose-700',
 };
 
-// UI 미리보기용 샘플 데이터
 const MOCK_RESULT: QuestionAnalysis = {
-  keywords:   ['INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'ON 조건', '교집합', '외부 조인'],
-  domains:    ['데이터베이스', 'SQL'],
-  difficulty: '중',
-  summary:    'SQL JOIN의 종류와 동작 방식의 차이를 이해하고 적용하는 능력을 평가하는 문제입니다.',
+  keywords:   ['얕은 복사', '리스트 참조', 'in-place 연산', '중첩 리스트', '+=', '슬라이싱'],
+  domains:    ['Python', '자료구조', '알고리즘'],
+  difficulty: '상',
+  summary:    '리스트 얕은 복사(b = m[:])와 += in-place 연산이 원본 리스트에 미치는 영향을 파악하여 실행 결과를 추론하는 문제입니다.',
 };
 
 function isUnavailable(err: unknown) {
@@ -32,17 +31,14 @@ function isUnavailable(err: unknown) {
 }
 
 export function QuestionAnalysisPanel({ content, onApplyContent }: Props) {
-  const [analyzing,     setAnalyzing]     = useState(false);
-  const [result,        setResult]        = useState<QuestionAnalysis | null>(null);
-  const [analyzeError,  setAnalyzeError]  = useState<string | null>(null);
-
-  const [regenerating,  setRegenerating]  = useState(false);
-  const [regenerated,   setRegenerated]   = useState<string | null>(null);
-  const [regenError,    setRegenError]    = useState<string | null>(null);
+  const [analyzing,    setAnalyzing]    = useState(false);
+  const [result,       setResult]       = useState<QuestionAnalysis | null>(null);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenerated,  setRegenerated]  = useState<string | null>(null);
+  const [regenError,   setRegenError]   = useState<string | null>(null);
 
   const hasContent = stripHtml(content).trim().length > 10;
-
-  // ── 키워드 추출 ────────────────────────────────────────────────────────────────
 
   const handleAnalyze = async () => {
     if (!hasContent || analyzing) return;
@@ -60,8 +56,6 @@ export function QuestionAnalysisPanel({ content, onApplyContent }: Props) {
       setAnalyzing(false);
     }
   };
-
-  // ── 문제 재구성 ────────────────────────────────────────────────────────────────
 
   const handleRegenerate = async () => {
     if (!result || regenerating) return;
@@ -96,12 +90,17 @@ export function QuestionAnalysisPanel({ content, onApplyContent }: Props) {
 
       {/* ── 버튼 행 ── */}
       <div className="flex items-center gap-2 flex-wrap">
+
         {/* 키워드 추출 */}
         <button
           type="button"
           onClick={handleAnalyze}
           disabled={analyzing || !hasContent}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-violet-200 text-violet-600 bg-violet-50 hover:bg-violet-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border
+            border-violet-300 text-violet-700 bg-violet-50
+            hover:bg-violet-100
+            dark:border-violet-600 dark:text-violet-300 dark:bg-violet-900/40 dark:hover:bg-violet-900/70
+            disabled:opacity-40 disabled:cursor-not-allowed transition"
         >
           {analyzing ? (
             <>
@@ -135,8 +134,8 @@ export function QuestionAnalysisPanel({ content, onApplyContent }: Props) {
           }}
           className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition ${
             result === MOCK_RESULT
-              ? 'border-gray-300 bg-gray-100 text-gray-700'
-              : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+              ? 'border-gray-400 bg-gray-200 text-gray-800 dark:border-gray-500 dark:bg-gray-600 dark:text-gray-100'
+              : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
           }`}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3">
@@ -149,26 +148,28 @@ export function QuestionAnalysisPanel({ content, onApplyContent }: Props) {
 
       {/* ── 분석 에러 ── */}
       {analyzeError === '__unavailable__' ? (
-        <p className="text-xs text-gray-400 flex items-center gap-1">
+        <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5 shrink-0">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           AI 분석 기능이 아직 준비 중입니다.
         </p>
       ) : analyzeError ? (
-        <p className="text-xs text-rose-500">{analyzeError}</p>
+        <p className="text-xs text-rose-500 dark:text-rose-400">{analyzeError}</p>
       ) : null}
 
       {/* ── 분석 결과 패널 ── */}
       {result && !analyzing && (
-        <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 space-y-3">
+        <div className="rounded-xl border border-violet-200 bg-violet-50 dark:border-violet-700 dark:bg-violet-950/60 p-4 space-y-3">
 
           {/* 핵심 키워드 */}
           <div>
-            <p className="text-xs font-semibold text-violet-700 mb-1.5">핵심 키워드</p>
+            <p className="text-xs font-semibold text-violet-700 dark:text-violet-300 mb-1.5">핵심 키워드</p>
             <div className="flex flex-wrap gap-1.5">
               {result.keywords.map((kw) => (
-                <span key={kw} className="px-2.5 py-0.5 rounded-full text-xs bg-white border border-violet-200 text-violet-700 font-medium">
+                <span key={kw} className="px-2.5 py-0.5 rounded-full text-xs font-medium
+                  bg-white border border-violet-200 text-violet-700
+                  dark:bg-violet-900/60 dark:border-violet-600 dark:text-violet-200">
                   {kw}
                 </span>
               ))}
@@ -177,10 +178,12 @@ export function QuestionAnalysisPanel({ content, onApplyContent }: Props) {
 
           {/* 도메인 */}
           <div>
-            <p className="text-xs font-semibold text-violet-700 mb-1.5">도메인</p>
+            <p className="text-xs font-semibold text-violet-700 dark:text-violet-300 mb-1.5">도메인</p>
             <div className="flex flex-wrap gap-1.5">
               {result.domains.map((d) => (
-                <span key={d} className="px-2.5 py-0.5 rounded-full text-xs bg-indigo-50 border border-indigo-200 text-indigo-700 font-semibold">
+                <span key={d} className="px-2.5 py-0.5 rounded-full text-xs font-semibold
+                  bg-indigo-50 border border-indigo-200 text-indigo-700
+                  dark:bg-indigo-900/60 dark:border-indigo-600 dark:text-indigo-200">
                   {d}
                 </span>
               ))}
@@ -190,26 +193,29 @@ export function QuestionAnalysisPanel({ content, onApplyContent }: Props) {
           {/* 난이도 + 요약 */}
           <div className="flex items-start gap-4 pt-0.5">
             <div className="shrink-0">
-              <p className="text-xs font-semibold text-violet-700 mb-1.5">난이도</p>
-              <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold border ${DIFFICULTY_STYLE[result.difficulty] ?? 'text-gray-600 bg-gray-50 border-gray-200'}`}>
+              <p className="text-xs font-semibold text-violet-700 dark:text-violet-300 mb-1.5">난이도</p>
+              <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold border ${DIFFICULTY_STYLE[result.difficulty] ?? 'text-gray-600 bg-gray-100 border-gray-300 dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600'}`}>
                 {result.difficulty}
               </span>
             </div>
             {result.summary && (
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-violet-700 mb-1.5">요약</p>
-                <p className="text-xs text-gray-600 leading-relaxed">{result.summary}</p>
+                <p className="text-xs font-semibold text-violet-700 dark:text-violet-300 mb-1.5">요약</p>
+                <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{result.summary}</p>
               </div>
             )}
           </div>
 
-          {/* 문제 재구성 버튼 */}
-          <div className="pt-1 border-t border-violet-100">
+          {/* 문제 재구성 버튼 + 결과 */}
+          <div className="pt-1 border-t border-violet-200 dark:border-violet-700 space-y-3">
             <button
               type="button"
               onClick={handleRegenerate}
               disabled={regenerating}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-indigo-200 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition
+                border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100
+                dark:border-indigo-600 dark:text-indigo-300 dark:bg-indigo-900/40 dark:hover:bg-indigo-900/70
+                disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {regenerating ? (
                 <>
@@ -228,55 +234,57 @@ export function QuestionAnalysisPanel({ content, onApplyContent }: Props) {
                 </>
               )}
             </button>
+
+            {/* 재구성 에러 */}
+            {regenError === '__unavailable__' ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5 shrink-0">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                AI 기능이 아직 준비 중입니다.
+              </p>
+            ) : regenError ? (
+              <p className="text-xs text-rose-500 dark:text-rose-400">{regenError}</p>
+            ) : null}
+
+            {/* 재구성 결과 */}
+            {regenerated && !regenerating && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">재구성된 문제</p>
+                  <button
+                    type="button"
+                    onClick={() => setRegenerated(null)}
+                    className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition"
+                    aria-label="닫기"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-xs leading-relaxed whitespace-pre-wrap p-3 rounded-lg border
+                  text-gray-800 bg-white border-indigo-100
+                  dark:text-gray-200 dark:bg-gray-800/80 dark:border-indigo-800">
+                  {stripHtml(regenerated)}
+                </p>
+                {onApplyContent && (
+                  <button
+                    type="button"
+                    onClick={handleApply}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition
+                      border-indigo-500 text-white bg-indigo-500 hover:bg-indigo-600
+                      dark:border-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    이 문제로 교체
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      )}
-
-      {/* ── 재구성 에러 ── */}
-      {regenError === '__unavailable__' ? (
-        <p className="text-xs text-gray-400 flex items-center gap-1">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5 shrink-0">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          AI 기능이 아직 준비 중입니다.
-        </p>
-      ) : regenError ? (
-        <p className="text-xs text-rose-500">{regenError}</p>
-      ) : null}
-
-      {/* ── 재구성 결과 패널 ── */}
-      {regenerated && !regenerating && (
-        <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-indigo-700">재구성된 문제</p>
-            <button
-              type="button"
-              onClick={() => setRegenerated(null)}
-              className="text-gray-400 hover:text-gray-600 transition"
-              aria-label="닫기"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <p className="text-xs text-gray-700 leading-relaxed bg-white rounded-lg border border-indigo-100 p-3 whitespace-pre-wrap">
-            {stripHtml(regenerated)}
-          </p>
-
-          {onApplyContent && (
-            <button
-              type="button"
-              onClick={handleApply}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-indigo-400 text-white bg-indigo-500 hover:bg-indigo-600 transition"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              이 문제로 교체
-            </button>
-          )}
         </div>
       )}
 
