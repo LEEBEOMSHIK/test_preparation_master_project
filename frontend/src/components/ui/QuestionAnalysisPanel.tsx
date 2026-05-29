@@ -405,7 +405,7 @@ export function QuestionAnalysisPanel({ content, onApplyContent }: Props) {
           )}
 
           {/* 재구성 시작 */}
-          <button type="button" onClick={handleRegenerate} disabled={regenerating}
+          <button type="button" onClick={handleRegenerate} disabled={regenerating || !hasContent}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition
               border-indigo-400 text-indigo-700 bg-white hover:bg-indigo-50
               dark:border-indigo-600 dark:text-indigo-300 dark:bg-transparent dark:hover:bg-indigo-900/30
