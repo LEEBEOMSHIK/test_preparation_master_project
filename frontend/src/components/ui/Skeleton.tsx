@@ -1,13 +1,16 @@
 'use client';
 
+import React from 'react';
+
 // ── Atom ─────────────────────────────────────────────────────────────────────
 
 interface SkeletonProps {
   className?: string;
+  style?: React.CSSProperties;
 }
 
-export function Skeleton({ className = '' }: SkeletonProps) {
-  return <div className={`bg-gray-200 rounded-md ${className}`} />;
+export function Skeleton({ className = '', style }: SkeletonProps) {
+  return <div className={`bg-gray-200 rounded-md ${className}`} style={style} />;
 }
 
 // ── TableSkeleton ─────────────────────────────────────────────────────────────
@@ -150,6 +153,63 @@ export function CardGridSkeleton() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── DashboardSkeleton ─────────────────────────────────────────────────────────
+// 용도: 사용자 통계 대시보드 (요약카드 4개 + 도메인 막대 + 추이 막대 + 약점 Top5)
+
+export function DashboardSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      {/* 요약 카드 4개 */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 p-4 space-y-3">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-7 w-24" />
+            <Skeleton className="h-2.5 w-20" />
+          </div>
+        ))}
+      </div>
+
+      {/* 도메인별 수평 막대 */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 p-5 space-y-3">
+        <Skeleton className="h-3.5 w-28 mb-4" />
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <Skeleton className={`h-3 shrink-0 ${i % 2 === 0 ? 'w-24' : 'w-20'}`} />
+            <Skeleton className={`h-5 rounded-sm ${i % 3 === 0 ? 'w-3/4' : i % 3 === 1 ? 'w-1/2' : 'w-2/3'}`} />
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* 날짜별 추이 막대 */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 p-5">
+          <Skeleton className="h-3.5 w-24 mb-4" />
+          <div className="flex items-end gap-1 h-24">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <Skeleton key={i} className="flex-1 rounded-sm" style={{ height: `${25 + (i % 5) * 15}%` }} />
+            ))}
+          </div>
+        </div>
+
+        {/* 약점 도메인 Top 5 */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 p-5 space-y-3">
+          <Skeleton className="h-3.5 w-28 mb-4" />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="space-y-1.5">
+              <div className="flex justify-between">
+                <Skeleton className={`h-3 ${i % 2 === 0 ? 'w-28' : 'w-20'}`} />
+                <Skeleton className="h-3 w-10" />
+              </div>
+              <Skeleton className="h-2 w-full rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

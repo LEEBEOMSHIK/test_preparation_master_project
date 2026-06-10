@@ -1,3 +1,43 @@
+## HIST-20260611-001
+
+- **날짜**: 2026-06-11
+- **수정 범위**: 사용자 프론트엔드 / 인증 (로그인·OAuth 콜백)
+- **수정 개요**: `useSearchParams()` 사용 컴포넌트를 `<Suspense>` 경계로 래핑하여 Next.js 14 프로덕션 빌드 `missing-suspense-with-csr-bailout` 오류 해결
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/auth/login/page.tsx` | 수정 | `LoginContent` 내부 컴포넌트 분리 + `<Suspense>` 래핑, `LoginFallback` 추가 |
+| `frontend/src/app/auth/oauth/callback/page.tsx` | 수정 | `OAuthCallbackContent` 내부 컴포넌트 분리 + `<Suspense>` 래핑, 기존 처리 중 UI를 `OAuthProcessingUI`로 추출하여 fallback 재사용 |
+| `frontend/src/app/user/login/page.tsx` | 수정 | `UserLoginContent` 내부 컴포넌트 분리 + `<Suspense>` 래핑, `UserLoginFallback` 스켈레톤 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/auth/login/page.tsx`
+- 변경 전: `export default function LoginPage()` 안에서 직접 `useSearchParams()` 호출
+- 변경 후: `useSearchParams()` 로직을 `LoginContent`로 분리, 페이지는 `<Suspense fallback={<LoginFallback />}>` 래퍼만 반환. fallback은 화면 중앙 `<Skeleton>` 블록
+- 이유: Next.js 14 빌드 규칙 — `useSearchParams()`는 반드시 `<Suspense>` 경계 내부에서 사용해야 함
+
+#### `frontend/src/app/auth/oauth/callback/page.tsx`
+- 변경 전: `export default function OAuthCallbackPage()` 안에서 직접 `useSearchParams()` 호출, 기존 로딩 UI가 JSX로 인라인 존재
+- 변경 후: 기존 로딩 UI를 `OAuthProcessingUI` 컴포넌트로 분리, `useSearchParams()` 로직을 `OAuthCallbackContent`로 이동, 페이지는 `<Suspense fallback={<OAuthProcessingUI />}>`로 래핑. fallback과 컨텐츠가 동일한 UI를 표시하여 전환 시 시각적 일관성 유지
+- 이유: 콜백 페이지 특성상 실제 내용이 "처리 중" UI이므로 기존 로딩 UI를 fallback으로 그대로 재사용
+
+#### `frontend/src/app/user/login/page.tsx`
+- 변경 전: `export default function UserLoginPage()` 안에서 직접 `useSearchParams()` 호출
+- 변경 후: `useSearchParams()` 포함 전체 폼 로직을 `UserLoginContent`로 분리, 페이지는 `<Suspense fallback={<UserLoginFallback />}>`로 래핑. fallback은 로그인 폼 레이아웃을 모방한 스켈레톤 (로고·부제·입력필드·버튼 영역)
+- 이유: Next.js 14 빌드 규칙, 로그인 폼 화면 특성에 맞는 스켈레톤으로 CLS(레이아웃 이동) 최소화
+
+### 검증 결과
+- `npx tsc --noEmit`: 오류 0건
+- `npm run build`: 성공 (44/44 정적 페이지 생성, `missing-suspense-with-csr-bailout` 오류 없음)
+
+### 복원 방법
+이 ID(HIST-20260611-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다. 구체적으로 각 파일에서 내부 컴포넌트 분리를 되돌리고 `export default`에서 직접 `useSearchParams()`를 호출하는 원래 구조로 복원한다.
+
+---
+
 ## HIST-20260506-003
 
 - **날짜**: 2026-05-06

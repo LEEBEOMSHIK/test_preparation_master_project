@@ -306,3 +306,29 @@ export interface Faq {
   createdAt: string;
   updatedAt: string;
 }
+
+// ──────────────────────────────────────────
+// UserDashboard (사용자 통계 대시보드)
+// ──────────────────────────────────────────
+export interface DomainStat {
+  domainName: string;
+  totalQuestions: number;
+  correctCount: number;
+  correctRate: number;
+}
+
+export interface DailyStat {
+  date: string;
+  totalQuestions: number;
+  correctCount: number;
+  correctRate: number;
+}
+
+export interface UserDashboardData {
+  totalQuestions: number;
+  totalCorrect: number;
+  overallCorrectRate: number;
+  domainStats: DomainStat[];
+  weakDomains: DomainStat[];
+  dailyTrend: DailyStat[];
+}

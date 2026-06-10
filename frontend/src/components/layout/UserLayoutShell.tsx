@@ -11,6 +11,12 @@ import { PermissionDeniedModal } from '@/components/ui/PermissionDeniedModal';
 import type { MenuConfig } from '@/types';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
+  dashboard: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round"
+        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    </svg>
+  ),
   examinfo: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -55,13 +61,14 @@ const DEFAULT_ICON = (
 );
 
 const USER_FALLBACK_NAV: MenuConfig[] = [
-  { id: 101, parentId: undefined, name: '시험 정보',   url: '/user/exam-info',  iconKey: 'examinfo', displayOrder: 1, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 102, parentId: undefined, name: '시험',        url: '/user/exams',      iconKey: 'exam',     displayOrder: 2, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 103, parentId: undefined, name: '개념노트',    url: '/user/concepts',   iconKey: 'concept',  displayOrder: 3, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 104, parentId: undefined, name: '데일리 퀴즈', url: '/user/quiz',       iconKey: 'quiz',     displayOrder: 4, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 105, parentId: undefined, name: 'FAQ',         url: '/user/faq',        iconKey: 'faq',      displayOrder: 5, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 106, parentId: undefined, name: '1:1 문의',    url: '/user/inquiries',  iconKey: 'inquiry',  displayOrder: 6, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 107, parentId: undefined, name: '연습장',      url: '/user/practice',   iconKey: 'practice', displayOrder: 7, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
+  { id: 100, parentId: undefined, name: '통계 대시보드', url: '/user/dashboard',  iconKey: 'dashboard', displayOrder: 0, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
+  { id: 101, parentId: undefined, name: '시험 정보',    url: '/user/exam-info',  iconKey: 'examinfo',  displayOrder: 1, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
+  { id: 102, parentId: undefined, name: '시험',         url: '/user/exams',      iconKey: 'exam',      displayOrder: 2, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
+  { id: 103, parentId: undefined, name: '개념노트',     url: '/user/concepts',   iconKey: 'concept',   displayOrder: 3, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
+  { id: 104, parentId: undefined, name: '데일리 퀴즈',  url: '/user/quiz',       iconKey: 'quiz',      displayOrder: 4, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
+  { id: 105, parentId: undefined, name: 'FAQ',          url: '/user/faq',        iconKey: 'faq',       displayOrder: 5, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
+  { id: 106, parentId: undefined, name: '1:1 문의',     url: '/user/inquiries',  iconKey: 'inquiry',   displayOrder: 6, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
+  { id: 107, parentId: undefined, name: '연습장',       url: '/user/practice',   iconKey: 'practice',  displayOrder: 7, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
 ];
 
 function getUserPageTitle(pathname: string, navItems: MenuConfig[]): string {

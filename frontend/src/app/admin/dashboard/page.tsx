@@ -128,7 +128,7 @@ function TrendChart({ title, data, barColor, loading, period }: TrendChartProps)
                 border: '1px solid #e5e7eb',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
               }}
-              formatter={(v: number) => [v.toLocaleString(), '건수']}
+              formatter={(v) => [typeof v === 'number' ? v.toLocaleString() : '', '건수']}
             />
             <Bar dataKey="count" radius={[3, 3, 0, 0]}>
               {data.map((_, index) => (

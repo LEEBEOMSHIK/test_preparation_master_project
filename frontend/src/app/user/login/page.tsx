@@ -1,12 +1,32 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authService } from '@/services/authService';
 import { useAuthStore } from '@/store/authStore';
+import { Skeleton } from '@/components/ui/Skeleton';
 
-export default function UserLoginPage() {
+function UserLoginFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white flex items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <Skeleton className="h-9 w-24 rounded-lg mx-auto mb-2" />
+          <Skeleton className="h-4 w-32 rounded mx-auto" />
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 space-y-4">
+          <Skeleton className="h-6 w-28 rounded" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UserLoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setAuth, clearAuth } = useAuthStore();
@@ -135,5 +155,13 @@ export default function UserLoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function UserLoginPage() {
+  return (
+    <Suspense fallback={<UserLoginFallback />}>
+      <UserLoginContent />
+    </Suspense>
   );
 }

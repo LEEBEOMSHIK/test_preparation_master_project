@@ -1,11 +1,22 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authService } from '@/services/authService';
 import { useAuthStore } from '@/store/authStore';
 
-export default function OAuthCallbackPage() {
+function OAuthProcessingUI() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white dark:from-gray-950 dark:to-gray-900 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto mb-4" />
+        <p className="text-gray-500 text-sm">Google 로그인 처리 중...</p>
+      </div>
+    </div>
+  );
+}
+
+function OAuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setAuth } = useAuthStore();
@@ -39,12 +50,13 @@ export default function OAuthCallbackPage() {
       });
   }, [searchParams, router, setAuth]);
 
+  return <OAuthProcessingUI />;
+}
+
+export default function OAuthCallbackPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white dark:from-gray-950 dark:to-gray-900 flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto mb-4" />
-        <p className="text-gray-500 text-sm">Google 로그인 처리 중...</p>
-      </div>
-    </div>
+    <Suspense fallback={<OAuthProcessingUI />}>
+      <OAuthCallbackContent />
+    </Suspense>
   );
 }

@@ -1,3 +1,28 @@
+## HIST-20260611-003
+
+- **날짜**: 2026-06-11
+- **수정 범위**: 관리자 프론트엔드 / 대시보드 — 빌드 타입 오류 수정
+- **수정 개요**: tsc --noEmit 실패 — admin/dashboard/page.tsx의 recharts Tooltip formatter 파라미터 타입 가드 처리
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/dashboard/page.tsx` | 수정 | formatter 파라미터 타입 고정(`v: number`) 제거 → `typeof v === 'number'` 가드로 교체 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/dashboard/page.tsx`
+- 변경 전: `formatter={(v: number) => [v.toLocaleString(), '건수']}`
+- 변경 후: `formatter={(v) => [typeof v === 'number' ? v.toLocaleString() : '', '건수']}`
+- 이유: recharts Formatter 제네릭은 ValueType | undefined를 수신하므로 number 고정 타입이 불일치; any 금지 원칙에 따라 typeof 가드로 처리
+
+### 복원 방법
+이 ID(HIST-20260611-003)만으로 복원 시:
+- admin/dashboard/page.tsx: formatter를 `(v: number) => [v.toLocaleString(), '건수']` 형태로 되돌림 (단, 빌드 실패 재발함)
+
+---
+
 ## HIST-20260528-004
 
 - **날짜**: 2026-05-28
