@@ -1,3 +1,31 @@
+## HIST-20260529-001
+
+- **날짜**: 2026-05-29
+- **수정 범위**: 관리자 백엔드 / 시험지 관리 — 시험지 데이터 생성 (코드 변경 없음)
+- **수정 개요**: 등록된 문항 풀(question_bank 100건)을 회차별로 묶어 `POST /api/admin/exams/with-questions`로 시험지(Exam) 5개 생성
+
+### 생성 데이터 요약
+
+- **방식**: 문항을 (examYear, examRound)로 그룹화 → 회차별 시험지 1개, 문항 1~20번 순서(questionMode=SEQUENTIAL)
+- **문항 매핑**: question_bank → QuestionRequest(content/questionType/options/answer/explanation/code/language) 복사. 표(`<table>`)·코드 본문 모두 보존
+- **생성 결과**
+
+| examId | 제목 | 문항 수 | 비고 |
+|--------|------|---------|------|
+| 1 | 2024년 3회 정보처리기사 실기 | 20 | CODE 9 / SHORT_ANSWER 11, 표 2 |
+| 2 | 2025년 1회 정보처리기사 실기 | 20 | CODE 9 / SHORT_ANSWER 11, 표 3 |
+| 3 | 2025년 2회 정보처리기사 실기 | 20 | CODE 9 / SHORT_ANSWER 11, 표 2 |
+| 4 | 2025년 3회 정보처리기사 실기 | 20 | CODE 7 / SHORT_ANSWER 13 |
+| 5 | 2026년 1회 정보처리기사 실기 | 20 | CODE 7 / SHORT_ANSWER 13 |
+
+> 비고: 생성 직전 기존 시험지는 0건이었음. 문항 순서는 제목의 'N번'을 파싱해 오름차순 정렬함.
+
+### 복원 방법
+
+`DELETE /api/admin/exams/{id}` (id 1~5) — 소프트 삭제(exams.del_yn='Y'), 연결된 question 행은 cascade.
+
+---
+
 ## HIST-20260502-001
 
 - **날짜**: 2026-05-02

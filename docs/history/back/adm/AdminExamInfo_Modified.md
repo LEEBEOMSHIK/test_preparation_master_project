@@ -1,3 +1,42 @@
+## HIST-20260602-001
+
+- **날짜**: 2026-06-02
+- **수정 범위**: 관리자 백엔드 / 시험 정보
+- **수정 개요**: Q-Net 정보처리기사 실기 2026년 시험정보를 애플리케이션 시작 시 `exam_info` 테이블에 자동 시드하도록 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java` | 수정 | 정보처리기사 실기 2026년 정기 기사 1~3회 시험정보 자동 삽입 로직 추가 |
+| `backend/src/main/java/com/tpmp/testprep/repository/ExamInfoRepository.java` | 수정 | 중복 삽입 방지를 위한 `findByTitle` 조회 메서드 추가 |
+| `backend/src/test/java/com/tpmp/testprep/config/DataInitializerTest.java` | 추가 | Q-Net 시험정보 시드 생성 및 중복 방지 동작 테스트 추가 |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java`
+- 변경 전: 앱 시작 시 시험 정보 메뉴만 보정하고, Q-Net 기반 시험정보 데이터는 자동 삽입하지 않음
+- 변경 후: `ensureQnetPracticalExamInfo()`를 실행해 정보처리기사 실기 2026년 정기 기사 1~3회 행을 `exam_info`에 삽입
+- 이유: 관리자 수동 입력 없이도 Q-Net에서 확인한 실기 접수기간, 시험일정, 발표일, 과목/검정방법/합격기준/출제경향 요약을 시스템 DB에 반영하기 위함
+
+#### `backend/src/main/java/com/tpmp/testprep/repository/ExamInfoRepository.java`
+- 변경 전: 목록 조회용 메서드만 존재해 특정 제목의 기존 데이터 존재 여부를 확인할 수 없음
+- 변경 후: `Optional<ExamInfo> findByTitle(String title)` 추가
+- 이유: 동일 시험정보가 애플리케이션 재시작마다 중복 생성되지 않도록 하기 위함
+
+#### `backend/src/test/java/com/tpmp/testprep/config/DataInitializerTest.java`
+- 변경 전: `DataInitializer`의 시험정보 시드 동작을 검증하는 테스트 없음
+- 변경 후: 신규 행 3건 생성과 기존 제목 중복 생성 방지를 검증
+- 이유: Q-Net 시험정보 시드 데이터가 유지되고 중복 삽입되지 않도록 회귀 테스트를 확보하기 위함
+
+### 복원 방법
+
+HIST-20260602-001 복원 시:
+- `DataInitializer.java`: `examInfoRepository` 필드, `run()`의 `ensureQnetPracticalExamInfo()` 호출, `ensureQnetPracticalExamInfo()`/`ensureExamInfo()` 메서드 제거
+- `ExamInfoRepository.java`: `findByTitle(String title)` 메서드와 `Optional` import 제거
+- `DataInitializerTest.java`: 파일 삭제
+- DB: 필요 시 `exam_info`에서 제목이 `정보처리기사 실기 2026년 정기 기사%`인 행 삭제
+
 ## HIST-20260427-001
 
 - **날짜**: 2026-04-27

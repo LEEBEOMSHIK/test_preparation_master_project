@@ -33,6 +33,7 @@ public class DataInitializer implements ApplicationRunner {
     private final PermissionDetailRepository permissionDetailRepository;
     private final MenuConfigRepository menuConfigRepository;
     private final com.tpmp.testprep.service.PracticeService practiceService;
+    private final ExamInfoRepository examInfoRepository;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -61,6 +62,7 @@ public class DataInitializer implements ApplicationRunner {
         ensurePracticeMenu();
         ensurePracticeAdminMenus();
         ensurePermissionMenuAssociations();
+        ensureQnetPracticalExamInfo();
         ensurePracticeSchema();
     }
 
@@ -375,6 +377,74 @@ public class DataInitializer implements ApplicationRunner {
                 }
             }
         }
+    }
+
+    @Transactional
+    public void ensureQnetPracticalExamInfo() {
+        String examType = "정보처리기사 실기";
+        String description = """
+                Q-Net 기준 정보처리기사 실기 시험정보입니다.
+                실기 과목: 정보처리 실무
+                검정방법: 필답형(2시간 30분)
+                합격기준: 100점 만점 60점 이상
+                수수료: 실기 22,600원
+                출제경향: 요구사항 확인, 데이터 입출력 구현, 통합 구현, 서버프로그램 구현, 인터페이스 구현, 화면설계, 애플리케이션 테스트, SQL 응용, 소프트웨어 개발 보안, 프로그래밍 언어 활용, 응용 SW 기초 기술 활용, 제품 소프트웨어 패키징을 중심으로 평가합니다.
+                출처: Q-Net 국가자격 종목별 상세정보(정보처리기사, 2026년 일정)
+                """;
+        String officialUrl = "https://www.q-net.or.kr/crf005.do?id=crf00503&jmCd=1320";
+
+        ensureExamInfo(
+                examType,
+                "정보처리기사 실기 2026년 정기 기사 1회",
+                description + "빈자리접수: 2026-04-12 ~ 2026-04-13",
+                "2026-03-23 ~ 2026-03-26",
+                "2026-04-18 ~ 2026-05-06",
+                "2026-06-12",
+                officialUrl,
+                20
+        );
+        ensureExamInfo(
+                examType,
+                "정보처리기사 실기 2026년 정기 기사 2회",
+                description + "빈자리접수: 2026-07-12 ~ 2026-07-13",
+                "2026-06-22 ~ 2026-06-25",
+                "2026-07-18 ~ 2026-08-05",
+                "2026-09-11",
+                officialUrl,
+                21
+        );
+        ensureExamInfo(
+                examType,
+                "정보처리기사 실기 2026년 정기 기사 3회",
+                description,
+                "2026-09-21 ~ 2026-09-28",
+                "2026-10-24 ~ 2026-11-13",
+                "2026-12-18",
+                officialUrl,
+                22
+        );
+    }
+
+    private void ensureExamInfo(String examType, String title, String description,
+                                String applicationPeriod, String examSchedule,
+                                String resultDate, String officialUrl, int displayOrder) {
+        if (examInfoRepository.findByTitle(title).isPresent()) {
+            log.debug("[DataInitializer] 시험 정보 '{}' 이미 존재 — 건너뜀", title);
+            return;
+        }
+
+        examInfoRepository.save(ExamInfo.builder()
+                .examType(examType)
+                .title(title)
+                .description(description)
+                .applicationPeriod(applicationPeriod)
+                .examSchedule(examSchedule)
+                .resultDate(resultDate)
+                .officialUrl(officialUrl)
+                .isActive(true)
+                .displayOrder(displayOrder)
+                .build());
+        log.info("[DataInitializer] 시험 정보 '{}' 생성 완료", title);
     }
 
     @Transactional
