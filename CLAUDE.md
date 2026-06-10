@@ -63,15 +63,25 @@ docker-compose.yml
 
 ## Agent Role Division
 
-분석 → **codebase-explorer** | 설계 → **plan** | 구현 → **webapp-developer** | 검증 → **webapp-verifier**
+5단계 파이프라인 — 분석 → 설계 → 구현 → 검증(정적) → 테스트(동적)
+
+| 단계 | 에이전트 | 역할 | 코드 수정 |
+|------|---------|------|:--------:|
+| 분석 | **codebase-explorer** | 구조·패턴·사용처 탐색 | ✕ |
+| 설계 | **webapp-planner** | 영향 범위·단계별 구현 계획 수립 | ✕ |
+| 구현 | **webapp-developer** | FE/BE 코드 작성·히스토리 기록 | ○ |
+| 검증 | **webapp-verifier** | 컨벤션·타입·누락 정적 점검 | ✕ |
+| 테스트 | **webapp-tester** | 빌드·테스트·타입체크 실제 실행 | ✕ |
+
 → 상세 워크플로우 및 판단 기준: [`docs/claude-config/agent-roles.md`](docs/claude-config/agent-roles.md)
 
 **핵심 규칙**
 1. 탐색 범위가 3쿼리 이상이면 codebase-explorer에 위임한다.
-2. 수정 파일 3개↑ · 파일 간 의존관계 있음 · 설계 옵션 2개↑ → plan 사용.
+2. 수정 파일 3개↑ · 파일 간 의존관계 있음 · 설계 옵션 2개↑ → webapp-planner 사용.
 3. 단순 파일 읽기(경로가 이미 알려진 경우)는 Read·Grep 직접 사용한다.
 4. 작업 결과가 CLAUDE.md에 영향 시 webapp-developer가 즉시 이 파일을 업데이트한다.
-5. 신규 기능 구현·보안 변경·리팩토링 완료 후 webapp-verifier가 컨벤션 준수·타입 안전성·히스토리 작성 여부를 검증한다.
+5. 신규 기능 구현·보안 변경·리팩토링 완료 후 webapp-verifier가 컨벤션·타입·히스토리를 정적 점검한다.
+6. 정적 검증 통과 후 webapp-tester가 빌드·테스트·타입체크를 실제 실행해 런타임 결함을 확인한다.
 
 ---
 
@@ -100,6 +110,7 @@ docker-compose.yml
 | `<ExamInfoCardSkeleton count />` | `count=4` | 상세 정보 카드 |
 | `<AccordionSkeleton rows />` | `rows=6` | 아코디언 목록 |
 | `<CardGridSkeleton />` | — | 카드 그리드 |
+| `<DashboardSkeleton />` | — | 사용자 통계 대시보드 (요약카드 4개 + 도메인 막대 + 추이 막대 + 약점 Top5) |
 
 ---
 

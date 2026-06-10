@@ -61,23 +61,33 @@ docker-compose.yml
 
 ---
 
-## Task Execution Guidelines
+## Agent Pipeline — 5단계
 
-작업 규모와 복잡도에 따라 단계를 나눠 진행한다.
+작업은 **분석 → 설계 → 구현 → 검증(정적) → 테스트(동적)** 5단계 파이프라인으로 진행한다.
+각 단계의 에이전트 정의는 `.codex/agents/{name}.toml`에 있다.
 
-**탐색 먼저, 구현은 나중에**
-1. 관련 파일·패턴·레이어 의존 관계를 먼저 파악한다.
-2. 수정 파일이 3개 이상이거나 파일 간 의존관계가 있으면 구현 전에 수정 계획(파일 목록·순서·인터페이스)을 수립한다.
-3. 설계가 명확한 단순 작업(신규 파일 1개 추가 등)은 바로 구현한다.
+| 단계 | 에이전트 | 역할 | 코드 수정 |
+|------|---------|------|:--------:|
+| 분석 | **codebase-explorer** | 구조·패턴·사용처 탐색 | ✕ |
+| 설계 | **webapp-planner** | 영향 범위·단계별 구현 계획 수립 | ✕ |
+| 구현 | **webapp-developer** | FE/BE 코드 작성·히스토리 기록 | ○ |
+| 검증 | **webapp-verifier** | 컨벤션·타입·누락 정적 점검 | ✕ |
+| 테스트 | **webapp-tester** | 빌드·테스트·타입체크 실제 실행 | ✕ |
+
+**핵심 규칙**
+1. 탐색 범위가 3쿼리 이상이면 codebase-explorer로 위임한다.
+2. 수정 파일 3개↑ · 파일 간 의존관계 있음 · 설계 옵션 2개↑ → webapp-planner로 계획을 먼저 수립한다.
+3. 단순 파일 읽기(경로가 이미 알려진 경우)·신규 파일 1개 추가는 바로 구현한다.
+4. **webapp-developer만 코드를 수정한다.** 검증·테스트에서 받은 문제 항목은 webapp-developer가 재구현한다.
+5. AGENTS.md에 영향을 주는 변경(새 유틸·스켈레톤 추가 등) 시 webapp-developer가 이 파일을 즉시 업데이트한다.
 
 **구현 시 준수 사항**
 - TypeScript strict · Tailwind · Controller-Service-Repository 3레이어 컨벤션 준수
 - 수정 완료 후 히스토리 파일 자동 작성 (아래 Modification History Policy 참조)
-- AGENTS.md에 영향을 주는 변경(새 유틸 추가 등) 시 이 파일을 즉시 업데이트한다.
 
-**검증 단계 — webapp-verifier (신규 기능·보안 변경·리팩토링 후 필수)**
+**검증 단계 — webapp-verifier (정적, 신규 기능·보안 변경·리팩토링 후 필수)**
 
-구현 완료 후 독립적인 검증을 수행한다. 검증은 코드를 수정하지 않으며, 문제 발견 시 항목과 위치를 보고한 뒤 구현 단계로 되돌린다.
+구현 완료 후 코드를 *읽어서* 독립 점검한다. 코드를 수정하지 않으며, 문제 발견 시 항목·위치를 보고하고 구현 단계로 되돌린다.
 
 | 검증 항목 | 확인 방법 |
 |----------|----------|
@@ -88,6 +98,19 @@ docker-compose.yml
 | 히스토리 파일 | `docs/history/` 내 해당 HIST ID 존재 여부 |
 | API 3레이어 완결 | Controller·Service·Repository 모두 작성 여부 |
 | 보안 정책 준수 | 파일 업로드 확장자 검증·UUID 변환 여부 |
+
+**테스트 단계 — webapp-tester (동적, 신규 API/페이지·공통 자산 변경 후 필수)**
+
+정적 검증 통과 후 코드를 *실행해서* 점검한다. 빌드·테스트·타입체크를 실제로 돌려 런타임 결함을 잡는다. 코드를 수정하지 않으며, 실패 시 로그와 함께 webapp-developer에 재구현을 요청한다.
+
+| 대상 | 명령 |
+|------|------|
+| BE 컴파일·테스트 | `cd backend; ./gradlew test` |
+| FE 타입체크 | `cd frontend; npx tsc --noEmit` |
+| FE 빌드 | `cd frontend; npm run build` |
+| FE 테스트 | `cd frontend; npm test -- --watch=false` |
+
+> 빌드·테스트·타입체크 등 검증 성격 명령만 실행한다. 배포·DB파괴·`git push`는 실행하지 않는다.
 
 ---
 

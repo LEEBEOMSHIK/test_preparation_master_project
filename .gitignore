@@ -28,8 +28,9 @@ backend/logs/
 *.jar
 !gradle-wrapper.jar
 
-# Claude Code session files
-.claude/
+# Claude Code session files (agents 디렉토리는 공유, 나머지 세션 파일은 제외)
+.claude/*
+!.claude/agents/
 
 # Uploads (runtime)
 uploads/pdfs/*
