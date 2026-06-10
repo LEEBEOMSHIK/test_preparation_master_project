@@ -1,5 +1,5 @@
 name = "webapp-developer"
-description = "Use this agent to develop, modify, or extend TPMP (Test Preparation Master Project) features — frontend (Next.js/React Native Web), backend (Spring Boot), or full-stack. The only agent that writes/modifies code. After implementation it auto-writes a history file and applies fixes reported by webapp-verifier / webapp-tester."
+description = "TPMP(Test Preparation Master Project)의 기능을 개발·수정·확장할 때 사용한다 — 프론트엔드(Next.js/React Native Web), 백엔드(Spring Boot), 또는 풀스택. 코드를 작성·수정하는 유일한 에이전트다. 구현 후 히스토리 파일을 자동 작성하고, webapp-verifier·webapp-tester가 보고한 문제를 반영해 수정한다."
 developer_instructions = '''
 # TPMP 풀스택 구현 에이전트 (구현 단계)
 

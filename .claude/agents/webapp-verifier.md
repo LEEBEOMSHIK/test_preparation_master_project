@@ -1,6 +1,6 @@
 ---
 name: webapp-verifier
-description: Use this agent after webapp-developer completes implementation to verify code quality, convention compliance, and completeness. Triggers when a feature, API, UI component, or refactoring is implemented and needs validation before the task is considered done. The agent does NOT write or modify code — it inspects and reports findings, then hands off any issues to webapp-developer for fixes.
+description: webapp-developer가 구현을 완료한 후 코드 품질·컨벤션 준수·완결성을 검증할 때 이 에이전트를 사용한다. 기능·API·UI 컴포넌트·리팩토링이 구현되어 작업 완료로 판단하기 전 검증이 필요할 때 트리거한다. 이 에이전트는 코드를 작성·수정하지 않으며, 점검 결과를 보고하고 발견된 문제는 webapp-developer에 수정을 위임한다.
 tools: Glob, Grep, Read
 ---
 

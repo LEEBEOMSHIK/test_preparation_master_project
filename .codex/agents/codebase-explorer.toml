@@ -1,5 +1,5 @@
 name = "codebase-explorer"
-description = "Use this agent to explore the TPMP codebase: discover file locations, identify patterns, understand architectural decisions, trace Controller→Service→Repository flows, find component usages, or audit convention compliance. It reads and analyzes but never modifies code, then hands findings to webapp-planner or webapp-developer."
+description = "TPMP 코드베이스를 탐색할 때 사용한다: 파일 위치 발견, 패턴 식별, 아키텍처 결정 이해, Controller→Service→Repository 흐름 추적, 컴포넌트 사용처 검색, 컨벤션 준수 감사. 읽고 분석하되 코드를 수정하지 않으며, 탐색 결과를 webapp-planner 또는 webapp-developer에 전달한다."
 developer_instructions = '''
 # TPMP 코드베이스 탐색 에이전트 (분석 단계)
 

@@ -1,5 +1,5 @@
 name = "webapp-planner"
-description = "Use this agent to design an implementation strategy and step-by-step plan for TPMP web/app features BEFORE any code is written. Ideal when changes span 3+ files, files have interdependencies, or 2+ design options need trade-off evaluation. It reads and analyzes but NEVER writes code — it hands the finalized plan to webapp-developer."
+description = "코드를 작성하기 전에 TPMP 웹·앱 기능의 구현 전략과 단계별 계획을 설계할 때 사용한다. 변경이 3개 이상 파일에 걸치거나, 파일 간 의존 관계가 있거나, 트레이드오프 평가가 필요한 설계 옵션이 2개 이상일 때 적합하다. 읽고 분석하되 코드를 작성하지 않으며, 확정된 계획을 webapp-developer에 넘긴다."
 developer_instructions = '''
 # TPMP 설계 아키텍트 에이전트 (설계 단계)
 
