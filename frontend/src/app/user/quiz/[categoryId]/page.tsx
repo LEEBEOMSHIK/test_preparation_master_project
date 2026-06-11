@@ -3,7 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { quizService, type QuizQuestion, type CheckResult } from '@/services/quizService';
+import { bookmarkService } from '@/services/bookmarkService';
 import { RichContent } from '@/components/ui/RichContent';
+import { QuizCardSkeleton } from '@/components/ui/Skeleton';
 
 type Phase = 'loading' | 'quiz' | 'continue' | 'result';
 
@@ -33,6 +35,10 @@ export default function QuizPlayPage() {
   const [sessionAnswered, setSessionAnswered] = useState(0);
   const [sessionCorrect, setSessionCorrect] = useState(0);
 
+  // 북마크 상태
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set());
+  const [togglingBookmarkId, setTogglingBookmarkId] = useState<number | null>(null);
+
   // Derived from current batch
   const correctCount = Object.values(answers).filter(a => a.result?.correct).length;
   const answeredCount = Object.values(answers).filter(a => a.submitted).length;
@@ -56,6 +62,43 @@ export default function QuizPlayPage() {
   useEffect(() => {
     loadBatch();
   }, [categoryId]);
+
+  // 마운트 시 북마크 ID 목록 초기화 — 실패해도 퀴즈 진행 막지 않음
+  useEffect(() => {
+    bookmarkService.getBookmarkedIds()
+      .then((res) => {
+        if (res.data.success && res.data.data) {
+          setBookmarkedIds(new Set(res.data.data));
+        }
+      })
+      .catch(() => {
+        setBookmarkedIds(new Set());
+      });
+  }, []);
+
+  const handleToggleBookmark = useCallback(async (questionId: number) => {
+    if (togglingBookmarkId === questionId) return;
+    setTogglingBookmarkId(questionId);
+    try {
+      const res = await bookmarkService.toggle(questionId);
+      if (res.data.success && res.data.data !== undefined) {
+        const bookmarked = res.data.data.bookmarked;
+        setBookmarkedIds((prev) => {
+          const next = new Set(prev);
+          if (bookmarked) {
+            next.add(questionId);
+          } else {
+            next.delete(questionId);
+          }
+          return next;
+        });
+      }
+    } catch {
+      // 실패 시 상태 유지
+    } finally {
+      setTogglingBookmarkId(null);
+    }
+  }, [togglingBookmarkId]);
 
   const q = questions[current];
   const answerState = q ? answers[q.id] : undefined;
@@ -123,11 +166,7 @@ export default function QuizPlayPage() {
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (phase === 'loading') {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <p className="text-gray-400 text-sm">문제를 불러오는 중...</p>
-      </div>
-    );
+    return <QuizCardSkeleton />;
   }
 
   // ── Continue (end of batch) ────────────────────────────────────────────────
@@ -384,6 +423,32 @@ export default function QuizPlayPage() {
             {answerState.result?.explanation && (
               <p className="text-gray-600 mt-1">{answerState.result.explanation}</p>
             )}
+
+            {/* 북마크 토글 버튼 */}
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={() => handleToggleBookmark(q.id)}
+                disabled={togglingBookmarkId === q.id}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition disabled:opacity-50 hover:bg-white/60"
+                title={bookmarkedIds.has(q.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+              >
+                {bookmarkedIds.has(q.id) ? (
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-amber-400">
+                    <path fillRule="evenodd"
+                      d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z"
+                      clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4 text-gray-400">
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                  </svg>
+                )}
+                <span className={bookmarkedIds.has(q.id) ? 'text-amber-600' : 'text-gray-500'}>
+                  {bookmarkedIds.has(q.id) ? '즐겨찾기됨' : '즐겨찾기'}
+                </span>
+              </button>
+            </div>
           </div>
         )}
       </div>

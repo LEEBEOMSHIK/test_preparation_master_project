@@ -1,3 +1,32 @@
+## HIST-20260612-001
+
+- **날짜**: 2026-06-12
+- **수정 범위**: 사용자 백엔드 / 통계 대시보드
+- **수정 개요**: DataInitializer에 `ensureDashboardMenu()` 추가 — `/user/dashboard` 메뉴를 MenuConfig DB에 멱등 시딩
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java` | 수정 | `ensureDashboardMenu()` 메서드 추가 및 `run()`에서 호출 |
+
+### 수정 상세
+
+#### `DataInitializer.java`
+- 변경 전: `ensureDashboardMenu()` 없음. `run()` 내 `ensureBookmarkMenu()` 다음에 바로 `ensurePracticeAdminMenus()` 호출.
+- 변경 후:
+  - `ensureDashboardMenu()` 신규 추가 — `existsByUrl("/user/dashboard")` 체크 후 없으면 `saveMenu(null, "통계 대시보드", "/user/dashboard", "dashboard", -1, MenuConfig.MenuType.USER, "USER,ADMIN")` 실행
+  - `run()` 내 `ensureBookmarkMenu()` 바로 아래 `ensureDashboardMenu()` 호출 추가 (ensurePermissionMenuAssociations 이전이므로 GENERAL_USER allowedRoles 자동 연결 적용됨)
+- displayOrder 선택 근거: USER 메뉴 중 `/user/exam-info`가 displayOrder=0(최상단), 그 외 exams=1~inquiries=5, practice=7, bookmarks=8 순서. 프론트엔드 USER_FALLBACK_NAV에서 dashboard가 displayOrder=0으로 최상단에 위치. dashboard를 exam-info보다도 앞에 두기 위해 displayOrder=-1로 설정.
+- 이유: frontend USER_FALLBACK_NAV에만 있던 dashboard 메뉴를 DB 기반 네비게이션과 일치시키기 위한 시딩 추가
+
+### 복원 방법
+이 ID(HIST-20260612-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 적용한다.
+- `ensureDashboardMenu()` 메서드 삭제
+- `run()` 내 `ensureDashboardMenu();` 호출 라인 삭제
+
+---
+
 ## HIST-20260611-001
 
 - **날짜**: 2026-06-11

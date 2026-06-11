@@ -60,6 +60,8 @@ public class DataInitializer implements ApplicationRunner {
         ensureExamInfoMenus();
         ensureTestCaseMenu();
         ensurePracticeMenu();
+        ensureBookmarkMenu();
+        ensureDashboardMenu();
         ensurePracticeAdminMenus();
         ensurePermissionMenuAssociations();
         ensureQnetPracticalExamInfo();
@@ -345,6 +347,20 @@ public class DataInitializer implements ApplicationRunner {
         if (!menuConfigRepository.existsByUrl("/user/practice")) {
             saveMenu(null, "연습장", "/user/practice", "practice", 7, MenuConfig.MenuType.USER, "USER,ADMIN");
             log.info("[DataInitializer] 연습장 사용자 메뉴 추가 완료");
+        }
+    }
+
+    private void ensureBookmarkMenu() {
+        if (!menuConfigRepository.existsByUrl("/user/bookmarks")) {
+            saveMenu(null, "즐겨찾기", "/user/bookmarks", "bookmark", 8, MenuConfig.MenuType.USER, "USER,ADMIN");
+            log.info("[DataInitializer] 즐겨찾기 사용자 메뉴 추가 완료");
+        }
+    }
+
+    private void ensureDashboardMenu() {
+        if (!menuConfigRepository.existsByUrl("/user/dashboard")) {
+            saveMenu(null, "통계 대시보드", "/user/dashboard", "dashboard", -1, MenuConfig.MenuType.USER, "USER,ADMIN");
+            log.info("[DataInitializer] 통계 대시보드 사용자 메뉴 추가 완료");
         }
     }
 

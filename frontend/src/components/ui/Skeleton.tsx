@@ -157,6 +157,44 @@ export function CardGridSkeleton() {
   );
 }
 
+// ── QuizCardSkeleton ──────────────────────────────────────────────────────────
+// 용도: 퀴즈 플레이 화면 — 문항 카드 1개 로딩 상태 (헤더 + 진행바 + 문제 카드)
+
+export function QuizCardSkeleton() {
+  return (
+    <div className="max-w-2xl mx-auto space-y-4 animate-pulse">
+      {/* 헤더: 카테고리명 + 진행 상태 영역 */}
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-4 w-24" />
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-3.5 w-16" />
+          <Skeleton className="h-6 w-16 rounded-lg" />
+        </div>
+      </div>
+
+      {/* 진행 바 */}
+      <Skeleton className="h-1.5 w-full rounded-full" />
+
+      {/* 문제 카드 */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
+        {/* 문제 본문 */}
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-4/5" />
+          <Skeleton className="h-4 w-3/5" />
+        </div>
+
+        {/* 선택지 영역 (4개 모사) */}
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className={`h-11 rounded-xl ${i % 2 === 0 ? 'w-full' : 'w-full'}`} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── DashboardSkeleton ─────────────────────────────────────────────────────────
 // 용도: 사용자 통계 대시보드 (요약카드 4개 + 도메인 막대 + 추이 막대 + 약점 Top5)
 
