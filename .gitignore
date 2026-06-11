@@ -42,3 +42,14 @@ uploads/images/*
 
 # Docker
 docker-compose.override.yml
+
+# Temp / local scripts (커밋 금지 — 로컬 토큰·임시 데이터 포함 가능)
+/add_web_cat.py
+/q_list.txt
+
+# Build cache
+frontend/tsconfig.tsbuildinfo
+
+# Runtime storage (런타임 업로드/이미지 — 커밋 대상 아님)
+backend/uploads/
+frontend/images/
