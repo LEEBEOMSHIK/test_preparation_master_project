@@ -308,6 +308,29 @@ export interface Faq {
 }
 
 // ──────────────────────────────────────────
+// Bookmark (문항 즐겨찾기)
+// ──────────────────────────────────────────
+export interface BookmarkQuestion {
+  bookmarkId: number;
+  questionBankId: number;
+  title?: string;
+  examYear?: number;
+  examRound?: number;
+  content: string;
+  questionType: QuestionType;
+  categoryId?: number;
+  categoryName?: string;
+  examTypeId?: number;
+  examTypeName?: string;
+  options?: string[];
+  answer?: string;
+  code?: string;
+  language?: string;
+  explanation?: string;
+  bookmarkedAt: string;
+}
+
+// ──────────────────────────────────────────
 // UserDashboard (사용자 통계 대시보드)
 // ──────────────────────────────────────────
 export interface DomainStat {

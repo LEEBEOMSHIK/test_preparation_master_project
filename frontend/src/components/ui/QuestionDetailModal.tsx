@@ -22,6 +22,8 @@ export interface QuestionDetailItem {
 interface Props {
   question: QuestionDetailItem | null;
   onClose: () => void;
+  /** true로 설정하면 관리자 수정 링크를 숨깁니다 (사용자 북마크 페이지 등) */
+  hideEditLink?: boolean;
 }
 
 const TYPE_LABEL: Record<QuestionType, string> = {
@@ -37,7 +39,7 @@ const TYPE_COLOR: Record<QuestionType, string> = {
   CODE:            'bg-violet-50 text-violet-600',
 };
 
-export function QuestionDetailModal({ question, onClose }: Props) {
+export function QuestionDetailModal({ question, onClose, hideEditLink = false }: Props) {
   useEffect(() => {
     if (!question) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -168,13 +170,15 @@ export function QuestionDetailModal({ question, onClose }: Props) {
           >
             닫기
           </button>
-          <Link
-            href={`/admin/exams/questions/${question.id}/edit`}
-            onClick={onClose}
-            className="flex-1 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition text-center"
-          >
-            수정
-          </Link>
+          {!hideEditLink && (
+            <Link
+              href={`/admin/exams/questions/${question.id}/edit`}
+              onClick={onClose}
+              className="flex-1 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition text-center"
+            >
+              수정
+            </Link>
+          )}
         </div>
       </div>
     </div>
