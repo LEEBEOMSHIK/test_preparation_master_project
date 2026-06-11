@@ -75,6 +75,8 @@ docker-compose.yml
 
 → 상세 워크플로우 및 판단 기준: [`docs/claude-config/agent-roles.md`](docs/claude-config/agent-roles.md)
 
+**자동 실행**: 다중 레이어 신규 기능은 `/feature <요구사항>` 스킬로 5단계를 자동 운영한다(설계 산출 후 승인 게이트 → 구현~테스트까지 자동, 실패 시 SendMessage로 같은 구현 에이전트에 되돌림). 정의: [`.claude/skills/feature/SKILL.md`](.claude/skills/feature/SKILL.md)
+
 **핵심 규칙**
 1. 탐색 범위가 3쿼리 이상이면 codebase-explorer에 위임한다.
 2. 수정 파일 3개↑ · 파일 간 의존관계 있음 · 설계 옵션 2개↑ → webapp-planner 사용.
