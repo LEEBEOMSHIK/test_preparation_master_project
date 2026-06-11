@@ -77,6 +77,8 @@ docker-compose.yml
 
 **자동 실행**: 다중 레이어 신규 기능은 `/feature <요구사항>` 스킬로 5단계를 자동 운영한다(설계 산출 후 승인 게이트 → 구현~테스트까지 자동, 실패 시 SendMessage로 같은 구현 에이전트에 되돌림). 정의: [`.claude/skills/feature/SKILL.md`](.claude/skills/feature/SKILL.md)
 
+**작업 발굴**: 무엇을 할지 정하지 못했을 때 `/next [범위]` 스킬로 webapp-planner가 코드·이력 기반 후보를 우선순위와 함께 제시하고, 선택 항목을 `/feature`로 넘긴다. 정의: [`.claude/skills/next/SKILL.md`](.claude/skills/next/SKILL.md)
+
 **핵심 규칙**
 1. 탐색 범위가 3쿼리 이상이면 codebase-explorer에 위임한다.
 2. 수정 파일 3개↑ · 파일 간 의존관계 있음 · 설계 옵션 2개↑ → webapp-planner 사용.
