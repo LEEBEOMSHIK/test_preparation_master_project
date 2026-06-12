@@ -178,14 +178,14 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
 
       {/* ── Top Header ── */}
       <header className="fixed top-0 inset-x-0 z-40 h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-        <div className="max-w-5xl mx-auto h-full flex items-center justify-between px-4 sm:px-6">
+        <div className="w-full h-full flex items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           {/* Logo */}
           <Link href="/user/exams" className="text-lg font-bold text-indigo-600 tracking-tight shrink-0">
             TPMP
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden sm:flex items-center gap-0.5 overflow-x-auto scrollbar-none min-w-0">
+          <nav className="hidden sm:flex items-center gap-0.5 min-w-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {navItems.map((item) => {
               const isActive = pathname.startsWith(item.url);
               const icon = item.iconKey ? (ICON_MAP[item.iconKey] ?? DEFAULT_ICON) : DEFAULT_ICON;
@@ -222,7 +222,7 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
                 <div className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold">
                   {initials}
                 </div>
-                <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-200">
+                <span className="hidden lg:block text-sm font-medium text-gray-700 dark:text-gray-200">
                   {user?.name ?? '사용자'}
                 </span>
                 <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-gray-400 dark:text-gray-500">

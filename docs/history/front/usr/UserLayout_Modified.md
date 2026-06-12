@@ -1,3 +1,30 @@
+## HIST-20260612-002
+
+- **날짜**: 2026-06-12
+- **수정 범위**: 사용자 프론트엔드 / 네비게이션 레이아웃
+- **수정 개요**: 데스크톱 nav 가로 스크롤 제거 — 헤더를 전체 폭으로 확장하고 중간 폭에서 사용자 이름을 숨겨 메뉴 9개가 한 줄에 들어가도록 수정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | 헤더 컨테이너 max-w-5xl → 전체 폭, 사용자 이름 hidden sm:block → lg:block, 스크롤바 숨김 유틸 정상화 |
+
+### 수정 상세
+
+#### `frontend/src/components/layout/UserLayoutShell.tsx`
+- 변경 전: 헤더 내부가 `max-w-5xl mx-auto`(1024px)로 제한되어 메뉴 9개가 넘쳐 가로 스크롤 발생. nav에 정의되지 않은 `scrollbar-none` 클래스 사용으로 스크롤바가 노출됨.
+- 변경 후:
+  - 헤더 컨테이너 `max-w-5xl mx-auto` → `w-full ... lg:px-8`(전체 폭)로 변경해 nav 공간 최대 확보 (본문 영역은 max-w-5xl 유지)
+  - 사용자 이름 `hidden sm:block` → `hidden lg:block`으로 중간 폭에서 숨겨 공간 확보
+  - 스크롤바 숨김을 `[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden` 임의 유틸로 정상화(넘침 시에도 스크롤바 비노출)
+- 이유: 직전 수정(HIST-001)에서 추가된 가로 스크롤이 노출되는 문제 해결. 공간을 넓혀 한 줄에 모두 표시되도록 함.
+
+### 복원 방법
+이 ID(HIST-20260612-002)로 복원 시 헤더 컨테이너를 `max-w-5xl mx-auto`로, 사용자 이름을 `hidden sm:block`으로 되돌린다.
+
+---
+
 ## HIST-20260612-001
 
 - **날짜**: 2026-06-12
