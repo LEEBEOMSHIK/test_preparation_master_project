@@ -1,3 +1,34 @@
+## HIST-20260612-002
+
+- **날짜**: 2026-06-12
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시
+- **수정 개요**: 시험 응시 로딩 시 텍스트 단독 표시를 `QuizCardSkeleton`으로 교체 (exam/[id], user/exams/[id] 두 경로)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | `<p>시험 불러오는 중...</p>` → `QuizCardSkeleton` |
+| `frontend/src/app/user/exams/[id]/page.tsx` | 수정 | `<p>시험 불러오는 중...</p>` → `QuizCardSkeleton` |
+
+### 수정 상세
+
+#### `frontend/src/app/exam/[id]/page.tsx`
+- 변경 전: `<div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-gray-400 text-sm">시험 불러오는 중...</p></div>`
+- 변경 후: `<div className="min-h-screen bg-gray-50 px-4 py-8"><QuizCardSkeleton /></div>`
+- 이유: 텍스트 단독 사용은 스켈레톤 규칙 위반. 시험 응시 화면 구조(헤더+진행바+문제카드)와 QuizCardSkeleton 레이아웃이 일치
+
+#### `frontend/src/app/user/exams/[id]/page.tsx`
+- 변경 전: `<div className="flex items-center justify-center py-24"><p className="text-gray-400 text-sm">시험 불러오는 중...</p></div>`
+- 변경 후: `<div className="px-4 py-8"><QuizCardSkeleton /></div>`
+- 이유: 동일 패턴 위반. 동일한 QuizCardSkeleton 적용
+
+### 복원 방법
+
+이 ID(HIST-20260612-002)만으로 복원 시: 각 파일 loading 분기를 변경 전 텍스트 div로 되돌리고 QuizCardSkeleton import 제거.
+
+---
+
 ## HIST-20260506-001
 
 - **날짜**: 2026-05-06

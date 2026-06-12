@@ -1,3 +1,28 @@
+## HIST-20260612-002
+
+- **날짜**: 2026-06-12
+- **수정 범위**: 사용자 프론트엔드 / 온보딩
+- **수정 개요**: 인라인 animate-pulse DIV 배열을 `ExamTypeGridSkeleton`으로 교체하여 스켈레톤 규칙 적용
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/onboarding/page.tsx` | 수정 | 인라인 animate-pulse grid → `ExamTypeGridSkeleton count={6} itemHeight="h-14"` |
+
+### 수정 상세
+
+#### `frontend/src/app/onboarding/page.tsx`
+- 변경 전: `<div className="grid grid-cols-2 gap-3 animate-pulse">{Array.from({ length: 6 }).map((_, i) => (<div key={i} className="h-14 rounded-xl bg-gray-100" />))}</div>`
+- 변경 후: `<ExamTypeGridSkeleton count={6} itemHeight="h-14" />`
+- 이유: 인라인 animate-pulse 직접 구현은 인라인 복붙 금지 규칙 위반. ExamTypeGridSkeleton 공통 컴포넌트로 추출
+
+### 복원 방법
+
+이 ID(HIST-20260612-002)만으로 복원 시: `ExamTypeGridSkeleton` import 제거 후 loading 분기를 변경 전 인라인 DIV 배열로 되돌린다.
+
+---
+
 ## HIST-20260511-001
 
 - **날짜**: 2026-05-11

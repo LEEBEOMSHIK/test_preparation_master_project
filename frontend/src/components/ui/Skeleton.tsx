@@ -195,6 +195,24 @@ export function QuizCardSkeleton() {
   );
 }
 
+// ── ExamTypeGridSkeleton ──────────────────────────────────────────────────────
+// 용도: 시험 유형 선택 그리드 (온보딩, 관심 시험 유형 설정 모달)
+
+interface ExamTypeGridSkeletonProps {
+  count?: number;
+  itemHeight?: string;
+}
+
+export function ExamTypeGridSkeleton({ count = 6, itemHeight = 'h-14' }: ExamTypeGridSkeletonProps) {
+  return (
+    <div className="grid grid-cols-2 gap-3 animate-pulse">
+      {Array.from({ length: count }).map((_, i) => (
+        <Skeleton key={i} className={`${itemHeight} rounded-xl`} />
+      ))}
+    </div>
+  );
+}
+
 // ── DashboardSkeleton ─────────────────────────────────────────────────────────
 // 용도: 사용자 통계 대시보드 (요약카드 4개 + 도메인 막대 + 추이 막대 + 약점 Top5)
 

@@ -1,3 +1,28 @@
+## HIST-20260612-002
+
+- **날짜**: 2026-06-12
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보
+- **수정 개요**: 관심 시험 유형 설정 모달 내 인라인 animate-pulse DIV를 `ExamTypeGridSkeleton`으로 교체
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | 모달 내 인라인 animate-pulse grid → `ExamTypeGridSkeleton count={6} itemHeight="h-10"` |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exam-info/page.tsx`
+- 변경 전: `<div className="grid grid-cols-2 gap-2 animate-pulse">{Array.from({ length: 6 }).map((_, i) => (<div key={i} className="h-10 rounded-xl bg-gray-100" />))}</div>`
+- 변경 후: `<ExamTypeGridSkeleton count={6} itemHeight="h-10" />`
+- 이유: 인라인 animate-pulse 직접 구현 → 인라인 복붙 금지 규칙 위반. `itemHeight="h-10"` prop으로 모달 버튼 높이에 맞게 조절
+
+### 복원 방법
+
+이 ID(HIST-20260612-002)만으로 복원 시: `ExamTypeGridSkeleton` import에서 제거 후 모달 로딩 분기를 변경 전 인라인 DIV 배열로 되돌린다.
+
+---
+
 ## HIST-20260506-006
 
 - **날짜**: 2026-05-06

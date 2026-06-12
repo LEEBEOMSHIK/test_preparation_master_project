@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { examInfoService } from '@/services/examInfoService';
 import type { ExamTypeOption } from '@/services/examInfoService';
+import { ExamTypeGridSkeleton } from '@/components/ui/Skeleton';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -77,11 +78,7 @@ export default function OnboardingPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
           <p className="text-sm font-semibold text-gray-700">관심 시험 유형 선택 (복수 선택 가능)</p>
           {loading ? (
-            <div className="grid grid-cols-2 gap-3 animate-pulse">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-14 rounded-xl bg-gray-100" />
-              ))}
-            </div>
+            <ExamTypeGridSkeleton count={6} itemHeight="h-14" />
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {examTypes.map((type) => {

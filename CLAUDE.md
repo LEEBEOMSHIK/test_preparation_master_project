@@ -116,6 +116,7 @@ docker-compose.yml
 | `<CardGridSkeleton />` | — | 카드 그리드 |
 | `<DashboardSkeleton />` | — | 사용자 통계 대시보드 (요약카드 4개 + 도메인 막대 + 추이 막대 + 약점 Top5) |
 | `<QuizCardSkeleton />` | — | 퀴즈 플레이 화면 — 문항 카드 1개 로딩 상태 (헤더 + 진행바 + 문제 카드) |
+| `<ExamTypeGridSkeleton count itemHeight />` | `count=6, itemHeight="h-14"` | 시험 유형 선택 그리드 (온보딩, 관심 시험 유형 설정 모달) |
 
 ---
 

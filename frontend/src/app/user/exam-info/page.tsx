@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { examInfoService } from '@/services/examInfoService';
 import type { ExamTypeOption } from '@/services/examInfoService';
-import { ExamInfoCardSkeleton } from '@/components/ui/Skeleton';
+import { ExamInfoCardSkeleton, ExamTypeGridSkeleton } from '@/components/ui/Skeleton';
 import type { ExamInfo } from '@/types';
 
 const PALETTE = [
@@ -258,11 +258,7 @@ export default function UserExamInfoPage() {
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
             <h3 className="text-base font-semibold text-gray-900">관심 시험 유형 설정</h3>
             {examTypes.length === 0 ? (
-              <div className="grid grid-cols-2 gap-2 animate-pulse">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-10 rounded-xl bg-gray-100" />
-                ))}
-              </div>
+              <ExamTypeGridSkeleton count={6} itemHeight="h-10" />
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 {examTypes.map(type => {

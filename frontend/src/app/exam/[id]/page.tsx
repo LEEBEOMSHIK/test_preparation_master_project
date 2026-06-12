@@ -6,6 +6,7 @@ import { examinationService } from '@/services/examinationService';
 import { conceptNoteService } from '@/services/conceptNoteService';
 import type { ExaminationDetail, Question, ConceptNote } from '@/types';
 import { RichContent } from '@/components/ui/RichContent';
+import { QuizCardSkeleton } from '@/components/ui/Skeleton';
 
 const CIRCLED = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
 const circled = (n: number) => CIRCLED[n - 1] ?? `(${n})`;
@@ -207,8 +208,8 @@ export default function ExamTakingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-400 text-sm">시험 불러오는 중...</p>
+      <div className="min-h-screen bg-gray-50 px-4 py-8">
+        <QuizCardSkeleton />
       </div>
     );
   }

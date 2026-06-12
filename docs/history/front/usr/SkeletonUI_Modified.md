@@ -1,3 +1,62 @@
+## HIST-20260612-002
+
+- **날짜**: 2026-06-12
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시(exam, user/exams), 온보딩, 시험 정보 모달
+- **수정 개요**: CLAUDE.md 스켈레톤 규칙 위반 4개소 수정 — 텍스트 단독 및 인라인 animate-pulse DIV를 Skeleton 컴포넌트로 교체, ExamTypeGridSkeleton 신규 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/Skeleton.tsx` | 수정 | `ExamTypeGridSkeleton` 신규 추가 (시험 유형 선택 2열 그리드) |
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | `<p>시험 불러오는 중...</p>` → `QuizCardSkeleton` |
+| `frontend/src/app/user/exams/[id]/page.tsx` | 수정 | `<p>시험 불러오는 중...</p>` → `QuizCardSkeleton` |
+| `frontend/src/app/onboarding/page.tsx` | 수정 | 인라인 animate-pulse DIV 배열 → `ExamTypeGridSkeleton count={6} itemHeight="h-14"` |
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | 모달 내 인라인 animate-pulse DIV 배열 → `ExamTypeGridSkeleton count={6} itemHeight="h-10"` |
+| `CLAUDE.md` | 수정 | Skeleton UI Convention 표에 `ExamTypeGridSkeleton` 행 추가 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/Skeleton.tsx`
+- 변경 전: `ExamTypeGridSkeleton` 없음
+- 변경 후: `ExamTypeGridSkeleton({ count=6, itemHeight="h-14" })` 추가 — `grid grid-cols-2` 구조로 N개 버튼 placeholder 렌더링
+- 이유: onboarding과 exam-info 모달이 동일한 2열 그리드 버튼 패턴 사용 → 공통 컴포넌트로 추출
+
+#### `frontend/src/app/exam/[id]/page.tsx`
+- 변경 전: `<div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-gray-400 text-sm">시험 불러오는 중...</p></div>`
+- 변경 후: `<div className="min-h-screen bg-gray-50 px-4 py-8"><QuizCardSkeleton /></div>`
+- 이유: 텍스트 단독 사용 → 규칙 위반. 시험 응시 화면 구조(헤더+진행바+문제카드)와 QuizCardSkeleton이 일치
+
+#### `frontend/src/app/user/exams/[id]/page.tsx`
+- 변경 전: `<div className="flex items-center justify-center py-24"><p className="text-gray-400 text-sm">시험 불러오는 중...</p></div>`
+- 변경 후: `<div className="px-4 py-8"><QuizCardSkeleton /></div>`
+- 이유: 동일 패턴. QuizCardSkeleton으로 교체
+
+#### `frontend/src/app/onboarding/page.tsx`
+- 변경 전: `<div className="grid grid-cols-2 gap-3 animate-pulse">{Array.from({ length: 6 }).map((_, i) => (<div key={i} className="h-14 rounded-xl bg-gray-100" />))}</div>`
+- 변경 후: `<ExamTypeGridSkeleton count={6} itemHeight="h-14" />`
+- 이유: 인라인 animate-pulse 직접 구현 → 인라인 복붙 금지 규칙 위반. ExamTypeGridSkeleton으로 추출
+
+#### `frontend/src/app/user/exam-info/page.tsx`
+- 변경 전: `<div className="grid grid-cols-2 gap-2 animate-pulse">{Array.from({ length: 6 }).map((_, i) => (<div key={i} className="h-10 rounded-xl bg-gray-100" />))}</div>`
+- 변경 후: `<ExamTypeGridSkeleton count={6} itemHeight="h-10" />`
+- 이유: 동일한 인라인 복붙 패턴 위반. itemHeight prop으로 모달 버튼 높이(h-10) 조절
+
+### 복원 방법
+
+이 ID(HIST-20260612-002)만으로 복원 시:
+
+| 파일 | 복원 내용 |
+|------|-----------|
+| `exam/[id]/page.tsx` | loading 분기를 `<div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-gray-400 text-sm">시험 불러오는 중...</p></div>` 으로 되돌리고 QuizCardSkeleton import 제거 |
+| `user/exams/[id]/page.tsx` | loading 분기를 `<div className="flex items-center justify-center py-24"><p className="text-gray-400 text-sm">시험 불러오는 중...</p></div>` 으로 되돌리고 QuizCardSkeleton import 제거 |
+| `onboarding/page.tsx` | ExamTypeGridSkeleton을 인라인 grid+animate-pulse DIV 6개로 되돌리고 import 제거 |
+| `user/exam-info/page.tsx` | 모달 내 ExamTypeGridSkeleton을 인라인 grid+animate-pulse DIV 6개로 되돌리고 import에서 ExamTypeGridSkeleton 제거 |
+| `Skeleton.tsx` | ExamTypeGridSkeleton 함수 블록 전체 삭제 |
+| `CLAUDE.md` | Skeleton UI Convention 표에서 ExamTypeGridSkeleton 행 삭제 |
+
+---
+
 ## HIST-20260429-003
 
 - **날짜**: 2026-04-29

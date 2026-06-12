@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { examService } from '@/services/examService';
 import type { ExamDetail, Question } from '@/types';
 import { RichContent } from '@/components/ui/RichContent';
+import { QuizCardSkeleton } from '@/components/ui/Skeleton';
 
 const DEFAULT_MINUTES = 60;
 
@@ -99,8 +100,8 @@ export default function ExamTakingPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <p className="text-gray-400 text-sm">시험 불러오는 중...</p>
+      <div className="px-4 py-8">
+        <QuizCardSkeleton />
       </div>
     );
   }
