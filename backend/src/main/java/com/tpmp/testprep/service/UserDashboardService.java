@@ -44,9 +44,11 @@ public class UserDashboardService {
                 : LocalDateTime.now().minusDays(days);
 
         // ── 총 문항 / 총 정답 ──────────────────────────────────
-        Object[] totals = examHistoryRepository.sumTotalAndCorrectByUserAndPeriod(user.getId(), from);
-        long totalQuestions = totals[0] != null ? ((Number) totals[0]).longValue() : 0L;
-        long totalCorrect   = totals[1] != null ? ((Number) totals[1]).longValue() : 0L;
+        Object[] totals = normalizeSingleAggregateRow(
+                examHistoryRepository.sumTotalAndCorrectByUserAndPeriod(user.getId(), from)
+        );
+        long totalQuestions = longValueAt(totals, 0);
+        long totalCorrect   = longValueAt(totals, 1);
         double overallRate  = totalQuestions > 0 ? totalCorrect * 100.0 / totalQuestions : 0.0;
 
         // ── 도메인별 집계 ──────────────────────────────────────
@@ -99,5 +101,27 @@ public class UserDashboardService {
                 weakDomains,
                 dailyTrend
         );
+    }
+
+    /**
+     * 단일 행 다중 컬럼 집계 쿼리(Object[] 반환)는 Hibernate 버전/경로에 따라
+     * 행이 한 번 더 감싸진 형태({@code [[sum1, sum2]]})로 반환될 수 있다.
+     * 이 경우 내부 배열을 꺼내 일관되게 처리한다.
+     */
+    private Object[] normalizeSingleAggregateRow(Object[] row) {
+        if (row == null || row.length == 0) {
+            return new Object[0];
+        }
+        if (row.length == 1 && row[0] instanceof Object[] nestedRow) {
+            return nestedRow;
+        }
+        return row;
+    }
+
+    private long longValueAt(Object[] row, int index) {
+        if (row.length <= index || row[index] == null) {
+            return 0L;
+        }
+        return ((Number) row[index]).longValue();
     }
 }

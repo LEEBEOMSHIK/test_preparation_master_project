@@ -1,3 +1,27 @@
+## HIST-20260613-001
+
+- **날짜**: 2026-06-13
+- **수정 범위**: 사용자 백엔드 / 통계 대시보드
+- **수정 개요**: 집계 쿼리 결과 ClassCastException 수정 — exam_history에 데이터가 생기면 대시보드 통계 API가 500 나던 버그
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/UserDashboardService.java` | 수정 | 단일 행 집계 결과의 중첩 배열 언랩 헬퍼(`normalizeSingleAggregateRow`, `longValueAt`) 추가 |
+
+### 수정 상세
+
+#### `UserDashboardService.java`
+- 증상: 시험 응시 결과(ExamHistory) 영속화 버그 수정 후 exam_history에 데이터가 쌓이자, `getDashboard`의 `sumTotalAndCorrectByUserAndPeriod` 결과를 `((Number) totals[0])`로 캐스팅하다 `ClassCastException: [Ljava.lang.Object; cannot be cast to Number` 발생(L48). 데이터가 없을 땐 `[null,null]`이라 안 터졌음.
+- 원인: 단일 행 다중 컬럼 집계 쿼리(`Object[]` 반환)가 Hibernate 경로에 따라 `[[sum1,sum2]]`로 한 번 더 감싸져 반환됨. `totals[0]`이 Number가 아닌 `Object[]`.
+- 수정: `normalizeSingleAggregateRow(row)`로 `length==1 && row[0] instanceof Object[]`이면 내부 배열을 꺼내고, `longValueAt(row, i)`로 안전하게 long 추출.
+
+### 복원 방법
+이 ID(HIST-20260613-001)로 복원 시 두 헬퍼를 제거하고 `totals[0]/totals[1]`을 직접 캐스팅하는 원래 코드로 되돌린다(단, exam_history에 데이터가 있으면 다시 500 발생).
+
+---
+
 ## HIST-20260612-001
 
 - **날짜**: 2026-06-12
