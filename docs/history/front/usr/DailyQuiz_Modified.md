@@ -1,3 +1,44 @@
+## HIST-20260613-002
+
+- **날짜**: 2026-06-13
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 플레이
+- **수정 개요**: 퀴즈 문항 카드에 examYear/examRound 기반 연도·회차 배지 표시 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/quizService.ts` | 수정 | `QuizQuestion` 인터페이스에 `examYear?: number`, `examRound?: number` 필드 추가 |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | 문항 카드 내 `RichContent` 위에 연도/회차 배지 조건부 렌더링 추가 |
+
+### 수정 상세
+
+#### `frontend/src/services/quizService.ts`
+- 변경 전: `QuizQuestion`에 `id, content, questionType, options?, code?, language?` 만 존재
+- 변경 후: `examYear?: number`, `examRound?: number` 필드 추가
+- 이유: BE `QuizQuestionView` record에 추가된 두 필드를 FE 타입에 반영
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: 문제 카드 `<div>` 내 첫 자식이 바로 `<RichContent html={q.content} ... />`
+- 변경 후: `RichContent` 위에 조건부 배지 블록 추가
+  ```tsx
+  {(q.examYear != null || q.examRound != null) && (
+    <span className="inline-block text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+      {q.examYear != null && q.examRound != null
+        ? `${q.examYear}년 ${q.examRound}회`
+        : q.examYear != null
+        ? `${q.examYear}년`
+        : `${q.examRound}회`}
+    </span>
+  )}
+  ```
+- 이유: 출처 연도/회차가 있는 문항에서 사용자가 시험 회차를 인지할 수 있도록
+
+### 복원 방법
+이 ID(HIST-20260613-002)로 복원 시: `quizService.ts`의 `QuizQuestion`에서 `examYear?`, `examRound?` 라인 제거; `page.tsx` 문제 카드에서 배지 블록(`{(q.examYear != null || ...}`) 제거.
+
+---
+
 ## HIST-20260613-001
 
 - **날짜**: 2026-06-13

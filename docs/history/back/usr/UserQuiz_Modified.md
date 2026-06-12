@@ -1,3 +1,53 @@
+## HIST-20260613-001
+
+- **날짜**: 2026-06-13
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈
+- **수정 개요**: `QuizQuestionView` record에 `examYear`, `examRound` 필드 추가 — 문항의 연도·회차 정보를 FE로 전달
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/controller/UserQuizController.java` | 수정 | `QuizQuestionView` record에 `Integer examYear`, `Integer examRound` 추가 및 `from()` 매핑 추가 |
+
+### 수정 상세
+
+#### `UserQuizController.java` — `QuizQuestionView`
+- 변경 전:
+  ```java
+  public record QuizQuestionView(
+          Long id, String content, String questionType,
+          List<String> options, String code, String language) {
+
+      public static QuizQuestionView from(QuestionBank qb) {
+          return new QuizQuestionView(
+                  qb.getId(), qb.getContent(), qb.getQuestionType().name(),
+                  qb.getOptions(), qb.getCode(), qb.getLanguage());
+      }
+  }
+  ```
+- 변경 후:
+  ```java
+  public record QuizQuestionView(
+          Long id, String content, String questionType,
+          List<String> options, String code, String language,
+          Integer examYear, Integer examRound) {
+
+      public static QuizQuestionView from(QuestionBank qb) {
+          return new QuizQuestionView(
+                  qb.getId(), qb.getContent(), qb.getQuestionType().name(),
+                  qb.getOptions(), qb.getCode(), qb.getLanguage(),
+                  qb.getExamYear(), qb.getExamRound());
+      }
+  }
+  ```
+- 이유: `QuestionBank` 엔티티에 `examYear`, `examRound` 필드(nullable)가 있으나 퀴즈 응답 DTO에서 누락되어 FE에 전달되지 않았음. nullable 그대로 `Integer`로 선언.
+
+### 복원 방법
+이 ID(HIST-20260613-001)로 복원 시: `QuizQuestionView` record에서 `Integer examYear, Integer examRound` 필드 제거, `from()` 메서드의 마지막 두 인자(`qb.getExamYear(), qb.getExamRound()`) 제거.
+
+---
+
 ## HIST-20260501-003
 
 - **날짜**: 2026-05-01

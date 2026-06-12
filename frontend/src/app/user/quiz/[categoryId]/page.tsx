@@ -309,6 +309,16 @@ export default function QuizPlayPage() {
 
       {/* 문제 카드 */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
+        {/* 연도/회차 배지 */}
+        {(q.examYear != null || q.examRound != null) && (
+          <span className="inline-block text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+            {q.examYear != null && q.examRound != null
+              ? `${q.examYear}년 ${q.examRound}회`
+              : q.examYear != null
+              ? `${q.examYear}년`
+              : `${q.examRound}회`}
+          </span>
+        )}
         <RichContent html={q.content} className="text-gray-800 font-medium text-base" />
 
         {q.code && (

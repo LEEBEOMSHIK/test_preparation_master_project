@@ -96,12 +96,14 @@ public class UserQuizController {
 
     public record QuizQuestionView(
             Long id, String content, String questionType,
-            List<String> options, String code, String language) {
+            List<String> options, String code, String language,
+            Integer examYear, Integer examRound) {
 
         public static QuizQuestionView from(QuestionBank qb) {
             return new QuizQuestionView(
                     qb.getId(), qb.getContent(), qb.getQuestionType().name(),
-                    qb.getOptions(), qb.getCode(), qb.getLanguage());
+                    qb.getOptions(), qb.getCode(), qb.getLanguage(),
+                    qb.getExamYear(), qb.getExamRound());
         }
     }
 

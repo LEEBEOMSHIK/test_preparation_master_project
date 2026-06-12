@@ -8,6 +8,8 @@ export interface QuizQuestion {
   options?: string[];
   code?: string;
   language?: string;
+  examYear?: number;
+  examRound?: number;
 }
 
 export interface CheckResult {
