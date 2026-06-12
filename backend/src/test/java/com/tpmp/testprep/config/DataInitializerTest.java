@@ -77,10 +77,7 @@ class DataInitializerTest {
                 mock(PermissionDetailRepository.class),
                 mock(MenuConfigRepository.class),
                 mock(PracticeService.class),
-                examInfoRepository,
-                mock(ExamRepository.class),
-                mock(QuestionRepository.class),
-                mock(ExaminationRepository.class)
+                examInfoRepository
         );
     }
 }
