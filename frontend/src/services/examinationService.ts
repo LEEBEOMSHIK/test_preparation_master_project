@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import type { ApiResponse, Examination, ExaminationDetail, PageResponse } from '@/types';
+import type { ApiResponse, Examination, ExaminationDetail, ExaminationSubmitResult, PageResponse } from '@/types';
 
 export const examinationService = {
   // ── 사용자 ──────────────────────────────────────────────────────────
@@ -12,7 +12,7 @@ export const examinationService = {
     apiClient.get<ApiResponse<ExaminationDetail>>(`/user/examinations/${id}`),
 
   userSubmitExamination: (id: number, answers: Record<number, string>) =>
-    apiClient.post<ApiResponse<{ total: number; correct: number; score: number }>>(
+    apiClient.post<ApiResponse<ExaminationSubmitResult>>(
       `/user/examinations/${id}/submit`,
       answers,
     ),

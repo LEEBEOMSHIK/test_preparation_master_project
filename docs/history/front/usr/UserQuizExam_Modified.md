@@ -1,3 +1,53 @@
+## HIST-20260612-003
+
+- **날짜**: 2026-06-12
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 결과 화면 (신형 exam/[id], 구형 user/exams/[id] 두 흐름)
+- **수정 개요**: 시험 제출 후 결과 화면을 점수 카드 + 문항별 정오·정답·해설 아코디언으로 확장 (MVP: 영속화 없음, 새로고침 시 재조회 불가)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `QuestionResult`, `ExaminationSubmitResult` 인터페이스 추가 |
+| `frontend/src/services/examinationService.ts` | 수정 | `userSubmitExamination` 반환 타입 `{ total, correct, score }` → `ExaminationSubmitResult` |
+| `frontend/src/services/examService.ts` | 수정 | `submitExam` 반환 타입 → `ExaminationSubmitResult`; `{ answers }` 래핑 → `answers` 직접 전달로 BE 불일치 수정 |
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | `result` 상태 타입 교체, `resultFilter`/`expandedItems` 상태 추가, 결과 화면 아코디언 구조로 전면 교체, `ExaminationSubmitResult`/`stripHtml` import 추가 |
+| `frontend/src/app/user/exams/[id]/page.tsx` | 수정 | 동일 패턴 적용. 타입 캐스팅 제거, 결과 화면 아코디언 구조 적용, `max-w-2xl` 폭 조정 |
+
+### 수정 상세
+
+#### `types/index.ts`
+- 변경 전: 해당 타입 없음. 두 서비스 호출부에서 인라인 `{ total, correct, score }` 타입 사용
+- 변경 후: `QuestionResult` (questionId/seq/content/questionType/options?/userAnswer/correctAnswer/correct/explanation?) 및 `ExaminationSubmitResult` (total/correct/score/results) 추가
+- 이유: 타입 안전성 확보, 서비스·페이지에서 동일 타입 재사용
+
+#### `examService.ts`
+- 변경 전: `submitExam`이 `{ answers }` 래핑 전송 → BE `Map<Long,String>` 직접 수신 불일치
+- 변경 후: `answers` 직접 전달, 반환 타입 `{ score: number }` → `ApiResponse<ExaminationSubmitResult>`
+- 이유: STEP4 불일치 해소. 기존 `{ answers }` 래핑 시 BE에서 빈 Map으로 처리됨
+
+#### `exam/[id]/page.tsx` (신형)
+- 변경 전: 집계 점수 카드(score/total/correct) + "시험 목록으로" 버튼만 표시
+- 변경 후: 집계 카드 + amber 안내 배너 + 전체/오답 필터 탭 + 문항별 아코디언 (정오 배지, Q{seq}, stripHtml 미리보기, 펼침 시 RichContent 본문·선택지·내답/정답·해설) + "시험 목록으로" 버튼
+- 이유: 문항별 정오·정답·해설 확인 UX 제공
+
+#### `user/exams/[id]/page.tsx` (구형)
+- 변경 전: 동일 구조의 집계 카드만. 타입 캐스팅 `as { total, correct, score }` 존재
+- 변경 후: 동일 아코디언 구조 적용. 타입 캐스팅 제거, `max-w-2xl` 폭 조정
+- 이유: 구형 시험 흐름에도 동일 결과 화면 품질 적용
+
+### MVP 제약사항
+새로고침 시 문항별 결과를 재조회할 수 없음(의도된 제한). amber 배너로 사용자에게 안내.
+
+### 복원 방법
+이 ID(HIST-20260612-003)만으로 복원 시:
+- `types/index.ts`에서 `QuestionResult`, `ExaminationSubmitResult` 제거
+- 두 서비스 파일의 반환 타입을 `{ total, correct, score }` 인라인 타입으로 복원
+- `examService.ts` submitExam을 `{ answers }` 래핑 및 `{ score: number }` 반환 타입으로 복원
+- 두 페이지의 `result` 상태 타입을 `{ total, correct, score } | null`로, 결과 화면 JSX를 집계 카드 단순 구조로 복원, `resultFilter`/`expandedItems` 상태 제거
+
+---
+
 ## HIST-20260612-002
 
 - **날짜**: 2026-06-12

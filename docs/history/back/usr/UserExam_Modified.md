@@ -1,3 +1,42 @@
+## HIST-20260612-001
+
+- **날짜**: 2026-06-12
+- **수정 범위**: 사용자 백엔드 / 시험 제출 채점 (신형 Examination + 구형 Exam 두 흐름)
+- **수정 개요**: 시험 제출 응답에 문항별 정오·정답·해설 포함 (MVP: 영속화 없음, 새로고침 시 재조회 불가)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../dto/response/QuestionResultResponse.java` | 추가 | 문항별 정오·정답·해설 DTO record, `of(Question, userAnswer, correct)` 팩토리 |
+| `backend/.../dto/response/ExaminationSubmitResponse.java` | 추가 | 시험 제출 결과 DTO record (total/correct/score/results) |
+| `backend/.../controller/UserExaminationController.java` | 수정 | `submitExam` 반환 타입 `SubmitResult` → `ExaminationSubmitResponse`로 교체, 채점 루프에서 `QuestionResultResponse` 수집, 인라인 `SubmitResult` record 제거 |
+| `backend/.../controller/UserExamController.java` | 수정 | 동일 패턴 적용. `SubmitResult` record 제거, `ArrayList` import 추가 |
+
+### 수정 상세
+
+#### `UserExaminationController.java`
+- 변경 전: `ResponseEntity<ApiResponse<SubmitResult>>`, 채점 루프에서 `correct` 집계만, `record SubmitResult(int total, int correct, int score) {}`
+- 변경 후: `ResponseEntity<ApiResponse<ExaminationSubmitResponse>>`, 채점 루프에서 `QuestionResultResponse.of()` 수집, `ExaminationSubmitResponse.of(total, correct, score, results)` 반환. 인라인 record 제거.
+- 이유: 결과 화면에서 문항별 정오/정답/해설 표시를 위해 응답 확장
+
+#### `UserExamController.java`
+- 변경 전: `ResponseEntity<ApiResponse<SubmitResult>>`, `record SubmitResult(int total, int correct, int score) {}`
+- 변경 후: `ResponseEntity<ApiResponse<ExaminationSubmitResponse>>`, 동일 패턴. import 정리(ArrayList 추가).
+- 이유: 구형 시험 흐름에도 동일 결과 확장 적용
+
+#### STEP4 본문 형식 불일치 해소
+- 기존 `examService.submitExam`이 `{ answers }` 래핑 전송 → BE `Map<Long,String>` 직접 수신 불일치 확인
+- FE `examService.ts`의 호출부를 `answers` 직접 전달로 수정(FE STEP7에서 처리)
+
+### MVP 제약사항
+새로고침 시 문항별 결과를 재조회할 수 없음(의도된 제한). DB 저장 없이 제출 응답에만 포함.
+
+### 복원 방법
+이 ID(HIST-20260612-001)만으로 복원 시: 두 컨트롤러의 `submitExam`을 변경 전 `SubmitResult` record 사용 코드로 되돌리고, 두 DTO 파일(`QuestionResultResponse.java`, `ExaminationSubmitResponse.java`)을 삭제한다.
+
+---
+
 ## HIST-20260430-013
 
 - **날짜**: 2026-04-30

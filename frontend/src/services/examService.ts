@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import type { ApiResponse, ExamDetail, ExamSummary, PageResponse, QuestionSummary, QuestionType } from '@/types';
+import type { ApiResponse, ExamDetail, ExaminationSubmitResult, ExamSummary, PageResponse, QuestionSummary, QuestionType } from '@/types';
 
 export const examService = {
   // User
@@ -9,8 +9,9 @@ export const examService = {
   getExamDetail: (id: number) =>
     apiClient.get<ApiResponse<ExamDetail>>(`/user/exams/${id}`),
 
+  // STEP4: BE는 Map<Long,String> 직접 수신. { answers } 래핑 제거 후 answers 직접 전달.
   submitExam: (id: number, answers: Record<number, string>) =>
-    apiClient.post<ApiResponse<{ score: number }>>(`/user/exams/${id}/submit`, { answers }),
+    apiClient.post<ApiResponse<ExaminationSubmitResult>>(`/user/exams/${id}/submit`, answers),
 
   // Admin
   adminGetExams: (page = 0, size = 10) =>

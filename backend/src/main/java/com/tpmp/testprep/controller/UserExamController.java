@@ -2,6 +2,8 @@ package com.tpmp.testprep.controller;
 
 import com.tpmp.testprep.dto.response.ApiResponse;
 import com.tpmp.testprep.dto.response.ExamSummaryResponse;
+import com.tpmp.testprep.dto.response.ExaminationSubmitResponse;
+import com.tpmp.testprep.dto.response.QuestionResultResponse;
 import com.tpmp.testprep.entity.Exam;
 import com.tpmp.testprep.entity.Question;
 import com.tpmp.testprep.repository.QuestionRepository;
@@ -12,10 +14,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/user/exams")
@@ -60,23 +62,24 @@ public class UserExamController {
 
     /** 시험 제출 및 채점 */
     @PostMapping("/{id}/submit")
-    public ResponseEntity<ApiResponse<SubmitResult>> submitExam(
+    public ResponseEntity<ApiResponse<ExaminationSubmitResponse>> submitExam(
             @PathVariable Long id,
             @RequestBody Map<Long, String> answers) {
 
         List<Question> questions = questionRepository.findByExamIdOrderBySeqAsc(id);
         int total = questions.size();
         int correct = 0;
+        List<QuestionResultResponse> results = new ArrayList<>();
         for (Question q : questions) {
-            String userAnswer = answers.get(q.getId());
-            if (userAnswer != null && q.getAnswer() != null
-                    && userAnswer.trim().equalsIgnoreCase(q.getAnswer().trim())) {
-                correct++;
-            }
+            String userAnswer = answers.getOrDefault(q.getId(), "");
+            boolean isCorrect = !userAnswer.isEmpty() && q.getAnswer() != null
+                    && userAnswer.trim().equalsIgnoreCase(q.getAnswer().trim());
+            if (isCorrect) correct++;
+            results.add(QuestionResultResponse.of(q, userAnswer, isCorrect));
         }
         int score = total > 0 ? (int) Math.round(correct * 100.0 / total) : 0;
-        return ResponseEntity.ok(ApiResponse.success(new SubmitResult(total, correct, score)));
+        return ResponseEntity.ok(ApiResponse.success(
+                ExaminationSubmitResponse.of(total, correct, score, results)
+        ));
     }
-
-    public record SubmitResult(int total, int correct, int score) {}
 }

@@ -331,6 +331,31 @@ export interface BookmarkQuestion {
 }
 
 // ──────────────────────────────────────────
+// ExaminationSubmit (시험 제출 결과)
+// ──────────────────────────────────────────
+
+/** 채점 후 문항별 정오·정답·해설 (MVP: 제출 응답에만 포함, 영속화 없음) */
+export interface QuestionResult {
+  questionId: number;
+  seq: number;
+  content: string;
+  questionType: QuestionType;
+  options?: string[];
+  userAnswer: string;
+  correctAnswer: string;
+  correct: boolean;
+  explanation?: string;
+}
+
+/** 시험 제출·채점 결과 (MVP: 새로고침 시 재조회 불가) */
+export interface ExaminationSubmitResult {
+  total: number;
+  correct: number;
+  score: number;
+  results: QuestionResult[];
+}
+
+// ──────────────────────────────────────────
 // UserDashboard (사용자 통계 대시보드)
 // ──────────────────────────────────────────
 export interface DomainStat {
