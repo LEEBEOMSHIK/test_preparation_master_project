@@ -1,3 +1,31 @@
+## HIST-20260612-001
+
+- **날짜**: 2026-06-12
+- **수정 범위**: 사용자 프론트엔드 / 네비게이션 레이아웃
+- **수정 개요**: 데스크톱 nav 메뉴 9개 과밀 시 라벨 줄바꿈 방지 및 가로 스크롤 처리
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | 데스크톱 nav 줄바꿈 방지 및 가로 스크롤 적용 |
+
+### 수정 상세
+
+#### `frontend/src/components/layout/UserLayoutShell.tsx`
+- 변경 전:
+  - `<nav className="hidden sm:flex items-center gap-1">`
+  - Link: `flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors`
+- 변경 후:
+  - `<nav className="hidden sm:flex items-center gap-0.5 overflow-x-auto scrollbar-none min-w-0">`
+  - Link: `flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap shrink-0`
+- 이유: 메뉴가 9개로 늘어 헤더 폭(max-w-5xl) 초과 시 라벨이 세로 줄바꿈되는 현상 수정. `whitespace-nowrap`으로 라벨 줄바꿈 차단, `shrink-0`으로 아이템 축소 방지, `overflow-x-auto`로 초과 시 가로 스크롤 허용. `px-4→px-3`, `gap-1→gap-0.5`, `text-sm→text-xs`로 여백/폰트 소폭 축소하여 한 줄 수용력 향상.
+
+### 복원 방법
+이 ID(HIST-20260612-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 `UserLayoutShell.tsx` nav 블록에 적용한다.
+
+---
+
 ## HIST-20260510-005
 
 - **날짜**: 2026-05-10

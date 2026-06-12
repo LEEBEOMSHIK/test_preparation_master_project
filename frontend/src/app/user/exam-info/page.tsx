@@ -48,10 +48,10 @@ function getPhaseStatus(rangeStr: string | undefined): PhaseStatus {
 }
 
 const PHASE_STYLES: Record<PhaseStatus, { box: string; badge: string; badgeColor: string; text: string }> = {
-  active:   { box: 'bg-emerald-50 border border-emerald-100', badge: '진행 중', badgeColor: 'text-emerald-600', text: 'text-gray-700' },
-  upcoming: { box: 'bg-blue-50 border border-blue-100',       badge: '예정',    badgeColor: 'text-blue-500',    text: 'text-gray-700' },
-  past:     { box: 'bg-gray-50',                              badge: '종료',    badgeColor: 'text-gray-400',    text: 'text-gray-400' },
-  none:     { box: 'bg-gray-50',                              badge: '',        badgeColor: '',                 text: 'text-gray-700' },
+  active:   { box: 'bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-700', badge: '진행 중', badgeColor: 'text-emerald-600 dark:text-emerald-400', text: 'text-gray-800 dark:text-gray-200' },
+  upcoming: { box: 'bg-blue-50 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-700',             badge: '예정',    badgeColor: 'text-blue-600 dark:text-blue-400',         text: 'text-gray-800 dark:text-gray-200' },
+  past:     { box: 'bg-gray-100 border border-gray-200 dark:bg-gray-800 dark:border-gray-700',               badge: '종료',    badgeColor: 'text-gray-400 dark:text-gray-500',         text: 'text-gray-400 dark:text-gray-500' },
+  none:     { box: 'bg-gray-100 border border-gray-200 dark:bg-gray-800 dark:border-gray-700',               badge: '',        badgeColor: '',                                         text: 'text-gray-700 dark:text-gray-300' },
 };
 
 export default function UserExamInfoPage() {

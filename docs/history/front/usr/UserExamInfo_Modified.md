@@ -1,3 +1,35 @@
+## HIST-20260612-003
+
+- **날짜**: 2026-06-12
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보
+- **수정 개요**: 접수기간·시험일정·합격발표 상태 박스 배경 대비 강화 및 다크모드 클래스 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | PHASE_STYLES 배경·테두리·텍스트 색상 대비 강화 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exam-info/page.tsx`
+- 변경 전 (`PHASE_STYLES`):
+  - `past`:  `bg-gray-50` (border 없음)
+  - `none`:  `bg-gray-50` (border 없음)
+  - 다크모드 클래스 없음
+- 변경 후 (`PHASE_STYLES`):
+  - `active`:  `bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-700`
+  - `upcoming`: `bg-blue-50 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-700`
+  - `past`:    `bg-gray-100 border border-gray-200 dark:bg-gray-800 dark:border-gray-700`
+  - `none`:    `bg-gray-100 border border-gray-200 dark:bg-gray-800 dark:border-gray-700`
+  - 텍스트/배지 색상에 `dark:` 변형 추가
+- 이유: 흰 카드(`bg-white`) 배경 위에서 `bg-gray-50` 박스가 구분되지 않는 가시성 이슈 해결. `border` 추가 및 배경을 `bg-gray-100`으로 올려 라이트모드 대비 확보. 다크모드 대응 클래스도 함께 추가.
+
+### 복원 방법
+이 ID(HIST-20260612-003)만으로 복원 시 위 "수정 상세"의 "변경 전" PHASE_STYLES 내용을 `page.tsx`에 적용한다.
+
+---
+
 ## HIST-20260612-002
 
 - **날짜**: 2026-06-12

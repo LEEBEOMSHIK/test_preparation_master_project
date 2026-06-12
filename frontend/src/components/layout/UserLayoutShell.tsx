@@ -185,7 +185,7 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden sm:flex items-center gap-1">
+          <nav className="hidden sm:flex items-center gap-0.5 overflow-x-auto scrollbar-none min-w-0">
             {navItems.map((item) => {
               const isActive = pathname.startsWith(item.url);
               const icon = item.iconKey ? (ICON_MAP[item.iconKey] ?? DEFAULT_ICON) : DEFAULT_ICON;
@@ -194,7 +194,7 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
                   key={item.id}
                   href={item.url}
                   className={[
-                    'flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
+                    'flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap shrink-0',
                     isActive
                       ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800',
