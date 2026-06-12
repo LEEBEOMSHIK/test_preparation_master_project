@@ -1,3 +1,27 @@
+## HIST-20260612-004
+
+- **날짜**: 2026-06-12
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보
+- **수정 개요**: 시험 단계 상태 판정(getPhaseStatus)의 타임존 버그 수정 — 오늘 날짜가 '예정'으로 잘못 표시되던 문제 해결
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | 날짜 문자열을 로컬 자정 기준으로 파싱하는 `parseLocalDate` 추가, `getPhaseStatus`에서 사용 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exam-info/page.tsx`
+- 변경 전: `getPhaseStatus`가 `new Date(parts[0])`로 날짜를 파싱. `new Date("YYYY-MM-DD")`는 UTC 자정으로 해석되는 반면 `today`는 로컬(KST) 자정이라, KST(UTC+9)에서는 발표일이 오늘이어도 `startDate > today`가 참이 되어 `upcoming`('예정')으로 표시됨.
+- 변경 후: `parseLocalDate(s)`(`new Date(y, m-1, d)`로 로컬 자정 생성)를 추가하고 `getPhaseStatus`의 startDate/endDate 파싱에 사용. today(로컬 자정)와 동일 기준으로 비교되어, 발표일이 오늘이면 `active`('진행 중')로 올바르게 판정.
+- 이유: "정보처리기사 실기 2026년 정기 기사 1회"의 합격발표일(2026-06-12)이 당일인데 '예정'으로 표시되던 버그 해결.
+
+### 복원 방법
+이 ID(HIST-20260612-004)로 복원 시 `parseLocalDate`를 제거하고 `getPhaseStatus`의 파싱을 `new Date(parts[0])`/`new Date(parts[1])`로 되돌린다.
+
+---
+
 ## HIST-20260612-003
 
 - **날짜**: 2026-06-12

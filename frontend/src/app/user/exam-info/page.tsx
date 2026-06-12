@@ -33,13 +33,21 @@ function fmtRange(val: string | undefined): string {
 
 type PhaseStatus = 'active' | 'upcoming' | 'past' | 'none';
 
+// "YYYY-MM-DD"를 로컬 자정 기준으로 파싱한다.
+// new Date("YYYY-MM-DD")는 UTC 자정으로 해석되어 KST(UTC+9)에서는
+// 오늘 날짜가 미래(예정)로 잘못 판정되므로 로컬 기준으로 직접 파싱한다.
+function parseLocalDate(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1);
+}
+
 function getPhaseStatus(rangeStr: string | undefined): PhaseStatus {
   if (!rangeStr) return 'none';
   const parts = rangeStr.split(' ~ ').map(s => s.trim()).filter(Boolean);
   if (parts.length === 0) return 'none';
-  const startDate = new Date(parts[0]);
+  const startDate = parseLocalDate(parts[0]);
   if (isNaN(startDate.getTime())) return 'none';
-  const endDate = parts[1] ? new Date(parts[1]) : startDate;
+  const endDate = parts[1] ? parseLocalDate(parts[1]) : startDate;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   if (endDate < today) return 'past';
