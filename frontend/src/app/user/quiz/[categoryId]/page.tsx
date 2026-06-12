@@ -392,7 +392,7 @@ export default function QuizPlayPage() {
               value={inputValue}
               onChange={e => setInputValue(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSubmitAnswer()}
-              placeholder="답을 입력하고 Enter 또는 제출 버튼을 누르세요"
+              placeholder="답을 입력하고 Enter 또는 정답확인 버튼을 누르세요"
               disabled={!!answerState?.submitted}
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-50"
             />
@@ -402,7 +402,7 @@ export default function QuizPlayPage() {
                 disabled={!inputValue.trim() || checking}
                 className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition"
               >
-                {checking ? '확인 중...' : '제출'}
+                {checking ? '확인 중...' : '정답확인'}
               </button>
             )}
           </div>
