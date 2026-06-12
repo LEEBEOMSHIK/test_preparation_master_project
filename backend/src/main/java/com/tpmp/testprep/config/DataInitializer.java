@@ -11,6 +11,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -34,6 +36,9 @@ public class DataInitializer implements ApplicationRunner {
     private final MenuConfigRepository menuConfigRepository;
     private final com.tpmp.testprep.service.PracticeService practiceService;
     private final ExamInfoRepository examInfoRepository;
+    private final ExamRepository examRepository;
+    private final QuestionRepository questionRepository;
+    private final ExaminationRepository examinationRepository;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -66,6 +71,7 @@ public class DataInitializer implements ApplicationRunner {
         ensurePermissionMenuAssociations();
         ensureQnetPracticalExamInfo();
         ensurePracticeSchema();
+        ensureExamData();
     }
 
     private void fixAnswerNullable() {
@@ -514,6 +520,116 @@ public class DataInitializer implements ApplicationRunner {
             log.info("[DataInitializer] 연습장 스키마 준비 완료");
         } catch (Exception e) {
             log.warn("[DataInitializer] 연습장 스키마 초기화 실패: {}", e.getMessage());
+        }
+    }
+
+    @Transactional
+    public void ensureExamData() {
+        // EXAM_TYPE 슬레이브 "정보처리기사 실기" 조회
+        List<DomainSlave> examTypeSlaves = domainSlaveRepository.findByMasterCode("EXAM_TYPE");
+        DomainSlave examTypeSlave = examTypeSlaves.stream()
+                .filter(s -> "정보처리기사 실기".equals(s.getName()))
+                .findFirst()
+                .orElse(null);
+        if (examTypeSlave == null) {
+            log.warn("[DataInitializer] EXAM_TYPE 슬레이브 '정보처리기사 실기' 없음 — 시험 시드 건너뜀");
+            return;
+        }
+
+        User admin = userRepository.findByEmail(ADMIN_EMAIL).orElse(null);
+        if (admin == null) {
+            log.warn("[DataInitializer] 관리자 계정({}) 없음 — 시험 시드 건너뜀", ADMIN_EMAIL);
+            return;
+        }
+
+        int[][] yearRounds = {
+            {2024, 1}, {2024, 2}, {2024, 3},
+            {2025, 1}, {2025, 2}, {2025, 3},
+            {2026, 1}, {2026, 2}, {2026, 3}
+        };
+
+        for (int[] yr : yearRounds) {
+            int year  = yr[0];
+            int round = yr[1];
+            String title = "정보처리기사 실기 " + year + "년 " + round + "회";
+
+            // 멱등 가드: 동일 제목의 Examination이 이미 있으면 건너뜀
+            boolean alreadyExists = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM examinations WHERE title = ?",
+                    Integer.class, title) > 0;
+            if (alreadyExists) {
+                log.debug("[DataInitializer] 시험 '{}' 이미 존재 — 건너뜀", title);
+                continue;
+            }
+
+            // Exam(시험지) 생성
+            int orderNo = examRepository.nextOrderNo();
+            Exam exam = examRepository.save(Exam.builder()
+                    .title(title)
+                    .orderNo(orderNo)
+                    .questionMode(Exam.QuestionMode.SEQUENTIAL)
+                    .createdBy(admin)
+                    .build());
+
+            // 문항 5개 생성
+            questionRepository.save(Question.builder()
+                    .exam(exam)
+                    .seq(1)
+                    .content(year + "년 " + round + "회 - 샘플 객관식 문항 1 (더미 학습용)")
+                    .questionType(Question.QuestionType.MULTIPLE_CHOICE)
+                    .options(List.of("보기 1", "보기 2", "보기 3", "보기 4"))
+                    .answer("보기 1")
+                    .explanation("보기 1이 정답입니다. (더미 해설)")
+                    .build());
+
+            questionRepository.save(Question.builder()
+                    .exam(exam)
+                    .seq(2)
+                    .content(year + "년 " + round + "회 - 샘플 단답형 문항 2 (더미 학습용)")
+                    .questionType(Question.QuestionType.SHORT_ANSWER)
+                    .answer("샘플정답")
+                    .explanation("단답형 샘플 해설입니다. (더미)")
+                    .build());
+
+            questionRepository.save(Question.builder()
+                    .exam(exam)
+                    .seq(3)
+                    .content(year + "년 " + round + "회 - 샘플 OX 문항 3 (더미 학습용)")
+                    .questionType(Question.QuestionType.OX)
+                    .answer("O")
+                    .build());
+
+            questionRepository.save(Question.builder()
+                    .exam(exam)
+                    .seq(4)
+                    .content(year + "년 " + round + "회 - 샘플 객관식 문항 4 (더미 학습용)")
+                    .questionType(Question.QuestionType.MULTIPLE_CHOICE)
+                    .options(List.of("선택지 A", "선택지 B", "선택지 C", "선택지 D"))
+                    .answer("선택지 B")
+                    .explanation("선택지 B가 정답입니다. (더미 해설)")
+                    .build());
+
+            questionRepository.save(Question.builder()
+                    .exam(exam)
+                    .seq(5)
+                    .content(year + "년 " + round + "회 - 샘플 코드 문항 5 (더미 학습용)")
+                    .questionType(Question.QuestionType.CODE)
+                    .code("public class Sample {\n  // TODO: 아래 메서드를 구현하시오.\n  public int solve(int n) {\n    return n;\n  }\n}")
+                    .language("java")
+                    .answer("샘플")
+                    .explanation("코드 문항 샘플 해설입니다. (더미)")
+                    .build());
+
+            // Examination(응시 시험) 생성
+            examinationRepository.save(Examination.builder()
+                    .title(title)
+                    .examPaper(exam)
+                    .category(examTypeSlave)
+                    .timeLimit(150)
+                    .createdBy(admin)
+                    .build());
+
+            log.info("[DataInitializer] 시험 시드 완료 — '{}'  (문항 5개, Examination 1개)", title);
         }
     }
 
