@@ -308,10 +308,10 @@ export default function QuizPlayPage() {
       </div>
 
       {/* 문제 카드 */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
-        {/* 연도/회차 배지 */}
+      <div className="relative bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
+        {/* 연도/회차 배지 (우측 상단) */}
         {(q.examYear != null || q.examRound != null) && (
-          <span className="inline-block text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+          <span className="absolute top-4 right-4 text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
             {q.examYear != null && q.examRound != null
               ? `${q.examYear}년 ${q.examRound}회`
               : q.examYear != null
@@ -319,7 +319,7 @@ export default function QuizPlayPage() {
               : `${q.examRound}회`}
           </span>
         )}
-        <RichContent html={q.content} className="text-gray-800 font-medium text-base" />
+        <RichContent html={q.content} className="text-gray-800 font-medium text-base pr-24" />
 
         {q.code && (
           <pre className="bg-gray-900 text-green-400 text-xs p-4 rounded-xl overflow-x-auto">
