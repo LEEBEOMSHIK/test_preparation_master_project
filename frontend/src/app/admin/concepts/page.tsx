@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { conceptNoteService } from '@/services/conceptNoteService';
 import { TableSkeleton } from '@/components/ui/Skeleton';
+import { RichContent } from '@/components/ui/RichContent';
 import type { ConceptNote } from '@/types';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
@@ -185,9 +186,9 @@ export default function AdminConceptsPage() {
                   {expanded === note.id && (
                     <tr key={`${note.id}-expand`} className="bg-gray-50">
                       <td colSpan={5} className="px-6 py-4">
-                        <div
-                          className="text-sm text-gray-700 leading-relaxed max-h-60 overflow-y-auto prose prose-sm max-w-none"
-                          dangerouslySetInnerHTML={{ __html: note.content }}
+                        <RichContent
+                          html={note.content}
+                          className="text-sm text-gray-700 max-h-60 overflow-y-auto prose prose-sm max-w-none"
                         />
                       </td>
                     </tr>

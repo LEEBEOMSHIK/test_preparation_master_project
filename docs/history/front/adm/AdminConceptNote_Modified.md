@@ -1,3 +1,44 @@
+## HIST-20260612-001
+
+- **날짜**: 2026-06-12
+- **수정 범위**: 관리자 프론트엔드 / 개념노트 관리
+- **수정 개요**: 인라인 `dangerouslySetInnerHTML` 직접 사용을 공통 `<RichContent>` 컴포넌트로 교체 (CLAUDE.md 컨벤션 위반 수정)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/concepts/page.tsx` | 수정 | `dangerouslySetInnerHTML` 제거 → `<RichContent>` import 및 교체 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/concepts/page.tsx`
+- 변경 전:
+  ```tsx
+  <div
+    className="text-sm text-gray-700 leading-relaxed max-h-60 overflow-y-auto prose prose-sm max-w-none"
+    dangerouslySetInnerHTML={{ __html: note.content }}
+  />
+  ```
+- 변경 후:
+  ```tsx
+  import { RichContent } from '@/components/ui/RichContent';
+  // ...
+  <RichContent
+    html={note.content}
+    className="text-sm text-gray-700 max-h-60 overflow-y-auto prose prose-sm max-w-none"
+  />
+  ```
+- 이유: CLAUDE.md 규칙 — "dangerouslySetInnerHTML 직접 사용 금지, RichContent 사용". `leading-relaxed`는 RichContent 내부에서 이미 적용되므로 className에서 제거해 중복 방지.
+
+### 복원 방법
+
+HIST-20260612-001 복원 시:
+- `import { RichContent }` 라인 제거
+- 본문 펼침 영역을 `<div className="text-sm text-gray-700 leading-relaxed max-h-60 overflow-y-auto prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: note.content }} />`로 되돌림
+
+---
+
 ## HIST-20260430-009
 
 - **날짜**: 2026-04-30
