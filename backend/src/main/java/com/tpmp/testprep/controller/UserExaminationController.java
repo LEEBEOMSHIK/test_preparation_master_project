@@ -5,16 +5,22 @@ import com.tpmp.testprep.dto.response.ExaminationResponse;
 import com.tpmp.testprep.dto.response.ExaminationSubmitResponse;
 import com.tpmp.testprep.dto.response.QuestionResultResponse;
 import com.tpmp.testprep.entity.Exam;
+import com.tpmp.testprep.entity.ExamHistory;
 import com.tpmp.testprep.entity.Examination;
 import com.tpmp.testprep.entity.Question;
+import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
+import com.tpmp.testprep.repository.ExamHistoryRepository;
 import com.tpmp.testprep.repository.ExaminationRepository;
 import com.tpmp.testprep.repository.QuestionRepository;
+import com.tpmp.testprep.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -29,6 +35,8 @@ public class UserExaminationController {
 
     private final ExaminationRepository examinationRepository;
     private final QuestionRepository questionRepository;
+    private final UserRepository userRepository;
+    private final ExamHistoryRepository examHistoryRepository;
 
     /** 시험 목록 */
     @GetMapping
@@ -56,9 +64,11 @@ public class UserExaminationController {
 
     /** 시험 제출 및 채점 */
     @PostMapping("/{id}/submit")
+    @Transactional
     public ResponseEntity<ApiResponse<ExaminationSubmitResponse>> submitExam(
             @PathVariable Long id,
-            @RequestBody Map<Long, String> answers) {
+            @RequestBody Map<Long, String> answers,
+            @AuthenticationPrincipal String email) {
 
         Examination examination = examinationRepository.findByIdWithPaper(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EXAMINATION_NOT_FOUND));
@@ -77,6 +87,18 @@ public class UserExaminationController {
             results.add(QuestionResultResponse.of(q, userAnswer, isCorrect));
         }
         int score = total > 0 ? (int) Math.round(correct * 100.0 / total) : 0;
+
+        // 응시 이력 저장
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        examHistoryRepository.save(ExamHistory.builder()
+                .user(user)
+                .examination(examination)
+                .totalQuestions(total)
+                .correctCount(correct)
+                .score((double) score)
+                .build());
+
         return ResponseEntity.ok(ApiResponse.success(
                 ExaminationSubmitResponse.of(total, correct, score, results)
         ));

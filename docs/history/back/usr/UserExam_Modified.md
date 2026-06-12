@@ -1,3 +1,45 @@
+## HIST-20260613-001
+
+- **날짜**: 2026-06-13
+- **수정 범위**: 사용자 백엔드 / 시험 제출 이력 저장 버그 수정
+- **수정 개요**: submitExam이 채점만 하고 ExamHistory를 저장하지 않던 버그 수정 — UserRepository·ExamHistoryRepository 주입, @AuthenticationPrincipal로 로그인 사용자 식별 후 제출 트랜잭션 내 이력 저장 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../controller/UserExaminationController.java` | 수정 | UserRepository·ExamHistoryRepository final 필드 추가, submitExam에 `@AuthenticationPrincipal String email` 파라미터 및 `@Transactional` 추가, 채점 후 ExamHistory.builder()로 이력 저장 |
+
+### 수정 상세
+
+#### `UserExaminationController.java`
+- 변경 전: `submitExam(@PathVariable Long id, @RequestBody Map<Long,String> answers)` — 채점 후 `ExaminationSubmitResponse` 반환만. `UserRepository`, `ExamHistoryRepository` 미주입.
+- 변경 후: `submitExam(@PathVariable Long id, @RequestBody Map<Long,String> answers, @AuthenticationPrincipal String email)` — 채점 완료 후 `userRepository.findByEmail(email)`으로 User 조회, `ExamHistory.builder().user(user).examination(examination).totalQuestions(total).correctCount(correct).score((double) score).build()` 저장. `@Transactional` 어노테이션 추가.
+- 이유: 채점 결과가 DB에 저장되지 않아 UserDashboardService 통계 집계 및 관리자 시험 이력 화면이 항상 0/빈 값으로 표시되던 버그
+
+### ExamHistory 빌더 확인 결과
+- `takenAt`: `@PrePersist`로 자동 설정 → 빌더 파라미터 없음
+- `score` 타입: `double` → `(double) score` 캐스팅 적용 (계산은 `int`, 저장은 `double`)
+- 빌더 파라미터: `user, examination, totalQuestions, correctCount, score` 5개
+
+### 실제 응시 흐름 추적 결과
+
+**Live 경로 (실제 사용자 클릭 시 도달):**
+1. `/user/exams` 목록 페이지 → 시험 카드 클릭 → 팝업 → "시험 시작" 버튼
+2. `router.push('/exam/${selectedExam.id}')` → `/exam/[id]/page.tsx` 렌더링
+3. `examinationService.userSubmitExamination(examId, answers)` 호출
+4. **`POST /api/user/examinations/{id}/submit`** (신형 `UserExaminationController`) 도달 → **이번 수정 대상**
+
+**구형 경로 (현재 진입 불가):**
+- `/user/exams/[id]/page.tsx`는 `examService.submitExam()` → `POST /api/user/exams/{id}/submit` (구형 `UserExamController`)
+- 현재 `/user/exams` 목록 페이지가 신형(`examinationService.userGetExaminations`)만 사용하고 구형 URL로 라우팅하지 않으므로 사용자가 이 경로를 타지 않음
+- 구형 `UserExamController`는 `Exam` 기반이라 `Examination` FK를 갖는 `ExamHistory`를 만들 수 없어, 구형 처리는 별도 작업(#2)에서 다룰 예정
+
+### 복원 방법
+이 ID(HIST-20260613-001)만으로 복원 시: `UserExaminationController`에서 `UserRepository·ExamHistoryRepository` final 필드 제거, `submitExam` 시그니처에서 `@AuthenticationPrincipal String email` 제거, `@Transactional` 제거, 이력 저장 블록(`User user = ...` ~ `examHistoryRepository.save(...)`) 제거. import 4개(`ExamHistory`, `User`, `ExamHistoryRepository`, `UserRepository`, `AuthenticationPrincipal`, `Transactional`) 제거.
+
+---
+
 ## HIST-20260612-001
 
 - **날짜**: 2026-06-12
