@@ -1,3 +1,53 @@
+## HIST-20260614-001
+
+- **날짜**: 2026-06-14
+- **수정 범위**: 사용자 백엔드 / 퀴즈
+- **수정 개요**: `UserQuizController` 3레이어 분리 — 내부 record를 DTO 패키지로 이동, `UserQuizService` 신규 추가, 컨트롤러는 서비스 위임만 담당하도록 리팩토링 (동작 보존)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuizQuestionView.java` | 추가 | 컨트롤러 내부 record → DTO 패키지 이동, `from(QuestionBank)` 팩토리 포함 |
+| `backend/src/main/java/com/tpmp/testprep/dto/request/CheckRequest.java` | 추가 | 컨트롤러 내부 record → DTO 패키지 이동 (`questionId`, `userAnswer`) |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/CheckResult.java` | 추가 | 컨트롤러 내부 record → DTO 패키지 이동 (`correct`, `answer`, `explanation`) |
+| `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java` | 추가 | 퀴즈 비즈니스 로직 전담 서비스 신규 생성 (`getCategories`, `getQuizQuestions`, `checkAnswer`) |
+| `backend/src/main/java/com/tpmp/testprep/controller/UserQuizController.java` | 수정 | Repository 직접 의존 제거, `UserQuizService` 주입, 내부 record 삭제, import 갱신 |
+
+### 수정 상세
+
+#### `dto/response/QuizQuestionView.java` (신규)
+- 변경 전: `UserQuizController` 내부 `public record QuizQuestionView(...)`
+- 변경 후: `com.tpmp.testprep.dto.response` 패키지의 독립 파일
+- 이유: 레이어 역전 방지 — 서비스가 컨트롤러 내부 타입에 의존하지 않도록 분리
+
+#### `dto/request/CheckRequest.java` (신규)
+- 변경 전: `UserQuizController` 내부 `public record CheckRequest(Long questionId, String userAnswer)`
+- 변경 후: `com.tpmp.testprep.dto.request` 패키지의 독립 파일
+- 이유: 서비스 레이어에서 참조 가능하도록 요청 DTO 분리
+
+#### `dto/response/CheckResult.java` (신규)
+- 변경 전: `UserQuizController` 내부 `public record CheckResult(boolean correct, String answer, String explanation)`
+- 변경 후: `com.tpmp.testprep.dto.response` 패키지의 독립 파일
+- 이유: 응답 DTO를 서비스 반환 타입으로 사용하기 위해 분리
+
+#### `service/UserQuizService.java` (신규)
+- 변경 전: 파일 없음 (로직이 컨트롤러에 인라인)
+- 변경 후: `@Service @RequiredArgsConstructor @Transactional(readOnly = true)` 클래스. `DomainMasterRepository`, `QuestionBankRepository` 주입. 메서드 3개: `getCategories`, `getQuizQuestions`, `checkAnswer`. `checkAnswer`의 `orElseThrow()` 인자 없는 형태 그대로 유지 (동작 보존).
+- 이유: Controller → Service 레이어 분리
+
+#### `controller/UserQuizController.java` (수정)
+- 변경 전: `DomainMasterRepository`, `QuestionBankRepository` 직접 주입 + 비즈니스 로직 인라인 + 내부 record 3개 선언
+- 변경 후: `UserQuizService`만 주입. 핸들러 3개는 service 위임만 수행. 내부 record 삭제, import를 dto 패키지로 갱신. `@RequestMapping`/경로/파라미터/반환 타입 무변경.
+- 이유: 컨트롤러를 얇은 레이어로 정리
+
+### 복원 방법
+이 ID(HIST-20260614-001)만으로 복원 시:
+1. `dto/response/QuizQuestionView.java`, `dto/request/CheckRequest.java`, `dto/response/CheckResult.java`, `service/UserQuizService.java` 삭제
+2. `UserQuizController.java`를 변경 전 상태로 복원 — `DomainMasterRepository`, `QuestionBankRepository` 직접 주입, 비즈니스 로직 핸들러 인라인, 내부 record 3개(`QuizQuestionView`, `CheckRequest`, `CheckResult`) 클래스 내부 선언
+
+---
+
 ## HIST-20260613-001
 
 - **날짜**: 2026-06-13
