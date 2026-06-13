@@ -1,3 +1,91 @@
+## HIST-20260614-001
+
+- **날짜**: 2026-06-14
+- **수정 범위**: 사용자 백엔드 / 시험 결과 문항별 상세 영속화
+- **수정 개요**: 시험 제출 시 점수(ExamHistory)만 저장하던 것을 문항별 답안 스냅샷(ExamHistoryDetail)까지 저장하고, GET /{id}/result 엔드포인트로 재조회 가능하게 구현
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../entity/ExamHistoryDetail.java` | 추가 | 문항별 스냅샷 엔티티 신설 (exam_history_details 테이블) |
+| `backend/.../entity/ExamHistory.java` | 수정 | details OneToMany 컬렉션 + addDetail() 편의 메서드 추가 |
+| `backend/.../repository/ExamHistoryDetailRepository.java` | 추가 | ExamHistoryDetail JPA Repository 신설 |
+| `backend/.../repository/ExamHistoryRepository.java` | 수정 | findTopByUser_IdAndExamination_IdOrderByTakenAtDesc 메서드 추가 |
+| `backend/.../exception/ErrorCode.java` | 수정 | EXAM_HISTORY_NOT_FOUND 에러 코드 추가 |
+| `backend/.../dto/response/ExamHistoryDetailResponse.java` | 추가 | 재조회 응답 DTO (historyId·total·correct·score·takenAt·results) |
+| `backend/.../dto/response/QuestionResultResponse.java` | 수정 | code·language 필드 추가 + ExamHistoryDetail 기반 of() 오버로드 추가 |
+| `backend/.../dto/response/ExaminationSubmitResponse.java` | 수정 | historyId 필드 추가, of() 팩토리 시그니처 갱신 |
+| `backend/.../service/UserExaminationService.java` | 수정 | submitExam — 문항별 ExamHistoryDetail 저장 추가; getLatestResult 신규 메서드 추가 |
+| `backend/.../controller/UserExaminationController.java` | 수정 | GET /{id}/result 핸들러 추가 |
+
+### 수정 상세
+
+#### `ExamHistoryDetail.java` (신규)
+- 변경 전: 존재하지 않음
+- 변경 후: `@Entity @Table(name="exam_history_details")`, ExamHistory ManyToOne(LAZY), questionId(Long nullable), seq/content/questionType/options(jsonb)/userAnswer/correctAnswer/correct/explanation/code/language 필드, `setExamHistory()` 패키지 가시성 메서드
+- 이유: 문항별 결과를 영속화하여 재조회 지원
+
+#### `ExamHistory.java`
+- 변경 전: details 필드 없음
+- 변경 후: `@OneToMany(mappedBy="examHistory", cascade=ALL, orphanRemoval=true) List<ExamHistoryDetail> details` + `addDetail()` 편의 메서드 추가
+- 이유: cascade 저장 + 양방향 연관 관리
+
+#### `ExamHistoryDetailRepository.java` (신규)
+- 변경 전: 존재하지 않음
+- 변경 후: `JpaRepository<ExamHistoryDetail, Long>` + `findByExamHistory_IdOrderBySeqAsc(Long)`
+- 이유: 문항별 스냅샷 seq 순 조회
+
+#### `ExamHistoryRepository.java`
+- 변경 전: `findTopByUser_IdAndExamination_IdOrderByTakenAtDesc` 없음
+- 변경 후: 해당 메서드 추가 (`Optional<ExamHistory>` 반환)
+- 이유: 본인·시험 기준 최신 이력 단건 조회
+
+#### `ErrorCode.java`
+- 변경 전: `EXAM_HISTORY_NOT_FOUND` 없음
+- 변경 후: Exam 구역에 `EXAM_HISTORY_NOT_FOUND(HttpStatus.NOT_FOUND, "시험 응시 이력을 찾을 수 없습니다.")` 추가
+- 이유: getLatestResult 미응시 케이스 예외 처리
+
+#### `ExamHistoryDetailResponse.java` (신규)
+- 변경 전: 존재하지 않음
+- 변경 후: record 6필드 + `of(ExamHistory, List<ExamHistoryDetail>)` 정적 팩토리
+- 이유: 재조회 전용 응답 DTO
+
+#### `QuestionResultResponse.java`
+- 변경 전: record 9필드(questionId~explanation), `of(Question, String, boolean)` 팩토리 1개
+- 변경 후: code·language 2필드 추가(총 11필드), `of(ExamHistoryDetail)` 오버로드 추가
+- 이유: 스냅샷 기반 재조회 지원 + code/language 응답 포함
+
+#### `ExaminationSubmitResponse.java`
+- 변경 전: 4필드(total/correct/score/results), `of()` 4인자
+- 변경 후: `Long historyId` 필드 추가(5필드), `of()` 5인자
+- 이유: 제출 직후 프론트에 historyId 전달(결과 재조회 준비)
+
+#### `UserExaminationService.java`
+- 변경 전: `submitExam`이 ExamHistory만 저장, `ExaminationSubmitResponse.of(total,correct,score,results)` 4인자
+- 변경 후: ExamHistoryDetail 스냅샷 루프 추가 → `history.addDetail(detail)` → cascade 저장. `of()` 5인자(historyId 포함). `getLatestResult()` 신규 (user 조회 → history 조회 → detail 목록 조회 → 응답 반환)
+- 이유: 문항별 영속화 + 재조회 API 구현
+
+#### `UserExaminationController.java`
+- 변경 전: GET /{id}/result 없음
+- 변경 후: `@GetMapping("/{id}/result")` 추가, `@AuthenticationPrincipal String email` 사용, `service.getLatestResult(id, email)` 위임
+- 이유: 재조회 엔드포인트 노출
+
+### 복원 방법
+이 ID(HIST-20260614-001)만으로 복원 시:
+1. `ExamHistoryDetail.java` 삭제
+2. `ExamHistoryDetailRepository.java` 삭제
+3. `ExamHistoryDetailResponse.java` 삭제
+4. `ExamHistory.java`에서 details 필드·addDetail() 제거
+5. `ExamHistoryRepository.java`에서 findTopByUser_Id... 메서드 제거
+6. `ErrorCode.java`에서 EXAM_HISTORY_NOT_FOUND 제거
+7. `QuestionResultResponse.java`에서 code·language 필드 제거, `of(ExamHistoryDetail)` 오버로드 제거
+8. `ExaminationSubmitResponse.java`에서 historyId 필드·of() 5인자 복원(4인자로)
+9. `UserExaminationService.java`에서 ExamHistoryDetail 저장 루프 제거, `getLatestResult` 제거, `ExaminationSubmitResponse.of()` 4인자로 복원
+10. `UserExaminationController.java`에서 GET /{id}/result 핸들러 제거
+
+---
+
 ## HIST-20260613-002
 
 - **날짜**: 2026-06-13

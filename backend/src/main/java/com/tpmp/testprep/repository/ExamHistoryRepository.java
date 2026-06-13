@@ -8,8 +8,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface ExamHistoryRepository extends JpaRepository<ExamHistory, Long> {
+
+    /** 특정 사용자·시험의 가장 최근 응시 이력 조회 */
+    Optional<ExamHistory> findTopByUser_IdAndExamination_IdOrderByTakenAtDesc(Long userId, Long examinationId);
+
     Page<ExamHistory> findByTakenAtBetween(LocalDateTime from, LocalDateTime to, Pageable pageable);
     Page<ExamHistory> findByUser_NameContainingIgnoreCaseAndTakenAtBetween(String name, LocalDateTime from, LocalDateTime to, Pageable pageable);
     Page<ExamHistory> findByUser_EmailContainingIgnoreCaseAndTakenAtBetween(String email, LocalDateTime from, LocalDateTime to, Pageable pageable);

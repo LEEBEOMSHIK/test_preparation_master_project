@@ -334,9 +334,9 @@ export interface BookmarkQuestion {
 // ExaminationSubmit (시험 제출 결과)
 // ──────────────────────────────────────────
 
-/** 채점 후 문항별 정오·정답·해설 (MVP: 제출 응답에만 포함, 영속화 없음) */
+/** 채점 후 문항별 정오·정답·해설 */
 export interface QuestionResult {
-  questionId: number;
+  questionId: number | null;
   seq: number;
   content: string;
   questionType: QuestionType;
@@ -345,13 +345,26 @@ export interface QuestionResult {
   correctAnswer: string;
   correct: boolean;
   explanation?: string;
+  code?: string;
+  language?: string;
 }
 
-/** 시험 제출·채점 결과 (MVP: 새로고침 시 재조회 불가) */
+/** 시험 제출·채점 결과 */
 export interface ExaminationSubmitResult {
   total: number;
   correct: number;
   score: number;
+  results: QuestionResult[];
+  historyId: number | null;
+}
+
+/** 저장된 시험 결과 재조회 응답 */
+export interface ExamHistoryDetailResult {
+  historyId: number;
+  total: number;
+  correct: number;
+  score: number;
+  takenAt: string;
   results: QuestionResult[];
 }
 

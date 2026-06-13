@@ -3,6 +3,8 @@ package com.tpmp.testprep.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "exam_history", indexes = {
@@ -38,9 +40,18 @@ public class ExamHistory {
     @Column(name = "taken_at", nullable = false, updatable = false)
     private LocalDateTime takenAt;
 
+    @OneToMany(mappedBy = "examHistory", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ExamHistoryDetail> details = new ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         this.takenAt = LocalDateTime.now();
+    }
+
+    /** 양방향 연관 편의 메서드 — detail의 examHistory도 함께 세팅 */
+    public void addDetail(ExamHistoryDetail detail) {
+        details.add(detail);
+        detail.setExamHistory(this);
     }
 
     @Builder

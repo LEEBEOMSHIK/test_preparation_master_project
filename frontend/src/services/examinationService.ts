@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import type { ApiResponse, Examination, ExaminationDetail, ExaminationSubmitResult, PageResponse } from '@/types';
+import type { ApiResponse, ExamHistoryDetailResult, Examination, ExaminationDetail, ExaminationSubmitResult, PageResponse } from '@/types';
 
 export const examinationService = {
   // ── 사용자 ──────────────────────────────────────────────────────────
@@ -16,6 +16,9 @@ export const examinationService = {
       `/user/examinations/${id}/submit`,
       answers,
     ),
+
+  userGetLatestResult: (id: number) =>
+    apiClient.get<ApiResponse<ExamHistoryDetailResult>>(`/user/examinations/${id}/result`),
 
   // ── 관리자 ──────────────────────────────────────────────────────────
   /** 시험 목록 조회 */

@@ -1,6 +1,7 @@
 package com.tpmp.testprep.controller;
 
 import com.tpmp.testprep.dto.response.ApiResponse;
+import com.tpmp.testprep.dto.response.ExamHistoryDetailResponse;
 import com.tpmp.testprep.dto.response.ExaminationDetailResponse;
 import com.tpmp.testprep.dto.response.ExaminationResponse;
 import com.tpmp.testprep.dto.response.ExaminationSubmitResponse;
@@ -45,6 +46,16 @@ public class UserExaminationController {
             @AuthenticationPrincipal String email) {
         return ResponseEntity.ok(ApiResponse.success(
                 userExaminationService.submitExam(id, answers, email)
+        ));
+    }
+
+    /** 최신 시험 결과 재조회 (본인 이력만) */
+    @GetMapping("/{id}/result")
+    public ResponseEntity<ApiResponse<ExamHistoryDetailResponse>> getLatestResult(
+            @PathVariable Long id,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.success(
+                userExaminationService.getLatestResult(id, email)
         ));
     }
 

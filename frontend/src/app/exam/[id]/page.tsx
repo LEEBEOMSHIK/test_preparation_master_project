@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { examinationService } from '@/services/examinationService';
 import { conceptNoteService } from '@/services/conceptNoteService';
-import type { ExaminationDetail, ExaminationSubmitResult, Question, ConceptNote } from '@/types';
+import type { ExaminationDetail, ExaminationSubmitResult, ExamHistoryDetailResult, Question, ConceptNote } from '@/types';
 import { RichContent } from '@/components/ui/RichContent';
 import { stripHtml } from '@/lib/html';
 import { QuizCardSkeleton } from '@/components/ui/Skeleton';
@@ -76,7 +76,7 @@ export default function ExamTakingPage() {
   const [questionNotes, setQuestionNotes] = useState<Record<number, ConceptNote>>({});
 
   useEffect(() => {
-    examinationService.userGetExaminationDetail(examId).then(res => {
+    const examDetailPromise = examinationService.userGetExaminationDetail(examId).then(res => {
       if (res.data.success && res.data.data) {
         const detail = res.data.data;
         setExam(detail);
@@ -94,7 +94,27 @@ export default function ExamTakingPage() {
           }
         });
       }
-    }).finally(() => setLoading(false));
+    });
+
+    // 이전 응시 결과 재조회 — 미응시(404)나 네트워크 오류는 조용히 무시
+    const latestResultPromise = examinationService.userGetLatestResult(examId).then(res => {
+      if (res.data.success && res.data.data) {
+        const saved: ExamHistoryDetailResult = res.data.data;
+        const restored: ExaminationSubmitResult = {
+          historyId: saved.historyId,
+          total: saved.total,
+          correct: saved.correct,
+          score: saved.score,
+          results: saved.results,
+        };
+        setResult(restored);
+        examDone.current = true; // 이미 완료된 시험 — 이탈 경고 비활성
+      }
+    }).catch(() => {
+      // 미응시(404) 또는 오류 — 시험 화면 정상 진행
+    });
+
+    Promise.all([examDetailPromise, latestResultPromise]).finally(() => setLoading(false));
   }, [examId]);
 
   // 브라우저 닫기 / 새로고침 경고
@@ -237,10 +257,10 @@ export default function ExamTakingPage() {
       ? result.results.filter(r => !r.correct)
       : result.results;
 
-    const toggleExpand = (questionId: number) => {
+    const toggleExpand = (seq: number) => {
       setExpandedItems(prev => {
         const next = new Set(prev);
-        next.has(questionId) ? next.delete(questionId) : next.add(questionId);
+        next.has(seq) ? next.delete(seq) : next.add(seq);
         return next;
       });
     };
@@ -266,8 +286,8 @@ export default function ExamTakingPage() {
           </div>
 
           {/* 안내 배너 */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-amber-800 text-sm">
-            이 화면을 벗어나면 문항별 결과를 다시 확인할 수 없습니다.
+          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-green-800 text-sm">
+            결과는 저장되어 있어 나중에 다시 확인할 수 있습니다.
           </div>
 
           {/* 필터 탭 */}
@@ -308,16 +328,16 @@ export default function ExamTakingPage() {
           ) : (
             <div className="space-y-2">
               {displayResults.map(item => {
-                const isExpanded = expandedItems.has(item.questionId);
+                const isExpanded = expandedItems.has(item.seq);
                 const previewText = stripHtml(item.content) || '문항 내용 없음';
                 return (
                   <div
-                    key={item.questionId}
+                    key={item.seq}
                     className="bg-white rounded-xl border border-gray-200 overflow-hidden"
                   >
                     {/* 헤더 */}
                     <button
-                      onClick={() => toggleExpand(item.questionId)}
+                      onClick={() => toggleExpand(item.seq)}
                       className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition"
                     >
                       <span className={[
