@@ -1,3 +1,25 @@
+## HIST-20260613-001
+
+- **날짜**: 2026-06-13
+- **수정 범위**: 사용자 프론트엔드 / 구형 시험 응시 페이지 및 examService
+- **수정 개요**: 신형 응시 흐름(/exam/[id])으로 대체된 구형 응시 페이지 및 examService user 전용 함수 3개 제거 (구형/신형 시험 흐름 이원화 제거)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exams/[id]/page.tsx` | 삭제 | 구형 응시 페이지([id] 디렉토리 포함). 어디서도 링크되지 않던 dead route |
+| `frontend/src/services/examService.ts` | 수정 | user 전용 함수 getExams·getExamDetail·submitExam 및 ExamDetail import 제거. admin 메서드 전부 유지 |
+
+### 수정 상세
+- 사유: 시험 목록(/user/exams)은 신형 examinationService를 쓰고, 응시는 /exam/[id](examinationService)로만 진입. 구형 페이지/함수는 호출 경로 0.
+- 보존: examService.ts admin 메서드, ExamDetail 타입 정의(types/index.ts), 신형 흐름 전체.
+
+### 복원 방법
+이 ID(HIST-20260613-001)로 복원 시 git에서 구형 page.tsx와 examService user 함수 3개를 되살린다.
+
+---
+
 ## HIST-20260612-003
 
 - **날짜**: 2026-06-12

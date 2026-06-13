@@ -1,3 +1,25 @@
+## HIST-20260613-002
+
+- **날짜**: 2026-06-13
+- **수정 범위**: 사용자 백엔드 / 구형 시험 응시 컨트롤러
+- **수정 개요**: 신형 UserExaminationController로 완전 대체된 dead code인 UserExamController 파일 전체 삭제 (구형/신형 시험 흐름 이원화 제거)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/controller/UserExamController.java` | 삭제 | /api/user/exams GET 목록·GET 상세·POST submit. 사용자 진입 경로 0, ExamHistory 저장 불가(Exam FK만)로 사실상 미동작 |
+
+### 수정 상세
+- 사유: 신형 흐름(/user/exams 목록 → /exam/[id] → /user/examinations/{id}/submit)이 완전 대체. 구형은 라우팅/링크 0건, 통계 미저장.
+- 보존: Exam/Question 엔티티, AdminExamController, ExamService(관리자 메서드), 신형 전체, 공유 DTO(ExaminationSubmitResponse/QuestionResultResponse).
+- 부수 효과: 구형의 레이어 위반(Controller가 QuestionRepository 직접 주입) 자연 해소.
+
+### 복원 방법
+이 ID(HIST-20260613-002)로 복원 시 git에서 UserExamController.java를 되살린다.
+
+---
+
 ## HIST-20260613-001
 
 - **날짜**: 2026-06-13
