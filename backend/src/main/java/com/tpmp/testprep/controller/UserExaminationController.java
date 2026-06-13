@@ -5,6 +5,8 @@ import com.tpmp.testprep.dto.response.ExamHistoryDetailResponse;
 import com.tpmp.testprep.dto.response.ExaminationDetailResponse;
 import com.tpmp.testprep.dto.response.ExaminationResponse;
 import com.tpmp.testprep.dto.response.ExaminationSubmitResponse;
+import com.tpmp.testprep.dto.response.PagedResponse;
+import com.tpmp.testprep.dto.response.UserExamHistoryResponse;
 import com.tpmp.testprep.service.UserExaminationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -56,6 +58,26 @@ public class UserExaminationController {
             @AuthenticationPrincipal String email) {
         return ResponseEntity.ok(ApiResponse.success(
                 userExaminationService.getLatestResult(id, email)
+        ));
+    }
+
+    /** 사용자 전체 응시 이력 목록 (최신순) */
+    @GetMapping("/history")
+    public ResponseEntity<ApiResponse<PagedResponse<UserExamHistoryResponse>>> getUserExamHistories(
+            Pageable pageable,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.success(
+                userExaminationService.getUserExamHistories(email, pageable)
+        ));
+    }
+
+    /** 과거 응시 결과 단건 재조회 (본인 소유 검증) */
+    @GetMapping("/history/{historyId}")
+    public ResponseEntity<ApiResponse<ExamHistoryDetailResponse>> getUserExamHistoryResult(
+            @PathVariable Long historyId,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.success(
+                userExaminationService.getUserExamHistoryResult(historyId, email)
         ));
     }
 

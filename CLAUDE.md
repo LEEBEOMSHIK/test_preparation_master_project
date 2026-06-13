@@ -134,6 +134,7 @@ docker-compose.yml
 | `<PermissionDeniedModal />` | `src/components/ui/PermissionDeniedModal.tsx` | 권한 없음 팝업 |
 | `<TableSkeleton />` 외 | `src/components/ui/Skeleton.tsx` | 스켈레톤 UI 모음 |
 | `<QuestionAnalysisPanel content onApplyContent />` | `src/components/ui/QuestionAnalysisPanel.tsx` | 문항 AI 키워드·도메인 추출 + 태그 저장 + 문제 재구성 패널 |
+| `<ExamResultDisplay result examinationTitle onBack backLabel showSavedBanner />` | `src/components/ui/ExamResultDisplay.tsx` | 시험 결과 렌더(점수카드·전체/오답필터·아코디언) 공용 |
 
 새 유틸 함수는 `src/lib/`에, 새 UI 컴포넌트는 `src/components/ui/`에 추가하고 위 표를 즉시 갱신한다.
 

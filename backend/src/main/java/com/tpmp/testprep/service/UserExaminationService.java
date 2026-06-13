@@ -4,7 +4,9 @@ import com.tpmp.testprep.dto.response.ExamHistoryDetailResponse;
 import com.tpmp.testprep.dto.response.ExaminationDetailResponse;
 import com.tpmp.testprep.dto.response.ExaminationResponse;
 import com.tpmp.testprep.dto.response.ExaminationSubmitResponse;
+import com.tpmp.testprep.dto.response.PagedResponse;
 import com.tpmp.testprep.dto.response.QuestionResultResponse;
+import com.tpmp.testprep.dto.response.UserExamHistoryResponse;
 import com.tpmp.testprep.entity.Exam;
 import com.tpmp.testprep.entity.ExamHistory;
 import com.tpmp.testprep.entity.ExamHistoryDetail;
@@ -122,6 +124,28 @@ public class UserExaminationService {
         ExamHistory saved = examHistoryRepository.save(history);
 
         return ExaminationSubmitResponse.of(total, correct, score, results, saved.getId());
+    }
+
+    /** 사용자 전체 응시 이력 목록 (최신순 페이징) */
+    public PagedResponse<UserExamHistoryResponse> getUserExamHistories(String email, Pageable pageable) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        Page<UserExamHistoryResponse> page = examHistoryRepository
+                .findByUser_IdOrderByTakenAtDesc(user.getId(), pageable)
+                .map(UserExamHistoryResponse::from);
+        return PagedResponse.from(page);
+    }
+
+    /** 과거 응시 결과 단건 재조회 (본인 소유 검증) */
+    public ExamHistoryDetailResponse getUserExamHistoryResult(Long historyId, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        ExamHistory history = examHistoryRepository
+                .findByIdAndUser_Id(historyId, user.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.EXAM_HISTORY_NOT_FOUND));
+        List<ExamHistoryDetail> details =
+                examHistoryDetailRepository.findByExamHistory_IdOrderBySeqAsc(historyId);
+        return ExamHistoryDetailResponse.of(history, details);
     }
 
     /** 최신 시험 결과 재조회 (본인 이력만) */

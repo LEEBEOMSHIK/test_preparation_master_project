@@ -61,6 +61,7 @@ public class DataInitializer implements ApplicationRunner {
         ensureTestCaseMenu();
         ensurePracticeMenu();
         ensureBookmarkMenu();
+        ensureExamHistoryMenu();
         ensureDashboardMenu();
         ensurePracticeAdminMenus();
         ensurePermissionMenuAssociations();
@@ -354,6 +355,13 @@ public class DataInitializer implements ApplicationRunner {
         if (!menuConfigRepository.existsByUrl("/user/bookmarks")) {
             saveMenu(null, "즐겨찾기", "/user/bookmarks", "bookmark", 8, MenuConfig.MenuType.USER, "USER,ADMIN");
             log.info("[DataInitializer] 즐겨찾기 사용자 메뉴 추가 완료");
+        }
+    }
+
+    private void ensureExamHistoryMenu() {
+        if (!menuConfigRepository.existsByUrl("/user/exam-history")) {
+            saveMenu(null, "시험 이력", "/user/exam-history", "history", 9, MenuConfig.MenuType.USER, "USER,ADMIN");
+            log.info("[DataInitializer] 시험 이력 사용자 메뉴 추가 완료");
         }
     }
 

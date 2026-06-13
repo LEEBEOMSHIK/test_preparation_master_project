@@ -358,6 +358,26 @@ export interface ExaminationSubmitResult {
   historyId: number | null;
 }
 
+/** ExamResultDisplay 공용 결과 데이터 (제출 직후 & 이력 재조회 공용) */
+export interface ExamResultData {
+  total: number;
+  correct: number;
+  score: number;
+  results: QuestionResult[];
+  historyId?: number | null;
+  takenAt?: string;
+}
+
+/** 사용자 시험 이력 목록 항목 */
+export interface UserExamHistorySummary {
+  id: number;
+  examinationTitle: string;
+  totalQuestions: number;
+  correctCount: number;
+  score: number;
+  takenAt: string;
+}
+
 /** 저장된 시험 결과 재조회 응답 */
 export interface ExamHistoryDetailResult {
   historyId: number;

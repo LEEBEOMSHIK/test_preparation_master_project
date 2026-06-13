@@ -15,6 +15,12 @@ public interface ExamHistoryRepository extends JpaRepository<ExamHistory, Long> 
     /** 특정 사용자·시험의 가장 최근 응시 이력 조회 */
     Optional<ExamHistory> findTopByUser_IdAndExamination_IdOrderByTakenAtDesc(Long userId, Long examinationId);
 
+    /** 사용자 전체 응시 이력 목록 (최신순) */
+    Page<ExamHistory> findByUser_IdOrderByTakenAtDesc(Long userId, Pageable pageable);
+
+    /** 사용자 소유 이력 단건 조회 (소유권 검증용) */
+    Optional<ExamHistory> findByIdAndUser_Id(Long id, Long userId);
+
     Page<ExamHistory> findByTakenAtBetween(LocalDateTime from, LocalDateTime to, Pageable pageable);
     Page<ExamHistory> findByUser_NameContainingIgnoreCaseAndTakenAtBetween(String name, LocalDateTime from, LocalDateTime to, Pageable pageable);
     Page<ExamHistory> findByUser_EmailContainingIgnoreCaseAndTakenAtBetween(String email, LocalDateTime from, LocalDateTime to, Pageable pageable);
