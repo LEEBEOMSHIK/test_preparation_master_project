@@ -1,3 +1,26 @@
+## HIST-20260613-001
+
+- **날짜**: 2026-06-13
+- **수정 범위**: 관리자 프론트엔드 / 시험지 수정
+- **수정 개요**: 시험지 편집 페이지의 `as unknown as ExamQuestion[]` 이중 캐스팅 제거 — 서비스 반환 타입 정합으로 근본 해결
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/examService.ts` | 수정 | `adminGetExamQuestions` 반환 타입 `ApiResponse<QuestionSummary[]>` → `ApiResponse<ExamQuestion[]>` (ExamQuestion import 추가) |
+| `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` | 수정 | line 63·139의 `as unknown as ExamQuestion[]` 캐스팅 제거 |
+
+### 수정 상세
+- 원인: BE `GET /admin/exams/{id}/questions`는 `QuestionDetailResponse`(id·seq·content·questionType·options·answer·explanation·code·language)를 반환하는데, FE 서비스가 `QuestionSummary[]`(seq 없음)로 잘못 선언되어 `ExamQuestion[]`(seq 필수) 할당 시 타입 불일치 → `as unknown as`로 우회하고 있었음.
+- 수정: 서비스 반환 타입을 `ExamQuestion[]`(BE QuestionDetailResponse와 필드 일치)로 정정하니 캐스팅 없이 직접 할당 가능. CLAUDE.md TypeScript strict 원칙 준수.
+- 검증: tsc 통과(0건).
+
+### 복원 방법
+이 ID(HIST-20260613-001)로 복원 시 서비스 반환 타입을 `QuestionSummary[]`로 되돌리고 page.tsx 두 곳에 `as unknown as ExamQuestion[]`을 다시 추가한다.
+
+---
+
 ## HIST-20260506-001
 
 - **날짜**: 2026-05-06

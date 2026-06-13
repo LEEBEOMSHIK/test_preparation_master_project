@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import type { ApiResponse, ExaminationSubmitResult, ExamSummary, PageResponse, QuestionSummary, QuestionType } from '@/types';
+import type { ApiResponse, ExaminationSubmitResult, ExamQuestion, ExamSummary, PageResponse, QuestionSummary, QuestionType } from '@/types';
 
 export const examService = {
   // Admin
@@ -36,7 +36,7 @@ export const examService = {
     apiClient.post<ApiResponse<void>>(`/admin/exams/${examId}/questions/bulk`, questions),
 
   adminGetExamQuestions: (examId: number) =>
-    apiClient.get<ApiResponse<QuestionSummary[]>>(`/admin/exams/${examId}/questions`),
+    apiClient.get<ApiResponse<ExamQuestion[]>>(`/admin/exams/${examId}/questions`),
 
   adminRemoveQuestion: (examId: number, questionId: number) =>
     apiClient.delete<ApiResponse<void>>(`/admin/exams/${examId}/questions/${questionId}`),
