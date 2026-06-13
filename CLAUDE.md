@@ -152,4 +152,4 @@ docker-compose.yml
 | 관리자 백엔드 | `docs/history/back/adm/` |
 
 - 파일명: `{MenuName}_Modified.md` · 최신 항목을 파일 상단에 누적 추가
-- ID: `HIST-{YYYYMMDD}-{3자리 순번}` (당일 최대 순번 + 1)
+- ID: `HIST-{YYYYMMDD}-{3자리 순번}` · **파일별 채번** — 해당 파일 내 같은 날짜 최대 순번 + 1 (전역 아님; 같은 날 다른 파일이 같은 순번을 가질 수 있음). 기존 항목은 덮어쓰지 말고 맨 위에 추가만 한다. → [`docs/claude-config/history-policy.md`](docs/claude-config/history-policy.md)

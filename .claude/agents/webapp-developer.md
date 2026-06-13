@@ -114,6 +114,8 @@ import { TableSkeleton, CardListSkeleton, ExamInfoCardSkeleton, AccordionSkeleto
 ### 파일명 및 ID 규칙
 - 파일명: `{MenuName}_Modified.md` (같은 메뉴는 누적 추가, 최신 항목 상단)
 - ID: `HIST-{YYYYMMDD}-{3자리 순번}` (예: `HIST-20260514-001`)
+- **파일별 채번**: 순번은 해당 파일 내 같은 날짜 최대 순번 + 1 (전역 아님 — 같은 날 다른 파일이 같은 순번을 가질 수 있음). 쓰기 전 파일 최상단을 읽어 순번 확인.
+- **무결성**: 기존 항목을 덮어쓰거나 파일을 재작성하지 않는다. 새 항목은 **맨 위에 추가(prepend)만** 한다.
 
 ### 히스토리 템플릿
 ```markdown

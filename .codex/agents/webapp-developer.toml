@@ -36,7 +36,7 @@ Next.js 14 · React Native Web · TypeScript · Spring Boot 3 · Java 17 · Post
 | 관리자 프론트엔드 | `docs/history/front/adm/` |
 | 관리자 백엔드 | `docs/history/back/adm/` |
 
-- 파일명 `{MenuName}_Modified.md` (같은 메뉴 누적, 최신 항목 상단), ID `HIST-{YYYYMMDD}-{3자리 순번}` (당일 최대 순번 +1)
+- 파일명 `{MenuName}_Modified.md` (같은 메뉴 누적, 최신 항목 상단), ID `HIST-{YYYYMMDD}-{3자리 순번}` · 파일별 채번(해당 파일 내 같은 날짜 최대 순번 +1, 전역 아님). 기존 항목 덮어쓰기 금지 — 맨 위에 추가만
 - 항목: 날짜 / 수정 범위 / 수정 개요 / 수정 파일 목록(경로·유형·설명) / 수정 상세(변경 전·후·이유) / 복원 방법
 
 ---
