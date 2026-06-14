@@ -64,6 +64,7 @@ public class DataInitializer implements ApplicationRunner {
         ensureExamHistoryMenu();
         ensureDashboardMenu();
         ensurePracticeAdminMenus();
+        ensureUserMenuGroups();
         ensurePermissionMenuAssociations();
         ensureQnetPracticalExamInfo();
         ensurePracticeSchema();
@@ -370,6 +371,71 @@ public class DataInitializer implements ApplicationRunner {
             saveMenu(null, "통계 대시보드", "/user/dashboard", "dashboard", -1, MenuConfig.MenuType.USER, "USER,ADMIN");
             log.info("[DataInitializer] 통계 대시보드 사용자 메뉴 추가 완료");
         }
+    }
+
+    /**
+     * USER 메뉴를 그룹(학습/내 기록/도움말) 구조로 재배치한다.
+     * - '시험'은 빠른 접근을 위해 최상위로 유지한다.
+     * - 그룹 부모는 실제 페이지가 없으므로 합성 URL(/user/group/*)을 사용하며,
+     *   프론트엔드 렌더러는 children이 있는 항목을 드롭다운 토글로 처리한다.
+     * 매 부팅 시 동일 값으로 재설정하므로 멱등하다.
+     */
+    private void ensureUserMenuGroups() {
+        // 1) 그룹 부모 생성 (멱등)
+        ensureGroupMenu("학습",    "/user/group/learning", "learn",   2);
+        ensureGroupMenu("내 기록", "/user/group/records",  "records", 3);
+        ensureGroupMenu("도움말",  "/user/group/help",     "help",    4);
+
+        Long learningId = menuIdByUrl("/user/group/learning");
+        Long recordsId  = menuIdByUrl("/user/group/records");
+        Long helpId     = menuIdByUrl("/user/group/help");
+        if (learningId == null || recordsId == null || helpId == null) {
+            log.warn("[DataInitializer] USER 메뉴 그룹 부모 조회 실패 — 재배치 건너뜀");
+            return;
+        }
+
+        // 2) 최상위 표시 순서 (시험 → 학습 → 내 기록 → 도움말)
+        reparentMenu("/user/exams",          null,       1);
+        reparentMenu("/user/group/learning", null,       2);
+        reparentMenu("/user/group/records",  null,       3);
+        reparentMenu("/user/group/help",     null,       4);
+
+        // 3) 그룹별 자식 재배치
+        reparentMenu("/user/quiz",         learningId, 1);
+        reparentMenu("/user/practice",     learningId, 2);
+        reparentMenu("/user/concepts",     learningId, 3);
+
+        reparentMenu("/user/dashboard",    recordsId,  1);
+        reparentMenu("/user/exam-history", recordsId,  2);
+        reparentMenu("/user/bookmarks",    recordsId,  3);
+
+        reparentMenu("/user/exam-info",    helpId,     1);
+        reparentMenu("/user/faq",          helpId,     2);
+        reparentMenu("/user/inquiries",    helpId,     3);
+
+        log.info("[DataInitializer] USER 메뉴 그룹 구조(학습/내 기록/도움말) 정리 완료");
+    }
+
+    private void ensureGroupMenu(String name, String url, String iconKey, int order) {
+        if (!menuConfigRepository.existsByUrl(url)) {
+            saveMenu(null, name, url, iconKey, order, MenuConfig.MenuType.USER, "USER,ADMIN");
+            log.info("[DataInitializer] USER 메뉴 그룹 '{}' 생성 완료", name);
+        }
+    }
+
+    private Long menuIdByUrl(String url) {
+        try {
+            return jdbcTemplate.queryForObject("SELECT id FROM menu_config WHERE url = ?", Long.class, url);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** url로 메뉴를 찾아 parent_id·display_order를 갱신한다 (없으면 0건 — 무해). */
+    private void reparentMenu(String url, Long parentId, int order) {
+        jdbcTemplate.update(
+                "UPDATE menu_config SET parent_id = ?, display_order = ? WHERE url = ?",
+                parentId, order, url);
     }
 
     private void ensurePracticeAdminMenus() {

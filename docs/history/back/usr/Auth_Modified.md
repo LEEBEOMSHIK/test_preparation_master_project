@@ -1,3 +1,31 @@
+## HIST-20260614-001
+
+- **날짜**: 2026-06-14
+- **수정 범위**: 공통 백엔드 / 인증 (사용자·관리자 공통)
+- **수정 개요**: `GET /api/auth/me`가 유효 토큰으로도 항상 401을 반환하던 버그 수정 — JWT 필터가 `/api/auth/**` 전체를 스킵해 인증이 필요한 `/me`까지 토큰 검증을 못 받던 문제 해결
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../security/jwt/JwtAuthenticationFilter.java` | 수정 | `shouldNotFilter()`에서 `/api/auth/**` 제외 제거(OAuth2만 유지), 만료 토큰 허용은 `isTokenOptionalEndpoint`(login/refresh/signup)로 한정 |
+
+### 수정 상세
+
+#### `security/jwt/JwtAuthenticationFilter.java`
+- **문제**: 직전 HIST-20260512-001에서 추가된 `shouldNotFilter()`가 `/api/auth/**` 경로 전체를 필터 대상에서 제외함. 이로 인해 인증이 필요한 `/api/auth/me`도 토큰을 검증받지 못해 `@AuthenticationPrincipal`이 항상 null → 401. 프론트 `UserLayoutShell`이 마운트마다 `me()`를 호출해 실패 시 로그아웃 처리하므로, 새로고침/직접 URL 진입 시 로그인으로 튕기는 원인이었음.
+- **변경 전**: `shouldNotFilter` → `path.startsWith("/api/auth/") || oauth2...` (auth 전체 스킵)
+- **변경 후**:
+  - `shouldNotFilter` → OAuth2 경로(`/api/oauth2/`, `/api/login/oauth2/`)만 스킵. `/api/auth/**`는 필터를 통과시켜 토큰을 검증.
+  - 만료/무효 토큰에 대한 즉시 401 차단은 `isTokenOptionalEndpoint(path)`가 `false`일 때만 수행. login/refresh/signup은 만료 토큰이 헤더에 남아 있어도 401로 막지 않고 그대로 진행(`SecurityContextHolder.clearContext()` 후 계속).
+  - 결과: `/me`는 유효 토큰 → 인증 성공(200), 무효/만료 토큰 → 401(프론트가 refresh 재시도), login/refresh/signup은 종전처럼 토큰 없이도 동작.
+- **검증**: curl — `/me` 유효토큰 200·토큰없음 401·무효토큰 401, `/login` 무효토큰 헤더 동봉 200. 크롬 E2E — 만료 토큰 상태로 `/user/exam-history` 직접 진입 시 `/me` 401 → `/auth/refresh` 200 → 재시도 `/me` 200으로 로그인 유지·정상 렌더 확인.
+
+### 복원 방법
+이 ID(HIST-20260614-001)로 복원 시 `shouldNotFilter`에 `path.startsWith("/api/auth/")`를 다시 추가하고 `isTokenOptionalEndpoint` 분기 및 메서드를 제거한다. (단, 그 경우 `/api/auth/me` 401 버그가 재발한다.)
+
+---
+
 ## HIST-20260512-001
 
 - **날짜**: 2026-05-12

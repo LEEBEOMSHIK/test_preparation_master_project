@@ -1,3 +1,34 @@
+## HIST-20260614-001
+
+- **날짜**: 2026-06-14
+- **수정 범위**: 사용자 백엔드 / 메뉴 시딩(DataInitializer)
+- **수정 개요**: USER 메뉴를 그룹(학습/내 기록/도움말) 부모-자식 구조로 재배치. 그룹 부모 3종 생성 + 기존 리프 메뉴의 `parent_id`·`display_order`를 멱등 재설정.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java` | 수정 | `ensureUserMenuGroups()` + 헬퍼(`ensureGroupMenu`/`menuIdByUrl`/`reparentMenu`) 추가, `run()` 순서에 호출 삽입 |
+
+### 수정 상세
+
+#### `config/DataInitializer.java`
+- **`run()` 순서**: `ensureDashboardMenu()` 다음, `ensurePermissionMenuAssociations()` 이전에 `ensureUserMenuGroups()` 호출 추가 — 모든 리프 메뉴가 생성된 뒤 그룹화하고, 그룹 부모도 GENERAL_USER 권한 코드 연결 대상에 포함되도록 순서 배치.
+- **`ensureUserMenuGroups()`**:
+  - 그룹 부모 3종 생성(멱등, `existsByUrl` 가드): `학습`(`/user/group/learning`, icon `learn`), `내 기록`(`/user/group/records`, icon `records`), `도움말`(`/user/group/help`, icon `help`). 그룹 부모는 실제 페이지가 없어 합성 URL 사용(프론트 렌더러가 children 보유 항목을 드롭다운 토글로 처리).
+  - 최상위 순서 재설정: `시험`(1) → `학습`(2) → `내 기록`(3) → `도움말`(4).
+  - 자식 재배치(`reparentMenu` UPDATE): 학습 ← 데일리 퀴즈/연습장/개념노트, 내 기록 ← 통계 대시보드/시험 이력/즐겨찾기, 도움말 ← 시험 정보/FAQ/1:1 문의.
+  - `url` NOT NULL 제약·`getMenuTreeByPermissions`(parent_id NULL을 루트로, 나머지를 children으로 그룹화) 구조를 그대로 활용.
+- **멱등성**: 그룹 생성은 `existsByUrl`로, 재배치는 매 부팅 동일 값 UPDATE이므로 재실행 안전.
+- **권한**: 그룹 부모는 `USER,ADMIN`으로 생성되며 후속 `ensurePermissionMenuAssociations()`에서 `GENERAL_USER`가 추가됨 → 일반 사용자 트리에 정상 노출.
+- **이유**: 사용자 메뉴 증가로 네비게이션 과밀 → 성격별 3그룹으로 묶기 위한 데이터 구조 정비.
+- **검증**: `GET /api/menus/mine?menuType=USER` 호출 결과 `시험` + 3그룹(각 자식 3종) 트리 정상 반환 확인.
+
+### 복원 방법
+이 ID(HIST-20260614-001)로 복원 시 `run()`에서 `ensureUserMenuGroups()` 호출과 메서드 4종을 제거하고, DB에서 그룹 부모 3행 삭제 후 USER 리프 메뉴의 `parent_id`를 NULL로 되돌린다.
+
+---
+
 ## HIST-20260502-007
 
 - **날짜**: 2026-05-02

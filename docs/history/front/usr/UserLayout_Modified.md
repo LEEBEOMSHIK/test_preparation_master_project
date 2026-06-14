@@ -1,3 +1,33 @@
+## HIST-20260614-001
+
+- **날짜**: 2026-06-14
+- **수정 범위**: 사용자 프론트엔드 / 네비게이션 레이아웃
+- **수정 개요**: 사용자 메뉴 10개를 그룹 구조로 재편 — `시험`(단독) + `학습`/`내 기록`/`도움말` 3개 드롭다운 그룹으로 묶어 최상위 항목을 10개 → 4개로 축소. 데스크톱 hover 드롭다운, 모바일 하단탭 그룹 패널 렌더링 추가.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | 그룹 아이콘(learn/records/help) 추가, FALLBACK nav 그룹 트리화, 제목/활성 판정 재귀화, 데스크톱 드롭다운 + 모바일 그룹 패널 렌더링 |
+
+### 수정 상세
+
+#### `frontend/src/components/layout/UserLayoutShell.tsx`
+- **그룹 구성**: `시험`(최상위) / `학습`(데일리 퀴즈·연습장·개념노트) / `내 기록`(통계 대시보드·시험 이력·즐겨찾기) / `도움말`(시험 정보·FAQ·1:1 문의)
+- **데이터 소스**: 기존과 동일하게 `menuService.getMyMenus('USER')`(API) 우선, 실패 시 `USER_FALLBACK_NAV`. FALLBACK을 `leaf()`/`group()` 헬퍼로 그룹 트리 구조로 재작성(백엔드 트리와 동일 형태).
+- **ICON_MAP**: `learn`/`records`/`help` 아이콘 3종 추가.
+- **`getUserPageTitle`**: children → 자기 자신 순으로 재귀 탐색하도록 변경(그룹 합성 URL `/user/group/*`은 제외). 그룹 하위 페이지(`/user/quiz` 등)의 문서 제목이 정상 해석되도록 함.
+- **`isItemActive`**: 그룹은 자식 중 현재 경로 일치 시 활성, 리프는 자신 url 기준으로 활성 판정.
+- **데스크톱 nav**: children 보유 항목은 hover 드롭다운(`group/nav` + `group-hover/nav`)으로, 리프는 기존 링크로 렌더.
+- **모바일 하단탭**: 최상위 4개 표시 — 리프(`시험`)는 링크, 그룹은 버튼 탭 시 하단탭 위로 자식 목록 패널(오버레이) 토글. 경로 이동 시 패널 자동 닫힘(`mobileGroupId` state + pathname effect).
+- **이유**: 메뉴 증가로 한 줄 네비게이션이 과밀해지고 모바일 하단탭이 10개로 분할되어 가독성 저하. 성격별 3그룹으로 묶어 최상위를 4개로 축소.
+- **검증**: `npx tsc --noEmit` 통과. 크롬 E2E — 데스크톱 4개 최상위 + hover 드롭다운 + 자식 이동(데일리 퀴즈→`/user/quiz`) + 제목 재귀 해석 확인.
+
+### 복원 방법
+이 ID(HIST-20260614-001)로 복원 시 `USER_FALLBACK_NAV`를 flat 10개 구조로 되돌리고, `getUserPageTitle`을 단일 루프로, nav 렌더링을 flat `navItems.map` 링크로 환원한다. ICON_MAP의 learn/records/help, `isItemActive`, `mobileGroupId` state 및 모바일 그룹 패널을 제거한다.
+
+---
+
 ## HIST-20260612-002
 
 - **날짜**: 2026-06-12

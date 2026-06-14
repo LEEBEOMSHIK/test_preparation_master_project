@@ -64,6 +64,22 @@ const ICON_MAP: Record<string, React.ReactNode> = {
         d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
     </svg>
   ),
+  learn: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l6.16-3.422A12.083 12.083 0 0121 12c0 2.755-1.5 5.16-3.75 6.45L12 21l-5.25-2.55A6.99 6.99 0 013 12c0-.482.06-.952.16-1.422L12 14z" />
+    </svg>
+  ),
+  records: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6h6v6m-9 4h12a2 2 0 002-2V7a2 2 0 00-2-2h-3.5L13 3h-2L9.5 5H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  ),
+  help: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 11-12.728 0M12 3v9" />
+    </svg>
+  ),
 };
 
 const DEFAULT_ICON = (
@@ -72,24 +88,62 @@ const DEFAULT_ICON = (
   </svg>
 );
 
+const leaf = (
+  id: number, name: string, url: string, iconKey: string, order: number,
+): MenuConfig => ({
+  id, parentId: undefined, name, url, iconKey, displayOrder: order,
+  menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [],
+});
+
+const group = (
+  id: number, name: string, url: string, iconKey: string, order: number, children: MenuConfig[],
+): MenuConfig => ({
+  id, parentId: undefined, name, url, iconKey, displayOrder: order,
+  menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '',
+  children: children.map((c) => ({ ...c, parentId: id })),
+});
+
 const USER_FALLBACK_NAV: MenuConfig[] = [
-  { id: 100, parentId: undefined, name: '통계 대시보드', url: '/user/dashboard',  iconKey: 'dashboard', displayOrder: 0, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 101, parentId: undefined, name: '시험 정보',    url: '/user/exam-info',  iconKey: 'examinfo',  displayOrder: 1, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 102, parentId: undefined, name: '시험',         url: '/user/exams',      iconKey: 'exam',      displayOrder: 2, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 103, parentId: undefined, name: '개념노트',     url: '/user/concepts',   iconKey: 'concept',   displayOrder: 3, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 104, parentId: undefined, name: '데일리 퀴즈',  url: '/user/quiz',       iconKey: 'quiz',      displayOrder: 4, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 105, parentId: undefined, name: 'FAQ',          url: '/user/faq',        iconKey: 'faq',       displayOrder: 5, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 106, parentId: undefined, name: '1:1 문의',     url: '/user/inquiries',  iconKey: 'inquiry',   displayOrder: 6, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 107, parentId: undefined, name: '연습장',       url: '/user/practice',   iconKey: 'practice',  displayOrder: 7, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 108, parentId: undefined, name: '즐겨찾기',     url: '/user/bookmarks',  iconKey: 'bookmark',  displayOrder: 8, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
-  { id: 109, parentId: undefined, name: '시험 이력',   url: '/user/exam-history', iconKey: 'history', displayOrder: 9, menuType: 'USER', isActive: true, allowedRoles: 'USER', createdAt: '', updatedAt: '', children: [] },
+  leaf(102, '시험', '/user/exams', 'exam', 1),
+  group(110, '학습', '/user/group/learning', 'learn', 2, [
+    leaf(104, '데일리 퀴즈', '/user/quiz',     'quiz',     1),
+    leaf(107, '연습장',      '/user/practice', 'practice', 2),
+    leaf(103, '개념노트',    '/user/concepts', 'concept',  3),
+  ]),
+  group(111, '내 기록', '/user/group/records', 'records', 3, [
+    leaf(100, '통계 대시보드', '/user/dashboard',     'dashboard', 1),
+    leaf(109, '시험 이력',     '/user/exam-history',  'history',   2),
+    leaf(108, '즐겨찾기',      '/user/bookmarks',     'bookmark',  3),
+  ]),
+  group(112, '도움말', '/user/group/help', 'help', 4, [
+    leaf(101, '시험 정보', '/user/exam-info',  'examinfo', 1),
+    leaf(105, 'FAQ',       '/user/faq',        'faq',      2),
+    leaf(106, '1:1 문의',  '/user/inquiries',  'inquiry',  3),
+  ]),
 ];
 
+/** 그룹 부모(합성 URL)는 실제 페이지가 없으므로 활성/제목 판정에서 제외한다. */
+function isGroupUrl(url: string): boolean {
+  return url.startsWith('/user/group/');
+}
+
+/** children → 자기 자신 순으로 현재 경로에 해당하는 메뉴명을 찾는다. */
 function getUserPageTitle(pathname: string, navItems: MenuConfig[]): string {
   for (const item of navItems) {
-    if (pathname.startsWith(item.url)) return item.name;
+    for (const child of item.children ?? []) {
+      if (pathname.startsWith(child.url)) return child.name;
+    }
+    if (!isGroupUrl(item.url) && pathname.startsWith(item.url)) return item.name;
   }
   return '';
+}
+
+/** 그룹은 자식 중 하나가 현재 경로면 활성, 리프는 자신의 url 기준. */
+function isItemActive(item: MenuConfig, pathname: string): boolean {
+  if (item.children && item.children.length > 0) {
+    return item.children.some((c) => pathname.startsWith(c.url));
+  }
+  return pathname.startsWith(item.url);
 }
 
 function ThemeToggle() {
@@ -125,6 +179,7 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
   const { user, setAuth, clearAuth } = useAuthStore();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [navItems, setNavItems] = useState<MenuConfig[]>(USER_FALLBACK_NAV);
+  const [mobileGroupId, setMobileGroupId] = useState<number | null>(null);
 
   useEffect(() => {
     if (pathname === '/user/login') {
@@ -134,6 +189,9 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
     const name = getUserPageTitle(pathname, navItems);
     document.title = name ? `${name} | TPMP` : 'TPMP - 시험 준비 마스터';
   }, [pathname, navItems]);
+
+  // 경로 이동 시 모바일 그룹 패널 닫기
+  useEffect(() => { setMobileGroupId(null); }, [pathname]);
 
   useEffect(() => {
     if (pathname === '/user/login') return;
@@ -194,24 +252,64 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
           {/* Desktop nav */}
           <nav className="hidden sm:flex items-center gap-0.5 min-w-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {navItems.map((item) => {
-              const isActive = pathname.startsWith(item.url);
+              const isActive = isItemActive(item, pathname);
               const icon = item.iconKey ? (ICON_MAP[item.iconKey] ?? DEFAULT_ICON) : DEFAULT_ICON;
+              const hasChildren = (item.children?.length ?? 0) > 0;
+
+              const pill = [
+                'flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap shrink-0',
+                isActive
+                  ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800',
+              ].join(' ');
+              const iconColor = isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500';
+
+              // 리프 메뉴 — 단순 링크
+              if (!hasChildren) {
+                return (
+                  <Link key={item.id} href={item.url} className={pill}>
+                    <span className={iconColor}>{icon}</span>
+                    {item.name}
+                  </Link>
+                );
+              }
+
+              // 그룹 메뉴 — hover 드롭다운
               return (
-                <Link
-                  key={item.id}
-                  href={item.url}
-                  className={[
-                    'flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap shrink-0',
-                    isActive
-                      ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800',
-                  ].join(' ')}
-                >
-                  <span className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500'}>
-                    {icon}
-                  </span>
-                  {item.name}
-                </Link>
+                <div key={item.id} className="relative group/nav shrink-0">
+                  <button type="button" className={pill} aria-haspopup="true">
+                    <span className={iconColor}>{icon}</span>
+                    {item.name}
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <div className="absolute left-0 top-full pt-1.5 min-w-[10rem] z-50 invisible opacity-0 translate-y-1 group-hover/nav:visible group-hover/nav:opacity-100 group-hover/nav:translate-y-0 transition-all duration-150">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 py-1">
+                      {item.children.map((child) => {
+                        const childActive = pathname.startsWith(child.url);
+                        const childIcon = child.iconKey ? (ICON_MAP[child.iconKey] ?? DEFAULT_ICON) : DEFAULT_ICON;
+                        return (
+                          <Link
+                            key={child.id}
+                            href={child.url}
+                            className={[
+                              'flex items-center gap-2 px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap',
+                              childActive
+                                ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+                                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700',
+                            ].join(' ')}
+                          >
+                            <span className={childActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500'}>
+                              {childIcon}
+                            </span>
+                            {child.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </nav>
@@ -266,26 +364,75 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
         </div>
       </main>
 
+      {/* ── Mobile group panel (펼쳐진 그룹의 자식 목록) ── */}
+      {mobileGroupId !== null && (() => {
+        const openGroup = navItems.find((m) => m.id === mobileGroupId);
+        if (!openGroup) return null;
+        return (
+          <>
+            <div className="sm:hidden fixed inset-0 z-40 bg-black/30" onClick={() => setMobileGroupId(null)} />
+            <div className="sm:hidden fixed bottom-16 inset-x-0 z-40 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 rounded-t-2xl shadow-[0_-4px_16px_rgba(0,0,0,0.08)] py-2">
+              <p className="px-4 py-1 text-[11px] font-semibold text-gray-400 dark:text-gray-500">{openGroup.name}</p>
+              {openGroup.children.map((child) => {
+                const childActive = pathname.startsWith(child.url);
+                const childIcon = child.iconKey ? (ICON_MAP[child.iconKey] ?? DEFAULT_ICON) : DEFAULT_ICON;
+                return (
+                  <Link
+                    key={child.id}
+                    href={child.url}
+                    onClick={() => setMobileGroupId(null)}
+                    className={[
+                      'flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors',
+                      childActive
+                        ? 'text-indigo-700 bg-indigo-50 dark:text-indigo-300 dark:bg-indigo-900/40'
+                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800',
+                    ].join(' ')}
+                  >
+                    <span className={childActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500'}>
+                      {childIcon}
+                    </span>
+                    {child.name}
+                  </Link>
+                );
+              })}
+            </div>
+          </>
+        );
+      })()}
+
       {/* ── Mobile bottom tab bar ── */}
       <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 h-16 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex items-center">
         {navItems.map((item) => {
-          const isActive = pathname.startsWith(item.url);
+          const isActive = isItemActive(item, pathname);
           const icon = item.iconKey ? (ICON_MAP[item.iconKey] ?? DEFAULT_ICON) : DEFAULT_ICON;
+          const hasChildren = (item.children?.length ?? 0) > 0;
+          const tabClass = [
+            'relative flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
+            isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300',
+          ].join(' ');
+
+          if (!hasChildren) {
+            return (
+              <Link key={item.id} href={item.url} className={tabClass} onClick={() => setMobileGroupId(null)}>
+                {icon}
+                {item.name}
+                {isActive && <span className="absolute top-0 w-8 h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-b-full" />}
+              </Link>
+            );
+          }
+
+          const isOpen = mobileGroupId === item.id;
           return (
-            <Link
+            <button
               key={item.id}
-              href={item.url}
-              className={[
-                'flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
-                isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300',
-              ].join(' ')}
+              type="button"
+              onClick={() => setMobileGroupId(isOpen ? null : item.id)}
+              className={tabClass}
             >
               {icon}
               {item.name}
-              {isActive && (
-                <span className="absolute top-0 w-8 h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-b-full" />
-              )}
-            </Link>
+              {(isActive || isOpen) && <span className="absolute top-0 w-8 h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-b-full" />}
+            </button>
           );
         })}
       </nav>
