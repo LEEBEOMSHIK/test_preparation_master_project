@@ -43,6 +43,7 @@ body {
 /* Opacity variants */
 .dark .bg-gray-50\/50  { background-color: rgb(17 24 39 / 0.5); }
 .dark .bg-gray-50\/60  { background-color: rgb(17 24 39 / 0.6); }
+.dark .bg-gray-50\/95  { background-color: rgb(17 24 39 / 0.95); }
 
 /* Text — grayscale */
 .dark .text-gray-900  { color: #f9fafb; }
