@@ -133,7 +133,7 @@ export default function UserConceptsPage() {
                     </span>
                   </div>
                   {(note.questionContent || note.questionBankContent) && (
-                    <p className="text-xs text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-1.5 mb-1.5 line-clamp-1">
+                    <p className="text-xs text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-1.5 mb-1.5 truncate">
                       <span className="font-medium">문제:</span>{' '}
                       {stripHtml(note.questionContent || note.questionBankContent || '')}
                     </p>
