@@ -11,6 +11,8 @@ interface Props {
   onBack: () => void;
   backLabel?: string;
   showSavedBanner?: boolean;
+  /** 제공 시 '다시 풀기' 버튼을 표시한다 (시험 응시 화면에서만 전달). */
+  onRetake?: () => void;
 }
 
 /**
@@ -23,6 +25,7 @@ export function ExamResultDisplay({
   onBack,
   backLabel = '시험 목록으로',
   showSavedBanner = false,
+  onRetake,
 }: Props) {
   const [resultFilter, setResultFilter] = useState<'all' | 'wrong'>('all');
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
@@ -242,13 +245,23 @@ export function ExamResultDisplay({
           </div>
         )}
 
-        {/* 뒤로가기 버튼 */}
-        <button
-          onClick={onBack}
-          className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition"
-        >
-          {backLabel}
-        </button>
+        {/* 하단 버튼 (다시 풀기 / 뒤로가기) */}
+        <div className="flex gap-2">
+          {onRetake && (
+            <button
+              onClick={onRetake}
+              className="flex-1 py-3 bg-white text-indigo-700 border border-indigo-300 rounded-xl text-sm font-medium hover:bg-indigo-50 transition"
+            >
+              다시 풀기
+            </button>
+          )}
+          <button
+            onClick={onBack}
+            className="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition"
+          >
+            {backLabel}
+          </button>
+        </div>
       </div>
     </div>
   );

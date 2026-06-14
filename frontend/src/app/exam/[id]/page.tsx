@@ -223,6 +223,17 @@ export default function ExamTakingPage() {
     router.push('/user/exams');
   };
 
+  // 다시 풀기 — 응시 상태를 초기화해 처음부터 재응시 (제출 시 이력에 새로 쌓임)
+  const handleRetake = useCallback(() => {
+    setResult(null);
+    setAnswers({});
+    setFlagged(new Set());
+    setCurrent(0);
+    setTimeUp(false);
+    setSecondsLeft((exam?.timeLimit ?? 60) * 60);
+    examDone.current = false;
+  }, [exam]);
+
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60).toString().padStart(2, '0');
     const s = (sec % 60).toString().padStart(2, '0');
@@ -257,6 +268,7 @@ export default function ExamTakingPage() {
         onBack={() => router.push('/user/exams')}
         backLabel="시험 목록으로"
         showSavedBanner
+        onRetake={handleRetake}
       />
     );
   }
