@@ -1,3 +1,27 @@
+## HIST-20260615-003
+
+- **날짜**: 2026-06-15
+- **수정 범위**: 사용자 프론트엔드 / 개념노트 Notion 연동 (골격)
+- **수정 개요**: 개념노트 목록에 Notion 연동 상태 바(연결/해제) + 노트별 '노션으로 내보내기' 버튼 추가. 백엔드 NotionController와 연동.
+
+### 수정 파일 목록
+
+| 파일 경로 | 유형 | 설명 |
+|-----------|------|------|
+| `frontend/src/services/notionService.ts` | 신규 | status / authorize-url / disconnect / export API 클라이언트 |
+| `frontend/src/app/user/concepts/page.tsx` | 수정 | Notion 상태 바, 연결/해제·내보내기 핸들러, 콜백 피드백(`?notion=`), 노트별 내보내기 버튼 |
+
+### 수정 상세
+- 마운트 시 `notionService.getStatus()` 호출. 상태 바 분기: `!configured`→"서버 설정 필요" 안내 / `configured&&!connected`→"Notion 연결" 버튼(authorize-url로 이동) / `connected`→워크스페이스명+"연동 해제".
+- 노트 카드: `connected`일 때만 "노션으로 내보내기" 버튼 노출 → `exportNote(id)` → 성공 시 Notion 페이지 열기 확인.
+- 콜백 후 `?notion=connected|failed` 쿼리로 성공/실패 배너 표시.
+- **검증**: `npx tsc --noEmit` 통과. 크롬 — 시크릿 미설정 상태에서 상태 바가 "Notion 연동 — 서버 설정 필요" 로 정상 렌더 확인. (연결/내보내기 버튼은 서버에 client id/secret 주입 후 노출·검증)
+
+### 복원 방법
+이 ID(HIST-20260615-003)로 복원 시 `notionService.ts` 제거 + concepts 페이지의 Notion 상태 바·핸들러·내보내기 버튼·콜백 피드백을 제거한다.
+
+---
+
 ## HIST-20260615-002
 
 - **날짜**: 2026-06-15

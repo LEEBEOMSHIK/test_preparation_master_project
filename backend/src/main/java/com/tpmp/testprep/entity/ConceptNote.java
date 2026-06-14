@@ -38,6 +38,10 @@ public class ConceptNote {
     @JoinColumn(name = "question_bank_id")
     private QuestionBank questionBank;
 
+    /** Notion으로 내보낸 경우의 페이지 ID (재내보내기 시 생성 대신 갱신) */
+    @Column(name = "notion_page_id", length = 64)
+    private String notionPageId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -74,5 +78,9 @@ public class ConceptNote {
 
     public void setPublic(boolean isPublic) {
         this.isPublic = isPublic;
+    }
+
+    public void assignNotionPageId(String notionPageId) {
+        this.notionPageId = notionPageId;
     }
 }

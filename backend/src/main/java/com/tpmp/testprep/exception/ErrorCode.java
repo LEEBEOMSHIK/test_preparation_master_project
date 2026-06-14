@@ -49,6 +49,12 @@ public enum ErrorCode {
     AI_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI 분석 서비스를 사용할 수 없습니다. API 키를 확인하세요."),
     AI_ANALYSIS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI 분석에 실패했습니다. 잠시 후 다시 시도하세요."),
 
+    // Notion 연동
+    NOTION_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "Notion 연동이 서버에 설정되어 있지 않습니다. (client id/secret 필요)"),
+    NOTION_NOT_CONNECTED(HttpStatus.BAD_REQUEST, "Notion 워크스페이스가 연결되어 있지 않습니다."),
+    NOTION_OAUTH_FAILED(HttpStatus.UNAUTHORIZED, "Notion 인증에 실패했습니다."),
+    NOTION_API_ERROR(HttpStatus.BAD_GATEWAY, "Notion API 호출에 실패했습니다."),
+
     // Common
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "입력값이 올바르지 않습니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
