@@ -128,6 +128,7 @@ docker-compose.yml
 | 함수/컴포넌트 | 위치 | 역할 |
 |-------------|------|------|
 | `stripHtml(html)` | `src/lib/html.ts` | HTML → 순수 텍스트 |
+| `useIsDarkMode()` | `src/lib/useIsDarkMode.ts` | 현재 다크모드 여부(html `dark` 클래스 기준, MutationObserver 반응) |
 | `<RichContent html className />` | `src/components/ui/RichContent.tsx` | 에디터 HTML 렌더링 |
 | `<RichTextEditor value onChange />` | `src/components/ui/RichTextEditor.tsx` | react-quill 에디터 |
 | `<QuestionDetailModal question onClose />` | `src/components/ui/QuestionDetailModal.tsx` | 문항 상세 모달 |

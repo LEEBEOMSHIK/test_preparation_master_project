@@ -1,3 +1,36 @@
+## HIST-20260615-001
+
+- **날짜**: 2026-06-15
+- **수정 범위**: 사용자 프론트엔드 / 테마 토글 (공용 훅 추출)
+- **수정 개요**: 테마 토글 버튼 라벨이 실제 적용된 다크모드 상태와 어긋나던 버그 수정 — 렌더 시점 `window.matchMedia` 계산을 제거하고, 실제 `dark` 클래스를 단일 진실 소스로 읽는 공용 훅 `useIsDarkMode`로 대체.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/useIsDarkMode.ts` | 신규 | html `dark` 클래스를 MutationObserver로 관찰해 다크 여부 반환하는 공용 훅 |
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | `ThemeToggle`의 render-time matchMedia 계산 제거 → `useIsDarkMode()` 사용 |
+| `CLAUDE.md` | 수정 | 공용 유틸 표에 `useIsDarkMode()` 추가 |
+
+### 수정 상세
+
+#### 문제(근본 원인)
+- `ThemeProvider`는 `theme`('light'/'dark'/'system')에 따라 html에 `dark` 클래스를 적용한다.
+- `ThemeToggle`은 렌더 시점에 `theme==='dark' || (theme==='system' && matchMedia(...).matches)`로 `isDark`를 재계산했는데, (1) SSR에서는 `window`가 없어 항상 false, (2) 하이드레이션 이후 matchMedia 변화·persist 재수화 타이밍에 반응하지 못해, 실제 적용된 `dark` 클래스와 라벨('라이트 모드로 전환'/'다크 모드로 전환')이 어긋났다. (관측: html에 `dark`가 있는데 라벨은 '다크 모드로 전환')
+
+#### `lib/useIsDarkMode.ts` (신규)
+- `document.documentElement.classList.contains('dark')`를 초기 마운트 시 읽고, `MutationObserver`로 class 속성 변경을 구독해 상태를 동기화. 초기값 false로 SSR/하이드레이션 불일치 없음. 테마 토글·시스템 설정 변경 모두에 반응.
+
+#### `UserLayoutShell.tsx`
+- `ThemeToggle`에서 `theme` 의존 isDark 계산식 제거, `const isDark = useIsDarkMode();`로 교체. `useThemeStore`는 `toggleTheme`만 사용.
+
+- **검증**: `npx tsc --noEmit` 통과. 크롬 — 전환 전 `dark`+'라이트 모드로 전환', 토글 클릭 후 클래스 제거+'다크 모드로 전환'으로 라벨이 실제 상태와 일치함을 확인.
+
+### 복원 방법
+이 ID(HIST-20260615-001)로 복원 시 `ThemeToggle`의 isDark를 기존 render-time matchMedia 계산식으로 되돌리고, `useIsDarkMode.ts`를 제거한다. (관리자 측 동일 수정: 관리자 프론트 AdminLayout_Modified.md HIST-20260615-001)
+
+---
+
 ## HIST-20260614-002
 
 - **날짜**: 2026-06-14

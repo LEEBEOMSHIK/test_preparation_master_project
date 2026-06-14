@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
+import { useIsDarkMode } from '@/lib/useIsDarkMode';
 import { authService } from '@/services/authService';
 import { menuService } from '@/services/menuService';
 import { PermissionDeniedModal } from '@/components/ui/PermissionDeniedModal';
@@ -141,12 +142,8 @@ function getPageTitle(pathname: string, navItems: MenuConfig[]): string {
 }
 
 function ThemeToggle() {
-  const { theme, toggleTheme } = useThemeStore();
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    setIsDark(document.documentElement.classList.contains('dark'));
-  }, [theme]);
+  const { toggleTheme } = useThemeStore();
+  const isDark = useIsDarkMode();
 
   return (
     <button

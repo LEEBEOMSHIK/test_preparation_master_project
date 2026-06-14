@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
+import { useIsDarkMode } from '@/lib/useIsDarkMode';
 import { authService } from '@/services/authService';
 import { menuService } from '@/services/menuService';
 import { PermissionDeniedModal } from '@/components/ui/PermissionDeniedModal';
@@ -147,12 +148,8 @@ function isItemActive(item: MenuConfig, pathname: string): boolean {
 }
 
 function ThemeToggle() {
-  const { theme, toggleTheme } = useThemeStore();
-  const isDark =
-    theme === 'dark' ||
-    (theme === 'system' &&
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const { toggleTheme } = useThemeStore();
+  const isDark = useIsDarkMode();
 
   return (
     <button

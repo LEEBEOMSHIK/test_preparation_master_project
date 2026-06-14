@@ -1,3 +1,28 @@
+## HIST-20260615-001
+
+- **날짜**: 2026-06-15
+- **수정 범위**: 관리자 프론트엔드 / 테마 토글
+- **수정 개요**: 테마 토글 라벨이 실제 다크모드 상태와 어긋날 수 있던 문제 수정 — 공용 훅 `useIsDarkMode`로 통일.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/AdminLayoutShell.tsx` | 수정 | `ThemeToggle`의 `useState`+`useEffect([theme])` 방식을 공용 훅 `useIsDarkMode()`로 교체 |
+
+### 수정 상세
+
+#### `AdminLayoutShell.tsx`
+- **변경 전**: `const [isDark, setIsDark] = useState(false); useEffect(() => setIsDark(documentElement.classList.contains('dark')), [theme]);` — 실제 클래스를 읽긴 하나 `[theme]` 의존이라 `theme==='system'`에서 OS 설정 변경 시 라벨이 갱신되지 않는 사각지대 존재.
+- **변경 후**: `const isDark = useIsDarkMode();` — MutationObserver로 html `dark` 클래스를 직접 관찰해 테마 토글·시스템 설정 변경 모두에 반응. 사용자 측과 로직 단일화.
+- 공용 훅 정의 및 근본 원인 상세: 사용자 프론트 `docs/history/front/usr/UserLayout_Modified.md` HIST-20260615-001 참조.
+- **검증**: `npx tsc --noEmit` 통과.
+
+### 복원 방법
+이 ID(HIST-20260615-001)로 복원 시 `ThemeToggle`을 기존 `useState`+`useEffect([theme])` 방식으로 되돌린다.
+
+---
+
 ## HIST-20260516-002
 
 - **날짜**: 2026-05-16
