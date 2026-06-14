@@ -1,3 +1,28 @@
+## HIST-20260615-001
+
+- **날짜**: 2026-06-15
+- **수정 범위**: 사용자 프론트엔드 / 개념노트 목록
+- **수정 개요**: 개념노트 목록(`/user/concepts`)에서 연결된 문제 미리보기가 HTML 태그 그대로 노출되던 문제 수정 — `stripHtml`로 순수 텍스트화.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/concepts/page.tsx` | 수정 | 문제 미리보기 `{note.questionContent \|\| note.questionBankContent}` → `stripHtml(...)` 적용, `stripHtml` import 추가 |
+
+### 수정 상세
+
+#### `app/user/concepts/page.tsx`
+- **문제**: 목록 카드의 "문제:" 미리보기가 `questionContent`/`questionBankContent`(HTML)를 그대로 출력해 `<p>`, `<table>` 등 태그가 노출됨. (상세 화면은 `RichContent`로 정상 렌더 중, 목록만 누락)
+- **변경**: `line-clamp-1` 한 줄 미리보기이므로 `stripHtml(note.questionContent || note.questionBankContent || '')`로 순수 텍스트만 표시.
+- **참고**: 노트 본문(`note.content`)은 textarea 기반 순수 텍스트라 기존 출력 유지. 즐겨찾기 목록(`/user/bookmarks`)은 이미 `stripHtml` 사용 중이라 동일 이슈 없음(크롬으로 추가·표시 정상 확인).
+- **검증**: `npx tsc --noEmit` 통과. 크롬 — `/user/concepts` 문제 미리보기 태그 사라지고 텍스트로 표시 확인. `/user/bookmarks` 즐겨찾기 추가→목록 정상 렌더 확인.
+
+### 복원 방법
+이 ID(HIST-20260615-001)로 복원 시 미리보기를 `{note.questionContent || note.questionBankContent}`로 되돌린다.
+
+---
+
 ## HIST-20260421-031
 
 - **날짜**: 2026-04-21

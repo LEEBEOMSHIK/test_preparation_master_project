@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { conceptNoteService } from '@/services/conceptNoteService';
 import { CardListSkeleton } from '@/components/ui/Skeleton';
+import { stripHtml } from '@/lib/html';
 import type { ConceptNote } from '@/types';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
@@ -134,7 +135,7 @@ export default function UserConceptsPage() {
                   {(note.questionContent || note.questionBankContent) && (
                     <p className="text-xs text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-1.5 mb-1.5 line-clamp-1">
                       <span className="font-medium">문제:</span>{' '}
-                      {note.questionContent || note.questionBankContent}
+                      {stripHtml(note.questionContent || note.questionBankContent || '')}
                     </p>
                   )}
                   <p className="text-sm text-gray-500 line-clamp-2">{note.content}</p>
