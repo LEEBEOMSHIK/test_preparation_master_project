@@ -268,7 +268,7 @@ export default function AdminExamPaperNewPage() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-800 line-clamp-2">{stripHtml(q.content)}</p>
+                        <p className="text-sm text-gray-800 truncate">{stripHtml(q.content)}</p>
                         {q.options && q.options.length > 0 && (
                           <p className="text-xs text-gray-400 mt-0.5 truncate">
                             {q.options.slice(0, 3).join(' · ')}{q.options.length > 3 ? ' ...' : ''}

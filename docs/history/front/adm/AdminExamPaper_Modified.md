@@ -1,3 +1,27 @@
+## HIST-20260615-001
+
+- **날짜**: 2026-06-15
+- **수정 범위**: 관리자 프론트엔드 / 시험지·문항 문항 선택 목록 미리보기
+- **수정 개요**: 문항 선택 목록의 문제 미리보기를 `line-clamp-2` → `truncate`로 통일 (사용자 개념노트 목록과 동일하게 한 줄 + 말줄임 처리).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/papers/new/page.tsx` | 수정 | 문항 선택 목록 미리보기 `line-clamp-2` → `truncate` |
+| `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` | 수정 | 문항 선택/포함 목록 미리보기 2곳 `line-clamp-2` → `truncate` |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | 추출/문항 목록 미리보기 `line-clamp-2` → `truncate` |
+
+### 수정 상세
+- 미리보기는 이미 `stripHtml(q.content)`로 태그가 제거된 상태였고, 줄 수만 `line-clamp-2`(2줄) → `truncate`(1줄 + 말줄임표)로 통일해 행 높이를 일정하게 정돈.
+- 관리자 문항 목록 메인(`admin/exams/questions/page.tsx`)은 이미 `truncate`라 변경 없음.
+- **검증**: `npx tsc --noEmit` 통과. 크롬(admin) — `/admin/exams/papers/new` 문항 선택 목록이 단일 줄 + 말줄임표로 표시됨 확인.
+
+### 복원 방법
+이 ID(HIST-20260615-001)로 복원 시 해당 미리보기 `<p>`의 `truncate`를 `line-clamp-2`로 되돌린다. (questions/new 동일 변경 포함)
+
+---
+
 ## HIST-20260613-001
 
 - **날짜**: 2026-06-13

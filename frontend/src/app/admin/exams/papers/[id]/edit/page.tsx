@@ -245,7 +245,7 @@ export default function AdminExamPaperEditPage() {
                   {q.seq}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-800 line-clamp-2">{stripHtml(q.content)}</p>
+                  <p className="text-sm text-gray-800 truncate">{stripHtml(q.content)}</p>
                   {q.options && q.options.length > 0 && (
                     <p className="text-xs text-gray-400 mt-0.5 truncate">
                       {q.options.slice(0, 3).join(' · ')}{q.options.length > 3 ? ' ...' : ''}
@@ -345,7 +345,7 @@ export default function AdminExamPaperEditPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-800 line-clamp-2">{stripHtml(q.content)}</p>
+                      <p className="text-sm text-gray-800 truncate">{stripHtml(q.content)}</p>
                     </div>
                     <span className={['shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium', TYPE_COLOR[q.questionType]].join(' ')}>
                       {TYPE_LABEL[q.questionType]}
