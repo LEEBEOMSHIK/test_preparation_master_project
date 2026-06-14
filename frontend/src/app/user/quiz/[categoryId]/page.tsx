@@ -4,8 +4,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { quizService, type QuizQuestion, type CheckResult } from '@/services/quizService';
 import { bookmarkService } from '@/services/bookmarkService';
+import { conceptNoteService } from '@/services/conceptNoteService';
 import { RichContent } from '@/components/ui/RichContent';
 import { QuizCardSkeleton } from '@/components/ui/Skeleton';
+import { ConceptNoteModal } from '@/components/ui/ConceptNoteModal';
+import { stripHtml } from '@/lib/html';
+import type { ConceptNote } from '@/types';
 
 type Phase = 'loading' | 'quiz' | 'continue' | 'result';
 
@@ -38,6 +42,10 @@ export default function QuizPlayPage() {
   // 북마크 상태
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set());
   const [togglingBookmarkId, setTogglingBookmarkId] = useState<number | null>(null);
+
+  // 개념노트 상태 — questionBankId 기준으로 저장된 노트 맵 + 모달 대상 문항
+  const [questionNotes, setQuestionNotes] = useState<Record<number, ConceptNote>>({});
+  const [noteTarget, setNoteTarget] = useState<QuizQuestion | null>(null);
 
   // Derived from current batch
   const correctCount = Object.values(answers).filter(a => a.result?.correct).length;
@@ -74,6 +82,21 @@ export default function QuizPlayPage() {
       .catch(() => {
         setBookmarkedIds(new Set());
       });
+  }, []);
+
+  // 마운트 시 내 개념노트 중 퀴즈 문항(questionBankId)에 연결된 것 매핑 — 실패해도 무시
+  useEffect(() => {
+    conceptNoteService.getMyNotes(0, 500)
+      .then((res) => {
+        if (res.data.success && res.data.data) {
+          const map: Record<number, ConceptNote> = {};
+          res.data.data.content.forEach((note) => {
+            if (note.questionBankId) map[note.questionBankId] = note;
+          });
+          setQuestionNotes(map);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleToggleBookmark = useCallback(async (questionId: number) => {
@@ -434,8 +457,21 @@ export default function QuizPlayPage() {
               <p className="text-gray-600 mt-1">{answerState.result.explanation}</p>
             )}
 
-            {/* 북마크 토글 버튼 */}
-            <div className="mt-3 flex justify-end">
+            {/* 개념노트 + 북마크 토글 버튼 */}
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                onClick={() => setNoteTarget(q)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition hover:bg-white/60"
+                title="개념노트 작성"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
+                  className={`w-4 h-4 ${questionNotes[q.id] ? 'text-indigo-500' : 'text-gray-400'}`}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+                <span className={questionNotes[q.id] ? 'text-indigo-600' : 'text-gray-500'}>
+                  {questionNotes[q.id] ? '노트' : '메모'}
+                </span>
+              </button>
               <button
                 onClick={() => handleToggleBookmark(q.id)}
                 disabled={togglingBookmarkId === q.id}
@@ -471,6 +507,20 @@ export default function QuizPlayPage() {
         >
           {current < questions.length - 1 ? '다음 문제' : '라운드 완료'}
         </button>
+      )}
+
+      {/* 개념노트 모달 (공용) — 퀴즈 문항은 questionBankId로 연결 */}
+      {noteTarget && (
+        <ConceptNoteModal
+          key={noteTarget.id}
+          defaultTitle={stripHtml(noteTarget.content).slice(0, 40)}
+          existingNote={questionNotes[noteTarget.id] ?? null}
+          link={{ questionBankId: noteTarget.id }}
+          onClose={() => setNoteTarget(null)}
+          onSaved={(note) =>
+            setQuestionNotes(prev => ({ ...prev, [noteTarget.id]: note }))
+          }
+        />
       )}
     </div>
   );

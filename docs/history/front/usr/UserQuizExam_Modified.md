@@ -1,3 +1,35 @@
+## HIST-20260615-001
+
+- **날짜**: 2026-06-15
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 풀이
+- **수정 개요**: 데일리 퀴즈 문항 풀이 화면에 개념노트 작성/수정 기능 추가 (시험 화면과 동일 UX). 퀴즈 문항은 `questionBankId`로 노트 연결.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/ConceptNoteModal.tsx` | 신규 | 문항별 개념노트 작성/수정 공용 모달 (시험·퀴즈 공용, link로 questionId/questionBankId 구분) |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | 정답 확인 후 결과 영역에 '메모/노트' 버튼 추가 + 공용 모달 연동, 마운트 시 내 노트(questionBankId) 매핑 |
+| `CLAUDE.md` | 수정 | 공용 컴포넌트 표에 `ConceptNoteModal` 추가 |
+
+### 수정 상세
+
+#### `app/user/quiz/[categoryId]/page.tsx`
+- 마운트 시 `conceptNoteService.getMyNotes(0,500)`로 내 노트 중 `questionBankId`가 있는 것을 `questionNotes` 맵(키=questionBankId)에 적재.
+- 답안 제출 후 결과 피드백 영역(기존 즐겨찾기 버튼 옆)에 노트 버튼 추가 — 저장된 노트가 있으면 '노트'(인디고), 없으면 '메모'(회색).
+- 클릭 시 `noteTarget`(현재 QuizQuestion) 설정 → `ConceptNoteModal` 표시. `link={{ questionBankId: q.id }}`, `defaultTitle`은 `stripHtml(content)` 40자, 저장 시 `questionNotes` 갱신.
+- **연동 백엔드**: `ConceptNoteService`가 `questionBankId`로 QuestionBank를 로드·연결(기존 지원). 검증 결과 노트가 `questionBankId=83`으로 영속됨 확인.
+
+#### `components/ui/ConceptNoteModal.tsx` (신규)
+- 시험 응시 화면의 인라인 개념노트 모달을 공용 컴포넌트로 추출(인라인 복붙 금지 원칙). `defaultTitle`/`existingNote`/`link`/`onClose`/`onSaved` props. `link`는 `{questionId}` 또는 `{questionBankId}`를 받아 저장 payload에 spread.
+
+- **검증**: `npx tsc --noEmit` 통과. 크롬 E2E — SQL 카테고리에서 답 제출 → '메모' 클릭 → 제목 자동(stripHtml) → 저장 → '노트'로 전환, API에서 questionBankId 연결 확인. 시험 화면 회귀 없음(공용 모달 정상 표시).
+
+### 복원 방법
+이 ID로 복원 시 퀴즈 페이지의 노트 버튼·모달·questionNotes 로직을 제거한다. (공용 모달 자체 제거는 시험 화면 리팩터 UserExamination_Modified.md HIST-20260615-002와 함께 되돌려야 함)
+
+---
+
 ## HIST-20260613-001
 
 - **날짜**: 2026-06-13

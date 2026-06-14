@@ -132,6 +132,7 @@ docker-compose.yml
 | `<RichContent html className />` | `src/components/ui/RichContent.tsx` | 에디터 HTML 렌더링 |
 | `<RichTextEditor value onChange />` | `src/components/ui/RichTextEditor.tsx` | react-quill 에디터 |
 | `<QuestionDetailModal question onClose />` | `src/components/ui/QuestionDetailModal.tsx` | 문항 상세 모달 |
+| `<ConceptNoteModal defaultTitle existingNote link onClose onSaved />` | `src/components/ui/ConceptNoteModal.tsx` | 문항별 개념노트 작성/수정 모달 (시험=questionId·퀴즈=questionBankId 공용) |
 | `<PermissionDeniedModal />` | `src/components/ui/PermissionDeniedModal.tsx` | 권한 없음 팝업 |
 | `<TableSkeleton />` 외 | `src/components/ui/Skeleton.tsx` | 스켈레톤 UI 모음 |
 | `<QuestionAnalysisPanel content onApplyContent />` | `src/components/ui/QuestionAnalysisPanel.tsx` | 문항 AI 키워드·도메인 추출 + 태그 저장 + 문제 재구성 패널 |

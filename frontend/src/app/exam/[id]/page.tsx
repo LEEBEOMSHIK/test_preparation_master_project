@@ -8,6 +8,8 @@ import type { ExaminationDetail, ExaminationSubmitResult, ExamHistoryDetailResul
 import { RichContent } from '@/components/ui/RichContent';
 import { QuizCardSkeleton } from '@/components/ui/Skeleton';
 import { ExamResultDisplay } from '@/components/ui/ExamResultDisplay';
+import { ConceptNoteModal } from '@/components/ui/ConceptNoteModal';
+import { stripHtml } from '@/lib/html';
 
 const CIRCLED = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
 const circled = (n: number) => CIRCLED[n - 1] ?? `(${n})`;
@@ -63,14 +65,8 @@ export default function ExamTakingPage() {
 
   // 결과 화면 상태 (ExamResultDisplay로 위임됨)
 
-  // 개념노트 모달
-  const [noteModal, setNoteModal] = useState(false);
-  const [noteQuestionId, setNoteQuestionId] = useState<number | null>(null);
-  const [noteId, setNoteId] = useState<number | null>(null);
-  const [noteTitle, setNoteTitle] = useState('');
-  const [noteContent, setNoteContent] = useState('');
-  const [noteSaving, setNoteSaving] = useState(false);
-  const [noteSaved, setNoteSaved] = useState(false);
+  // 개념노트 모달 — 대상 문항(없으면 닫힘)
+  const [noteTarget, setNoteTarget] = useState<{ question: Question; idx: number } | null>(null);
   const [questionNotes, setQuestionNotes] = useState<Record<number, ConceptNote>>({});
 
   useEffect(() => {
@@ -180,43 +176,8 @@ export default function ExamTakingPage() {
   };
 
   const openNoteModal = useCallback((q: Question, idx: number) => {
-    setNoteQuestionId(q.id);
-    const existing = questionNotes[q.id];
-    if (existing) {
-      setNoteId(existing.id);
-      setNoteTitle(existing.title);
-      setNoteContent(existing.content);
-    } else {
-      setNoteId(null);
-      setNoteTitle(`Q${idx + 1}. ${q.content.slice(0, 40)}${q.content.length > 40 ? '…' : ''}`);
-      setNoteContent('');
-    }
-    setNoteSaved(false);
-    setNoteModal(true);
-  }, [questionNotes]);
-
-  const handleSaveNote = async () => {
-    if (!noteTitle.trim() || !noteContent.trim()) return;
-    setNoteSaving(true);
-    try {
-      const payload = {
-        title: noteTitle.trim(),
-        content: noteContent.trim(),
-        isPublic: false,
-        questionId: noteQuestionId ?? undefined,
-      };
-      const res = noteId
-        ? await conceptNoteService.update(noteId, payload)
-        : await conceptNoteService.create(payload);
-      if (res.data.data && noteQuestionId) {
-        setQuestionNotes(prev => ({ ...prev, [noteQuestionId]: res.data.data! }));
-      }
-      setNoteSaved(true);
-      setTimeout(() => setNoteModal(false), 800);
-    } finally {
-      setNoteSaving(false);
-    }
-  };
+    setNoteTarget({ question: q, idx });
+  }, []);
 
   const handleLeaveConfirmed = () => {
     examDone.current = true;
@@ -355,54 +316,18 @@ export default function ExamTakingPage() {
         </div>
       )}
 
-      {/* 개념노트 모달 */}
-      {noteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-          onClick={e => { if (e.target === e.currentTarget) setNoteModal(false); }}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4 text-indigo-500">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-                </svg>
-                {noteId ? '개념노트 수정' : '개념노트 작성'}
-              </h3>
-              <button onClick={() => setNoteModal(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
-            </div>
-            <input
-              type="text"
-              value={noteTitle}
-              onChange={e => setNoteTitle(e.target.value)}
-              placeholder="제목"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-            />
-            <textarea
-              value={noteContent}
-              onChange={e => setNoteContent(e.target.value)}
-              placeholder="이 문제에서 기억할 개념을 메모하세요..."
-              rows={6}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
-              autoFocus
-            />
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setNoteModal(false)}
-                className="px-4 py-2 text-sm border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50">
-                취소
-              </button>
-              <button
-                onClick={handleSaveNote}
-                disabled={noteSaving || !noteContent.trim() || noteSaved}
-                className={[
-                  'px-4 py-2 text-sm rounded-lg font-medium transition',
-                  noteSaved
-                    ? 'bg-green-100 text-green-700 border border-green-200'
-                    : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-50',
-                ].join(' ')}>
-                {noteSaved ? '저장됨 ✓' : noteSaving ? '저장 중...' : noteId ? '수정' : '저장'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* 개념노트 모달 (공용) */}
+      {noteTarget && (
+        <ConceptNoteModal
+          key={noteTarget.question.id}
+          defaultTitle={`Q${noteTarget.idx + 1}. ${stripHtml(noteTarget.question.content).slice(0, 40)}`}
+          existingNote={questionNotes[noteTarget.question.id] ?? null}
+          link={{ questionId: noteTarget.question.id }}
+          onClose={() => setNoteTarget(null)}
+          onSaved={(note) =>
+            setQuestionNotes(prev => ({ ...prev, [noteTarget.question.id]: note }))
+          }
+        />
       )}
 
       {/* 헤더 */}
