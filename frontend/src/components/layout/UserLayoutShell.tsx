@@ -249,8 +249,9 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
             TPMP
           </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden sm:flex items-center gap-0.5 min-w-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          {/* Desktop nav — 그룹화로 항목이 4개라 가로 스크롤 불필요. overflow를 두면 드롭다운이 잘리고
+              overflow-y가 auto로 계산되어 아이템이 수직으로 밀리므로 overflow를 주지 않는다. */}
+          <nav className="hidden sm:flex items-center gap-0.5">
             {navItems.map((item) => {
               const isActive = isItemActive(item, pathname);
               const icon = item.iconKey ? (ICON_MAP[item.iconKey] ?? DEFAULT_ICON) : DEFAULT_ICON;

@@ -1,3 +1,29 @@
+## HIST-20260614-002
+
+- **날짜**: 2026-06-14
+- **수정 범위**: 사용자 프론트엔드 / 네비게이션 레이아웃
+- **수정 개요**: 데스크톱 nav가 화면에 보이지 않던 버그 수정 — `overflow-x-auto`로 인해 overflow-y가 auto로 계산되어 nav가 수직 스크롤 컨테이너가 되고 아이템이 화면 위로 밀려나던 문제. 그룹화로 항목이 4개가 되어 가로 스크롤이 불필요하므로 overflow 관련 유틸 제거.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | 데스크톱 nav className에서 `min-w-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden` 제거 → `hidden sm:flex items-center gap-0.5` |
+
+### 수정 상세
+
+#### `frontend/src/components/layout/UserLayoutShell.tsx`
+- **문제**: HIST-20260614-001에서 메뉴를 그룹(드롭다운)화하면서도 기존 10개 flat 메뉴용 `overflow-x-auto`를 그대로 둠. CSS 명세상 overflow-x가 visible이 아니면 overflow-y가 `auto`로 계산되어 nav가 수직 스크롤 컨테이너가 됨. 드롭다운 그룹 구조와 결합되며 nav 자식(메뉴 항목)이 y=-69px로 밀려 화면 밖으로 사라지고, 헤더 중앙이 비어 보였음. (overflow가 드롭다운 메뉴 자체도 클리핑하는 부작용도 있음)
+- **변경 전**: `className="hidden sm:flex items-center gap-0.5 min-w-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"`
+- **변경 후**: `className="hidden sm:flex items-center gap-0.5"`
+- **이유**: 그룹화로 최상위 항목이 4개로 줄어 가로 스크롤이 불필요하고, overflow를 제거해야 드롭다운이 nav 아래로 정상 표출됨.
+- **검증**: 크롬 스크린샷 — nav(시험·학습·내 기록·도움말) 정상 표시 + `내 기록` hover 시 드롭다운 시각적 표출 확인. (이전 검증은 a11y 스냅샷에만 의존해 DOM 존재만 보고 실제 페인트를 놓쳤던 케이스 → 스크린샷으로 재확인)
+
+### 복원 방법
+이 ID(HIST-20260614-002)로 복원 시 nav className에 `min-w-0 overflow-x-auto ...` 유틸을 다시 추가한다(단, 그 경우 nav 미표시 버그 재발).
+
+---
+
 ## HIST-20260614-001
 
 - **날짜**: 2026-06-14
