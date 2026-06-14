@@ -245,8 +245,8 @@ export function ExamResultDisplay({
           </div>
         )}
 
-        {/* 하단 버튼 (다시 풀기 / 뒤로가기) */}
-        <div className="flex gap-2">
+        {/* 하단 고정(sticky) 액션 바 — 20문항을 스크롤해도 항상 접근 가능 */}
+        <div className="sticky bottom-0 -mx-4 px-4 py-3 bg-gray-50/95 backdrop-blur border-t border-gray-200 flex gap-2">
           {onRetake && (
             <button
               onClick={onRetake}
