@@ -1,3 +1,25 @@
+## HIST-20260615-002
+
+- **날짜**: 2026-06-15
+- **수정 범위**: 사용자 프론트엔드 / 네비게이션 (설정 메뉴 추가)
+- **수정 개요**: 도움말 그룹 fallback에 '설정' 자식 추가 + `settings`(톱니) 아이콘 ICON_MAP 등록. 백엔드 메뉴 시딩과 짝을 이뤄 도움말 드롭다운에 설정 노출.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | ICON_MAP에 `settings` 아이콘 추가, USER_FALLBACK_NAV 도움말 그룹에 `설정`(/user/settings) 자식 추가 |
+
+### 수정 상세
+- API 메뉴(`/menus/mine`)가 우선이지만 fallback도 동일하게 도움말 그룹에 설정을 포함해 일관성 유지.
+- 설정이 정식 메뉴가 되면서 `getUserPageTitle`이 /user/settings를 해석 → 문서 제목 '설정 | TPMP'로 표시. 메뉴 기반 접근 가드도 통과(이전 HIST-20260615-001(UserSettings)의 ALWAYS_ALLOWED 예외는 안전망으로 유지).
+- **검증**: `npx tsc --noEmit` 통과. 크롬 — 도움말 hover 시 시험 정보·FAQ·1:1 문의·설정 노출 확인.
+
+### 복원 방법
+이 ID(HIST-20260615-002)로 복원 시 ICON_MAP의 settings·fallback의 설정 자식을 제거한다.
+
+---
+
 ## HIST-20260615-001
 
 - **날짜**: 2026-06-15

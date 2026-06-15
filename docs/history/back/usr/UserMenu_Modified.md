@@ -1,3 +1,25 @@
+## HIST-20260615-001
+
+- **날짜**: 2026-06-15
+- **수정 범위**: 사용자 백엔드 / 메뉴 시딩(DataInitializer)
+- **수정 개요**: '설정'(`/user/settings`) 메뉴를 도움말 그룹 하위에 추가 — 드롭다운(헤더 사용자 메뉴)뿐 아니라 네비게이션 메뉴(도움말)에서도 접근 가능하게 함.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../config/DataInitializer.java` | 수정 | `ensureUserMenuGroups()`에 설정 메뉴 생성(멱등) + 도움말 그룹(helpId) 하위 order 4로 재배치 |
+
+### 수정 상세
+- `existsByUrl("/user/settings")` 가드로 설정 메뉴(USER, allowedRoles "USER,ADMIN", icon 'settings') 생성 — 이후 `ensurePermissionMenuAssociations()`에서 GENERAL_USER 부여.
+- `reparentMenu("/user/settings", helpId, 4)`로 도움말 그룹 하위에 배치(시험 정보·FAQ·1:1 문의 다음).
+- **검증**: `GET /api/menus/mine?menuType=USER` 결과 도움말 그룹에 설정 포함 확인. 크롬 — 도움말 드롭다운에 '설정' 노출.
+
+### 복원 방법
+이 ID(HIST-20260615-001)로 복원 시 설정 메뉴 생성/재배치 라인 제거 + DB에서 `/user/settings` 메뉴 행 삭제.
+
+---
+
 ## HIST-20260614-001
 
 - **날짜**: 2026-06-14

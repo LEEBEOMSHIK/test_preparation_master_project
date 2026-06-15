@@ -381,6 +381,12 @@ public class DataInitializer implements ApplicationRunner {
      * 매 부팅 시 동일 값으로 재설정하므로 멱등하다.
      */
     private void ensureUserMenuGroups() {
+        // 0) 도움말 그룹에 들어갈 '설정' 메뉴 생성 (멱등)
+        if (!menuConfigRepository.existsByUrl("/user/settings")) {
+            saveMenu(null, "설정", "/user/settings", "settings", 0, MenuConfig.MenuType.USER, "USER,ADMIN");
+            log.info("[DataInitializer] 설정 사용자 메뉴 추가 완료");
+        }
+
         // 1) 그룹 부모 생성 (멱등)
         ensureGroupMenu("학습",    "/user/group/learning", "learn",   2);
         ensureGroupMenu("내 기록", "/user/group/records",  "records", 3);
@@ -412,6 +418,7 @@ public class DataInitializer implements ApplicationRunner {
         reparentMenu("/user/exam-info",    helpId,     1);
         reparentMenu("/user/faq",          helpId,     2);
         reparentMenu("/user/inquiries",    helpId,     3);
+        reparentMenu("/user/settings",     helpId,     4);
 
         log.info("[DataInitializer] USER 메뉴 그룹 구조(학습/내 기록/도움말) 정리 완료");
     }
