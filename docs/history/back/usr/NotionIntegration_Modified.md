@@ -1,5 +1,38 @@
 # Notion 연동 수정 이력
 
+## HIST-20260615-003
+
+- **날짜**: 2026-06-15
+- **수정 범위**: 사용자 백엔드 / 토큰 암호화 키 회전(재암호화) 마이그레이션
+- **수정 개요**: `TOKEN_ENCRYPTION_KEY`를 교체해도 사용자가 Notion을 다시 연결할 필요가 없도록, 기동 시 저장된 access token을 옛 키→새 키로 자동 재암호화하는 마이그레이션 추가.
+
+### 수정 파일 목록
+
+| 파일 경로 | 유형 | 설명 |
+|-----------|------|------|
+| `security/TokenCipher.java` | 수정 | 임의 키 암복호화 정적 메서드 `encryptWithKey/decryptWithKey` 추가(인스턴스는 현재 키 유지) |
+| `entity/NotionIntegration.java` | 수정 | `reEncryptToken(enc)` — 토큰만 교체(다른 필드 보존) |
+| `config/NotionTokenReencryptRunner.java` | 신규 | `ApplicationRunner` — 옛 키 설정 시 현재 키로 복호화 안 되는 토큰을 옛 키로 복호화→새 키로 재암호화(멱등) |
+| `resources/application.yml` | 수정 | `app.security.token-encryption-key-previous` 추가 |
+| `.env.example` / `docker-compose.yml` | 수정 | `TOKEN_ENCRYPTION_KEY_PREVIOUS` 키 추가/매핑 |
+
+### 동작
+- `token-encryption-key-previous`가 비어 있거나 현재 키와 같으면 **아무 작업 안 함**(평상시).
+- 키 회전 시: previous=옛 키, current=새 키로 설정 후 기동 → 러너가 각 `notion_integrations` 레코드를 검사해 현재 키로 복호화 불가한 토큰만 옛 키로 풀어 새 키로 재암호화. 이미 새 키면 건너뜀(멱등).
+- 마이그레이션 완료 후 previous 키는 비워두면 됨.
+
+### 검증 (실제 키 회전 E2E)
+- 새 강력 키(64자 hex) + previous=기존 기본값으로 `.env` 설정 → `run-dev.sh` 재기동
+- 로그: `[NotionTokenReencrypt] 키 회전 재암호화 완료 — 변환 1건, 실패 0건, 건너뜀 0건`
+- `status` → **재연결 없이 `connected:true`(워크스페이스 'bomi') 유지**
+- 키 회전 후 `POST /notion/export/1` → **HTTP 200**(재암호화 토큰으로 노션 호출·페이지 갱신 성공)
+- 이후 previous 키 제거(완료)
+
+### 복원 방법
+이 ID(HIST-20260615-003)로 복원 시 `NotionTokenReencryptRunner` 삭제, TokenCipher의 *WithKey 정적 메서드·`reEncryptToken`·application.yml/compose/.env.example의 PREVIOUS 항목 제거.
+
+---
+
 ## HIST-20260615-002
 
 - **날짜**: 2026-06-15

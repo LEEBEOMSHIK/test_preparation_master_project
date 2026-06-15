@@ -47,6 +47,7 @@ services:
       NOTION_CLIENT_SECRET: ${NOTION_CLIENT_SECRET:-}
       NOTION_REDIRECT_URI: ${NOTION_REDIRECT_URI:-http://localhost:8080/api/notion/callback}
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-tpmp_local_token_key_change_me}
+      TOKEN_ENCRYPTION_KEY_PREVIOUS: ${TOKEN_ENCRYPTION_KEY_PREVIOUS:-}
     ports:
       - "8080:8080"
     volumes:

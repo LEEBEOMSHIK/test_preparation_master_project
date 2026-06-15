@@ -88,3 +88,5 @@ app:
     failure-redirect: ${NOTION_FAILURE_REDIRECT:http://localhost:3000/user/settings?notion=failed}
   security:
     token-encryption-key: ${TOKEN_ENCRYPTION_KEY:tpmp_local_token_key_change_me}
+    # 키 회전 시에만 옛 키를 지정 — 기동 시 저장 토큰을 새 키로 재암호화 후 비워두면 됨
+    token-encryption-key-previous: ${TOKEN_ENCRYPTION_KEY_PREVIOUS:}

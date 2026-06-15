@@ -85,4 +85,9 @@ public class NotionIntegration {
     public void assignDatabaseId(String notionDatabaseId) {
         this.notionDatabaseId = notionDatabaseId;
     }
+
+    /** 키 회전 시 암호화된 토큰만 교체 (다른 필드 보존) */
+    public void reEncryptToken(String accessTokenEnc) {
+        this.accessTokenEnc = accessTokenEnc;
+    }
 }
