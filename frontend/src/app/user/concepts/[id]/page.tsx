@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { conceptNoteService } from '@/services/conceptNoteService';
+import { notionService, type NotionStatus } from '@/services/notionService';
 import { RichContent } from '@/components/ui/RichContent';
 import type { ConceptNote } from '@/types';
 
@@ -58,6 +59,10 @@ export default function ConceptNoteDetailPage() {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
 
+  // Notion 연동
+  const [notion, setNotion] = useState<NotionStatus | null>(null);
+  const [exporting, setExporting] = useState(false);
+
   useEffect(() => {
     if (isNew) return;
     conceptNoteService.getMyNote(Number(id))
@@ -72,6 +77,26 @@ export default function ConceptNoteDetailPage() {
       })
       .finally(() => setLoading(false));
   }, [id, isNew]);
+
+  useEffect(() => {
+    if (isNew) return;
+    notionService.getStatus()
+      .then(res => { if (res.data.data) setNotion(res.data.data); })
+      .catch(() => setNotion(null));
+  }, [isNew]);
+
+  async function handleExportNotion() {
+    setExporting(true);
+    try {
+      const res = await notionService.exportNote(Number(id));
+      const url = res.data.data?.url;
+      if (url && confirm('Notion으로 내보냈습니다. 페이지를 열어볼까요?')) window.open(url, '_blank');
+    } catch {
+      alert('Notion 내보내기에 실패했습니다.');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   function handleSave() {
     if (!title.trim() || !content.trim()) return;
@@ -107,6 +132,15 @@ export default function ConceptNoteDetailPage() {
         </button>
         {!isNew && !editing && (
           <div className="flex gap-2">
+            {notion?.connected && (
+              <button
+                onClick={handleExportNotion}
+                disabled={exporting}
+                className="px-3 py-1.5 text-sm border border-gray-300 text-gray-600 rounded-lg hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-50"
+              >
+                {exporting ? '내보내는 중…' : '노션으로 내보내기'}
+              </button>
+            )}
             <button
               onClick={() => setEditing(true)}
               className="px-3 py-1.5 text-sm border border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50"
@@ -207,7 +241,7 @@ export default function ConceptNoteDetailPage() {
           {/* 연결된 문제 박스 */}
           {note && <LinkedQuestionBox note={note} />}
 
-          <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed border-t border-gray-100 pt-5">
+          <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap break-words leading-relaxed border-t border-gray-100 pt-5">
             {note?.content}
           </div>
         </div>

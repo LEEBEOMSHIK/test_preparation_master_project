@@ -1,3 +1,26 @@
+## HIST-20260615-004
+
+- **날짜**: 2026-06-15
+- **수정 범위**: 사용자 프론트엔드 / 개념노트 상세 (오버플로 + 노션 내보내기)
+- **수정 개요**: (1) 상세화면이 좁은 폭에서 문제/본문 콘텐츠가 영역을 벗어나던 문제 수정, (2) 상세화면에 '노션으로 내보내기' 버튼 추가.
+
+### 수정 파일 목록
+
+| 파일 경로 | 유형 | 설명 |
+|-----------|------|------|
+| `frontend/src/components/ui/RichContent.tsx` | 수정 | `break-words` + 표(`[&_table]:block max-w-full overflow-x-auto`)·코드(`[&_pre]:overflow-x-auto`)·긴 링크(`[&_a]:break-all`) 오버플로 처리 추가 (공용 → 전 화면 적용) |
+| `frontend/src/app/user/concepts/[id]/page.tsx` | 수정 | 노트 본문 div `break-words`, Notion 상태 조회 + 뷰 모드 헤더에 '노션으로 내보내기' 버튼(connected 시) |
+
+### 수정 상세
+- **이슈 1(오버플로)**: 원인은 문제 HTML의 `<table>`(퀴즈 SQL 문제)·긴 코드가 폭 축소 시 컨테이너를 넘던 것. `RichContent`에 표·코드 가로 스크롤 + 단어 줄바꿈을 추가해 카드 내부에서 처리. 노트 본문(plain)도 `break-words`로 긴 문자열 줄바꿈.
+- **이슈 2(내보내기)**: 목록 페이지에만 있던 내보내기를 상세 뷰 모드 헤더에도 추가. `notion?.connected`일 때만 노출, `notionService.exportNote(id)` 호출 후 페이지 열기 확인.
+- **검증**: `npx tsc --noEmit` 통과. 크롬 — 390px 폭에서 `horizontalOverflow:false`(표·SQL 코드 카드 내 처리). 상세 헤더에 내보내기 버튼 노출. 실제 내보내기 API E2E: connected(워크스페이스 'bomi') → export 200(Notion 페이지 생성) → 재호출 시 동일 page_id(멱등 갱신) 확인.
+
+### 복원 방법
+이 ID(HIST-20260615-004)로 복원 시 RichContent의 break-words·표/코드 오버플로 유틸 제거, 상세 페이지의 break-words·Notion 상태/버튼 제거.
+
+---
+
 ## HIST-20260615-003
 
 - **날짜**: 2026-06-15
