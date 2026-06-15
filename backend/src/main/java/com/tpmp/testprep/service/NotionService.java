@@ -56,10 +56,10 @@ public class NotionService {
     @Value("${app.notion.redirect-uri:http://localhost:8080/api/notion/callback}")
     private String redirectUri;
 
-    @Value("${app.notion.success-redirect:http://localhost:3000/user/concepts?notion=connected}")
+    @Value("${app.notion.success-redirect:http://localhost:3000/user/settings?notion=connected}")
     private String successRedirect;
 
-    @Value("${app.notion.failure-redirect:http://localhost:3000/user/concepts?notion=failed}")
+    @Value("${app.notion.failure-redirect:http://localhost:3000/user/settings?notion=failed}")
     private String failureRedirect;
 
     private final NotionIntegrationRepository integrationRepository;

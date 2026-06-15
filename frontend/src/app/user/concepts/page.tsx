@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { conceptNoteService } from '@/services/conceptNoteService';
 import { notionService, type NotionStatus } from '@/services/notionService';
 import { CardListSkeleton } from '@/components/ui/Skeleton';
@@ -12,7 +12,6 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 export default function UserConceptsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [notes, setNotes] = useState<ConceptNote[]>([]);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -22,30 +21,15 @@ export default function UserConceptsPage() {
   const [searchInput, setSearchInput] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Notion 연동 상태
+  // Notion 연동 상태 — 연결 관리는 설정(/user/settings)에서, 여기선 내보내기 버튼 노출 판단용
   const [notion, setNotion] = useState<NotionStatus | null>(null);
   const [exportingId, setExportingId] = useState<number | null>(null);
-  const notionParam = searchParams.get('notion'); // connected | failed (콜백 후)
 
   useEffect(() => {
     notionService.getStatus()
       .then(res => { if (res.data.data) setNotion(res.data.data); })
       .catch(() => setNotion(null));
   }, []);
-
-  async function handleConnectNotion() {
-    try {
-      const res = await notionService.getAuthorizeUrl();
-      const url = res.data.data?.url;
-      if (url) window.location.href = url;
-    } catch { /* 무시 */ }
-  }
-
-  async function handleDisconnectNotion() {
-    if (!confirm('Notion 연동을 해제하시겠습니까?')) return;
-    await notionService.disconnect();
-    setNotion(prev => prev ? { ...prev, connected: false, workspaceName: null } : prev);
-  }
 
   async function handleExportNotion(id: number) {
     setExportingId(id);
@@ -108,48 +92,6 @@ export default function UserConceptsPage() {
         </button>
       </div>
 
-      {/* 콜백 피드백 */}
-      {notionParam === 'connected' && (
-        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-          Notion 워크스페이스가 연결되었습니다.
-        </div>
-      )}
-      {notionParam === 'failed' && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          Notion 연결에 실패했습니다. 다시 시도해 주세요.
-        </div>
-      )}
-
-      {/* Notion 연동 상태 바 */}
-      {notion && (
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm">
-          {!notion.configured ? (
-            <span className="text-gray-400">Notion 연동 — 서버 설정 필요 (client id/secret)</span>
-          ) : notion.connected ? (
-            <>
-              <span className="text-gray-600">
-                Notion: <span className="font-medium text-gray-800">{notion.workspaceName ?? '연결됨'}</span> 연결됨
-              </span>
-              <button
-                onClick={handleDisconnectNotion}
-                className="text-xs text-gray-400 hover:text-red-500 border border-gray-200 hover:border-red-300 px-2.5 py-1 rounded-lg"
-              >
-                연동 해제
-              </button>
-            </>
-          ) : (
-            <>
-              <span className="text-gray-600">개념노트를 Notion 워크스페이스로 내보낼 수 있습니다.</span>
-              <button
-                onClick={handleConnectNotion}
-                className="text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 px-2.5 py-1 rounded-lg"
-              >
-                Notion 연결
-              </button>
-            </>
-          )}
-        </div>
-      )}
 
       {/* Search + PageSize */}
       <div className="flex items-center gap-3 mb-4">
