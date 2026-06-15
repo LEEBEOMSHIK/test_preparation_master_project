@@ -1,5 +1,30 @@
 # Notion 연동 수정 이력
 
+## HIST-20260615-002
+
+- **날짜**: 2026-06-15
+- **수정 범위**: 인프라/설정 / Notion 연동 로컬 환경변수
+- **수정 개요**: Notion OAuth 시크릿을 로컬 `.env`(git 제외)로 영속화하고, docker-compose·`.env.example`·실행 스크립트를 정비. (실제 시크릿 값은 커밋하지 않음)
+
+### 수정 파일 목록
+
+| 파일 경로 | 유형 | 설명 |
+|-----------|------|------|
+| `.env` | 신규(git 제외) | NOTION_CLIENT_ID/SECRET·REDIRECT_URI·TOKEN_ENCRYPTION_KEY·DB_PASSWORD 등 로컬 값 (gitignore됨, 커밋 안 함) |
+| `.env.example` | 수정 | NOTION_* / TOKEN_ENCRYPTION_KEY 키 이름 추가(값 없음, 템플릿) |
+| `docker-compose.yml` | 수정 | 백엔드 서비스 environment에 NOTION_CLIENT_ID/SECRET/REDIRECT_URI·TOKEN_ENCRYPTION_KEY 매핑 |
+| `backend/run-dev.sh` | 신규 | 루트 `.env`를 로드해 `bootRun` 실행하는 로컬 개발 스크립트(gradlew는 .env 자동 미로드) |
+
+### 수정 상세
+- gradlew/Spring은 `.env`를 자동으로 읽지 않으므로 `run-dev.sh`가 `set -a; source ../.env; set +a` 후 bootRun 실행. docker-compose는 루트 `.env`를 `${VAR}` 치환으로 자동 사용.
+- `TOKEN_ENCRYPTION_KEY`는 기존 기본값(`tpmp_local_token_key_change_me`)과 동일하게 유지 — 값이 바뀌면 이미 저장된 access token 복호화가 불가해 재연결이 필요하기 때문.
+- **검증**: `git check-ignore .env` 통과(추적 안 됨). `bash backend/run-dev.sh`로 기동 → `.env 로드 완료` 로그 → status `configured:true` + 기존 연결 `connected:true`(워크스페이스 'bomi') 유지 확인.
+
+### 복원 방법
+이 ID(HIST-20260615-002)로 복원 시 `.env` 삭제, `.env.example`·docker-compose의 NOTION/TOKEN 항목 제거, `backend/run-dev.sh` 삭제.
+
+---
+
 ## HIST-20260615-001
 
 - **날짜**: 2026-06-15
