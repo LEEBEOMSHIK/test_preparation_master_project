@@ -1,5 +1,59 @@
 # Notion 연동 수정 이력
 
+## HIST-20260615-004
+
+- **날짜**: 2026-06-15
+- **수정 범위**: 사용자 백엔드 / 개념노트 Notion 재내보내기 본문 블록 재동기화
+- **수정 개요**: `exportNote` 갱신 경로에서 Notion 페이지 본문 블록을 전부 삭제 후 현재 노트 내용으로 재생성하는 `resyncPageBlocks` 메서드 추가. 노트 본문 수정 시 Notion에도 반영됨.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `service/NotionService.java` | 수정 | 클래스 Javadoc 갱신 + `exportNote` 갱신 경로에 `resyncPageBlocks` 호출 추가 + `resyncPageBlocks` 신규 private 메서드 추가 |
+
+### 수정 상세
+
+#### `service/NotionService.java`
+
+- 변경 전 (`exportNote` 갱신 경로):
+  ```java
+  if (note.getNotionPageId() != null && !note.getNotionPageId().isBlank()) {
+      updatePageTitle(accessToken, note.getNotionPageId(), note.getTitle());
+      pageId = note.getNotionPageId();
+  }
+  ```
+- 변경 후:
+  ```java
+  if (note.getNotionPageId() != null && !note.getNotionPageId().isBlank()) {
+      updatePageTitle(accessToken, note.getNotionPageId(), note.getTitle());
+      resyncPageBlocks(accessToken, note.getNotionPageId(), note);
+      pageId = note.getNotionPageId();
+  }
+  ```
+- 이유: 노트 본문 수정 후 재내보내기해도 Notion 페이지에 반영되지 않던 버그 해결.
+
+#### `resyncPageBlocks` 메서드 (신규)
+
+- 역할: 갱신 대상 Notion 페이지의 자식 블록을 전체 수집·삭제 후 현재 노트 내용으로 재생성.
+- 3단계 처리:
+  1. `GET /v1/blocks/{pageId}/children?page_size=100` — `has_more`/`next_cursor` 페이지네이션으로 모든 블록 id 수집. (방어: `has_more=true`인데 `next_cursor`가 비는 비정상 응답 시 루프 종료해 무한루프 방지)
+  2. 각 블록 `DELETE /v1/blocks/{blockId}` 순차 삭제 (삭제 간 50ms sleep, rate limit 대비).
+  3. `PATCH /v1/blocks/{pageId}/children` body `{"children": buildBlocks(note)}` 로 재생성 — 기존 `buildBlocks` 재사용.
+- 실패 시 `log.warn` + `BusinessException(ErrorCode.NOTION_API_ERROR)` (기존 패턴 준수).
+- 신규 생성 경로(`createPage`)는 변경 없음.
+
+### 검증 포인트
+- 노트 본문 수정 후 `POST /api/user/notion/export/{noteId}` → Notion 페이지 본문이 현재 노트 내용으로 갱신 확인.
+- 첫 내보내기(notionPageId 없음) → 기존 `createPage` 경로 그대로 동작 확인.
+- 블록 수가 100개 초과 노트 → 페이지네이션 루프로 모든 블록 삭제 후 재생성 확인.
+- Notion 연결 해제 상태 → `NOTION_NOT_CONNECTED` 에러 반환 확인.
+
+### 복원 방법
+이 ID(HIST-20260615-004)로 복원 시 `NotionService.java`의 `resyncPageBlocks` 메서드 삭제, `exportNote` 갱신 경로에서 `resyncPageBlocks(...)` 호출 라인 제거, 클래스 Javadoc 원복.
+
+---
+
 ## HIST-20260615-003
 
 - **날짜**: 2026-06-15

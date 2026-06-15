@@ -33,10 +33,10 @@ import java.util.Map;
  * 개념노트 → Notion 단방향 내보내기 연동.
  * - 공개 OAuth로 워크스페이스 연결, access token은 TokenCipher로 암호화 저장.
  * - 내보내기: 사용자가 OAuth 시 공유한 페이지 하위에 노트별 Notion 페이지를 생성/갱신.
+ *   갱신 시 기존 본문 블록을 모두 삭제 후 현재 노트 내용으로 재생성(resyncPageBlocks).
  *
- * NOTE(골격): client id/secret 미설정 시 isConfigured()=false. 실제 Notion API 호출은
- *             credential 확보 후 E2E 검증 필요. 갱신(PATCH)은 제목/속성만 반영하며 본문
- *             블록 재동기화는 후속 단계 과제로 둔다.
+ * NOTE: client id/secret 미설정 시 isConfigured()=false. 실제 Notion API 호출은
+ *       credential 확보 후 E2E 검증 필요.
  */
 @Slf4j
 @Service
@@ -155,6 +155,7 @@ public class NotionService {
         String pageId;
         if (note.getNotionPageId() != null && !note.getNotionPageId().isBlank()) {
             updatePageTitle(accessToken, note.getNotionPageId(), note.getTitle());
+            resyncPageBlocks(accessToken, note.getNotionPageId(), note);
             pageId = note.getNotionPageId();
         } else {
             pageId = createPage(accessToken, parentPageId, note);
@@ -257,6 +258,63 @@ public class NotionService {
                     .body(body).retrieve().body(String.class);
         } catch (Exception e) {
             log.warn("[Notion] 페이지 갱신 실패: {}", e.getMessage());
+            throw new BusinessException(ErrorCode.NOTION_API_ERROR);
+        }
+    }
+
+    /**
+     * 기존 Notion 페이지의 본문 블록을 모두 삭제하고 현재 노트 내용으로 재생성한다.
+     * 1) GET /blocks/{pageId}/children 페이지네이션으로 자식 블록 id 전체 수집
+     * 2) 각 블록을 DELETE /blocks/{blockId} 로 순차 삭제 (rate limit 대비 순차 처리)
+     * 3) PATCH /blocks/{pageId}/children 로 buildBlocks(note) 재생성
+     */
+    private void resyncPageBlocks(String accessToken, String pageId, ConceptNote note) {
+        try {
+            // 1. 자식 블록 id 수집 (페이지네이션)
+            List<String> blockIds = new ArrayList<>();
+            String cursor = null;
+            boolean hasMore = true;
+            while (hasMore) {
+                String uri = NOTION_API + "/blocks/" + pageId + "/children?page_size=100"
+                        + (cursor != null ? "&start_cursor=" + enc(cursor) : "");
+                String raw = authedClient(accessToken)
+                        .get().uri(uri).retrieve().body(String.class);
+                JsonNode tree = objectMapper.readTree(raw);
+                JsonNode results = tree.path("results");
+                if (results.isArray()) {
+                    for (JsonNode block : results) {
+                        String blockId = block.path("id").asText(null);
+                        if (blockId != null && !blockId.isBlank()) {
+                            blockIds.add(blockId);
+                        }
+                    }
+                }
+                hasMore = tree.path("has_more").asBoolean(false);
+                cursor = hasMore ? tree.path("next_cursor").asText(null) : null;
+                // 방어: has_more=true인데 next_cursor가 비어 오는 비정상 응답 시
+                // 같은 페이지 무한 재조회를 막기 위해 루프 종료
+                if (hasMore && (cursor == null || cursor.isBlank())) break;
+            }
+
+            // 2. 블록 순차 삭제 (Notion rate limit ~3req/s 대비)
+            for (String blockId : blockIds) {
+                authedClient(accessToken)
+                        .delete().uri(NOTION_API + "/blocks/" + blockId)
+                        .retrieve().toBodilessEntity();
+                try { Thread.sleep(50); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+            }
+
+            // 3. 현재 노트 내용으로 블록 재생성
+            Map<String, Object> body = Map.of("children", buildBlocks(note));
+            authedClient(accessToken)
+                    .patch().uri(NOTION_API + "/blocks/" + pageId + "/children")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body).retrieve().body(String.class);
+
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("[Notion] 본문 블록 재동기화 실패 pageId={}: {}", pageId, e.getMessage());
             throw new BusinessException(ErrorCode.NOTION_API_ERROR);
         }
     }
