@@ -11,7 +11,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      router.replace(user.role === 'ADMIN' ? '/admin/exams' : '/user/exams');
+      router.replace(user.role === 'ADMIN' ? '/admin/exams' : '/user/exam-info');
     }
   }, [isAuthenticated, user, router]);
 

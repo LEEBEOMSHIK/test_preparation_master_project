@@ -58,7 +58,7 @@ function UserLoginContent() {
       if (!user.interestedExamSlaveIds || user.interestedExamSlaveIds.length === 0) {
         router.push('/onboarding');
       } else {
-        router.push('/user/exams');
+        router.push('/user/exam-info');
       }
     } catch {
       setError('이메일 또는 비밀번호가 올바르지 않습니다.');
