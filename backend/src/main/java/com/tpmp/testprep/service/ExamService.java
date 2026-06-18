@@ -12,7 +12,10 @@ import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.ExamRepository;
 import com.tpmp.testprep.repository.QuestionRepository;
 import com.tpmp.testprep.repository.UserRepository;
+import com.tpmp.testprep.service.parser.ParsedQuestion;
+import com.tpmp.testprep.service.parser.PdfQuestionParser;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -31,10 +34,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ExamService {
+
+    // ── 길이 클램프 상수 ──────────────────────────────────────────────────────────
+    private static final int MAX_CONTENT     = 5000;
+    private static final int MAX_ANSWER      = 2000;
+    private static final int MAX_EXPLANATION = 5000;
+    private static final int MAX_OPTION      = 1000;
 
     private final ExamRepository examRepository;
     private final QuestionRepository questionRepository;
@@ -211,24 +221,104 @@ public class ExamService {
 
     private int parsePdfAndSaveQuestions(Long examId, Path pdfPath, String originalName) {
         try (PDDocument doc = Loader.loadPDF(pdfPath.toFile())) {
-            String text = new PDFTextStripper().getText(doc);
-            // TODO: 텍스트 파싱 규칙에 따라 문항 추출
-            // 현재는 파싱된 텍스트 전체를 1개 문항으로 임시 저장
-            Exam exam = getExamDetail(examId);
-            int seq = questionRepository.maxSeqByExamId(examId) + 1;
-            Question q = Question.builder()
-                    .exam(exam)
-                    .seq(seq)
-                    .content(text.trim())
-                    .questionType(Question.QuestionType.SHORT_ANSWER)
-                    .answer("(파일 업로드 후 수동 입력 필요)")
-                    .sourceFile(originalName)
-                    .build();
-            questionRepository.save(q);
-            return 1;
+            String rawText = new PDFTextStripper().getText(doc);
+
+            // ① 빈 텍스트 → 폴백
+            if (rawText == null || rawText.isBlank()) {
+                log.warn("parsePdfAndSaveQuestions: PDF 텍스트가 비어 있어 폴백 처리합니다. examId={}", examId);
+                saveFallbackQuestion(examId, rawText == null ? "" : rawText.trim(), originalName);
+                return 1;
+            }
+
+            // ② 포맷 파서 실행
+            List<ParsedQuestion> parsed = new PdfQuestionParser().parse(rawText);
+
+            // ③ 파싱 결과 없음 → 폴백
+            if (parsed.isEmpty()) {
+                log.warn("parsePdfAndSaveQuestions: 문항 파싱 결과 없음. 폴백 저장합니다. examId={}", examId);
+                saveFallbackQuestion(examId, rawText.trim(), originalName);
+                return 1;
+            }
+
+            // ④ 파싱 성공 → 문항 변환 후 일괄 저장
+            return buildAndSaveQuestions(examId, parsed, originalName);
+
         } catch (IOException e) {
             throw new BusinessException(ErrorCode.FILE_PARSE_FAILED);
         }
+    }
+
+    /**
+     * 폴백: PDF 전체 텍스트를 단일 SHORT_ANSWER 문항으로 저장.
+     */
+    private void saveFallbackQuestion(Long examId, String content, String originalName) {
+        Exam exam = getExamDetail(examId);
+        int seq = questionRepository.maxSeqByExamId(examId) + 1;
+        String safeContent = content.isBlank() ? "(내용 없음)" : clamp(content, MAX_CONTENT);
+        Question q = Question.builder()
+                .exam(exam)
+                .seq(seq)
+                .content(safeContent)
+                .questionType(Question.QuestionType.SHORT_ANSWER)
+                .answer("(파일 업로드 후 수동 입력 필요)")
+                .sourceFile(originalName)
+                .build();
+        questionRepository.save(q);
+    }
+
+    /**
+     * ParsedQuestion 목록을 Question 엔티티로 변환하여 일괄 저장.
+     * content가 blank인 항목은 건너뜀.
+     *
+     * @return 실제 저장된 문항 수
+     */
+    private int buildAndSaveQuestions(Long examId, List<ParsedQuestion> parsed, String originalName) {
+        Exam exam = getExamDetail(examId);
+        int startSeq = questionRepository.maxSeqByExamId(examId) + 1;
+
+        List<Question> questions = new ArrayList<>();
+        int offset = 0;
+        for (ParsedQuestion pq : parsed) {
+            if (pq.content() == null || pq.content().isBlank()) {
+                log.warn("buildAndSaveQuestions: content가 비어 있는 ParsedQuestion 건너뜀");
+                continue;
+            }
+
+            List<String> clampedOptions = null;
+            if (pq.options() != null && !pq.options().isEmpty()) {
+                clampedOptions = pq.options().stream()
+                        .map(o -> clamp(o, MAX_OPTION))
+                        .toList();
+            }
+
+            questions.add(Question.builder()
+                    .exam(exam)
+                    .seq(startSeq + offset)
+                    .content(clamp(pq.content(), MAX_CONTENT))
+                    .questionType(pq.questionType())
+                    .options(clampedOptions)
+                    .answer(pq.answer() != null ? clamp(pq.answer(), MAX_ANSWER) : null)
+                    .explanation(pq.explanation() != null ? clamp(pq.explanation(), MAX_EXPLANATION) : null)
+                    .sourceFile(originalName)
+                    .build());
+            offset++;
+        }
+
+        if (questions.isEmpty()) {
+            log.warn("buildAndSaveQuestions: 유효한 문항이 없어 폴백으로 전환합니다. examId={}", examId);
+            saveFallbackQuestion(examId, "", originalName);
+            return 1;
+        }
+
+        questionRepository.saveAll(questions);
+        log.info("buildAndSaveQuestions: {}개 문항 저장 완료. examId={}", questions.size(), examId);
+        return questions.size();
+    }
+
+    /** 문자열을 maxLen 이하로 클램프. null이면 null 반환. */
+    private static String clamp(String s, int maxLen) {
+        if (s == null) return null;
+        return s.length() <= maxLen ? s : s.substring(0, maxLen);
     }
 
     private void validateFile(MultipartFile file) {

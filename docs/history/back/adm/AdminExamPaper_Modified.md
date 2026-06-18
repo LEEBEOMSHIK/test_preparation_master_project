@@ -1,3 +1,78 @@
+## HIST-20260619-001
+
+- **날짜**: 2026-06-19
+- **수정 범위**: 관리자 백엔드 / 시험지 관리 — PDF 포맷 기반 문항 분리 파서
+- **수정 개요**: PDF rawText에서 문항 경계 패턴을 인식하여 문항별 ParsedQuestion으로 분리하는 PdfQuestionParser 구현 및 ExamService 연동
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../service/parser/ParsedQuestion.java` | 추가 | PDF 파싱 중간 표현 record (content, questionType, options, answer, explanation) |
+| `backend/.../service/parser/PdfQuestionParser.java` | 추가 | 포맷 기반 파서 — 문항 경계 탐지·블록 분리·보기/정답/해설 추출 |
+| `backend/.../service/ExamService.java` | 수정 | `parsePdfAndSaveQuestions` 교체 — 파서 연동, 폴백 로직, `buildAndSaveQuestions` 헬퍼, 길이 클램프 |
+| `backend/.../service/parser/PdfQuestionParserTest.java` | 추가 | 순수 JUnit5 단위 테스트 (Spring 컨텍스트 없음, 10개 케이스) |
+
+### 수정 상세
+
+#### `service/parser/ParsedQuestion.java` (신규)
+- 변경 전: 없음
+- 변경 후: `record ParsedQuestion(String content, Question.QuestionType questionType, List<String> options, String answer, String explanation)` — Bean Validation 없는 순수 중간 표현
+- 이유: 파서와 서비스 레이어 사이 결합 없는 데이터 전달 객체 필요
+
+#### `service/parser/PdfQuestionParser.java` (신규)
+- 변경 전: 없음
+- 변경 후: `public List<ParsedQuestion> parse(String rawText)` 구현
+  - 문항 경계: `^\s{0,2}(\d+)\.\s`, `^\s{0,2}문\s*(\d+)\.\s`, `^\s{0,2}제\s*(\d+)\s*문` 3패턴
+  - 보기: 원문자(①~⑩), 괄호형((1)), 닫힌괄호형(1)) 중 블록 내 첫 발견 유형 고정
+  - 정답/해설: `정답\s*[:：]\s*(.*)`, `해설\s*[:：]\s*(.*)` 라벨 추출
+  - 블록 파싱 실패 시 RuntimeException 던지지 않고 skip + log.warn
+- 이유: PDF 업로드 시 텍스트 전체를 단일 문항으로 저장하던 임시 로직 대체
+
+#### `service/ExamService.java` (수정)
+- 변경 전: `parsePdfAndSaveQuestions` — PDF 전체 텍스트를 단일 SHORT_ANSWER 1개로 저장
+- 변경 후:
+  1. rawText 빈 경우 → `saveFallbackQuestion()` (기존 단일 저장 로직 동일)
+  2. `new PdfQuestionParser().parse(rawText)` 실행
+  3. 결과 없으면 폴백, 있으면 `buildAndSaveQuestions()` 호출
+  4. `buildAndSaveQuestions()`: content(5000), answer(2000), explanation(5000), option(1000) 클램프 후 `saveAll`
+  5. blank content ParsedQuestion은 건너뜀 (NOT NULL 위반 방지)
+  6. `clamp(String, int)` 정적 헬퍼 추가
+- 이유: 단일 문항 임시 저장에서 다문항 자동 추출로 전환; addQuestionsBulk와 중복 없이 헬퍼로 분리
+
+#### `service/parser/PdfQuestionParserTest.java` (신규)
+- 변경 전: 없음
+- 변경 후: 10개 케이스 — null/blank/패턴없음(빈 리스트), 원문자·괄호·닫힌괄호 보기(MULTIPLE_CHOICE·options 개수), 주관식(SHORT_ANSWER), 정답/해설 추출, 라벨없음→null, 문N. 패턴, 제N문 패턴, 다문항 분리, CRLF 처리
+- 이유: 파서 로직은 정규식·분기가 복잡해 단위 테스트로 회귀 방지 필수
+
+### 복원 방법
+
+HIST-20260619-001 복원 시:
+- `ParsedQuestion.java` 삭제
+- `PdfQuestionParser.java` 삭제
+- `PdfQuestionParserTest.java` 삭제
+- `ExamService.java` 에서 `parsePdfAndSaveQuestions`를 아래 원본으로 교체, `saveFallbackQuestion`·`buildAndSaveQuestions`·`clamp` 메서드 제거, `@Slf4j` 제거, import 2줄(`ParsedQuestion`, `PdfQuestionParser`) 제거:
+  ```java
+  private int parsePdfAndSaveQuestions(Long examId, Path pdfPath, String originalName) {
+      try (PDDocument doc = Loader.loadPDF(pdfPath.toFile())) {
+          String text = new PDFTextStripper().getText(doc);
+          Exam exam = getExamDetail(examId);
+          int seq = questionRepository.maxSeqByExamId(examId) + 1;
+          Question q = Question.builder()
+                  .exam(exam).seq(seq).content(text.trim())
+                  .questionType(Question.QuestionType.SHORT_ANSWER)
+                  .answer("(파일 업로드 후 수동 입력 필요)")
+                  .sourceFile(originalName).build();
+          questionRepository.save(q);
+          return 1;
+      } catch (IOException e) {
+          throw new BusinessException(ErrorCode.FILE_PARSE_FAILED);
+      }
+  }
+  ```
+
+---
+
 ## HIST-20260529-001
 
 - **날짜**: 2026-05-29
