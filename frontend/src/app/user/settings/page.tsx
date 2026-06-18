@@ -1,10 +1,33 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { notionService, type NotionStatus } from '@/services/notionService';
+import { Skeleton } from '@/components/ui/Skeleton';
 
-export default function UserSettingsPage() {
+// ── Suspense fallback ─────────────────────────────────────────────────────────
+function SettingsPageSkeleton() {
+  return (
+    <div className="max-w-2xl mx-auto p-6 space-y-6 animate-pulse">
+      <Skeleton className="h-7 w-16" />
+      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-6 w-16 rounded-full shrink-0" />
+        </div>
+        <div className="pt-4 border-t border-gray-100">
+          <Skeleton className="h-9 w-28 rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Inner component (useSearchParams 사용) ────────────────────────────────────
+function UserSettingsContent() {
   const searchParams = useSearchParams();
   const notionParam = searchParams.get('notion'); // connected | failed (콜백 후)
   const [notion, setNotion] = useState<NotionStatus | null>(null);
@@ -80,7 +103,9 @@ export default function UserSettingsPage() {
 
         <div className="mt-4 pt-4 border-t border-gray-100">
           {loading ? (
-            <p className="text-sm text-gray-400">불러오는 중…</p>
+            <div className="animate-pulse">
+              <Skeleton className="h-9 w-28 rounded-lg" />
+            </div>
           ) : !notion?.configured ? (
             <p className="text-sm text-gray-400">
               서버에 Notion 연동 설정(client id/secret)이 필요합니다. 설정 후 연결 버튼이 표시됩니다.
@@ -110,5 +135,14 @@ export default function UserSettingsPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+// ── Page export (Suspense 경계) ───────────────────────────────────────────────
+export default function UserSettingsPage() {
+  return (
+    <Suspense fallback={<SettingsPageSkeleton />}>
+      <UserSettingsContent />
+    </Suspense>
   );
 }

@@ -1,5 +1,42 @@
 # 사용자 설정 화면 수정 이력
 
+## HIST-20260619-001
+
+- **날짜**: 2026-06-19
+- **수정 범위**: 사용자 프론트엔드 / 설정 페이지
+- **수정 개요**: `useSearchParams()` Suspense 경계 누락으로 인한 Next.js 정적 생성 빌드 실패 수정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/settings/page.tsx` | 수정 | `useSearchParams` 사용 로직을 자식 컴포넌트(`UserSettingsContent`)로 분리, 페이지 export를 `<Suspense>`로 래핑, fallback을 카드형 스켈레톤(`SettingsPageSkeleton`)으로 구현 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/settings/page.tsx`
+- 변경 전: 단일 `UserSettingsPage` 컴포넌트 최상위에서 `useSearchParams()` 직접 호출 — Suspense 경계 없음
+- 변경 후:
+  1. `SettingsPageSkeleton` — Suspense fallback (h1 + 카드 섹션 형태 animate-pulse 스켈레톤)
+  2. `UserSettingsContent` — `useSearchParams()` 호출 및 기존 Notion 연동 UI 전담
+  3. `UserSettingsPage` (export default) — `<Suspense fallback={<SettingsPageSkeleton />}>` 로 `UserSettingsContent` 래핑
+- 이유: Next.js 14 App Router 정적 생성 단계에서 `useSearchParams()`는 반드시 `<Suspense>` 경계 안에 있어야 함. 경계 없으면 `⨯ useSearchParams() should be wrapped in a suspense boundary` 오류로 빌드(`npm run build`) 실패
+
+### 추가 발견 사항 (이번 수정 범위 외)
+
+동일 결함(`useSearchParams` Suspense 미적용)이 아래 파일에도 존재함:
+
+| 파일 경로 | 현황 |
+|-----------|------|
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | `useSearchParams()` 최상위 호출, Suspense 미적용 — 빌드 시 동일 에러 발생 가능 |
+
+(나머지 `user/login`, `auth/login`, `auth/oauth/callback`은 이미 Suspense 패턴 적용 완료)
+
+### 복원 방법
+이 ID(HIST-20260619-001)만으로 복원 시, `frontend/src/app/user/settings/page.tsx`에서 `SettingsPageSkeleton`·`UserSettingsContent` 함수를 제거하고 단일 `UserSettingsPage` 컴포넌트로 합쳐 `useSearchParams()`를 최상위에서 직접 호출하도록 되돌린다(Suspense import 제거).
+
+---
+
 ## HIST-20260615-001
 
 - **날짜**: 2026-06-15

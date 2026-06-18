@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { quizService, type QuizQuestion, type CheckResult } from '@/services/quizService';
 import { bookmarkService } from '@/services/bookmarkService';
@@ -19,7 +19,8 @@ interface AnswerState {
   result?: CheckResult;
 }
 
-export default function QuizPlayPage() {
+// ── Inner component (useSearchParams 사용) ────────────────────────────────────
+function QuizPlayContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -523,5 +524,14 @@ export default function QuizPlayPage() {
         />
       )}
     </div>
+  );
+}
+
+// ── Page (Suspense 경계) ──────────────────────────────────────────────────────
+export default function QuizPlayPage() {
+  return (
+    <Suspense fallback={<QuizCardSkeleton />}>
+      <QuizPlayContent />
+    </Suspense>
   );
 }

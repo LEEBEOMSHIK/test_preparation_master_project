@@ -43,6 +43,10 @@ export default function AdminExamPaperEditPage() {
   const [bankLoading,   setBankLoading]   = useState(true);
   const [addingBulk,    setAddingBulk]    = useState(false);
 
+  // ── 파일(PDF)로 문항 추가 ──
+  const [uploadingPdf,  setUploadingPdf]  = useState(false);
+  const [uploadResult,  setUploadResult]  = useState('');
+
   const [fetching, setFetching]   = useState(true);
   const [error,    setError]      = useState('');
   const [detailQ,  setDetailQ]    = useState<QuestionDetailItem | null>(null);
@@ -142,6 +146,32 @@ export default function AdminExamPaperEditPage() {
       setError('문항 추가에 실패했습니다.');
     } finally {
       setAddingBulk(false);
+    }
+  };
+
+  // ── PDF 업로드 → 서버 파싱 ──
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // 같은 파일 재선택 허용
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setError('PDF 파일만 업로드할 수 있습니다.');
+      setUploadResult('');
+      return;
+    }
+    setError('');
+    setUploadResult('');
+    setUploadingPdf(true);
+    try {
+      const res = await examService.adminUploadQuestions(id, file);
+      const imported = res.data.data?.imported ?? 0;
+      const refreshed = await examService.adminGetExamQuestions(id);
+      setExamQuestions(refreshed.data.data ?? []);
+      setUploadResult(`${imported}개 문항을 가져왔습니다. 정답·해설은 문항 상세에서 확인·보정하세요.`);
+    } catch {
+      setError('PDF 업로드에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setUploadingPdf(false);
     }
   };
 
@@ -281,6 +311,49 @@ export default function AdminExamPaperEditPage() {
             ))}
           </ul>
         )}
+      </div>
+
+      {/* ── 파일(PDF)로 문항 추가 ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-700">파일로 문항 추가</p>
+          <p className="text-xs text-gray-400 mt-0.5">PDF 기출 파일을 올리면 문항을 자동으로 분리해 추가합니다.</p>
+        </div>
+        <label
+          className={[
+            'flex items-center justify-center gap-2 w-full py-3 rounded-lg border-2 border-dashed text-sm font-medium transition',
+            uploadingPdf
+              ? 'border-gray-200 text-gray-300 cursor-wait'
+              : 'border-indigo-200 text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50/50 cursor-pointer',
+          ].join(' ')}
+        >
+          {uploadingPdf ? (
+            <>
+              <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+              업로드·파싱 중...
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12m0-12l-4 4m4-4l4 4M4 20h16" />
+              </svg>
+              PDF 파일 선택
+            </>
+          )}
+          <input
+            type="file"
+            accept="application/pdf,.pdf"
+            onChange={handlePdfUpload}
+            disabled={uploadingPdf}
+            className="hidden"
+          />
+        </label>
+        {uploadResult && (
+          <p className="text-sm text-green-600 bg-green-50 rounded-lg px-4 py-2.5">{uploadResult}</p>
+        )}
+        <p className="text-xs text-gray-400">
+          ※ 문항 번호(1. / 문 1. 등)와 보기(①②③④ / 1)2)3)4))를 기준으로 분리합니다. 분리에 실패하면 전체 내용이 1개 문항으로 저장됩니다.
+        </p>
       </div>
 
       {/* ── 문항 추가 ── */}

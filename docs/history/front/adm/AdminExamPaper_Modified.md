@@ -1,3 +1,32 @@
+## HIST-20260619-001
+
+- **날짜**: 2026-06-19
+- **수정 범위**: 관리자 프론트엔드 / 시험지 수정 — PDF 문항 파일 업로드 UI
+- **수정 개요**: 시험지 편집 페이지에 "파일로 문항 추가" 카드 신설. PDF를 선택하면 `examService.adminUploadQuestions`로 업로드 → 서버 파서가 문항을 자동 분리 → 문항 목록 새로고침 + 가져온 개수 안내. (BE 파서 HIST-20260619-001과 짝, BE는 `docs/history/back/adm/AdminExamPaper_Modified.md` 참조)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` | 수정 | `uploadingPdf`/`uploadResult` 상태 + `handlePdfUpload` 핸들러 + "파일로 문항 추가" 카드(드래시드 라벨 + hidden file input) 추가 |
+
+### 수정 상세
+- 서비스 레이어(`examService.adminUploadQuestions`)는 기존에 이미 완성되어 있었고, 이를 호출하는 UI만 추가.
+- `handlePdfUpload`: 파일 MIME/확장자(`application/pdf`/`.pdf`) 검증 → 업로드 → 성공 시 `adminGetExamQuestions`로 목록 재조회·갱신 → "N개 문항을 가져왔습니다" 안내. 실패 시 기존 `error` 영역에 메시지. `e.target.value=''`로 같은 파일 재선택 허용.
+- 로딩 중에는 라벨에 스피너 + "업로드·파싱 중..." 표시(텍스트 단독 금지 규칙 준수, 인라인 spinner는 액션 진행 표시 용도).
+- 안내 문구로 분리 규칙(문항 번호/보기 마커)과 폴백(분리 실패 시 1문항 저장)을 명시해 관리자 기대치 조정.
+- [보정] 비PDF 파일 선택 시 가드 분기(`file.type !== 'application/pdf'`)에서 `setError` 호출 직후 `setUploadResult('')`를 추가 — 직전 업로드 성공 메시지가 에러와 함께 잔존하는 UX 결함 수정.
+
+### 검증 포인트
+- PDF 선택 → imported 개수만큼 문항 목록에 추가·갱신되는지.
+- 비PDF 파일 선택 시 "PDF 파일만 업로드할 수 있습니다." 안내.
+- 업로드 실패(서버 오류) 시 에러 영역 노출 + 로딩 해제.
+
+### 복원 방법
+이 ID(HIST-20260619-001)로 복원 시 `[id]/edit/page.tsx`의 `uploadingPdf`/`uploadResult` 상태, `handlePdfUpload` 핸들러, "파일로 문항 추가" 카드 블록을 제거한다.
+
+---
+
 ## HIST-20260615-001
 
 - **날짜**: 2026-06-15
