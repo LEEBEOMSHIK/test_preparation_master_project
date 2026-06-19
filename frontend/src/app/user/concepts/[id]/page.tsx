@@ -4,47 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { conceptNoteService } from '@/services/conceptNoteService';
 import { notionService, type NotionStatus } from '@/services/notionService';
-import { RichContent } from '@/components/ui/RichContent';
+import { LinkedQuestionBox } from '@/components/ui/LinkedQuestionBox';
+import { Skeleton } from '@/components/ui/Skeleton';
 import type { ConceptNote } from '@/types';
-
-function CodeBlock({ code, language }: { code: string; language?: string | null }) {
-  return (
-    <div className="rounded-lg overflow-hidden border border-[#3c3f41] text-left mt-3">
-      <div className="bg-[#2b2b2b] px-3 py-1.5 flex items-center gap-1.5 border-b border-[#3c3f41]">
-        <span className="w-3 h-3 rounded-full bg-[#ff5f57]" />
-        <span className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
-        <span className="w-3 h-3 rounded-full bg-[#27c93f]" />
-        {language && (
-          <span className="ml-2 text-[11px] text-[#808080] font-mono">{language}</span>
-        )}
-      </div>
-      <pre className="bg-[#2b2b2b] text-[#a9b7c6] text-sm p-4 overflow-x-auto font-mono leading-relaxed whitespace-pre">
-        <code>{code}</code>
-      </pre>
-    </div>
-  );
-}
-
-function LinkedQuestionBox({ note }: { note: ConceptNote }) {
-  const content = note.questionContent || note.questionBankContent;
-  const code = note.questionCode || note.questionBankCode;
-  const language = note.questionLanguage || note.questionBankLanguage;
-  const source = note.questionId ? '시험문제' : note.questionBankId ? '퀴즈문제' : null;
-  if (!content || !source) return null;
-
-  return (
-    <div className="mb-5 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-xs font-medium text-indigo-500 bg-white border border-indigo-200 px-2 py-0.5 rounded-full">
-          {source}
-        </span>
-        <span className="text-xs text-indigo-400">이 문제에서 작성된 개념노트</span>
-      </div>
-      <RichContent html={content} className="text-sm text-gray-700" />
-      {code && <CodeBlock code={code} language={language} />}
-    </div>
-  );
-}
 
 export default function ConceptNoteDetailPage() {
   const router = useRouter();
@@ -55,7 +17,8 @@ export default function ConceptNoteDetailPage() {
   const [editing, setEditing] = useState(isNew);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [isPublic, setIsPublic] = useState(true);
+  // 신규 작성 시 기본값 비공개, 기존 노트 수정 시 서버값으로 덮어씌워짐
+  const [isPublic, setIsPublic] = useState(false);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
 
@@ -117,7 +80,13 @@ export default function ConceptNoteDetailPage() {
   }
 
   if (loading) {
-    return <div className="p-6 text-center text-gray-400">로딩 중...</div>;
+    return (
+      <div className="p-6 max-w-3xl mx-auto space-y-4">
+        <Skeleton className="h-8 w-2/3 rounded-lg" />
+        <Skeleton className="h-4 w-1/3 rounded" />
+        <Skeleton className="h-48 w-full rounded-xl" />
+      </div>
+    );
   }
 
   return (

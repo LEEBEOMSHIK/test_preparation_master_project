@@ -380,8 +380,28 @@ public class DataInitializer implements ApplicationRunner {
      *   프론트엔드 렌더러는 children이 있는 항목을 드롭다운 토글로 처리한다.
      * 매 부팅 시 동일 값으로 재설정하므로 멱등하다.
      */
+    private void ensureConceptNotesIndex() {
+        try {
+            jdbcTemplate.execute(
+                "CREATE INDEX IF NOT EXISTS idx_concept_notes_public_updated " +
+                "ON concept_notes(is_public, updated_at DESC)");
+            log.info("[DataInitializer] idx_concept_notes_public_updated 인덱스 준비 완료");
+        } catch (Exception e) {
+            log.warn("[DataInitializer] idx_concept_notes_public_updated 인덱스 생성 실패: {}", e.getMessage());
+        }
+    }
+
     private void ensureUserMenuGroups() {
-        // 0) 도움말 그룹에 들어갈 '설정' 메뉴 생성 (멱등)
+        // 0a) 인덱스 보강
+        ensureConceptNotesIndex();
+
+        // 0b) 공개 탐색 메뉴 생성 (멱등)
+        if (!menuConfigRepository.existsByUrl("/user/concepts/explore")) {
+            saveMenu(null, "공개 탐색", "/user/concepts/explore", "explore", 0, MenuConfig.MenuType.USER, "USER,ADMIN");
+            log.info("[DataInitializer] 공개 탐색 사용자 메뉴 추가 완료");
+        }
+
+        // 0c) 도움말 그룹에 들어갈 '설정' 메뉴 생성 (멱등)
         if (!menuConfigRepository.existsByUrl("/user/settings")) {
             saveMenu(null, "설정", "/user/settings", "settings", 0, MenuConfig.MenuType.USER, "USER,ADMIN");
             log.info("[DataInitializer] 설정 사용자 메뉴 추가 완료");
@@ -407,9 +427,10 @@ public class DataInitializer implements ApplicationRunner {
         reparentMenu("/user/group/help",     null,       4);
 
         // 3) 그룹별 자식 재배치
-        reparentMenu("/user/quiz",         learningId, 1);
-        reparentMenu("/user/practice",     learningId, 2);
-        reparentMenu("/user/concepts",     learningId, 3);
+        reparentMenu("/user/quiz",              learningId, 1);
+        reparentMenu("/user/practice",          learningId, 2);
+        reparentMenu("/user/concepts",          learningId, 3);
+        reparentMenu("/user/concepts/explore",  learningId, 4);
 
         reparentMenu("/user/dashboard",    recordsId,  1);
         reparentMenu("/user/exam-history", recordsId,  2);

@@ -20,6 +20,21 @@ public class UserConceptNoteController {
 
     private final ConceptNoteService conceptNoteService;
 
+    @GetMapping("/public")
+    public ResponseEntity<ApiResponse<Page<ConceptNoteResponse>>> getPublicNotes(
+            @RequestParam(required = false) String keyword,
+            Pageable pageable,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.success(conceptNoteService.getPublicNotes(keyword, pageable)));
+    }
+
+    @GetMapping("/public/{id}")
+    public ResponseEntity<ApiResponse<ConceptNoteResponse>> getPublicNote(
+            @PathVariable Long id,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.success(conceptNoteService.getPublicNote(id, email)));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<Page<ConceptNoteResponse>>> getMyNotes(
             Pageable pageable,

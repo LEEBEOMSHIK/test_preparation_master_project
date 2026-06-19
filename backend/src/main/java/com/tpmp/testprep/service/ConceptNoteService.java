@@ -17,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -73,6 +74,26 @@ public class ConceptNoteService {
         ConceptNote note = findNote(id);
         checkOwner(note, email);
         conceptNoteRepository.delete(note);
+    }
+
+    // ── Public Explore ───────────────────────────────────────────────────────
+
+    public Page<ConceptNoteResponse> getPublicNotes(String keyword, Pageable pageable) {
+        String kw = StringUtils.hasText(keyword) ? keyword : null;
+        return conceptNoteRepository.findPublicByTitle(kw, pageable)
+                .map(ConceptNoteResponse::from);
+    }
+
+    public ConceptNoteResponse getPublicNote(Long id, String requestEmail) {
+        ConceptNote note = conceptNoteRepository.findByIdWithUser(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CONCEPT_NOTE_NOT_FOUND));
+        if (note.getUser().getEmail().equals(requestEmail)) {
+            return ConceptNoteResponse.from(note);
+        }
+        if (!note.isPublic()) {
+            throw new BusinessException(ErrorCode.CONCEPT_NOTE_NOT_FOUND);
+        }
+        return ConceptNoteResponse.from(note);
     }
 
     // ── Admin ────────────────────────────────────────────────────────────────

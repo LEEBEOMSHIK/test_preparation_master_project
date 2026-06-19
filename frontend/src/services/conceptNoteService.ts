@@ -10,7 +10,16 @@ export interface ConceptNoteRequest {
 }
 
 export const conceptNoteService = {
-  // User
+  // User — Public Explore
+  getPublicNotes: (page = 0, size = 10, keyword?: string) =>
+    apiClient.get<ApiResponse<PageResponse<ConceptNote>>>('/user/concepts/public', {
+      params: { page, size, ...(keyword ? { keyword } : {}) },
+    }),
+
+  getPublicNote: (id: number) =>
+    apiClient.get<ApiResponse<ConceptNote>>(`/user/concepts/public/${id}`),
+
+  // User — My Notes
   getMyNotes: (page = 0, size = 10) =>
     apiClient.get<ApiResponse<PageResponse<ConceptNote>>>('/user/concepts', { params: { page, size } }),
 

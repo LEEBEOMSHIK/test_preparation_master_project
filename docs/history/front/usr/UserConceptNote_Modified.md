@@ -1,3 +1,96 @@
+## HIST-20260619-002
+
+- **날짜**: 2026-06-19
+- **수정 범위**: 사용자 프론트엔드 / 개념노트 상세
+- **수정 개요**: 내 노트 상세 페이지의 로딩 분기를 텍스트("로딩 중...") 단독 표시에서 인라인 Skeleton UI로 교체 — 스켈레톤 컨벤션 위반 보정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/concepts/[id]/page.tsx` | 수정 | `Skeleton` import 추가 및 텍스트 로딩 분기를 인라인 Skeleton(h-8 제목 · h-4 메타 · h-48 본문)으로 교체 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/concepts/[id]/page.tsx`
+- 변경 전:
+  ```tsx
+  // Skeleton import 없음
+  if (loading) {
+    return <div className="p-6 text-center text-gray-400">로딩 중...</div>;
+  }
+  ```
+- 변경 후:
+  ```tsx
+  import { Skeleton } from '@/components/ui/Skeleton';
+  if (loading) {
+    return (
+      <div className="p-6 max-w-3xl mx-auto space-y-4">
+        <Skeleton className="h-8 w-2/3 rounded-lg" />
+        <Skeleton className="h-4 w-1/3 rounded" />
+        <Skeleton className="h-48 w-full rounded-xl" />
+      </div>
+    );
+  }
+  ```
+- 이유: CLAUDE.md "Skeleton UI Convention — 데이터 페칭 화면에 스켈레톤 필수, 텍스트/스피너 단독 사용 금지" 위반을 webapp-verifier 정적 점검에서 발견. `explore/[id]/page.tsx`의 동일 패턴 적용으로 일관성 유지.
+  - 내 노트 상세 로딩을 텍스트→Skeleton으로 교체
+
+### 복원 방법
+이 ID(HIST-20260619-002)만으로 복원 시 `[id]/page.tsx`에서 `Skeleton` import를 제거하고 loading 분기를 `<div className="p-6 text-center text-gray-400">로딩 중...</div>`으로 되돌린다.
+
+---
+
+## HIST-20260619-001
+
+- **날짜**: 2026-06-19
+- **수정 범위**: 사용자 프론트엔드 / 개념노트 공개 탐색
+- **수정 개요**: 공개 개념노트 탐색 기능 구현 — 서비스 API 2개 추가, 탐색 목록 페이지 신규, 탐색 상세 페이지 신규, LinkedQuestionBox 공통 컴포넌트 추출, 신규 작성 isPublic 기본값 false 변경.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/conceptNoteService.ts` | 수정 | `getPublicNotes(page, size, keyword?)` + `getPublicNote(id)` API 메서드 추가 |
+| `frontend/src/components/ui/LinkedQuestionBox.tsx` | 추가 | 기존 `[id]/page.tsx` 내 `LinkedQuestionBox` + `CodeBlock` 을 공통 컴포넌트로 추출 |
+| `frontend/src/app/user/concepts/[id]/page.tsx` | 수정 | 인라인 `LinkedQuestionBox`/`CodeBlock` 제거 → 공통 컴포넌트 import, isPublic 초기값 `true`→`false` |
+| `frontend/src/app/user/concepts/explore/page.tsx` | 추가 | 공개 개념노트 탐색 목록 페이지 (검색·페이지네이션, CardListSkeleton, stripHtml) |
+| `frontend/src/app/user/concepts/explore/[id]/page.tsx` | 추가 | 공개 개념노트 탐색 상세 페이지 (RichContent, LinkedQuestionBox, 인라인 Skeleton, 404 catch → redirect) |
+
+### 수정 상세
+
+#### `services/conceptNoteService.ts`
+- 변경 전: getMyNotes, getMyNote, create, update, delete, admin 메서드만 존재
+- 변경 후: `getPublicNotes(page, size, keyword?)` → `/user/concepts/public`, `getPublicNote(id)` → `/user/concepts/public/{id}` 추가
+
+#### `components/ui/LinkedQuestionBox.tsx` (신규)
+- 기존 `[id]/page.tsx` 내 로컬 `CodeBlock` + `LinkedQuestionBox` 함수를 그대로 추출
+- props: `{ note: ConceptNote }` — 동작·스타일 100% 보존
+
+#### `app/user/concepts/[id]/page.tsx`
+- 변경 전: `CodeBlock`, `LinkedQuestionBox` 인라인 선언, `useState(true)` for isPublic
+- 변경 후: 공통 `LinkedQuestionBox` import, `useState(false)` (신규 작성 기본 비공개; 기존 노트 수정 시 서버값으로 덮어씌워짐)
+
+#### `app/user/concepts/explore/page.tsx` (신규)
+- 기존 `concepts/page.tsx` 목록 패턴 재사용 (검색·페이지 크기·페이지네이션)
+- getPublicNotes 호출, CardListSkeleton, stripHtml 미리보기, 카드 클릭 → `/user/concepts/explore/{id}`
+- 삭제·Notion·새작성 버튼 없음 (읽기 전용)
+
+#### `app/user/concepts/explore/[id]/page.tsx` (신규)
+- getPublicNote 호출, 본문 RichContent, LinkedQuestionBox, 인라인 Skeleton
+- 헤더 "← 탐색 목록으로" (router.push)
+- 수정/삭제/Notion 버튼 없음 (읽기 전용)
+- 404 catch → router.replace('/user/concepts/explore')
+
+### 복원 방법
+이 ID(HIST-20260619-001)만으로 복원 시:
+- `conceptNoteService.ts`에서 `getPublicNotes`, `getPublicNote` 제거
+- `LinkedQuestionBox.tsx` 삭제
+- `[id]/page.tsx`에 `CodeBlock`, `LinkedQuestionBox` 인라인 복원, `isPublic` 초기값 `true`로 복원
+- `explore/page.tsx`, `explore/[id]/page.tsx` 삭제
+
+---
+
 ## HIST-20260615-004
 
 - **날짜**: 2026-06-15

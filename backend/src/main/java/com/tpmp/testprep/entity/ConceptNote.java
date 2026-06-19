@@ -6,7 +6,8 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "concept_notes")
+@Table(name = "concept_notes",
+       indexes = @Index(name = "idx_concept_notes_public_updated", columnList = "is_public, updated_at"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ConceptNote {
@@ -25,8 +26,8 @@ public class ConceptNote {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "is_public", nullable = false)
-    private boolean isPublic = true;
+    @Column(name = "is_public", nullable = false, columnDefinition = "boolean default false")
+    private boolean isPublic = false;
 
     /** 시험 문항에서 등록된 경우 연결 (nullable) */
     @ManyToOne(fetch = FetchType.LAZY)
