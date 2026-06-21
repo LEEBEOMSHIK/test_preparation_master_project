@@ -1,5 +1,43 @@
 # 사용자 설정 화면 수정 이력
 
+## HIST-20260621-001
+
+- **날짜**: 2026-06-21
+- **수정 범위**: 사용자 프론트엔드 / 설정 페이지
+- **수정 개요**: 닉네임 저장 실패(409 포함) 시 서버 응답 메시지를 인라인 에러로 표시 — "이미 사용 중인 닉네임입니다." 등 BE 에러 코드 메시지 노출
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/settings/page.tsx` | 수정 | `handleSaveNickname`의 `catch` 블록에서 axios 에러 응답 `data.message` 추출 로직 추가 — 서버 메시지 우선, 없으면 기본 메시지 폴백 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/settings/page.tsx`
+- 변경 전:
+  ```tsx
+  } catch {
+    setNicknameFeedback({ type: 'error', msg: '저장에 실패했습니다. 다시 시도해 주세요.' });
+  }
+  ```
+- 변경 후:
+  ```tsx
+  } catch (err: unknown) {
+    let errorMsg = '저장에 실패했습니다. 다시 시도해 주세요.';
+    if (/* err.response.data.message 존재 확인 */) {
+      errorMsg = (err.response.data as { message: string }).message;
+    }
+    setNicknameFeedback({ type: 'error', msg: errorMsg });
+  }
+  ```
+- 이유: BE가 409 CONFLICT + `{ message: "이미 사용 중인 닉네임입니다." }` 를 반환해도 FE에서 일반 메시지만 표시하던 문제 수정. axios 에러 객체의 `response.data.message`를 타입 안전하게 추출하여 표시.
+
+### 복원 방법
+이 ID(HIST-20260621-001)만으로 복원 시 `handleSaveNickname`의 catch 블록을 `catch { setNicknameFeedback({ type: 'error', msg: '저장에 실패했습니다. 다시 시도해 주세요.' }); }` 로 되돌린다.
+
+---
+
 ## HIST-20260620-001
 
 - **날짜**: 2026-06-20

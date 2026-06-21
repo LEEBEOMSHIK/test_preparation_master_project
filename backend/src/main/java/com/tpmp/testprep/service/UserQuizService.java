@@ -7,6 +7,8 @@ import com.tpmp.testprep.dto.response.DomainSlaveResponse;
 import com.tpmp.testprep.dto.response.QuizQuestionView;
 import com.tpmp.testprep.entity.DomainMaster;
 import com.tpmp.testprep.entity.QuestionBank;
+import com.tpmp.testprep.exception.BusinessException;
+import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.DomainMasterRepository;
 import com.tpmp.testprep.repository.QuestionBankRepository;
 import lombok.RequiredArgsConstructor;
@@ -71,11 +73,11 @@ public class UserQuizService {
         return questions.stream().map(QuizQuestionView::from).toList();
     }
 
-    /** 단건 채점 — 동작 보존: orElseThrow() 인자 없는 형태 유지 */
+    /** 단건 채점 */
     public CheckResult checkAnswer(CheckRequest request) {
         QuestionBank qb = questionBankRepository.findById(request.questionId())
                 .filter(q -> "N".equals(q.getDelYn()))
-                .orElseThrow();
+                .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
         boolean correct = qb.getAnswer() != null
                 && qb.getAnswer().trim().equalsIgnoreCase(request.userAnswer().trim());
         return new CheckResult(correct, qb.getAnswer(), qb.getExplanation());

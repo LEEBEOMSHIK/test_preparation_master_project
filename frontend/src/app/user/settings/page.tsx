@@ -95,8 +95,24 @@ function UserSettingsContent() {
       await userProfileService.patchNickname(trimmed);
       updateUser({ nickname: trimmed });
       setNicknameFeedback({ type: 'success', msg: '닉네임이 저장되었습니다.' });
-    } catch {
-      setNicknameFeedback({ type: 'error', msg: '저장에 실패했습니다. 다시 시도해 주세요.' });
+    } catch (err: unknown) {
+      // 서버 에러 응답에서 message 추출 (409 중복 등 4xx 포함)
+      let errorMsg = '저장에 실패했습니다. 다시 시도해 주세요.';
+      if (
+        err !== null &&
+        typeof err === 'object' &&
+        'response' in err &&
+        err.response !== null &&
+        typeof err.response === 'object' &&
+        'data' in err.response &&
+        err.response.data !== null &&
+        typeof err.response.data === 'object' &&
+        'message' in err.response.data &&
+        typeof (err.response.data as { message: unknown }).message === 'string'
+      ) {
+        errorMsg = (err.response.data as { message: string }).message;
+      }
+      setNicknameFeedback({ type: 'error', msg: errorMsg });
     } finally {
       setNicknameSaving(false);
       if (feedbackTimer.current) clearTimeout(feedbackTimer.current);

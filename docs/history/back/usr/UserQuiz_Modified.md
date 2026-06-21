@@ -1,3 +1,37 @@
+## HIST-20260621-001
+
+- **날짜**: 2026-06-21
+- **수정 범위**: 사용자 백엔드 / 퀴즈
+- **수정 개요**: `UserQuizService.checkAnswer`의 `orElseThrow()` 인자 없는 형태를 `BusinessException(ErrorCode.QUESTION_NOT_FOUND)`로 교체 — `NoSuchElementException` 500 오류 방지
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java` | 수정 | `checkAnswer` 내 `.orElseThrow()` → `.orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND))`, `BusinessException`·`ErrorCode` import 추가 |
+
+### 수정 상세
+
+#### `service/UserQuizService.java`
+- 변경 전:
+  ```java
+  QuestionBank qb = questionBankRepository.findById(request.questionId())
+          .filter(q -> "N".equals(q.getDelYn()))
+          .orElseThrow();
+  ```
+- 변경 후:
+  ```java
+  QuestionBank qb = questionBankRepository.findById(request.questionId())
+          .filter(q -> "N".equals(q.getDelYn()))
+          .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
+  ```
+- 이유: 인자 없는 `orElseThrow()`는 `NoSuchElementException`을 던지는데, `GlobalExceptionHandler`에 등록된 핸들러가 없어 `handleUnexpected`(500)로 처리됨. `ErrorCode.QUESTION_NOT_FOUND`(404)로 교체하여 4xx로 정상 응답.
+
+### 복원 방법
+이 ID(HIST-20260621-001)만으로 복원 시 `UserQuizService.checkAnswer`의 `.orElseThrow(() -> ...)` 람다를 `.orElseThrow()`로 되돌리고, `BusinessException`·`ErrorCode` import 제거.
+
+---
+
 ## HIST-20260614-001
 
 - **날짜**: 2026-06-14

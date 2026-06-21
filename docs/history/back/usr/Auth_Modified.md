@@ -1,3 +1,57 @@
+## HIST-20260621-001
+
+- **날짜**: 2026-06-21
+- **수정 범위**: 사용자 백엔드 / 사용자 프로필 · 닉네임 중복 검증
+- **수정 개요**: 닉네임 중복 저장 방지 — `existsByNicknameIgnoreCase` 추가, `UserProfileService.updateNickname`에 본인 동일 닉네임 통과·타인 중복 409 검증 적용, `ErrorCode.NICKNAME_ALREADY_EXISTS`(409) 신규 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/UserRepository.java` | 수정 | `boolean existsByNicknameIgnoreCase(String nickname)` 메서드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserProfileService.java` | 수정 | `updateNickname`에 중복 검증 로직 추가 — 본인 현재 닉네임과 동일하면 no-op 반환, 타인 중복이면 `BusinessException(NICKNAME_ALREADY_EXISTS)` |
+| `backend/src/main/java/com/tpmp/testprep/exception/ErrorCode.java` | 수정 | `NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다.")` 신규 추가 |
+
+### 수정 상세
+
+#### `repository/UserRepository.java`
+- 변경 전: `existsByNicknameIgnoreCase` 없음
+- 변경 후: `boolean existsByNicknameIgnoreCase(String nickname)` 추가 — JPA 쿼리 메서드 자동 구현(대소문자 무시 LIKE)
+- 이유: 서비스 레벨 닉네임 중복 검증에 사용
+
+#### `service/UserProfileService.java`
+- 변경 전: `findByEmail` 후 바로 `user.updateNickname(request.nickname())` 호출
+- 변경 후:
+  ```java
+  // 1. 본인 현재 닉네임과 동일하면 no-op (자기 자신과의 충돌 방지)
+  if (newNickname.equalsIgnoreCase(user.getNickname())) {
+      return UserResponse.from(user);
+  }
+  // 2. 타인이 이미 사용 중이면 409
+  if (userRepository.existsByNicknameIgnoreCase(newNickname)) {
+      throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
+  }
+  user.updateNickname(newNickname);
+  ```
+- 이유: 중복 검증 없이 저장하면 동일 닉네임이 여러 사용자에게 할당 가능. 본인-동일 케이스를 먼저 처리하여 자기 자신과의 false-positive 방지.
+
+#### `entity/User.java` — DB unique 제약 보류 판단
+- `@Column(name = "nickname", nullable = true, length = 50)`에 `unique = true` 추가를 검토하였으나 **보류**함.
+  - 사유: `ddl-auto: update` 환경에서 기존 DB에 NULL 닉네임 행이 잔존할 경우 unique 인덱스 생성이 실패할 수 있음. 또한 마이그레이션 러너 실행 전 상태나 예외 케이스에서 중복 값이 있으면 서버 기동 자체가 실패할 위험이 있음.
+  - 대안: 앱 레벨 `existsByNicknameIgnoreCase` 검증으로 동시성 이슈를 제외한 일반적인 중복 입력은 충분히 차단함. 향후 정식 마이그레이션 스크립트(`V*__add_unique_nickname.sql`)로 적용 예정.
+
+#### `exception/ErrorCode.java`
+- 변경 전: `NICKNAME_ALREADY_EXISTS` 없음
+- 변경 후: `NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다.")` User 섹션에 추가
+
+### 복원 방법
+이 ID(HIST-20260621-001)만으로 복원 시:
+1. `UserRepository.java`에서 `existsByNicknameIgnoreCase` 제거
+2. `UserProfileService.updateNickname`에서 no-op 분기 및 중복 검증 블록 제거, 바로 `user.updateNickname` 호출로 복원
+3. `ErrorCode.java`에서 `NICKNAME_ALREADY_EXISTS` 제거
+
+---
+
 ## HIST-20260620-001
 
 - **날짜**: 2026-06-20
