@@ -1,3 +1,66 @@
+## HIST-20260620-001
+
+- **날짜**: 2026-06-20
+- **수정 범위**: 사용자 백엔드 / 인증 · 사용자 프로필
+- **수정 개요**: User nickname 필드 도입, 신규 가입(로컬/OAuth) 시 기본 닉네임 자동 설정, 기존 사용자 마이그레이션 러너, UserResponse에 nickname 포함, PATCH /nickname API 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `entity/User.java` | 수정 | `nickname` 컬럼(nullable, length=50) 추가, `updateNickname()` 메서드 추가 |
+| `config/UserNicknameInitRunner.java` | 추가 | `@Order(150)` ApplicationRunner — `UPDATE users SET nickname = CONCAT('사용자', id) WHERE nickname IS NULL` 멱등 실행 |
+| `dto/response/UserResponse.java` | 수정 | record에 `nickname` 필드 추가, `from(user)` · `from(user, interests)` 모두 `user.getNickname()` 포함 |
+| `dto/request/NicknameUpdateRequest.java` | 추가 | `@NotBlank @Size(min=1, max=20) String nickname` 요청 DTO |
+| `service/AuthService.java` | 수정 | `signup()` 내 save 후 2-step 닉네임 초기화 (`"사용자" + saved.getId()`) |
+| `security/oauth2/CustomOAuth2UserService.java` | 수정 | 신규 OAuth 사용자 save 직후 2-step 닉네임 초기화 |
+| `service/UserProfileService.java` | 추가 | `updateNickname(email, request)` — findByEmail → user.updateNickname → UserResponse.from |
+| `controller/UserProfileController.java` | 추가 | `PATCH /api/user/me/nickname` 엔드포인트 |
+
+### 수정 상세
+
+#### `entity/User.java`
+- 변경 전: `name` 필드 다음 바로 `role` 필드
+- 변경 후: `name` 다음에 `@Column(name="nickname", nullable=true, length=50) private String nickname;` 추가, `updateNickname(String nickname)` 메서드 추가
+- 이유: 공개 API 비식별화를 위한 닉네임 저장
+
+#### `config/UserNicknameInitRunner.java` (신규)
+- `@Order(150)` ApplicationRunner. `UPDATE users SET nickname = CONCAT('사용자', id) WHERE nickname IS NULL` 실행
+- count==0 → "모두 이미 설정됨 — 건너뜀", else → "기존 사용자 {}건 닉네임 초기화 완료"
+
+#### `dto/response/UserResponse.java`
+- 변경 전: `record UserResponse(Long id, String email, String name, String role, ...)`
+- 변경 후: `record UserResponse(Long id, String email, String name, String nickname, String role, ...)` — 두 `from()` 팩토리 모두 `user.getNickname()` 추가
+
+#### `dto/request/NicknameUpdateRequest.java` (신규)
+- `@NotBlank @Size(min=1, max=20) String nickname`
+
+#### `service/AuthService.java`
+- 변경 전: `userRepository.save(user);` 한 번
+- 변경 후: `User saved = userRepository.save(user); saved.updateNickname("사용자" + saved.getId()); userRepository.save(saved);`
+
+#### `security/oauth2/CustomOAuth2UserService.java`
+- 변경 전: `.orElseGet(() -> userRepository.save(User.ofOAuth(email, name, provider, providerId)))`
+- 변경 후: lambda로 2-step — save 후 `updateNickname("사용자" + newUser.getId())` 재저장
+
+#### `service/UserProfileService.java` (신규)
+- `updateNickname(email, request)`: findByEmail → 없으면 USER_NOT_FOUND, `user.updateNickname(request.nickname())`, `UserResponse.from(user)` 반환
+
+#### `controller/UserProfileController.java` (신규)
+- `@PatchMapping("/nickname")` → `userProfileService.updateNickname(email, request)` → `ApiResponse.success()`
+
+### 복원 방법
+이 ID(HIST-20260620-001)만으로 복원 시:
+- `User.java`에서 `nickname` 컬럼 필드 및 `updateNickname()` 제거
+- `UserNicknameInitRunner.java` 삭제
+- `UserResponse.java`에서 `nickname` 필드 제거, from() 팩토리 복원
+- `NicknameUpdateRequest.java` 삭제
+- `AuthService.java` signup()을 단일 save로 복원
+- `CustomOAuth2UserService.java` `.orElseGet()` lambda를 단일 save로 복원
+- `UserProfileService.java`, `UserProfileController.java` 삭제
+
+---
+
 ## HIST-20260614-001
 
 - **날짜**: 2026-06-14

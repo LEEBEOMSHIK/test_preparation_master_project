@@ -1,3 +1,35 @@
+## HIST-20260620-001
+
+- **날짜**: 2026-06-20
+- **수정 범위**: 사용자 백엔드 / 개념노트 공개 탐색 작성자 비식별화
+- **수정 개요**: 공개 탐색 API 응답에서 실명 대신 닉네임을 노출하도록 ConceptNoteResponse 오버로딩 추가 및 ConceptNoteService 공개 경로 호출 변경
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `dto/response/ConceptNoteResponse.java` | 수정 | `from(ConceptNote, boolean isPublic)` 오버로딩 추가 — isPublic=true 시 userName = nickname(null이면 '사용자{id}' 폴백) |
+| `service/ConceptNoteService.java` | 수정 | `getPublicNotes()` map을 `from(note, true)`로, `getPublicNote()` 반환을 모두 `from(note, true)`로 변경(본인 조회 분기 포함) |
+
+### 수정 상세
+
+#### `dto/response/ConceptNoteResponse.java`
+- 변경 전: `from(ConceptNote n)` 단일 팩토리만 존재, userName = `n.getUser().getName()`
+- 변경 후: `from(ConceptNote n, boolean isPublic)` 오버로딩 추가. isPublic=false면 기존 `from(n)` 위임. isPublic=true면 displayName = nickname != null ? nickname : "사용자" + id
+- 이유: 공개 탐색 컨텍스트에서 실명(name) 노출 방지
+
+#### `service/ConceptNoteService.java`
+- 변경 전: `getPublicNotes` → `ConceptNoteResponse::from`, `getPublicNote` → `ConceptNoteResponse.from(note)` (2곳)
+- 변경 후: `getPublicNotes` → `note -> ConceptNoteResponse.from(note, true)`, `getPublicNote` 모든 반환 경로 → `from(note, true)`
+- 이유: 공개 API 전체에서 닉네임 기반 비식별화 일관 적용
+
+### 복원 방법
+이 ID(HIST-20260620-001)만으로 복원 시:
+- `ConceptNoteResponse.java`에서 `from(ConceptNote, boolean)` 오버로딩 제거
+- `ConceptNoteService.java`의 `getPublicNotes` map을 `ConceptNoteResponse::from`으로, `getPublicNote` 두 반환을 `ConceptNoteResponse.from(note)`로 되돌림
+
+---
+
 ## HIST-20260619-001
 
 - **날짜**: 2026-06-19

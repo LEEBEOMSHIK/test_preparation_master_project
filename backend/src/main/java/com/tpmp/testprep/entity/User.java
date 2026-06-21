@@ -32,6 +32,9 @@ public class User {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "nickname", nullable = true, length = 50)
+    private String nickname;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
@@ -82,6 +85,7 @@ public class User {
     }
 
     public void updateName(String name) { this.name = name; }
+    public void updateNickname(String nickname) { this.nickname = nickname; }
     public void updateRole(Role role) { this.role = role; }
     public void updatePassword(String encodedPassword) { this.password = encodedPassword; }
     public void completeOnboarding() {

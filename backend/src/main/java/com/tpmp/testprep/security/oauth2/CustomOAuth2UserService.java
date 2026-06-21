@@ -34,7 +34,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     }
                     return existing;
                 })
-                .orElseGet(() -> userRepository.save(User.ofOAuth(email, name, provider, providerId)))
+                .orElseGet(() -> {
+                    // 신규 OAuth 사용자 — id 확정 후 기본 닉네임 설정 (2-step)
+                    User newUser = userRepository.save(User.ofOAuth(email, name, provider, providerId));
+                    newUser.updateNickname("사용자" + newUser.getId());
+                    return userRepository.save(newUser);
+                })
             );
 
         return oAuth2User;

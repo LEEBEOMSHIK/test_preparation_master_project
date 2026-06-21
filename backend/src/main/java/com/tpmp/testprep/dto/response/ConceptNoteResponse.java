@@ -52,4 +52,39 @@ public record ConceptNoteResponse(
                 n.getUpdatedAt()
         );
     }
+
+    /**
+     * 공개 컨텍스트 전용 팩토리 — isPublic=true 일 때 userName에 nickname을 사용하여 실명 노출 방지.
+     * nickname이 null이면 '사용자{id}' 폴백.
+     */
+    public static ConceptNoteResponse from(ConceptNote n, boolean isPublic) {
+        if (!isPublic) {
+            return from(n);
+        }
+        Question q = n.getQuestion();
+        QuestionBank qb = n.getQuestionBank();
+        String displayName = n.getUser().getNickname() != null
+                ? n.getUser().getNickname()
+                : "사용자" + n.getUser().getId();
+        return new ConceptNoteResponse(
+                n.getId(),
+                n.getTitle(),
+                n.getContent(),
+                n.isPublic(),
+                n.getUser().getId(),
+                displayName,
+                q != null ? q.getId() : null,
+                q != null ? q.getContent() : null,
+                q != null ? q.getQuestionType().name() : null,
+                q != null ? q.getCode() : null,
+                q != null ? q.getLanguage() : null,
+                qb != null ? qb.getId() : null,
+                qb != null ? qb.getContent() : null,
+                qb != null ? qb.getQuestionType().name() : null,
+                qb != null ? qb.getCode() : null,
+                qb != null ? qb.getLanguage() : null,
+                n.getCreatedAt(),
+                n.getUpdatedAt()
+        );
+    }
 }

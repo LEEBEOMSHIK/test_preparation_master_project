@@ -1,5 +1,43 @@
 # 사용자 설정 화면 수정 이력
 
+## HIST-20260620-001
+
+- **날짜**: 2026-06-20
+- **수정 범위**: 사용자 프론트엔드 / 설정 페이지
+- **수정 개요**: 닉네임 수정 섹션 카드 추가 — authStore.user.nickname 초기값 로드, PATCH /user/me/nickname 호출, 인라인 피드백, SettingsPageSkeleton에 닉네임 shimmer 블록 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/settings/page.tsx` | 수정 | 닉네임 수정 카드 추가(Notion 카드 위), SettingsPageSkeleton에 닉네임 shimmer 추가, 닉네임 상태·저장 로직 |
+| `frontend/src/store/authStore.ts` | 수정 | `updateUser(partial: Partial<User>)` 액션 추가 — 닉네임 갱신 후 store 동기화 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/settings/page.tsx`
+- 변경 전: Notion 연동 카드만 존재. `SettingsPageSkeleton`에 Notion 카드 shimmer만 있음
+- 변경 후:
+  - `SettingsPageSkeleton`에 닉네임 섹션 shimmer 블록(제목·설명·input+버튼 행) 추가
+  - `UserSettingsContent`에 `nicknameLoading`, `nicknameValue`, `nicknameSaving`, `nicknameFeedback` 상태 추가
+  - 초기값: `storeUser.nickname` 있으면 즉시 사용, 없으면 `authService.me()` 호출 후 store 갱신
+  - 저장: `userProfileService.patchNickname(trimmed)` → 성공 시 `updateUser({ nickname })` + 성공 메시지 3초 후 소멸, 실패 시 에러 메시지
+  - input maxLength=20, 빈/공백만이면 버튼 disabled
+  - Notion 카드는 `notionLoading` 별도 상태로 분리 유지
+- 이유: 닉네임 비식별화 도입에 따른 사용자 편집 UI 제공
+
+#### `frontend/src/store/authStore.ts`
+- 변경 전: `setAuth`, `clearAuth` 2개 액션만 존재
+- 변경 후: `updateUser(partial: Partial<User>)` 추가 — `state.user ? { ...state.user, ...partial } : state.user`
+- 이유: 닉네임 저장 후 전체 me() 재호출 없이 store 부분 갱신
+
+### 복원 방법
+이 ID(HIST-20260620-001)만으로 복원 시:
+- `settings/page.tsx`에서 닉네임 관련 state(`nicknameLoading`~`feedbackTimer`), `handleSaveNickname`, 닉네임 useEffect, 닉네임 섹션 JSX 제거. `SettingsPageSkeleton`에서 닉네임 shimmer 블록 제거. import에서 `userProfileService`, `authService`, `useAuthStore`, `useRef` 제거
+- `authStore.ts`에서 `updateUser` 타입 선언 및 구현 제거
+
+---
+
 ## HIST-20260619-001
 
 - **날짜**: 2026-06-19

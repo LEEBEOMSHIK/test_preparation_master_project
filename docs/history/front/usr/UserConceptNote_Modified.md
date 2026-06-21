@@ -1,3 +1,34 @@
+## HIST-20260620-001
+
+- **날짜**: 2026-06-20
+- **수정 범위**: 사용자 프론트엔드 / 개념노트 타입 · 사용자 프로필 서비스
+- **수정 개요**: User 인터페이스에 `nickname?` 추가, `userProfileService.ts` 신규 생성 (PATCH /user/me/nickname)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `User` 인터페이스에 `nickname?: string` 추가 |
+| `frontend/src/services/userProfileService.ts` | 추가 | `patchNickname(nickname)` — PATCH `/user/me/nickname` |
+
+### 수정 상세
+
+#### `frontend/src/types/index.ts`
+- 변경 전: `User` 인터페이스에 `nickname` 필드 없음
+- 변경 후: `name: string;` 다음에 `nickname?: string;` 추가
+- 이유: BE UserResponse에 nickname 추가됨에 따른 타입 동기화
+
+#### `frontend/src/services/userProfileService.ts` (신규)
+- `patchNickname: (nickname: string) => apiClient.patch<ApiResponse<User>>('/user/me/nickname', { nickname })`
+- 이유: 닉네임 수정 API 클라이언트 레이어 분리
+
+### 복원 방법
+이 ID(HIST-20260620-001)만으로 복원 시:
+- `types/index.ts`에서 `User.nickname?` 필드 제거
+- `services/userProfileService.ts` 삭제
+
+---
+
 ## HIST-20260619-002
 
 - **날짜**: 2026-06-19

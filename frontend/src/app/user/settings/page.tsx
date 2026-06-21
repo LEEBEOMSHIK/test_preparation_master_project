@@ -1,8 +1,11 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { notionService, type NotionStatus } from '@/services/notionService';
+import { userProfileService } from '@/services/userProfileService';
+import { authService } from '@/services/authService';
+import { useAuthStore } from '@/store/authStore';
 import { Skeleton } from '@/components/ui/Skeleton';
 
 // ── Suspense fallback ─────────────────────────────────────────────────────────
@@ -10,6 +13,18 @@ function SettingsPageSkeleton() {
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-6 animate-pulse">
       <Skeleton className="h-7 w-16" />
+      {/* 닉네임 섹션 shimmer */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-4 w-56" />
+        </div>
+        <div className="pt-4 border-t border-gray-100 flex gap-2">
+          <Skeleton className="h-9 flex-1 rounded-lg" />
+          <Skeleton className="h-9 w-16 rounded-lg" />
+        </div>
+      </div>
+      {/* Notion 섹션 shimmer */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2 flex-1">
@@ -30,16 +45,64 @@ function SettingsPageSkeleton() {
 function UserSettingsContent() {
   const searchParams = useSearchParams();
   const notionParam = searchParams.get('notion'); // connected | failed (콜백 후)
+
+  const storeUser = useAuthStore((s) => s.user);
+  const updateUser = useAuthStore((s) => s.updateUser);
+
+  // ── 닉네임 상태 ──────────────────────────────────────────────────────────
+  const [nicknameLoading, setNicknameLoading] = useState(true);
+  const [nicknameValue, setNicknameValue] = useState('');
+  const [nicknameSaving, setNicknameSaving] = useState(false);
+  const [nicknameFeedback, setNicknameFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Notion 상태 ───────────────────────────────────────────────────────────
   const [notion, setNotion] = useState<NotionStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [notionLoading, setNotionLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+
+  // 닉네임 초기값: store → 없으면 me() 호출
+  useEffect(() => {
+    if (storeUser?.nickname != null) {
+      setNicknameValue(storeUser.nickname);
+      setNicknameLoading(false);
+    } else {
+      authService.me()
+        .then(res => {
+          const nickname = res.data.data?.nickname ?? '';
+          setNicknameValue(nickname);
+          if (res.data.data) updateUser({ nickname: res.data.data.nickname });
+        })
+        .catch(() => setNicknameValue(''))
+        .finally(() => setNicknameLoading(false));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     notionService.getStatus()
       .then(res => { if (res.data.data) setNotion(res.data.data); })
       .catch(() => setNotion(null))
-      .finally(() => setLoading(false));
+      .finally(() => setNotionLoading(false));
   }, []);
+
+  async function handleSaveNickname() {
+    const trimmed = nicknameValue.trim();
+    if (!trimmed) return;
+    setNicknameSaving(true);
+    setNicknameFeedback(null);
+    try {
+      await userProfileService.patchNickname(trimmed);
+      updateUser({ nickname: trimmed });
+      setNicknameFeedback({ type: 'success', msg: '닉네임이 저장되었습니다.' });
+    } catch {
+      setNicknameFeedback({ type: 'error', msg: '저장에 실패했습니다. 다시 시도해 주세요.' });
+    } finally {
+      setNicknameSaving(false);
+      if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+      feedbackTimer.current = setTimeout(() => setNicknameFeedback(null), 3000);
+    }
+  }
 
   async function handleConnect() {
     setBusy(true);
@@ -63,6 +126,8 @@ function UserSettingsContent() {
     }
   }
 
+  const isSaveDisabled = nicknameSaving || nicknameValue.trim().length === 0;
+
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-6">
       <h1 className="text-xl font-bold text-gray-800">설정</h1>
@@ -79,6 +144,50 @@ function UserSettingsContent() {
         </div>
       )}
 
+      {/* 닉네임 수정 카드 */}
+      <section className="bg-white border border-gray-200 rounded-xl p-5">
+        <div>
+          <h2 className="font-semibold text-gray-800">닉네임 수정</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            공개 개념노트 탐색에서 다른 사용자에게 보이는 이름입니다.
+          </p>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          {nicknameLoading ? (
+            <div className="animate-pulse flex gap-2">
+              <Skeleton className="h-9 flex-1 rounded-lg" />
+              <Skeleton className="h-9 w-16 rounded-lg" />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={nicknameValue}
+                  onChange={e => setNicknameValue(e.target.value)}
+                  maxLength={20}
+                  placeholder="닉네임 입력 (최대 20자)"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+                <button
+                  onClick={handleSaveNickname}
+                  disabled={isSaveDisabled}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {nicknameSaving ? '저장 중…' : '저장'}
+                </button>
+              </div>
+              {nicknameFeedback && (
+                <p className={`text-xs ${nicknameFeedback.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                  {nicknameFeedback.msg}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Notion 연동 카드 */}
       <section className="bg-white border border-gray-200 rounded-xl p-5">
         <div className="flex items-start justify-between gap-4">
@@ -89,7 +198,7 @@ function UserSettingsContent() {
             </p>
           </div>
           {/* 상태 배지 */}
-          {!loading && notion && (
+          {!notionLoading && notion && (
             <span className={[
               'shrink-0 text-xs px-2.5 py-1 rounded-full border',
               !notion.configured ? 'bg-gray-100 text-gray-500 border-gray-200'
@@ -102,7 +211,7 @@ function UserSettingsContent() {
         </div>
 
         <div className="mt-4 pt-4 border-t border-gray-100">
-          {loading ? (
+          {notionLoading ? (
             <div className="animate-pulse">
               <Skeleton className="h-9 w-28 rounded-lg" />
             </div>

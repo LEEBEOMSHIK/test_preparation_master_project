@@ -81,19 +81,20 @@ public class ConceptNoteService {
     public Page<ConceptNoteResponse> getPublicNotes(String keyword, Pageable pageable) {
         String kw = StringUtils.hasText(keyword) ? keyword : null;
         return conceptNoteRepository.findPublicByTitle(kw, pageable)
-                .map(ConceptNoteResponse::from);
+                .map(note -> ConceptNoteResponse.from(note, true));
     }
 
     public ConceptNoteResponse getPublicNote(Long id, String requestEmail) {
         ConceptNote note = conceptNoteRepository.findByIdWithUser(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CONCEPT_NOTE_NOT_FOUND));
+        // 공개 컨텍스트이므로 본인 조회 분기를 포함해 모두 닉네임으로 응답 (의도된 동작)
         if (note.getUser().getEmail().equals(requestEmail)) {
-            return ConceptNoteResponse.from(note);
+            return ConceptNoteResponse.from(note, true);
         }
         if (!note.isPublic()) {
             throw new BusinessException(ErrorCode.CONCEPT_NOTE_NOT_FOUND);
         }
-        return ConceptNoteResponse.from(note);
+        return ConceptNoteResponse.from(note, true);
     }
 
     // ── Admin ────────────────────────────────────────────────────────────────

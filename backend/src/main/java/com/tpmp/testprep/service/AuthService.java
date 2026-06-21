@@ -48,7 +48,10 @@ public class AuthService {
                 .name(request.name())
                 .role(User.Role.USER)
                 .build();
-        userRepository.save(user);
+        // id 확정 후 기본 닉네임 설정 (2-step)
+        User saved = userRepository.save(user);
+        saved.updateNickname("사용자" + saved.getId());
+        userRepository.save(saved);
     }
 
     @Transactional
