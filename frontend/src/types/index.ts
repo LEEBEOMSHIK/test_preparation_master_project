@@ -406,6 +406,16 @@ export interface DailyStat {
   correctRate: number;
 }
 
+export interface QuizDomainStat {
+  domainName: string;
+  totalQuestions: number;
+}
+
+export interface QuizDailyStat {
+  date: string;
+  totalQuestions: number;
+}
+
 export interface UserDashboardData {
   totalQuestions: number;
   totalCorrect: number;
@@ -413,4 +423,7 @@ export interface UserDashboardData {
   domainStats: DomainStat[];
   weakDomains: DomainStat[];
   dailyTrend: DailyStat[];
+  quizTotalQuestions: number;
+  quizDomainStats: QuizDomainStat[];
+  quizDailyStats: QuizDailyStat[];
 }

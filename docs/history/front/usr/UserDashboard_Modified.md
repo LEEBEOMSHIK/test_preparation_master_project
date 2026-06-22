@@ -1,3 +1,62 @@
+## HIST-20260622-001
+
+- **날짜**: 2026-06-22
+- **수정 범위**: 사용자 프론트엔드 / 통계 대시보드
+- **수정 개요**: 대시보드 퀴즈 풀이량 섹션 추가 + 요약 카드 라벨 시험 기준으로 명확화 + 빈 화면 조건 퀴즈 포함으로 확장
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | QuizDomainStat, QuizDailyStat 인터페이스 추가; UserDashboardData에 퀴즈 3필드 추가 |
+| `frontend/src/components/ui/Skeleton.tsx` | 수정 | DashboardSkeleton 말미에 퀴즈 도메인별 풀이량 막대 스켈레톤 영역 추가 |
+| `frontend/src/app/user/dashboard/page.tsx` | 수정 | 요약 카드 라벨 명확화, 빈 화면 조건 확장, 퀴즈 풀이량 섹션(도메인별 수평+일자별 수직 BarChart) 추가 |
+
+### 수정 상세
+
+#### `frontend/src/types/index.ts`
+- 변경 전: UserDashboard 섹션에 DomainStat, DailyStat, UserDashboardData만 존재.
+- 변경 후:
+  ```ts
+  export interface QuizDomainStat { domainName: string; totalQuestions: number; }
+  export interface QuizDailyStat { date: string; totalQuestions: number; }
+  export interface UserDashboardData {
+    ...기존 6필드...
+    quizTotalQuestions: number;
+    quizDomainStats: QuizDomainStat[];
+    quizDailyStats: QuizDailyStat[];
+  }
+  ```
+- 이유: BE UserDashboardResponse 3필드 추가에 대응하는 FE 타입 확장.
+
+#### `frontend/src/components/ui/Skeleton.tsx`
+- 변경 전: DashboardSkeleton에 약점 Top5 섹션까지만 있음.
+- 변경 후: DashboardSkeleton 말미에 퀴즈 도메인별 풀이량 수평 막대 4행 스켈레톤 블록 추가.
+- 이유: 퀴즈 풀이량 섹션 신규 추가에 따른 스켈레톤 UI 컨벤션 준수.
+
+#### `frontend/src/app/user/dashboard/page.tsx`
+- 변경 전:
+  - 요약 카드 라벨: "총 풀이 문항", "총 정답", "전체 정답률", "응시 도메인"
+  - 빈 화면 조건: `!data || data.totalQuestions === 0`
+  - 퀴즈 풀이량 섹션 없음
+- 변경 후:
+  - 요약 카드 라벨: "시험 풀이 문항", "시험 정답", "시험 정답률", "시험 도메인"
+  - 빈 화면 조건: `!data || (data.totalQuestions === 0 && data.quizTotalQuestions === 0)`
+  - 퀴즈 풀이량 섹션 추가 (`quizTotalQuestions > 0`일 때):
+    - 섹션 헤더: "퀴즈 풀이량" + "데일리 퀴즈 풀이 현황 · 정오답 무관, 풀이 수 기준" + "총 N문제 풀이"
+    - 도메인별 수평 BarChart (layout="vertical", 단색 #6366f1, 풀이수 기준 XAxis, 많이 푼 도메인이 위로 오도록 오름차순 sort)
+    - 일자별 수직 BarChart (마지막 날 #6366f1, 나머지 #6366f155, Tooltip "N문제")
+  - import에 QuizDomainStat, QuizDailyStat 추가
+- 이유: 시험 정답률과 퀴즈 풀이량을 명확히 분리하여 사용자 혼선 방지.
+
+### 복원 방법
+이 ID(HIST-20260622-001)만으로 복원 시:
+- types/index.ts: QuizDomainStat, QuizDailyStat 제거; UserDashboardData에서 quizTotalQuestions/quizDomainStats/quizDailyStats 제거.
+- Skeleton.tsx: DashboardSkeleton에서 퀴즈 도메인 블록 제거.
+- dashboard/page.tsx: 요약 카드 라벨 원복, 빈 화면 조건 원복, 퀴즈 풀이량 섹션 제거, import에서 QuizDomainStat/QuizDailyStat 제거.
+
+---
+
 ## HIST-20260611-003
 
 - **날짜**: 2026-06-11

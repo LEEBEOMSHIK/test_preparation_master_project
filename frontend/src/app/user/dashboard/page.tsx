@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import { DashboardSkeleton } from '@/components/ui/Skeleton';
 import { userDashboardService, type DashboardPeriod } from '@/services/userDashboardService';
-import type { UserDashboardData, DomainStat, DailyStat } from '@/types';
+import type { UserDashboardData, DomainStat, DailyStat, QuizDomainStat, QuizDailyStat } from '@/types';
 
 // ── 기간 탭 ──────────────────────────────────────────────────────────────────
 
@@ -88,7 +88,7 @@ export default function UserDashboardPage() {
   }
 
   // ── 데이터 없음 ────────────────────────────────────────────────────────────
-  if (!data || data.totalQuestions === 0) {
+  if (!data || (data.totalQuestions === 0 && data.quizTotalQuestions === 0)) {
     return (
       <div className="space-y-4">
         <PageHeader period={period} onPeriodChange={setPeriod} />
@@ -109,7 +109,17 @@ export default function UserDashboardPage() {
     );
   }
 
-  const { totalQuestions, totalCorrect, overallCorrectRate, domainStats, weakDomains, dailyTrend } = data;
+  const {
+    totalQuestions,
+    totalCorrect,
+    overallCorrectRate,
+    domainStats,
+    weakDomains,
+    dailyTrend,
+    quizTotalQuestions,
+    quizDomainStats,
+    quizDailyStats,
+  } = data;
 
   // ── 차트 데이터 변환 ────────────────────────────────────────────────────────
   const domainChartData = [...domainStats]
@@ -124,6 +134,21 @@ export default function UserDashboardPage() {
     rate: Math.round(d.correctRate * 10) / 10,
   }));
 
+  // 퀴즈 도메인별 풀이량 — 많이 푼 도메인이 수평 막대 위로 오도록 오름차순 sort (recharts layout="vertical" 특성)
+  const quizDomainChartData = [...quizDomainStats]
+    .sort((a, b) => a.totalQuestions - b.totalQuestions)
+    .map((d: QuizDomainStat) => ({
+      name: d.domainName,
+      count: d.totalQuestions,
+    }));
+
+  const quizDailyChartData = quizDailyStats.map((d: QuizDailyStat) => ({
+    date: d.date.slice(5), // "MM-DD"
+    count: d.totalQuestions,
+  }));
+
+  const quizDomainMaxCount = quizDomainChartData.reduce((max, d) => Math.max(max, d.count), 1);
+
   return (
     <div className="space-y-5">
       <PageHeader period={period} onPeriodChange={setPeriod} />
@@ -131,9 +156,9 @@ export default function UserDashboardPage() {
       {/* ── 요약 카드 (2x2 / sm:4열) ──────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <SummaryCard
-          label="총 풀이 문항"
+          label="시험 풀이 문항"
           value={totalQuestions.toLocaleString()}
-          sub="누적 풀이 문항 수"
+          sub="시험 누적 풀이 문항 수"
           color="bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
@@ -143,9 +168,9 @@ export default function UserDashboardPage() {
           }
         />
         <SummaryCard
-          label="총 정답"
+          label="시험 정답"
           value={totalCorrect.toLocaleString()}
-          sub="누적 정답 수"
+          sub="시험 누적 정답 수"
           color="bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
@@ -154,9 +179,9 @@ export default function UserDashboardPage() {
           }
         />
         <SummaryCard
-          label="전체 정답률"
+          label="시험 정답률"
           value={`${overallCorrectRate.toFixed(1)}%`}
-          sub="전체 평균"
+          sub="시험 전체 평균"
           color="bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
@@ -166,7 +191,7 @@ export default function UserDashboardPage() {
           }
         />
         <SummaryCard
-          label="응시 도메인"
+          label="시험 도메인"
           value={`${domainStats.length}개`}
           sub="응시한 도메인 수"
           color="bg-violet-50 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400"
@@ -314,6 +339,112 @@ export default function UserDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* ── 퀴즈 풀이량 섹션 ──────────────────────────────────────── */}
+      {quizTotalQuestions > 0 && (
+        <div className="space-y-4">
+          {/* 섹션 헤더 */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">퀴즈 풀이량</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                데일리 퀴즈 풀이 현황 · 정오답 무관, 풀이 수 기준
+              </p>
+            </div>
+            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+              총 {quizTotalQuestions.toLocaleString()}문제 풀이
+            </span>
+          </div>
+
+          {/* 도메인별 풀이수 수평 BarChart */}
+          {quizDomainChartData.length > 0 && (
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">
+                도메인별 풀이량
+              </p>
+              <ResponsiveContainer width="100%" height={Math.max(160, quizDomainChartData.length * 36)}>
+                <BarChart
+                  layout="vertical"
+                  data={quizDomainChartData}
+                  margin={{ left: 8, right: 24, top: 0, bottom: 0 }}
+                  barCategoryGap="30%"
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f3f4f6" />
+                  <XAxis
+                    type="number"
+                    domain={[0, quizDomainMaxCount]}
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={90}
+                    tick={{ fontSize: 11, fill: '#6b7280' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(0,0,0,0.03)' }}
+                    contentStyle={{
+                      fontSize: 12,
+                      borderRadius: 8,
+                      border: '1px solid #e5e7eb',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                    }}
+                    formatter={(v) => [typeof v === 'number' ? `${v}문제` : '', '풀이 수']}
+                  />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#6366f1" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* 일자별 풀이수 수직 BarChart */}
+          {quizDailyChartData.length > 0 && (
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">
+                날짜별 퀴즈 풀이량
+              </p>
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart
+                  data={quizDailyChartData}
+                  margin={{ left: 0, right: 4, top: 0, bottom: 0 }}
+                  barCategoryGap={quizDailyChartData.length > 20 ? '10%' : '30%'}
+                >
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={quizDailyChartData.length > 14 ? 3 : 0}
+                  />
+                  <YAxis hide />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                    contentStyle={{
+                      fontSize: 12,
+                      borderRadius: 8,
+                      border: '1px solid #e5e7eb',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                    }}
+                    formatter={(v) => [typeof v === 'number' ? `${v}문제` : '', '풀이 수']}
+                  />
+                  <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+                    {quizDailyChartData.map((_, index) => (
+                      <Cell
+                        key={index}
+                        fill={index === quizDailyChartData.length - 1 ? '#6366f1' : '#6366f155'}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -8,5 +8,8 @@ public record UserDashboardResponse(
         double overallCorrectRate,
         List<DomainStatResponse> domainStats,
         List<DomainStatResponse> weakDomains,
-        List<DailyStatResponse> dailyTrend
+        List<DailyStatResponse> dailyTrend,
+        long quizTotalQuestions,
+        List<QuizDomainStatResponse> quizDomainStats,
+        List<QuizDailyStatResponse> quizDailyStats
 ) {}

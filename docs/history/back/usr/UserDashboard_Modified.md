@@ -1,3 +1,58 @@
+## HIST-20260622-002
+
+- **날짜**: 2026-06-22
+- **수정 범위**: 사용자 백엔드 / 통계 대시보드
+- **수정 개요**: 대시보드 퀴즈 풀이량 별도 집계 추가 — 정답률 경로(시험 전용 환원) + 퀴즈 풀이량 3필드 신규 반환
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuizDomainStatResponse.java` | 추가 | 퀴즈 도메인별 풀이량 응답 record(domainName, totalQuestions) |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuizDailyStatResponse.java` | 추가 | 퀴즈 날짜별 풀이량 응답 record(date, totalQuestions) |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/UserDashboardResponse.java` | 수정 | quizTotalQuestions, quizDomainStats, quizDailyStats 3필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserDashboardService.java` | 수정 | 정답률 경로를 시험 전용으로 환원; 퀴즈 풀이량 3필드 별도 집계 로직 추가 |
+
+### 수정 상세
+
+#### `QuizDomainStatResponse.java` (신규)
+- 변경 전: 없음
+- 변경 후: `record(String domainName, long totalQuestions)`
+- 이유: 퀴즈 도메인별 풀이량 응답 전용 DTO(정답 정보 불필요)
+
+#### `QuizDailyStatResponse.java` (신규)
+- 변경 전: 없음
+- 변경 후: `record(String date, long totalQuestions)`
+- 이유: 퀴즈 날짜별 풀이량 응답 전용 DTO(정답률 불필요)
+
+#### `UserDashboardResponse.java`
+- 변경 전: `record(totalQuestions, totalCorrect, overallCorrectRate, domainStats, weakDomains, dailyTrend)`
+- 변경 후: 맨 뒤에 3필드 추가 — `long quizTotalQuestions, List<QuizDomainStatResponse> quizDomainStats, List<QuizDailyStatResponse> quizDailyStats`
+- 이유: record 불변 필드 확장, 기존 6필드 순서 유지
+
+#### `UserDashboardService.java`
+- 변경 전: 총 문항/정답/도메인별/날짜별 집계가 시험+퀴즈 병합(HIST-20260622-001 참조).
+- 변경 후:
+  - 정답률 경로 시험 전용 환원: `totalQuestions/totalCorrect` = examTotals만, `domainStats/weakDomains` = ExamHistory aggregateDomain만, `dailyTrend` = ExamHistory aggregateDaily만. 퀴즈 merge 블록 제거.
+  - 퀴즈 풀이량 별도 집계:
+    - `quizTotalQuestions`: quizHistoryRepository.sumTotalAndCorrectByUserAndPeriod → [0](COUNT)
+    - `quizDomainStats`: quizHistoryRepository.aggregateDomainStatsByUserAndPeriod → QuizDomainStatResponse(row[0], row[1]) → 풀이수 내림차순 정렬
+    - `quizDailyStats`: quizHistoryRepository.aggregateDailyStatsByUserAndPeriod → TreeMap(날짜 ASC) → QuizDailyStatResponse
+  - 기존 `normalizeSingleAggregateRow/longValueAt/toDateString` 헬퍼 재사용
+  - import 추가: QuizDomainStatResponse, QuizDailyStatResponse
+- 이유: 시험 정답률과 퀴즈 풀이량을 동일 집계 경로에 합산하면 정답률이 왜곡됨. 두 메트릭을 완전히 분리하여 각각 의미 있는 값 제공.
+
+### 복원 방법
+이 ID(HIST-20260622-002)만으로 복원 시:
+1. QuizDomainStatResponse.java, QuizDailyStatResponse.java 파일 삭제
+2. UserDashboardResponse.java에서 추가된 3필드 제거
+3. UserDashboardService.java를 HIST-20260622-001(시험+퀴즈 병합 버전)으로 되돌림:
+   - 퀴즈 도메인/날짜 merge 블록 복원
+   - quizTotalQuestions를 totalQuestions에 합산하는 코드 복원
+   - QuizDomainStatResponse/QuizDailyStatResponse import 제거
+
+---
+
 ## HIST-20260622-001
 
 - **날짜**: 2026-06-22

@@ -313,16 +313,34 @@ function QuizPlayContent() {
 
   // ── Result ─────────────────────────────────────────────────────────────────
   if (phase === 'result') {
+    const resultData = mapSessionResultsToExamResultData(sessionResults);
+    const sessionCorrectCount = sessionResults.filter(r => r.checkResult.correct).length;
     return (
-      <ExamResultDisplay
-        result={mapSessionResultsToExamResultData(sessionResults)}
-        examinationTitle={categoryName}
-        onBack={() => router.push('/user/quiz')}
-        backLabel="카테고리 선택"
-        showSavedBanner={false}
-        completionLabel="퀴즈 완료"
-        onRetake={handleRetake}
-      />
+      <div className="bg-gray-50 min-h-screen">
+        {/* 풀이량 헤더 카드 */}
+        <div className="max-w-2xl mx-auto pt-8 px-4">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-1">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+              {categoryName}
+            </p>
+            <p className="text-2xl font-bold text-indigo-600">
+              {sessionResults.length}문제
+            </p>
+            <p className="text-sm text-gray-500">
+              이번 세션 풀이 완료{' '}
+              <span className="font-medium text-gray-700">· {sessionCorrectCount}문제 확인</span>
+            </p>
+          </div>
+        </div>
+        <ExamResultDisplay
+          result={resultData}
+          showScoreCard={false}
+          onBack={() => router.push('/user/quiz')}
+          backLabel="카테고리 선택"
+          showSavedBanner={false}
+          onRetake={handleRetake}
+        />
+      </div>
     );
   }
 

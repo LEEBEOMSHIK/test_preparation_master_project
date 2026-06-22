@@ -15,6 +15,8 @@ interface Props {
   onRetake?: () => void;
   /** 집계 카드의 완료 헤딩 텍스트 (기본값: '시험 완료') */
   completionLabel?: string;
+  /** false면 점수 집계 카드 미렌더, 기본 true */
+  showScoreCard?: boolean;
 }
 
 /**
@@ -29,6 +31,7 @@ export function ExamResultDisplay({
   showSavedBanner = false,
   onRetake,
   completionLabel,
+  showScoreCard = true,
 }: Props) {
   const [resultFilter, setResultFilter] = useState<'all' | 'wrong'>('all');
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
@@ -62,29 +65,31 @@ export function ExamResultDisplay({
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto py-8 px-4 space-y-6">
         {/* 집계 카드 */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center space-y-3">
-          {examinationTitle && (
-            <p className="text-sm font-medium text-indigo-600 truncate">{examinationTitle}</p>
-          )}
-          <div
-            className={[
-              'w-20 h-20 rounded-full mx-auto flex items-center justify-center text-2xl font-bold',
-              scoreColorClass,
-            ].join(' ')}
-          >
-            {result.score}점
+        {showScoreCard && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center space-y-3">
+            {examinationTitle && (
+              <p className="text-sm font-medium text-indigo-600 truncate">{examinationTitle}</p>
+            )}
+            <div
+              className={[
+                'w-20 h-20 rounded-full mx-auto flex items-center justify-center text-2xl font-bold',
+                scoreColorClass,
+              ].join(' ')}
+            >
+              {result.score}점
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">{completionLabel ?? '시험 완료'}</h2>
+              <p className="text-gray-500 text-sm mt-1">
+                {result.total}문제 중{' '}
+                <span className="font-semibold text-indigo-600">{result.correct}문제</span> 정답
+              </p>
+            </div>
+            {result.takenAt && (
+              <p className="text-xs text-gray-400">응시일시: {formatTakenAt(result.takenAt)}</p>
+            )}
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">{completionLabel ?? '시험 완료'}</h2>
-            <p className="text-gray-500 text-sm mt-1">
-              {result.total}문제 중{' '}
-              <span className="font-semibold text-indigo-600">{result.correct}문제</span> 정답
-            </p>
-          </div>
-          {result.takenAt && (
-            <p className="text-xs text-gray-400">응시일시: {formatTakenAt(result.takenAt)}</p>
-          )}
-        </div>
+        )}
 
         {/* 저장 안내 배너 (제출 직후에만) */}
         {showSavedBanner && (

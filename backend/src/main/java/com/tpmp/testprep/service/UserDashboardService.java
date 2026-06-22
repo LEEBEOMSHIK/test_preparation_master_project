@@ -2,6 +2,8 @@ package com.tpmp.testprep.service;
 
 import com.tpmp.testprep.dto.response.DailyStatResponse;
 import com.tpmp.testprep.dto.response.DomainStatResponse;
+import com.tpmp.testprep.dto.response.QuizDailyStatResponse;
+import com.tpmp.testprep.dto.response.QuizDomainStatResponse;
 import com.tpmp.testprep.dto.response.UserDashboardResponse;
 import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.exception.BusinessException;
@@ -35,7 +37,9 @@ public class UserDashboardService {
     private final QuizHistoryRepository quizHistoryRepository;
 
     /**
-     * 사용자 통계 대시보드 조회 (시험 이력 + 퀴즈 이력 합산).
+     * 사용자 통계 대시보드 조회.
+     * - 정답률(총 문항·정답·도메인별·날짜별) = 시험 이력 전용
+     * - 퀴즈 풀이량(총 문항·도메인별·날짜별) = 퀴즈 이력 별도 집계
      *
      * @param email 현재 인증 사용자 이메일
      * @param days  집계 기간 (7·30 → 최근 N일, 0 → 전체)
@@ -48,32 +52,18 @@ public class UserDashboardService {
                 ? LocalDateTime.of(2000, 1, 1, 0, 0)
                 : LocalDateTime.now().minusDays(days);
 
-        // ── 총 문항 / 총 정답 (시험 + 퀴즈 합산) ──────────────────
+        // ── 시험 전용: 총 문항 / 총 정답 ──────────────────────────
         Object[] examTotals = normalizeSingleAggregateRow(
                 examHistoryRepository.sumTotalAndCorrectByUserAndPeriod(user.getId(), from));
-        Object[] quizTotals = normalizeSingleAggregateRow(
-                quizHistoryRepository.sumTotalAndCorrectByUserAndPeriod(user.getId(), from));
 
-        long totalQuestions = longValueAt(examTotals, 0) + longValueAt(quizTotals, 0);
-        long totalCorrect   = longValueAt(examTotals, 1) + longValueAt(quizTotals, 1);
+        long totalQuestions = longValueAt(examTotals, 0);
+        long totalCorrect   = longValueAt(examTotals, 1);
         double overallRate  = totalQuestions > 0 ? totalCorrect * 100.0 / totalQuestions : 0.0;
 
-        // ── 도메인별 집계 (시험 + 퀴즈 병합) ──────────────────────
-        // 도메인명 → [total, correct] 맵으로 병합
+        // ── 시험 전용: 도메인별 정답률 ────────────────────────────
         Map<String, long[]> domainMap = new LinkedHashMap<>();
 
         examHistoryRepository.aggregateDomainStatsByUserAndPeriod(user.getId(), from)
-                .stream()
-                .filter(row -> row[0] != null)
-                .forEach(row -> {
-                    String name    = (String) row[0];
-                    long   total   = ((Number) row[1]).longValue();
-                    long   correct = ((Number) row[2]).longValue();
-                    domainMap.merge(name, new long[]{total, correct},
-                            (a, b) -> new long[]{a[0] + b[0], a[1] + b[1]});
-                });
-
-        quizHistoryRepository.aggregateDomainStatsByUserAndPeriod(user.getId(), from)
                 .stream()
                 .filter(row -> row[0] != null)
                 .forEach(row -> {
@@ -100,21 +90,10 @@ public class UserDashboardService {
                 .limit(WEAK_DOMAIN_TOP_N)
                 .collect(Collectors.toList());
 
-        // ── 날짜별 추이 (시험 + 퀴즈 병합) ────────────────────────
+        // ── 시험 전용: 날짜별 정답률 추이 ─────────────────────────
         Map<String, long[]> dailyMap = new LinkedHashMap<>();
 
         examHistoryRepository.aggregateDailyStatsByUserAndPeriod(user.getId(), from)
-                .stream()
-                .filter(row -> row[0] != null)
-                .forEach(row -> {
-                    String dateStr = toDateString(row[0]);
-                    long   total   = ((Number) row[1]).longValue();
-                    long   correct = ((Number) row[2]).longValue();
-                    dailyMap.merge(dateStr, new long[]{total, correct},
-                            (a, b) -> new long[]{a[0] + b[0], a[1] + b[1]});
-                });
-
-        quizHistoryRepository.aggregateDailyStatsByUserAndPeriod(user.getId(), from)
                 .stream()
                 .filter(row -> row[0] != null)
                 .forEach(row -> {
@@ -136,13 +115,48 @@ public class UserDashboardService {
                 })
                 .collect(Collectors.toList());
 
+        // ── 퀴즈 전용: 총 풀이 문항 수 ───────────────────────────
+        Object[] quizTotals = normalizeSingleAggregateRow(
+                quizHistoryRepository.sumTotalAndCorrectByUserAndPeriod(user.getId(), from));
+        long quizTotalQuestions = longValueAt(quizTotals, 0);
+
+        // ── 퀴즈 전용: 도메인별 풀이량 (풀이수 내림차순) ─────────
+        List<QuizDomainStatResponse> quizDomainStats = quizHistoryRepository
+                .aggregateDomainStatsByUserAndPeriod(user.getId(), from)
+                .stream()
+                .filter(row -> row[0] != null)
+                .map(row -> new QuizDomainStatResponse(
+                        (String) row[0],
+                        ((Number) row[1]).longValue()
+                ))
+                .sorted(Comparator.comparingLong(QuizDomainStatResponse::totalQuestions).reversed())
+                .collect(Collectors.toList());
+
+        // ── 퀴즈 전용: 날짜별 풀이량 (날짜 ASC) ──────────────────
+        List<QuizDailyStatResponse> quizDailyStats = quizHistoryRepository
+                .aggregateDailyStatsByUserAndPeriod(user.getId(), from)
+                .stream()
+                .filter(row -> row[0] != null)
+                .collect(Collectors.toMap(
+                        row -> toDateString(row[0]),
+                        row -> ((Number) row[1]).longValue(),
+                        Long::sum,
+                        java.util.TreeMap::new
+                ))
+                .entrySet().stream()
+                .map(e -> new QuizDailyStatResponse(e.getKey(), e.getValue()))
+                .collect(Collectors.toList());
+
         return new UserDashboardResponse(
                 totalQuestions,
                 totalCorrect,
                 overallRate,
                 domainStats,
                 weakDomains,
-                dailyTrend
+                dailyTrend,
+                quizTotalQuestions,
+                quizDomainStats,
+                quizDailyStats
         );
     }
 

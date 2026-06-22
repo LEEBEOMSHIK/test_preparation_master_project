@@ -266,6 +266,17 @@ export function DashboardSkeleton() {
           ))}
         </div>
       </div>
+
+      {/* 퀴즈 도메인별 풀이량 막대 */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 p-5 space-y-3">
+        <Skeleton className="h-3.5 w-32 mb-4" />
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <Skeleton className={`h-3 shrink-0 ${i % 2 === 0 ? 'w-24' : 'w-20'}`} />
+            <Skeleton className={`h-5 rounded-sm ${i % 3 === 0 ? 'w-2/3' : i % 3 === 1 ? 'w-1/2' : 'w-3/4'}`} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
