@@ -8,8 +8,9 @@ import { conceptNoteService } from '@/services/conceptNoteService';
 import { RichContent } from '@/components/ui/RichContent';
 import { QuizCardSkeleton } from '@/components/ui/Skeleton';
 import { ConceptNoteModal } from '@/components/ui/ConceptNoteModal';
+import { ExamResultDisplay } from '@/components/ui/ExamResultDisplay';
 import { stripHtml } from '@/lib/html';
-import type { ConceptNote } from '@/types';
+import type { ConceptNote, ExamResultData, QuestionResult, QuestionType } from '@/types';
 
 type Phase = 'loading' | 'quiz' | 'continue' | 'result';
 
@@ -17,6 +18,34 @@ interface AnswerState {
   userAnswer: string;
   submitted: boolean;
   result?: CheckResult;
+}
+
+/** 세션 내 채점 완료 문항 누적 기록 (이 파일 전용) */
+interface SessionResultItem {
+  question: QuizQuestion;
+  userAnswer: string;
+  checkResult: CheckResult;
+}
+
+/** SessionResultItem[] → ExamResultData 매핑 (순수 함수) */
+function mapSessionResultsToExamResultData(items: SessionResultItem[]): ExamResultData {
+  const total = items.length;
+  const correct = items.filter(item => item.checkResult.correct).length;
+  const score = total > 0 ? Math.round((correct / total) * 100) : 0;
+  const results: QuestionResult[] = items.map((item, i) => ({
+    questionId: item.question.id,
+    seq: i + 1,
+    content: item.question.content,
+    questionType: item.question.questionType as QuestionType,
+    options: item.question.options,
+    userAnswer: item.userAnswer,
+    correctAnswer: item.checkResult.answer,
+    correct: item.checkResult.correct,
+    explanation: item.checkResult.explanation,
+    code: item.question.code,
+    language: item.question.language,
+  }));
+  return { total, correct, score, results };
 }
 
 // ── Inner component (useSearchParams 사용) ────────────────────────────────────
@@ -39,6 +68,9 @@ function QuizPlayContent() {
   // Accumulated across batches
   const [sessionAnswered, setSessionAnswered] = useState(0);
   const [sessionCorrect, setSessionCorrect] = useState(0);
+
+  // 세션 내 채점 완료 문항 누적 (결과 화면용)
+  const [sessionResults, setSessionResults] = useState<SessionResultItem[]>([]);
 
   // 북마크 상태
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set());
@@ -140,6 +172,14 @@ function QuizPlayContent() {
     setPhase('result');
   };
 
+  const handleRetake = () => {
+    setSessionAnswered(0);
+    setSessionCorrect(0);
+    setSessionResults([]);
+    setRoundNum(1);
+    loadBatch();
+  };
+
   const handleNext = () => {
     if (current < questions.length - 1) {
       setCurrent(c => c + 1);
@@ -165,6 +205,10 @@ function QuizPlayContent() {
           ...prev,
           [q.id]: { userAnswer: inputValue.trim(), submitted: true, result: res.data.data! },
         }));
+        setSessionResults(prev => [
+          ...prev,
+          { question: q, userAnswer: inputValue.trim(), checkResult: res.data.data! },
+        ]);
       }
     } finally {
       setChecking(false);
@@ -182,11 +226,35 @@ function QuizPlayContent() {
           ...prev,
           [q.id]: { userAnswer, submitted: true, result: res.data.data! },
         }));
+        setSessionResults(prev => [
+          ...prev,
+          { question: q, userAnswer, checkResult: res.data.data! },
+        ]);
       }
     } finally {
       setChecking(false);
     }
   }, [q, answerState]);
+
+  const handleSelectOX = useCallback(async (val: 'O' | 'X') => {
+    if (!q || answerState?.submitted || checking) return;
+    setChecking(true);
+    try {
+      const res = await quizService.checkAnswer(q.id, val);
+      if (res.data.success && res.data.data) {
+        setAnswers(prev => ({
+          ...prev,
+          [q.id]: { userAnswer: val, submitted: true, result: res.data.data! },
+        }));
+        setSessionResults(prev => [
+          ...prev,
+          { question: q, userAnswer: val, checkResult: res.data.data! },
+        ]);
+      }
+    } finally {
+      setChecking(false);
+    }
+  }, [q, answerState, checking]);
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (phase === 'loading') {
@@ -245,50 +313,16 @@ function QuizPlayContent() {
 
   // ── Result ─────────────────────────────────────────────────────────────────
   if (phase === 'result') {
-    const totalAnswered = sessionAnswered;
-    const totalCorrect = sessionCorrect;
-    const score = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
-
     return (
-      <div className="max-w-lg mx-auto space-y-6 py-8">
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
-          <div className={[
-            'w-20 h-20 rounded-full mx-auto flex items-center justify-center text-3xl font-bold mb-4',
-            score >= 80 ? 'bg-green-100 text-green-600'
-            : score >= 50 ? 'bg-yellow-100 text-yellow-600'
-            : 'bg-red-100 text-red-600',
-          ].join(' ')}>
-            {score}
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-1">세션 종료</h2>
-          <p className="text-gray-500 text-sm mb-1">
-            총 <span className="font-semibold text-gray-800">{totalAnswered}</span>문제 중{' '}
-            <span className="font-semibold text-indigo-600">{totalCorrect}문제</span> 정답
-          </p>
-          <p className="text-xs text-gray-400 mb-5">
-            {roundNum - (phase === 'result' ? 0 : 1)}라운드 진행
-          </p>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={() => router.push('/user/quiz')}
-              className="px-5 py-2 text-sm border border-gray-300 rounded-xl hover:bg-gray-50 transition"
-            >
-              카테고리 선택
-            </button>
-            <button
-              onClick={() => {
-                setSessionAnswered(0);
-                setSessionCorrect(0);
-                setRoundNum(1);
-                loadBatch();
-              }}
-              className="px-5 py-2 text-sm bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition"
-            >
-              다시 시작
-            </button>
-          </div>
-        </div>
-      </div>
+      <ExamResultDisplay
+        result={mapSessionResultsToExamResultData(sessionResults)}
+        examinationTitle={categoryName}
+        onBack={() => router.push('/user/quiz')}
+        backLabel="카테고리 선택"
+        showSavedBanner={false}
+        completionLabel="퀴즈 완료"
+        onRetake={handleRetake}
+      />
     );
   }
 
@@ -396,19 +430,7 @@ function QuizPlayContent() {
               return (
                 <button
                   key={val}
-                  onClick={async () => {
-                    if (answerState?.submitted) return;
-                    setChecking(true);
-                    try {
-                      const res = await quizService.checkAnswer(q.id, val);
-                      if (res.data.success && res.data.data) {
-                        setAnswers(prev => ({
-                          ...prev,
-                          [q.id]: { userAnswer: val, submitted: true, result: res.data.data! },
-                        }));
-                      }
-                    } finally { setChecking(false); }
-                  }}
+                  onClick={() => handleSelectOX(val as 'O' | 'X')}
                   disabled={!!answerState?.submitted || checking}
                   className={`flex-1 py-4 rounded-xl border text-2xl font-bold transition ${style} disabled:cursor-default`}
                 >

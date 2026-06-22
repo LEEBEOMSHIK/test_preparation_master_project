@@ -13,6 +13,8 @@ interface Props {
   showSavedBanner?: boolean;
   /** 제공 시 '다시 풀기' 버튼을 표시한다 (시험 응시 화면에서만 전달). */
   onRetake?: () => void;
+  /** 집계 카드의 완료 헤딩 텍스트 (기본값: '시험 완료') */
+  completionLabel?: string;
 }
 
 /**
@@ -26,6 +28,7 @@ export function ExamResultDisplay({
   backLabel = '시험 목록으로',
   showSavedBanner = false,
   onRetake,
+  completionLabel,
 }: Props) {
   const [resultFilter, setResultFilter] = useState<'all' | 'wrong'>('all');
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
@@ -72,7 +75,7 @@ export function ExamResultDisplay({
             {result.score}점
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">시험 완료</h2>
+            <h2 className="text-xl font-bold text-gray-900">{completionLabel ?? '시험 완료'}</h2>
             <p className="text-gray-500 text-sm mt-1">
               {result.total}문제 중{' '}
               <span className="font-semibold text-indigo-600">{result.correct}문제</span> 정답

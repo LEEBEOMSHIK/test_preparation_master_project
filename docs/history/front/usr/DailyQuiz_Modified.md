@@ -1,3 +1,41 @@
+## HIST-20260622-001
+
+- **날짜**: 2026-06-22
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 플레이
+- **수정 개요**: 퀴즈 세션 결과 화면을 ExamResultDisplay 공용 컴포넌트로 교체 — 채점 이력 누적 및 문항별 정오/해설 아코디언 표시
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | SessionResultItem 타입·상태 추가, 세 채점 경로에 push, handleSelectOX useCallback 추출, result phase를 ExamResultDisplay로 교체, handleRetake 추가 |
+| `frontend/src/components/ui/ExamResultDisplay.tsx` | 수정 | Props에 `completionLabel?: string` 추가, 집계 카드 헤딩을 `completionLabel ?? '시험 완료'`로 변경 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/ExamResultDisplay.tsx`
+- 변경 전: Props에 `completionLabel` 없음; 집계 카드 `<h2>시험 완료</h2>` 하드코딩
+- 변경 후: `completionLabel?: string` prop 추가; `<h2>{completionLabel ?? '시험 완료'}</h2>`로 변경 (기본값 유지 → 기존 시험·이력 화면 무영향)
+- 이유: 퀴즈 결과 화면에서 "퀴즈 완료"로 표시하기 위해 하위호환 prop 도입
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `phase === 'result'` 시 점수·정답수만 보여주는 자체 카드 UI, 아코디언 없음
+- 변경 후:
+  1. 파일 상단에 `SessionResultItem` 인터페이스 및 `mapSessionResultsToExamResultData` 순수 함수 추가
+  2. `sessionResults: SessionResultItem[]` 상태 추가
+  3. `handleSubmitAnswer` / `handleSelectOption` / `handleSelectOX`(신규 useCallback) 채점 성공 분기에 `setSessionResults` push 추가
+  4. OX 인라인 async onClick → `handleSelectOX` useCallback으로 추출, JSX는 `onClick={() => handleSelectOX(val as 'O' | 'X')}`
+  5. `handleRetake` 추가: sessionAnswered·sessionCorrect·sessionResults 초기화 후 loadBatch()
+  6. `result` phase 전체를 `<ExamResultDisplay result={...} completionLabel="퀴즈 완료" onRetake={handleRetake} .../>` 로 대체
+- 이유: 세션 결과 화면에서 문항별 정오·정답·해설 아코디언을 제공하여 복습 UX 개선
+
+### 복원 방법
+이 ID(HIST-20260622-001)만으로 복원 시:
+- `ExamResultDisplay.tsx`: `completionLabel?: string` prop 제거, `{completionLabel ?? '시험 완료'}` → `시험 완료`로 되돌리기
+- `page.tsx`: `SessionResultItem` 인터페이스·`mapSessionResultsToExamResultData` 함수 제거, `sessionResults` 상태 제거, 세 채점 경로의 `setSessionResults(...)` 라인 제거, `handleSelectOX` useCallback 제거(OX JSX 인라인 async onClick 복원), `handleRetake` 제거, result phase 블록을 기존 자체 카드 UI로 되돌리기, ExamResultDisplay·ExamResultData·QuestionResult·QuestionType import 제거
+
+---
+
 ## HIST-20260613-003
 
 - **날짜**: 2026-06-13
