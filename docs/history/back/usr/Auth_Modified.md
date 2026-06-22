@@ -1,3 +1,39 @@
+## HIST-20260622-001
+
+- **날짜**: 2026-06-22
+- **수정 범위**: 사용자 백엔드 / 닉네임 DB 유니크 제약
+- **수정 개요**: 닉네임 컬럼에 대소문자 무시 functional unique index(`LOWER(nickname)`) 적용 — 선행 중복 정리 후 PostgreSQL functional index 생성하는 `NicknameUniqueIndexRunner` 추가, `User.java` nickname 컬럼 주석 명시
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/config/NicknameUniqueIndexRunner.java` | 추가 | `@Order(250)` ApplicationRunner — 대소문자 중복 닉네임 정리 후 `ux_users_nickname_lower` functional unique index 생성 |
+| `backend/src/main/java/com/tpmp/testprep/entity/User.java` | 수정 | nickname `@Column`에 `unique=true` 미적용 이유 주석 추가 |
+
+### 수정 상세
+
+#### `config/NicknameUniqueIndexRunner.java` (신규)
+- 변경 전: 없음
+- 변경 후: `@Order(250)` ApplicationRunner 신규 추가
+  - `deduplicateNicknames()`: `LOWER(nickname)` 기준 중복 그룹에서 `ROW_NUMBER() PARTITION BY LOWER(nickname) ORDER BY id ASC` 윈도우 함수를 사용하여 rn > 1(id가 큰 행, 즉 늦게 가입한 사용자)의 닉네임을 `사용자{id}`로 교체. 중복 없으면 0건(멱등).
+  - `createUniqueIndex()`: `CREATE UNIQUE INDEX IF NOT EXISTS ux_users_nickname_lower ON users (LOWER(nickname))` 실행. `IF NOT EXISTS`로 멱등 보장.
+- 이유: 앱 레벨 `existsByNicknameIgnoreCase`는 단일 요청 중복만 차단; 동시 요청 레이스 컨디션을 DB 레벨에서 방어하기 위해 functional unique index 필요. `@Column(unique=true)`는 대소문자 구분 인덱스만 생성하므로 functional index 방식으로 구현.
+- 실행 순서: UserNicknameInitRunner(@Order 150) → 이 러너(@Order 250). 모든 NULL 닉네임이 먼저 채워진 뒤 실행됨.
+
+#### `entity/User.java`
+- 변경 전: `@Column(name = "nickname", nullable = true, length = 50)` — 주석 없음
+- 변경 후: 위에 `// unique=true 는 의도적으로 생략. 대소문자 무시 유니크 제약은 NicknameUniqueIndexRunner 가 생성하는 functional index (LOWER(nickname)) 로 관리한다.` 주석 추가
+- 이유: Hibernate ddl-auto가 `@Column(unique=true)` 감지 시 별도 단순 unique index를 추가로 생성할 수 있어 functional index와 이중 적용될 수 있음. 주석으로 의도를 명시하여 혼동 방지.
+
+### 복원 방법
+이 ID(HIST-20260622-001)만으로 복원 시:
+1. `NicknameUniqueIndexRunner.java` 삭제
+2. `User.java` nickname `@Column` 위 주석 제거
+3. DB에 생성된 `ux_users_nickname_lower` 인덱스가 있다면 `DROP INDEX ux_users_nickname_lower`로 제거
+
+---
+
 ## HIST-20260621-001
 
 - **날짜**: 2026-06-21

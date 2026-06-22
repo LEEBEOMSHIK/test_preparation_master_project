@@ -32,6 +32,8 @@ public class User {
     @Column(nullable = false)
     private String name;
 
+    // unique=true 는 의도적으로 생략. 대소문자 무시 유니크 제약은
+    // NicknameUniqueIndexRunner 가 생성하는 functional index (LOWER(nickname)) 로 관리한다.
     @Column(name = "nickname", nullable = true, length = 50)
     private String nickname;
 
