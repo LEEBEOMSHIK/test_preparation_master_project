@@ -1,3 +1,90 @@
+## HIST-20260622-002
+
+- **날짜**: 2026-06-22
+- **수정 범위**: 사용자 백엔드 / 퀴즈
+- **수정 개요**: `checkAnswer` 트랜잭션 격리 결함 수정 — `QuizHistory` 저장을 `QuizHistoryRecorder`(REQUIRES_NEW)로 분리하여 `UnexpectedRollbackException` 방지
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/QuizHistoryRecorder.java` | 추가 | REQUIRES_NEW 독립 트랜잭션으로 QuizHistory 저장하는 전담 컴포넌트 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java` | 수정 | 메서드 레벨 `@Transactional` 제거, `QuizHistoryRecorder` 주입·호출, `QuizHistoryRepository`·`QuizHistory`·`User` import 제거 |
+
+### 수정 상세
+
+#### `service/QuizHistoryRecorder.java` (신규)
+- 변경 전: 없음
+- 변경 후: `@Service @RequiredArgsConstructor @Slf4j`. `QuizHistoryRepository`·`UserRepository` 주입. `record(Long userId, Long questionBankId, Long categoryId, String domainName, String questionType, String userAnswer, boolean correct)` — `@Transactional(propagation = Propagation.REQUIRES_NEW)`, 내부에서 `userRepository.getReferenceById(userId)`로 User 프록시 생성 후 `QuizHistory.builder()`·`save()`.
+- 이유: REQUIRES_NEW를 같은 클래스 메서드로 두면 Spring AOP 프록시 우회로 동작하지 않으므로 별도 Spring 빈으로 분리.
+
+#### `service/UserQuizService.java` (수정)
+- 변경 전:
+  - `checkAnswer`에 `@Transactional` (쓰기) 메서드 레벨 어노테이션 존재
+  - `QuizHistoryRepository`, `User`, `QuizHistory` import 및 필드 `quizHistoryRepository` 존재
+  - try-catch 내부에서 `User` 엔티티 조회 → `QuizHistory.builder()` → `quizHistoryRepository.save()` 직접 호출
+- 변경 후:
+  - `checkAnswer` 메서드 레벨 `@Transactional` 제거 (클래스 레벨 readOnly 트랜잭션만 적용)
+  - `quizHistoryRepository` 필드 → `quizHistoryRecorder` 필드로 교체
+  - `QuizHistory`, `User`, `QuizHistoryRepository` import 제거
+  - try-catch 내부에서 userId·categoryId·domainName·questionType 스칼라 값 추출 후 `quizHistoryRecorder.record(...)` 호출
+- 이유: 메서드 레벨 `@Transactional`(쓰기) 안에서 `save()`가 예외를 던지면 바깥 트랜잭션이 rollback-only 마킹되어 커밋 시 `UnexpectedRollbackException` 발생 — try-catch가 실제로 격리 역할을 하지 못함. REQUIRES_NEW 별도 빈으로 분리해야 물리 트랜잭션이 분리되고 격리가 실제 동작함.
+
+#### User 파라미터를 userId(Long)로 받는 이유
+호출측 readOnly tx에서 넘어온 User 엔티티는 해당 영속성 컨텍스트에 귀속되어 REQUIRES_NEW 내부에서 detached 상태가 될 수 있다. userId만 받아 `userRepository.getReferenceById(userId)`로 REQUIRES_NEW tx 내부에서 프록시를 생성하면 LazyInitialization·detached 양쪽 문제를 모두 회피할 수 있다.
+
+### 복원 방법
+이 ID(HIST-20260622-002)만으로 복원 시:
+1. `service/QuizHistoryRecorder.java` 삭제
+2. `UserQuizService.java`: `checkAnswer`에 `@Transactional` 쓰기 어노테이션 복원, `quizHistoryRecorder` 필드 → `quizHistoryRepository` 복원, try-catch 내부를 User 엔티티 직접 조회 → `QuizHistory.builder()` → `quizHistoryRepository.save()` 직접 호출로 복원, `QuizHistory`·`User`·`QuizHistoryRepository` import 복원
+
+---
+
+## HIST-20260622-001
+
+- **날짜**: 2026-06-22
+- **수정 범위**: 사용자 백엔드 / 퀴즈
+- **수정 개요**: 퀴즈 풀이 이력 영속화 — `checkAnswer`에 email 파라미터 추가, `QuizHistory` 저장 로직 삽입 (저장 실패 시 격리)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/entity/QuizHistory.java` | 추가 | 퀴즈 풀이 이력 엔티티 (quiz_history 테이블, BaseEntity 미상속 자체 created_at) |
+| `backend/src/main/java/com/tpmp/testprep/repository/QuizHistoryRepository.java` | 추가 | 사용자별 집계 JPQL 3종 (sumTotal, aggregateDomain, aggregateDaily) |
+| `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java` | 수정 | `checkAnswer(CheckRequest, String email)` 시그니처 변경, `@Transactional` 쓰기 추가, `QuizHistory` 저장 로직 삽입, `@Slf4j` 추가, `UserRepository`·`QuizHistoryRepository` 주입 |
+| `backend/src/main/java/com/tpmp/testprep/controller/UserQuizController.java` | 수정 | `checkAnswer` 핸들러에 `@AuthenticationPrincipal String email` 파라미터 추가, 서비스에 전달 |
+
+### 수정 상세
+
+#### `entity/QuizHistory.java` (신규)
+- 변경 전: 없음
+- 변경 후: `@Entity @Table(name="quiz_history")`, 인덱스 3개(user_id, created_at, category_id), 필드: id, user(ManyToOne LAZY), questionBankId, categoryId, domainName, questionType, userAnswer, correct(boolean), createdAt(@PrePersist), `@Builder`, `@Getter`, `@NoArgsConstructor(PROTECTED)`
+- 이유: 퀴즈 채점 이력을 영속화하여 대시보드 통계에 퀴즈 풀이 데이터를 반영하기 위함
+
+#### `repository/QuizHistoryRepository.java` (신규)
+- 변경 전: 없음
+- 변경 후: `sumTotalAndCorrectByUserAndPeriod`, `aggregateDomainStatsByUserAndPeriod`, `aggregateDailyStatsByUserAndPeriod` JPQL 집계 메서드 3종. ExamHistoryRepository 패턴 준수.
+- 이유: UserDashboardService에서 퀴즈 이력 기반 통계를 조회하기 위함
+
+#### `service/UserQuizService.java` (수정)
+- 변경 전: `checkAnswer(CheckRequest request)` — 채점만 수행, email 파라미터 없음
+- 변경 후: `checkAnswer(CheckRequest request, String email)` — 채점 후 `QuizHistory` 저장, try-catch로 저장 실패 격리(log.warn), `DomainSlave category = qb.getCategory()`로 categoryId/domainName 비정규화, `@Transactional` 쓰기 어노테이션 추가
+- 이유: 퀴즈 이력 영속화. 저장 실패가 채점 응답을 막으면 안 되므로 격리 처리.
+
+#### `controller/UserQuizController.java` (수정)
+- 변경 전: `checkAnswer(@RequestBody CheckRequest request)` — email 없음
+- 변경 후: `checkAnswer(@RequestBody CheckRequest request, @AuthenticationPrincipal String email)` — 서비스에 email 전달
+- 이유: 서비스가 이력 저장 시 User를 찾기 위한 이메일 파라미터 전달
+
+### 복원 방법
+이 ID(HIST-20260622-001)만으로 복원 시:
+1. `entity/QuizHistory.java`, `repository/QuizHistoryRepository.java` 삭제
+2. `UserQuizService.java`: `checkAnswer(CheckRequest request, String email)` → `checkAnswer(CheckRequest request)`, `@Transactional` 메서드 어노테이션 제거, try-catch 이력 저장 블록 제거, `@Slf4j`·`UserRepository`·`QuizHistoryRepository` 제거
+3. `UserQuizController.java`: `checkAnswer` 핸들러에서 `@AuthenticationPrincipal String email` 파라미터 제거, `import org.springframework.security.core.annotation.AuthenticationPrincipal` 제거
+
+---
+
 ## HIST-20260621-001
 
 - **날짜**: 2026-06-21
@@ -186,7 +273,7 @@
 ## HIST-20260422-005
 
 - **날짜**: 2026-04-22
-- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈 API
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈
 - **수정 개요**: 퀴즈 카테고리 목록 API가 전체 DomainMaster를 반환하던 것을 "문제 유형", "시험 유형"만 반환하도록 필터 추가
 
 ### 수정 파일 목록

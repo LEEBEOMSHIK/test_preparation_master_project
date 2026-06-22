@@ -7,6 +7,7 @@ import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.ExamHistoryRepository;
+import com.tpmp.testprep.repository.QuizHistoryRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,7 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,9 +32,10 @@ public class UserDashboardService {
 
     private final UserRepository userRepository;
     private final ExamHistoryRepository examHistoryRepository;
+    private final QuizHistoryRepository quizHistoryRepository;
 
     /**
-     * 사용자 통계 대시보드 조회.
+     * 사용자 통계 대시보드 조회 (시험 이력 + 퀴즈 이력 합산).
      *
      * @param email 현재 인증 사용자 이메일
      * @param days  집계 기간 (7·30 → 최근 N일, 0 → 전체)
@@ -43,53 +48,91 @@ public class UserDashboardService {
                 ? LocalDateTime.of(2000, 1, 1, 0, 0)
                 : LocalDateTime.now().minusDays(days);
 
-        // ── 총 문항 / 총 정답 ──────────────────────────────────
-        Object[] totals = normalizeSingleAggregateRow(
-                examHistoryRepository.sumTotalAndCorrectByUserAndPeriod(user.getId(), from)
-        );
-        long totalQuestions = longValueAt(totals, 0);
-        long totalCorrect   = longValueAt(totals, 1);
+        // ── 총 문항 / 총 정답 (시험 + 퀴즈 합산) ──────────────────
+        Object[] examTotals = normalizeSingleAggregateRow(
+                examHistoryRepository.sumTotalAndCorrectByUserAndPeriod(user.getId(), from));
+        Object[] quizTotals = normalizeSingleAggregateRow(
+                quizHistoryRepository.sumTotalAndCorrectByUserAndPeriod(user.getId(), from));
+
+        long totalQuestions = longValueAt(examTotals, 0) + longValueAt(quizTotals, 0);
+        long totalCorrect   = longValueAt(examTotals, 1) + longValueAt(quizTotals, 1);
         double overallRate  = totalQuestions > 0 ? totalCorrect * 100.0 / totalQuestions : 0.0;
 
-        // ── 도메인별 집계 ──────────────────────────────────────
-        List<DomainStatResponse> domainStats = examHistoryRepository
-                .aggregateDomainStatsByUserAndPeriod(user.getId(), from)
+        // ── 도메인별 집계 (시험 + 퀴즈 병합) ──────────────────────
+        // 도메인명 → [total, correct] 맵으로 병합
+        Map<String, long[]> domainMap = new LinkedHashMap<>();
+
+        examHistoryRepository.aggregateDomainStatsByUserAndPeriod(user.getId(), from)
                 .stream()
-                .filter(row -> row[0] != null)          // null domainName 방어
-                .map(row -> {
-                    String name  = (String) row[0];
-                    long   total = ((Number) row[1]).longValue();
+                .filter(row -> row[0] != null)
+                .forEach(row -> {
+                    String name    = (String) row[0];
+                    long   total   = ((Number) row[1]).longValue();
                     long   correct = ((Number) row[2]).longValue();
-                    double rate  = total > 0 ? correct * 100.0 / total : 0.0;
-                    return new DomainStatResponse(name, total, correct, rate);
+                    domainMap.merge(name, new long[]{total, correct},
+                            (a, b) -> new long[]{a[0] + b[0], a[1] + b[1]});
+                });
+
+        quizHistoryRepository.aggregateDomainStatsByUserAndPeriod(user.getId(), from)
+                .stream()
+                .filter(row -> row[0] != null)
+                .forEach(row -> {
+                    String name    = (String) row[0];
+                    long   total   = ((Number) row[1]).longValue();
+                    long   correct = ((Number) row[2]).longValue();
+                    domainMap.merge(name, new long[]{total, correct},
+                            (a, b) -> new long[]{a[0] + b[0], a[1] + b[1]});
+                });
+
+        // 정답률 ASC 정렬
+        List<DomainStatResponse> domainStats = domainMap.entrySet().stream()
+                .map(e -> {
+                    long   t    = e.getValue()[0];
+                    long   c    = e.getValue()[1];
+                    double rate = t > 0 ? c * 100.0 / t : 0.0;
+                    return new DomainStatResponse(e.getKey(), t, c, rate);
                 })
+                .sorted(Comparator.comparingDouble(DomainStatResponse::correctRate))
                 .collect(Collectors.toList());
 
-        // ── 약점 도메인 Top N (정답률 ASC → 이미 정렬된 결과에서 앞 N개) ──
+        // 약점 도메인 Top N
         List<DomainStatResponse> weakDomains = domainStats.stream()
                 .limit(WEAK_DOMAIN_TOP_N)
                 .collect(Collectors.toList());
 
-        // ── 날짜별 추이 ────────────────────────────────────────
-        List<DailyStatResponse> dailyTrend = examHistoryRepository
-                .aggregateDailyStatsByUserAndPeriod(user.getId(), from)
+        // ── 날짜별 추이 (시험 + 퀴즈 병합) ────────────────────────
+        Map<String, long[]> dailyMap = new LinkedHashMap<>();
+
+        examHistoryRepository.aggregateDailyStatsByUserAndPeriod(user.getId(), from)
                 .stream()
                 .filter(row -> row[0] != null)
-                .map(row -> {
-                    // CAST(takenAt AS date) → java.sql.Date 또는 LocalDate
-                    String dateStr;
-                    Object dateVal = row[0];
-                    if (dateVal instanceof java.sql.Date sqlDate) {
-                        dateStr = sqlDate.toLocalDate().format(DATE_FORMATTER);
-                    } else if (dateVal instanceof LocalDate localDate) {
-                        dateStr = localDate.format(DATE_FORMATTER);
-                    } else {
-                        dateStr = dateVal.toString().substring(0, 10);
-                    }
-                    long total   = ((Number) row[1]).longValue();
-                    long correct = ((Number) row[2]).longValue();
-                    double rate  = total > 0 ? correct * 100.0 / total : 0.0;
-                    return new DailyStatResponse(dateStr, total, correct, rate);
+                .forEach(row -> {
+                    String dateStr = toDateString(row[0]);
+                    long   total   = ((Number) row[1]).longValue();
+                    long   correct = ((Number) row[2]).longValue();
+                    dailyMap.merge(dateStr, new long[]{total, correct},
+                            (a, b) -> new long[]{a[0] + b[0], a[1] + b[1]});
+                });
+
+        quizHistoryRepository.aggregateDailyStatsByUserAndPeriod(user.getId(), from)
+                .stream()
+                .filter(row -> row[0] != null)
+                .forEach(row -> {
+                    String dateStr = toDateString(row[0]);
+                    long   total   = ((Number) row[1]).longValue();
+                    long   correct = ((Number) row[2]).longValue();
+                    dailyMap.merge(dateStr, new long[]{total, correct},
+                            (a, b) -> new long[]{a[0] + b[0], a[1] + b[1]});
+                });
+
+        // 날짜 ASC 정렬
+        List<DailyStatResponse> dailyTrend = dailyMap.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(e -> {
+                    long   t    = e.getValue()[0];
+                    long   c    = e.getValue()[1];
+                    double rate = t > 0 ? c * 100.0 / t : 0.0;
+                    return new DailyStatResponse(e.getKey(), t, c, rate);
                 })
                 .collect(Collectors.toList());
 
@@ -102,6 +145,8 @@ public class UserDashboardService {
                 dailyTrend
         );
     }
+
+    // ── 헬퍼 ────────────────────────────────────────────────────────
 
     /**
      * 단일 행 다중 컬럼 집계 쿼리(Object[] 반환)는 Hibernate 버전/경로에 따라
@@ -123,5 +168,15 @@ public class UserDashboardService {
             return 0L;
         }
         return ((Number) row[index]).longValue();
+    }
+
+    private String toDateString(Object dateVal) {
+        if (dateVal instanceof java.sql.Date sqlDate) {
+            return sqlDate.toLocalDate().format(DATE_FORMATTER);
+        } else if (dateVal instanceof LocalDate localDate) {
+            return localDate.format(DATE_FORMATTER);
+        } else {
+            return dateVal.toString().substring(0, 10);
+        }
     }
 }

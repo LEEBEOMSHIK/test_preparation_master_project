@@ -1,3 +1,35 @@
+## HIST-20260622-001
+
+- **날짜**: 2026-06-22
+- **수정 범위**: 사용자 백엔드 / 통계 대시보드
+- **수정 개요**: 대시보드 통계에 퀴즈 이력 합산 — `QuizHistoryRepository` 주입, 총 문항·도메인별·날짜별 집계를 시험+퀴즈 병합 후 반환
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/UserDashboardService.java` | 수정 | `QuizHistoryRepository` 주입, `getDashboard`에 퀴즈 집계 병합 로직 추가, `toDateString` 헬퍼 추출 |
+
+### 수정 상세
+
+#### `UserDashboardService.java`
+- 변경 전: `ExamHistoryRepository`만 집계. 총 문항/정답, 도메인별, 날짜별 모두 시험 이력만 반영.
+- 변경 후:
+  - 총 문항/정답: `examTotals + quizTotals` 합산
+  - 도메인별: `examHistoryRepository.aggregateDomainStats` + `quizHistoryRepository.aggregateDomainStats`를 도메인명 기준 `Map<String, long[]>` 병합 → 정답률 ASC 정렬 (`DomainStatResponse::correctRate`)
+  - 날짜별: `examHistoryRepository.aggregateDailyStats` + `quizHistoryRepository.aggregateDailyStats`를 날짜 문자열 기준 병합 → 날짜 ASC 정렬
+  - `toDateString(Object)` 헬퍼 추출 (java.sql.Date/LocalDate 처리, 기존 인라인 코드 이동)
+  - DTO·응답 구조 무변경 (`UserDashboardResponse`, `DomainStatResponse`, `DailyStatResponse`)
+- 이유: 퀴즈 풀이 이력이 quiz_history에 쌓이기 시작하므로 대시보드 통계에 반영
+
+### 복원 방법
+이 ID(HIST-20260622-001)만으로 복원 시:
+1. `UserDashboardService.java`에서 `QuizHistoryRepository quizHistoryRepository` 필드 제거, import 제거
+2. `getDashboard`의 퀴즈 합산 부분 제거 — 기존 `examHistoryRepository` 단독 집계 로직으로 되돌림
+3. `toDateString` 헬퍼 제거 후 날짜 변환 로직을 `dailyTrend` 스트림 내부에 인라인 복원
+
+---
+
 ## HIST-20260613-001
 
 - **날짜**: 2026-06-13

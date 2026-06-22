@@ -8,6 +8,7 @@ import com.tpmp.testprep.dto.response.QuizQuestionView;
 import com.tpmp.testprep.service.UserQuizService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -35,9 +36,11 @@ public class UserQuizController {
         return ResponseEntity.ok(ApiResponse.success(userQuizService.getQuizQuestions(categoryId, limit)));
     }
 
-    /** 퀴즈 정답 확인 (단건 채점) */
+    /** 퀴즈 정답 확인 (단건 채점 + 이력 저장) */
     @PostMapping("/check")
-    public ResponseEntity<ApiResponse<CheckResult>> checkAnswer(@RequestBody CheckRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(userQuizService.checkAnswer(request)));
+    public ResponseEntity<ApiResponse<CheckResult>> checkAnswer(
+            @RequestBody CheckRequest request,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.success(userQuizService.checkAnswer(request, email)));
     }
 }
