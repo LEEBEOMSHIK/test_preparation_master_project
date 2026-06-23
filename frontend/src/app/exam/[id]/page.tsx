@@ -9,6 +9,7 @@ import { RichContent } from '@/components/ui/RichContent';
 import { QuizCardSkeleton } from '@/components/ui/Skeleton';
 import { ExamResultDisplay } from '@/components/ui/ExamResultDisplay';
 import { ConceptNoteModal } from '@/components/ui/ConceptNoteModal';
+import { CodeBlock } from '@/components/ui/CodeBlock';
 import { stripHtml } from '@/lib/html';
 
 const CIRCLED = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
@@ -22,25 +23,6 @@ function answerLabel(q: Question, userAnswer: string | undefined): string {
   // 단답형 / 코드: 더 넓게 보여줌
   if (userAnswer.length <= 12) return userAnswer;
   return userAnswer.slice(0, 11) + '…';
-}
-
-// ── 코드 블록 (IntelliJ Darcula 스타일) ──────────────────────────────────────
-function CodeBlock({ code, language }: { code: string; language?: string }) {
-  return (
-    <div className="rounded-lg overflow-hidden border border-[#3c3f41] text-left">
-      <div className="bg-[#2b2b2b] px-3 py-1.5 flex items-center gap-1.5 border-b border-[#3c3f41]">
-        <span className="w-3 h-3 rounded-full bg-[#ff5f57]" />
-        <span className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
-        <span className="w-3 h-3 rounded-full bg-[#27c93f]" />
-        {language && (
-          <span className="ml-2 text-[11px] text-[#808080] font-mono">{language}</span>
-        )}
-      </div>
-      <pre className="bg-[#2b2b2b] text-[#a9b7c6] text-sm p-4 overflow-x-auto font-mono leading-relaxed whitespace-pre">
-        <code>{code}</code>
-      </pre>
-    </div>
-  );
 }
 
 

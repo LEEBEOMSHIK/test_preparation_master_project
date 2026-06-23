@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { RichContent } from '@/components/ui/RichContent';
+import { CodeBlock } from '@/components/ui/CodeBlock';
 import type { QuestionType } from '@/types';
 
 export interface QuestionDetailItem {
@@ -105,14 +106,11 @@ export function QuestionDetailModal({ question, onClose, hideEditLink = false }:
 
           {/* 코드 */}
           {question.code && (
-            <div>
-              <p className="text-xs font-medium text-gray-400 mb-1.5">
-                코드{question.language ? ` (${question.language})` : ''}
-              </p>
-              <pre className="bg-[#2b2b2b] text-[#a9b7c6] text-xs p-4 rounded-xl overflow-x-auto font-mono leading-relaxed whitespace-pre">
-                <code>{question.code}</code>
-              </pre>
-            </div>
+            <CodeBlock
+              code={question.code}
+              language={question.language}
+              size="xs"
+            />
           )}
 
           {/* 선택지 */}

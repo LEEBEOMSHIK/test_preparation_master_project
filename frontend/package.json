@@ -13,6 +13,7 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
     "@types/dompurify": "3.0.5",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "axios": "1.7.2",
     "dompurify": "3.1.5",
     "next": "14.2.3",
@@ -22,6 +23,7 @@
     "react-native": "0.74.1",
     "react-native-web": "0.19.12",
     "react-quill": "^2.0.0",
+    "react-syntax-highlighter": "^15.6.6",
     "recharts": "^3.8.1",
     "remark-gfm": "4.0.0",
     "zustand": "4.5.2"

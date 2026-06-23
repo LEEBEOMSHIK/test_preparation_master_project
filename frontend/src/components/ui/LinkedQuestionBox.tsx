@@ -1,25 +1,8 @@
 'use client';
 
 import { RichContent } from '@/components/ui/RichContent';
+import { CodeBlock } from '@/components/ui/CodeBlock';
 import type { ConceptNote } from '@/types';
-
-function CodeBlock({ code, language }: { code: string; language?: string | null }) {
-  return (
-    <div className="rounded-lg overflow-hidden border border-[#3c3f41] text-left mt-3">
-      <div className="bg-[#2b2b2b] px-3 py-1.5 flex items-center gap-1.5 border-b border-[#3c3f41]">
-        <span className="w-3 h-3 rounded-full bg-[#ff5f57]" />
-        <span className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
-        <span className="w-3 h-3 rounded-full bg-[#27c93f]" />
-        {language && (
-          <span className="ml-2 text-[11px] text-[#808080] font-mono">{language}</span>
-        )}
-      </div>
-      <pre className="bg-[#2b2b2b] text-[#a9b7c6] text-sm p-4 overflow-x-auto font-mono leading-relaxed whitespace-pre">
-        <code>{code}</code>
-      </pre>
-    </div>
-  );
-}
 
 interface Props {
   note: ConceptNote;
@@ -41,7 +24,7 @@ export function LinkedQuestionBox({ note }: Props) {
         <span className="text-xs text-indigo-400">이 문제에서 작성된 개념노트</span>
       </div>
       <RichContent html={content} className="text-sm text-gray-700" />
-      {code && <CodeBlock code={code} language={language} />}
+      {code && <CodeBlock code={code} language={language} className="mt-3" />}
     </div>
   );
 }

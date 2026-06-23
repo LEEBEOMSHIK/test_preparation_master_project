@@ -9,6 +9,7 @@ import { RichContent } from '@/components/ui/RichContent';
 import { QuizCardSkeleton } from '@/components/ui/Skeleton';
 import { ConceptNoteModal } from '@/components/ui/ConceptNoteModal';
 import { ExamResultDisplay } from '@/components/ui/ExamResultDisplay';
+import { CodeBlock } from '@/components/ui/CodeBlock';
 import { stripHtml } from '@/lib/html';
 import type { ConceptNote, ExamResultData, QuestionResult, QuestionType } from '@/types';
 
@@ -398,9 +399,7 @@ function QuizPlayContent() {
         <RichContent html={q.content} className="text-gray-800 font-medium text-base pr-24" />
 
         {q.code && (
-          <pre className="bg-gray-900 text-green-400 text-xs p-4 rounded-xl overflow-x-auto">
-            {q.code}
-          </pre>
+          <CodeBlock code={q.code} language={q.language} />
         )}
 
         {/* 선택지 */}
