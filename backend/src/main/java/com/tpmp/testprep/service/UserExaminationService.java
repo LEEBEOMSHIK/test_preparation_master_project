@@ -1,6 +1,7 @@
 package com.tpmp.testprep.service;
 
 import com.tpmp.testprep.dto.response.ExamHistoryDetailResponse;
+import com.tpmp.testprep.dto.response.ExamSessionResponse;
 import com.tpmp.testprep.dto.response.ExaminationDetailResponse;
 import com.tpmp.testprep.dto.response.ExaminationResponse;
 import com.tpmp.testprep.dto.response.ExaminationSubmitResponse;
@@ -10,6 +11,7 @@ import com.tpmp.testprep.dto.response.UserExamHistoryResponse;
 import com.tpmp.testprep.entity.Exam;
 import com.tpmp.testprep.entity.ExamHistory;
 import com.tpmp.testprep.entity.ExamHistoryDetail;
+import com.tpmp.testprep.entity.ExamSession;
 import com.tpmp.testprep.entity.Examination;
 import com.tpmp.testprep.entity.Question;
 import com.tpmp.testprep.entity.User;
@@ -17,6 +19,7 @@ import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.ExamHistoryDetailRepository;
 import com.tpmp.testprep.repository.ExamHistoryRepository;
+import com.tpmp.testprep.repository.ExamSessionRepository;
 import com.tpmp.testprep.repository.ExaminationRepository;
 import com.tpmp.testprep.repository.QuestionRepository;
 import com.tpmp.testprep.repository.UserRepository;
@@ -26,6 +29,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -41,6 +46,42 @@ public class UserExaminationService {
     private final UserRepository userRepository;
     private final ExamHistoryRepository examHistoryRepository;
     private final ExamHistoryDetailRepository examHistoryDetailRepository;
+    private final ExamSessionRepository examSessionRepository;
+
+    /**
+     * 시험 응시 세션 시작 또는 재개.
+     * reset=true 이면 기존 세션을 삭제하고 새로 생성한다(다시 풀기).
+     * 반환되는 remainingSeconds 가 0 이하이면 프론트엔드에서 즉시 자동제출해야 한다.
+     */
+    @Transactional
+    public ExamSessionResponse startExam(Long examinationId, String email, boolean reset) {
+        Examination examination = examinationRepository.findByIdWithPaper(examinationId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.EXAMINATION_NOT_FOUND));
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        if (reset) {
+            examSessionRepository.deleteByUser_IdAndExamination_Id(user.getId(), examinationId);
+        }
+
+        ExamSession session = examSessionRepository
+                .findByUser_IdAndExamination_Id(user.getId(), examinationId)
+                .orElseGet(() -> examSessionRepository.save(
+                        ExamSession.builder()
+                                .user(user)
+                                .examination(examination)
+                                .build()
+                ));
+
+        int remainingSeconds = (int) Math.max(
+                0,
+                examination.getTimeLimit() * 60L
+                        - Duration.between(session.getStartedAt(), LocalDateTime.now()).getSeconds()
+        );
+
+        return ExamSessionResponse.of(session, remainingSeconds);
+    }
 
     /** 시험 목록 조회 */
     public Page<ExaminationResponse> getExaminations(Pageable pageable) {

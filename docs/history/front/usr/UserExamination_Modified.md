@@ -1,3 +1,51 @@
+## HIST-20260623-001
+
+- **날짜**: 2026-06-23
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 타이머 보강 (서버 세션 기반 즉시 자동제출)
+- **수정 개요**: 마운트 시 POST /start 호출로 서버 기준 남은 시간을 받아 타이머 초기화. 시간 만료 시 즉시 자동제출(버튼 불필요). 1분 경고 배너, 재응시 시 세션 reset, submitFnRef로 stale closure 방지.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `ExamSession` 인터페이스 추가 |
+| `frontend/src/services/examinationService.ts` | 수정 | `userStartExam(id, reset)` 메서드 추가, ExamSession import 추가 |
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | 타이머 전면 보강 (서버 세션, 자동제출, 1분 배너, submitFnRef, handleRetake 개선) |
+
+### 수정 상세
+
+#### `types/index.ts`
+- 변경 전: `ExamSession` 없음
+- 변경 후: `interface ExamSession { examinationId: number; startedAt: string; remainingSeconds: number; }` ExaminationDetail 다음에 추가
+- 이유: 서버 세션 응답 타입 정의
+
+#### `services/examinationService.ts`
+- 변경 전: `userStartExam` 없음
+- 변경 후: `userStartExam: (id, reset=false) => apiClient.post<ApiResponse<ExamSession>>(\`/user/examinations/${id}/start\`, null, { params: { reset } })`
+- 이유: 세션 시작 API 호출
+
+#### `app/exam/[id]/page.tsx`
+- 변경 전: `secondsLeft` 초기값 `60*60` 고정, Promise.all 병렬 마운트, `timeUp` state + 전용 화면(버튼 클릭 후 제출), `handleSubmit` 단일, 타이머 `if(!exam || result)` 조건
+- 변경 후:
+  - `secondsLeft` 초기값 0. `timeUp`/전용 화면 제거.
+  - 마운트 effect를 순차 await로 전환: ①detail ②latestResult(성공→결과화면, 404→③) ③userStartExam→setSecondsLeft
+  - `submitExam(isAutoSubmit)` 단일 함수: 가드(examDone/submitting), isAutoSubmit이 아닐 때만 flagAlert+confirm, finally setSubmitting(false)
+  - `submitFnRef` — 매 렌더 최신 클로저 갱신 → setInterval stale closure 방지
+  - 타이머 effect: `timerActive = !result && secondsLeft > 0` boolean 의존. next===60 → 1분 배너 8초. next<=0 → clearInterval + submitFnRef(true)
+  - 로드 후 remainingSeconds<=0 케이스: timerActive=false이면서 result 없고 secondsLeft==0이면 즉시 submitFnRef(true)
+  - 헤더 타이머: `submitting ? '채점 중...' : formatTime(secondsLeft)`
+  - 1분 배너 JSX: showWarningBanner → fixed amber 배너 (헤더 아래 top-14)
+  - `handleRetake`: warningShown.current=false 추가, `userStartExam(examId, true)` 호출 → setSecondsLeft(data.remainingSeconds), 폴백 exam.timeLimit*60
+- 이유: 새로고침·탭전환 후에도 서버 시작시각 기준으로 남은 시간을 정확히 복원, 만료 즉시 자동제출
+
+### 복원 방법
+이 ID(HIST-20260623-001)만으로 복원 시:
+1. `types/index.ts`에서 `ExamSession` 인터페이스 제거
+2. `services/examinationService.ts`에서 `userStartExam` 제거, ExamSession import 제거
+3. `app/exam/[id]/page.tsx`를 HIST-20260615-002 이후 상태로 복원 (Promise.all 병렬, secondsLeft 초기값 detail.timeLimit*60, timeUp 전용 화면 재추가, handleSubmit 단일, warningShown/showWarningBanner 제거)
+
+---
+
 ## HIST-20260615-002
 
 - **날짜**: 2026-06-15

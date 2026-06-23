@@ -1,3 +1,56 @@
+## HIST-20260623-001
+
+- **날짜**: 2026-06-23
+- **수정 범위**: 사용자 백엔드 / 시험 응시 제한시간 타이머 보강 (서버 시작시각 기록)
+- **수정 개요**: ExamSession 엔티티를 신설해 응시 시작시각을 서버에 영속화하고, POST /{id}/start API로 서버 기준 남은 시간을 반환함. 재응시(reset=true) 시 세션 교체 지원.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../entity/ExamSession.java` | 추가 | 응시 세션 엔티티 (exam_session 테이블, user+examination unique) |
+| `backend/.../repository/ExamSessionRepository.java` | 추가 | ExamSession JPA Repository (findBy, deleteBy JPQL) |
+| `backend/.../dto/response/ExamSessionResponse.java` | 추가 | 세션 응답 record (examinationId, startedAt, remainingSeconds) |
+| `backend/.../service/UserExaminationService.java` | 수정 | startExam() 메서드 추가, ExamSessionRepository 의존성 추가, Duration import 추가 |
+| `backend/.../controller/UserExaminationController.java` | 수정 | POST /{id}/start 엔드포인트 추가, ExamSessionResponse import 추가 |
+
+### 수정 상세
+
+#### `ExamSession.java` (신규)
+- 변경 전: 존재하지 않음
+- 변경 후: `@Entity @Table(name="exam_session")`, idx_exam_session_user_exam unique 인덱스. 필드: id(IDENTITY), user(ManyToOne LAZY), examination(ManyToOne LAZY), startedAt(nullable=false, updatable=false). `@PrePersist`로 startedAt 자동 세팅. Lombok @Getter @NoArgsConstructor(PROTECTED) @Builder.
+- 이유: 서버 기준 응시 시작 시각 영속화
+
+#### `ExamSessionRepository.java` (신규)
+- 변경 전: 존재하지 않음
+- 변경 후: `findByUser_IdAndExamination_Id`, `deleteByUser_IdAndExamination_Id(@Modifying JPQL)`
+- 이유: 세션 조회·삭제(재응시)
+
+#### `ExamSessionResponse.java` (신규)
+- 변경 전: 존재하지 않음
+- 변경 후: `record(Long examinationId, LocalDateTime startedAt, int remainingSeconds)` + `static of(ExamSession, int)`
+- 이유: 세션 시작 응답 DTO
+
+#### `UserExaminationService.java`
+- 변경 전: ExamSessionRepository 없음, startExam 없음
+- 변경 후: `ExamSessionRepository examSessionRepository` final 필드 추가; `startExam(Long examinationId, String email, boolean reset)` 추가 — Examination/User 조회, reset 시 세션 삭제, 세션 조회/생성, remainingSeconds 계산(Math.max(0, timeLimit*60 - Duration.between.getSeconds()))
+- 이유: 서버 기준 남은 시간 계산 로직
+
+#### `UserExaminationController.java`
+- 변경 전: /{id}/start 없음
+- 변경 후: `@PostMapping("/{id}/start")` — `@PathVariable Long id`, `@RequestParam(defaultValue="false") boolean reset`, `@AuthenticationPrincipal String email` → `ApiResponse.success(service.startExam(...))`
+- 이유: 세션 시작 API 노출
+
+### 복원 방법
+이 ID(HIST-20260623-001)만으로 복원 시:
+1. `ExamSession.java` 삭제
+2. `ExamSessionRepository.java` 삭제
+3. `ExamSessionResponse.java` 삭제
+4. `UserExaminationService.java`에서 `examSessionRepository` 필드, `startExam()` 메서드, Duration/LocalDateTime import 제거
+5. `UserExaminationController.java`에서 `POST /{id}/start` 핸들러 및 ExamSessionResponse import 제거
+
+---
+
 ## HIST-20260614-001
 
 - **날짜**: 2026-06-14

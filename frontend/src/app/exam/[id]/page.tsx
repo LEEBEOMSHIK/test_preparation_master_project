@@ -54,62 +54,93 @@ export default function ExamTakingPage() {
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [flagged, setFlagged] = useState<Set<number>>(new Set());
-  const [secondsLeft, setSecondsLeft] = useState(60 * 60);
+  // 초기값 0 — 서버 세션에서 받아 세팅
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [timeUp, setTimeUp] = useState(false);
   const [result, setResult] = useState<ExaminationSubmitResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [flagAlert, setFlagAlert] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
   const examDone = useRef(false);
 
-  // 결과 화면 상태 (ExamResultDisplay로 위임됨)
+  // 1분 경고 배너
+  const warningShown = useRef(false);
+  const [showWarningBanner, setShowWarningBanner] = useState(false);
+
+  // submitExam 최신 클로저 — setInterval stale closure 방지
+  const submitFnRef = useRef<((isAutoSubmit: boolean) => Promise<void>) | null>(null);
 
   // 개념노트 모달 — 대상 문항(없으면 닫힘)
   const [noteTarget, setNoteTarget] = useState<{ question: Question; idx: number } | null>(null);
   const [questionNotes, setQuestionNotes] = useState<Record<number, ConceptNote>>({});
 
+  // ── 마운트 effect: 순차 await ────────────────────────────────────────────────
   useEffect(() => {
-    const examDetailPromise = examinationService.userGetExaminationDetail(examId).then(res => {
-      if (res.data.success && res.data.data) {
-        const detail = res.data.data;
-        setExam(detail);
-        setSecondsLeft(detail.timeLimit * 60);
-        conceptNoteService.getMyNotes(0, 500).then(notesRes => {
-          if (notesRes.data.success && notesRes.data.data) {
-            const qIds = new Set(detail.questions.map(q => q.id));
-            const map: Record<number, ConceptNote> = {};
-            notesRes.data.data.content.forEach(note => {
-              if (note.questionId && qIds.has(note.questionId)) {
-                map[note.questionId] = note;
-              }
-            });
-            setQuestionNotes(map);
+    let cancelled = false;
+
+    const init = async () => {
+      try {
+        // ① 시험 상세 조회
+        const detailRes = await examinationService.userGetExaminationDetail(examId);
+        if (cancelled) return;
+        if (detailRes.data.success && detailRes.data.data) {
+          const detail = detailRes.data.data;
+          setExam(detail);
+
+          // 개념노트 비동기 병행 — 결과 화면 분기에 영향 없음
+          conceptNoteService.getMyNotes(0, 500).then(notesRes => {
+            if (cancelled) return;
+            if (notesRes.data.success && notesRes.data.data) {
+              const qIds = new Set(detail.questions.map(q => q.id));
+              const map: Record<number, ConceptNote> = {};
+              notesRes.data.data.content.forEach(note => {
+                if (note.questionId && qIds.has(note.questionId)) {
+                  map[note.questionId] = note;
+                }
+              });
+              setQuestionNotes(map);
+            }
+          });
+        }
+
+        // ② 이전 응시 결과 조회 — 성공이면 결과 화면으로, 404이면 세션 시작
+        try {
+          const latestRes = await examinationService.userGetLatestResult(examId);
+          if (cancelled) return;
+          if (latestRes.data.success && latestRes.data.data) {
+            const saved: ExamHistoryDetailResult = latestRes.data.data;
+            const restored: ExaminationSubmitResult = {
+              historyId: saved.historyId,
+              total: saved.total,
+              correct: saved.correct,
+              score: saved.score,
+              results: saved.results,
+            };
+            setResult(restored);
+            examDone.current = true;
+            return; // 이미 완료된 시험 — start 호출 생략
           }
-        });
-      }
-    });
+        } catch {
+          // 미응시(404) 또는 오류 → 세션 시작으로 진행
+        }
 
-    // 이전 응시 결과 재조회 — 미응시(404)나 네트워크 오류는 조용히 무시
-    const latestResultPromise = examinationService.userGetLatestResult(examId).then(res => {
-      if (res.data.success && res.data.data) {
-        const saved: ExamHistoryDetailResult = res.data.data;
-        const restored: ExaminationSubmitResult = {
-          historyId: saved.historyId,
-          total: saved.total,
-          correct: saved.correct,
-          score: saved.score,
-          results: saved.results,
-        };
-        setResult(restored);
-        examDone.current = true; // 이미 완료된 시험 — 이탈 경고 비활성
+        // ③ 세션 시작 (또는 재개)
+        const sessionRes = await examinationService.userStartExam(examId, false);
+        if (cancelled) return;
+        if (sessionRes.data.success && sessionRes.data.data) {
+          setSecondsLeft(Math.max(0, sessionRes.data.data.remainingSeconds));
+        }
+      } catch {
+        // 시험 상세 조회 자체 실패 — 목록으로 이동
+        if (!cancelled) router.push('/user/exams');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    }).catch(() => {
-      // 미응시(404) 또는 오류 — 시험 화면 정상 진행
-    });
+    };
 
-    Promise.all([examDetailPromise, latestResultPromise]).finally(() => setLoading(false));
-  }, [examId]);
+    init();
+    return () => { cancelled = true; };
+  }, [examId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 브라우저 닫기 / 새로고침 경고
   useEffect(() => {
@@ -134,20 +165,68 @@ export default function ExamTakingPage() {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  // 타이머
+  const questions: Question[] = exam?.questions ?? [];
+
+  // ── 단일 제출 함수 ────────────────────────────────────────────────────────
+  const submitExam = useCallback(async (isAutoSubmit: boolean) => {
+    if (examDone.current || submitting) return;
+
+    if (!isAutoSubmit) {
+      // 플래그 문항 있으면 알림 먼저
+      if (flagged.size > 0) { setFlagAlert(true); return; }
+      if (!confirm('시험을 제출하시겠습니까?')) return;
+    }
+
+    setSubmitting(true);
+    clearInterval(timerRef.current ?? undefined);
+
+    try {
+      const res = await examinationService.userSubmitExamination(examId, answers);
+      if (res.data.success && res.data.data) {
+        examDone.current = true;
+        setResult(res.data.data);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }, [examId, answers, flagged, submitting]);
+
+  // submitFnRef 를 매 렌더에서 최신 클로저로 갱신
   useEffect(() => {
-    if (!exam || result) return;
+    submitFnRef.current = submitExam;
+  });
+
+  // ── 타이머 effect ─────────────────────────────────────────────────────────
+  // 조건: 아직 결과가 없고 secondsLeft > 0 일 때 틱
+  const timerActive = !result && secondsLeft > 0;
+  useEffect(() => {
+    if (!timerActive) {
+      // secondsLeft 가 0인데 result 도 없는 경우(로드 후 이미 만료) → 즉시 자동제출
+      if (!result && secondsLeft === 0 && !loading) {
+        submitFnRef.current?.(true);
+      }
+      return;
+    }
+
     timerRef.current = setInterval(() => {
       setSecondsLeft(s => {
-        if (s <= 1) { clearInterval(timerRef.current!); setTimeUp(true); return 0; }
-        return s - 1;
+        const next = s - 1;
+        if (next === 60 && !warningShown.current) {
+          warningShown.current = true;
+          setShowWarningBanner(true);
+          setTimeout(() => setShowWarningBanner(false), 8000);
+        }
+        if (next <= 0) {
+          clearInterval(timerRef.current!);
+          submitFnRef.current?.(true);
+          return 0;
+        }
+        return next;
       });
     }, 1000);
-    return () => clearInterval(timerRef.current!);
-  }, [exam, result]);
 
-  const questions: Question[] = exam?.questions ?? [];
-  const q = questions[current];
+    return () => clearInterval(timerRef.current!);
+  }, [timerActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAnswer = useCallback((qId: number, val: string) => {
     setAnswers(prev => ({ ...prev, [qId]: val }));
@@ -161,20 +240,6 @@ export default function ExamTakingPage() {
     });
   }, []);
 
-  const handleSubmit = async () => {
-    if (flagged.size > 0) { setFlagAlert(true); return; }
-    if (!confirm('시험을 제출하시겠습니까?')) return;
-    setSubmitting(true);
-    clearInterval(timerRef.current!);
-    try {
-      const res = await examinationService.userSubmitExamination(examId, answers);
-      if (res.data.success && res.data.data) {
-        examDone.current = true;
-        setResult(res.data.data);
-      }
-    } finally { setSubmitting(false); }
-  };
-
   const openNoteModal = useCallback((q: Question, idx: number) => {
     setNoteTarget({ question: q, idx });
   }, []);
@@ -184,16 +249,28 @@ export default function ExamTakingPage() {
     router.push('/user/exams');
   };
 
-  // 다시 풀기 — 응시 상태를 초기화해 처음부터 재응시 (제출 시 이력에 새로 쌓임)
-  const handleRetake = useCallback(() => {
+  // 다시 풀기 — 세션 reset 후 타이머 재시작
+  const handleRetake = useCallback(async () => {
     setResult(null);
     setAnswers({});
     setFlagged(new Set());
     setCurrent(0);
-    setTimeUp(false);
-    setSecondsLeft((exam?.timeLimit ?? 60) * 60);
+    warningShown.current = false;
+    setShowWarningBanner(false);
     examDone.current = false;
-  }, [exam]);
+
+    try {
+      const sessionRes = await examinationService.userStartExam(examId, true);
+      if (sessionRes.data.success && sessionRes.data.data) {
+        setSecondsLeft(Math.max(0, sessionRes.data.data.remainingSeconds));
+      } else {
+        // 폴백: exam.timeLimit 기준
+        setSecondsLeft((exam?.timeLimit ?? 60) * 60);
+      }
+    } catch {
+      setSecondsLeft((exam?.timeLimit ?? 60) * 60);
+    }
+  }, [examId, exam]);
 
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60).toString().padStart(2, '0');
@@ -234,36 +311,7 @@ export default function ExamTakingPage() {
     );
   }
 
-  // 시간 초과
-  if (timeUp) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-8 h-8 text-red-500">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <h2 className="text-lg font-bold text-gray-900">시간이 종료되었습니다</h2>
-        <button
-          onClick={async () => {
-            setSubmitting(true);
-            try {
-              const res = await examinationService.userSubmitExamination(examId, answers);
-              if (res.data.success && res.data.data) {
-                examDone.current = true;
-                setResult(res.data.data);
-              }
-            } finally { setSubmitting(false); }
-          }}
-          disabled={submitting}
-          className="px-6 py-2.5 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 disabled:opacity-50 transition"
-        >
-          {submitting ? '채점 중...' : '결과 확인'}
-        </button>
-      </div>
-    );
-  }
-
+  const q = questions[current];
   const isMultiple = q.questionType === 'MULTIPLE_CHOICE';
   const isOX = q.questionType === 'OX';
   const isCode = q.questionType === 'CODE';
@@ -271,6 +319,18 @@ export default function ExamTakingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* 1분 경고 배너 */}
+      {showWarningBanner && (
+        <div className="fixed top-14 inset-x-0 z-50 flex justify-center pointer-events-none">
+          <div className="mx-4 max-w-md w-full bg-amber-50 border border-amber-400 text-amber-800 text-sm font-medium px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 shrink-0 text-amber-500">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            1분 남았습니다. 답안을 확인하세요.
+          </div>
+        </div>
+      )}
+
       {/* 나가기 확인 모달 */}
       {leaveConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -342,7 +402,7 @@ export default function ExamTakingPage() {
           </button>
           <h1 className="font-semibold text-gray-900 text-sm truncate mx-4 flex-1 text-center">{exam.title}</h1>
           <div className={['font-mono font-bold text-base', secondsLeft <= 300 ? 'text-red-500' : 'text-gray-700'].join(' ')}>
-            {formatTime(secondsLeft)}
+            {submitting ? '채점 중...' : formatTime(secondsLeft)}
           </div>
         </div>
       </header>
@@ -521,7 +581,7 @@ export default function ExamTakingPage() {
               </div>
             </div>
 
-            <button onClick={handleSubmit} disabled={submitting}
+            <button onClick={() => submitExam(false)} disabled={submitting}
               className="w-full py-3 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl font-medium hover:bg-indigo-100 disabled:opacity-50 transition">
               {submitting ? '채점 중...' : '시험 제출'}
             </button>

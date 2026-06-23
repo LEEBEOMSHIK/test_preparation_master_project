@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import type { ApiResponse, ExamHistoryDetailResult, Examination, ExaminationDetail, ExaminationSubmitResult, PageResponse, UserExamHistorySummary } from '@/types';
+import type { ApiResponse, ExamHistoryDetailResult, ExamSession, Examination, ExaminationDetail, ExaminationSubmitResult, PageResponse, UserExamHistorySummary } from '@/types';
 
 export const examinationService = {
   // ── 사용자 ──────────────────────────────────────────────────────────
@@ -10,6 +10,13 @@ export const examinationService = {
 
   userGetExaminationDetail: (id: number) =>
     apiClient.get<ApiResponse<ExaminationDetail>>(`/user/examinations/${id}`),
+
+  userStartExam: (id: number, reset = false) =>
+    apiClient.post<ApiResponse<ExamSession>>(
+      `/user/examinations/${id}/start`,
+      null,
+      { params: { reset } },
+    ),
 
   userSubmitExamination: (id: number, answers: Record<number, string>) =>
     apiClient.post<ApiResponse<ExaminationSubmitResult>>(

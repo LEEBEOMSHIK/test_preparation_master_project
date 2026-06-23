@@ -2,6 +2,7 @@ package com.tpmp.testprep.controller;
 
 import com.tpmp.testprep.dto.response.ApiResponse;
 import com.tpmp.testprep.dto.response.ExamHistoryDetailResponse;
+import com.tpmp.testprep.dto.response.ExamSessionResponse;
 import com.tpmp.testprep.dto.response.ExaminationDetailResponse;
 import com.tpmp.testprep.dto.response.ExaminationResponse;
 import com.tpmp.testprep.dto.response.ExaminationSubmitResponse;
@@ -29,6 +30,17 @@ public class UserExaminationController {
     public ResponseEntity<ApiResponse<Page<ExaminationResponse>>> getExaminations(Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(
                 userExaminationService.getExaminations(pageable)
+        ));
+    }
+
+    /** 시험 응시 세션 시작 또는 재개 (reset=true: 다시 풀기) */
+    @PostMapping("/{id}/start")
+    public ResponseEntity<ApiResponse<ExamSessionResponse>> startExam(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean reset,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.success(
+                userExaminationService.startExam(id, email, reset)
         ));
     }
 

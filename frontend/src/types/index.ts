@@ -162,6 +162,13 @@ export interface ExaminationDetail {
   questions: Question[];
 }
 
+/** 시험 응시 세션 — 서버 시작시각 기반 남은 시간 */
+export interface ExamSession {
+  examinationId: number;
+  startedAt: string;
+  remainingSeconds: number;
+}
+
 // ──────────────────────────────────────────
 // Quote
 // ──────────────────────────────────────────
