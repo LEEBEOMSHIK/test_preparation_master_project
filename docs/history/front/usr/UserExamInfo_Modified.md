@@ -1,3 +1,120 @@
+## HIST-20260624-005
+
+- **날짜**: 2026-06-24
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보
+- **수정 개요**: HIST-20260624-004 후속 — 접수 기간 카드 헤더의 '접수하기' 링크를 텍스트 링크에서 채움형 emerald 알약 버튼으로 강화
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | '접수하기' `<a>` className을 텍스트 링크(`text-emerald-600`)에서 채움 알약형(`bg-emerald-600 text-white rounded-full`)으로 변경 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exam-info/page.tsx`
+- 변경 전: `"flex items-center gap-0.5 text-[9px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors"`
+- 변경 후: `"inline-flex items-center gap-0.5 bg-emerald-600 text-white px-1.5 py-0.5 rounded-full text-[10px] font-bold hover:bg-emerald-700 shadow-sm transition-colors"`
+- 이유: 텍스트 링크 방식은 emerald-50 배경의 접수 기간 카드 위에서 대비가 낮아 가시성 불량. 채움형 알약(`rounded-full`) + `shadow-sm`으로 또렷한 CTA 대비 확보. 헤더 줄 안에 들어가는 소형 크기(`px-1.5 py-0.5 text-[10px]`)로 카드 높이 영향 없음. 조건·위치·보안 속성은 HIST-004와 동일.
+
+### 복원 방법
+이 ID(HIST-20260624-005)만으로 복원 시 '접수하기' `<a>` className을 변경 전 값으로 되돌린다.
+
+---
+
+## HIST-20260624-004
+
+- **날짜**: 2026-06-24
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보
+- **수정 개요**: HIST-20260624-002·003 철회 — full-width 버튼 및 items-start 제거, '접수하기' 링크를 접수 기간 카드 헤더 인라인으로 최종 확정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | grid `items-start` 제거(원복), 접수 기간 카드 본문의 full-width "원서 접수" 버튼 제거(원복), 카드 헤더 우측을 `flex items-center gap-1.5` 그룹으로 변경하여 '접수하기↗' 텍스트 링크를 배지 왼쪽에 인라인 배치 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exam-info/page.tsx`
+- 변경 전(HIST-002·003 적용 상태):
+  - grid: `grid grid-cols-1 sm:grid-cols-3 gap-3 items-start`
+  - 접수 기간 카드 헤더: 좌측 라벨 / 우측 `{배지 span}`
+  - 카드 본문 기간 텍스트 아래: `appStatus === 'active' && item.applicationUrl` 조건으로 full-width `py-1` emerald 채움 버튼
+- 변경 후(최종 확정):
+  - grid: `grid grid-cols-1 sm:grid-cols-3 gap-3` (items-start 제거 → 3개 카드 stretch 동일 높이 복원)
+  - 접수 기간 카드 본문: 버튼 블록 완전 제거
+  - 접수 기간 카드 헤더 우측: `<div className="flex items-center gap-1.5">` 로 감싸고, `appStatus === 'active' && item.applicationUrl` 조건 시 `text-[9px] font-bold text-emerald-600` '접수하기' + `w-2.5 h-2.5` 외부링크 아이콘 텍스트 링크를 배지 왼쪽에 배치. 배지는 기존과 동일 조건으로 그 오른쪽에 렌더.
+  - 보안 속성 `target="_blank" rel="noopener noreferrer"` 유지. 우상단(officialUrl) 미변경.
+- 이유: 카드 본문 버튼이 접수 기간 카드 높이를 늘려 형제 카드 레이아웃을 틀어트리는 문제(HIST-003에서 items-start로 임시 보정)를 근본 해결. 헤더 인라인 링크 방식으로 카드 높이 증가 없이 '접수하기' CTA를 접수 기간 맥락 안에 배치.
+
+### 복원 방법
+이 ID(HIST-20260624-004)만으로 복원 시 HIST-20260624-003 상태(items-start + full-width 버튼)로 되돌린다.
+
+---
+
+## HIST-20260624-003
+
+- **날짜**: 2026-06-24
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보
+- **수정 개요**: HIST-20260624-002 후속 보정 — grid `items-start` 추가로 형제 카드 stretch 방지, "원서 접수" 버튼 세로 패딩 축소
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | 3열 grid에 `items-start` 추가, "원서 접수" 버튼 padding `px-3 py-1.5` → `px-2 py-1` 축소 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exam-info/page.tsx`
+- 변경 전: `<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">` / 버튼 `px-3 py-1.5`
+- 변경 후: `<div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">` / 버튼 `px-2 py-1`
+- 이유: HIST-20260624-002에서 접수 기간 카드 내 "원서 접수" 버튼 추가 후, grid 기본 `stretch` align으로 인해 시험 일정·합격 발표 카드도 불필요하게 높이가 늘어나는 레이아웃 문제 발생. `items-start`로 각 카드가 자신의 콘텐츠 높이만큼만 렌더되도록 수정. 버튼 패딩도 소폭 줄여 카드 내 높이 증가 최소화.
+
+### 복원 방법
+이 ID(HIST-20260624-003)만으로 복원 시:
+- grid div에서 `items-start` 제거
+- "원서 접수" 버튼 className의 `px-2 py-1`을 `px-3 py-1.5`로 복원
+
+---
+
+## HIST-20260624-002
+
+- **날짜**: 2026-06-24
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보
+- **수정 개요**: "원서 접수" CTA 버튼을 카드 우상단에서 '접수 기간' 카드 내부 하단으로 이동
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | 우상단 flex 그룹에서 "원서 접수" 조건부 링크 제거, 접수 기간 카드(`applicationPeriod` 블록) 내 기간 텍스트 아래에 full-width "원서 접수" 버튼 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exam-info/page.tsx`
+- 변경 전:
+  - 카드 헤더 우상단 `shrink-0 flex items-center gap-2` 안에 `appStatus === 'active' && item.applicationUrl` 조건으로 emerald 채움 버튼("원서 접수") 렌더, officialUrl 링크와 나란히 배치
+- 변경 후:
+  - 우상단 flex 그룹에서 "원서 접수" 조건부 링크 완전 제거. 우상단에는 `officialUrl` 텍스트 링크만 남음
+  - 접수 기간 카드(`item.applicationPeriod && <div>`) 내부, `fmtRange(item.applicationPeriod)` `<p>` 태그 바로 아래에 `appStatus === 'active' && item.applicationUrl` 조건부 블록 추가:
+    ```tsx
+    <a href={item.applicationUrl} target="_blank" rel="noopener noreferrer"
+       className="mt-2 flex items-center justify-center gap-1 w-full px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors">
+      원서 접수 <svg ...외부링크 아이콘... />
+    </a>
+    ```
+  - emerald 강조 스타일·외부링크 보안 속성·아이콘·라벨 모두 기존 그대로 유지. `w-full`로 카드 폭에 맞는 full-width 버튼
+- 이유: 접수 기간이 진행 중일 때, 해당 맥락(접수 기간 카드) 안에서 즉시 접수로 이어지도록 UX 위계 개선. 우상단은 공식 홈페이지 상시 링크 전용으로 정리.
+
+### 복원 방법
+이 ID(HIST-20260624-002)만으로 복원 시:
+- 접수 기간 카드 내 `appStatus === 'active' && item.applicationUrl` 조건부 `<a>` 블록 제거
+- 카드 헤더 우상단 `shrink-0 flex items-center gap-2` 안에 동일 조건부 emerald 채움 버튼을 officialUrl 링크 앞에 다시 추가(HIST-20260624-001 상태 참고)
+
+---
+
 ## HIST-20260624-001
 
 - **날짜**: 2026-06-24
