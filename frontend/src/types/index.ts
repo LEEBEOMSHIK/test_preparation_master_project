@@ -49,6 +49,7 @@ export interface ExamInfo {
   examSchedule?: string;
   resultDate?: string;
   officialUrl?: string;
+  applicationUrl?: string;
   isActive: boolean;
   displayOrder: number;
   createdAt: string;

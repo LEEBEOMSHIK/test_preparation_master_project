@@ -48,6 +48,7 @@ public class ExamInfoService {
                 .examSchedule(request.examSchedule())
                 .resultDate(request.resultDate())
                 .officialUrl(request.officialUrl())
+                .applicationUrl(request.applicationUrl())
                 .isActive(request.isActive())
                 .displayOrder(request.displayOrder())
                 .build();
@@ -59,7 +60,7 @@ public class ExamInfoService {
         ExamInfo info = findOrThrow(id);
         info.update(request.examType(), request.title(), request.description(),
                 request.applicationPeriod(), request.examSchedule(), request.resultDate(),
-                request.officialUrl(), request.isActive(), request.displayOrder());
+                request.officialUrl(), request.applicationUrl(), request.isActive(), request.displayOrder());
         return ExamInfoResponse.from(info);
     }
 

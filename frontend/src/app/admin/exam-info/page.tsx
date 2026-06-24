@@ -15,6 +15,7 @@ const EMPTY_FORM = {
   examScheduleEnd: '',
   resultDate: '',
   officialUrl: '',
+  applicationUrl: '',
   isActive: true,
   displayOrder: 0,
 };
@@ -129,6 +130,7 @@ export default function AdminExamInfoPage() {
       examScheduleEnd: schRange.end,
       resultDate: resStart,
       officialUrl: item.officialUrl ?? '',
+      applicationUrl: item.applicationUrl ?? '',
       isActive: item.isActive,
       displayOrder: item.displayOrder,
     });
@@ -156,6 +158,7 @@ export default function AdminExamInfoPage() {
         examSchedule: buildRange(form.examScheduleStart, form.examScheduleEnd),
         resultDate: form.resultDate,
         officialUrl: form.officialUrl,
+        applicationUrl: form.applicationUrl,
         isActive: form.isActive,
         displayOrder: form.displayOrder,
       };
@@ -288,6 +291,17 @@ export default function AdminExamInfoPage() {
           type="url" value={form.officialUrl}
           onChange={e => set('officialUrl', e.target.value)}
           placeholder="https://..."
+          maxLength={500}
+          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs text-gray-500 mb-1">접수 사이트 URL</label>
+        <input
+          type="url" value={form.applicationUrl}
+          onChange={e => set('applicationUrl', e.target.value)}
+          placeholder="https://... (접수 진행 중일 때 사용자에게 노출)"
           maxLength={500}
           className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
@@ -453,6 +467,10 @@ export default function AdminExamInfoPage() {
                       {item.officialUrl && (
                         <a href={item.officialUrl} target="_blank" rel="noopener noreferrer"
                           className="text-indigo-500 hover:underline">홈페이지 ↗</a>
+                      )}
+                      {item.applicationUrl && (
+                        <a href={item.applicationUrl} target="_blank" rel="noopener noreferrer"
+                          className="text-emerald-600 hover:underline">접수 사이트 ↗</a>
                       )}
                     </div>
                   </div>

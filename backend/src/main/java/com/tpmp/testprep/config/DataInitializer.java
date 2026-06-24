@@ -519,6 +519,7 @@ public class DataInitializer implements ApplicationRunner {
                 "2026-04-18 ~ 2026-05-06",
                 "2026-06-12",
                 officialUrl,
+                null,
                 20
         );
         ensureExamInfo(
@@ -529,6 +530,7 @@ public class DataInitializer implements ApplicationRunner {
                 "2026-07-18 ~ 2026-08-05",
                 "2026-09-11",
                 officialUrl,
+                null,
                 21
         );
         ensureExamInfo(
@@ -539,13 +541,14 @@ public class DataInitializer implements ApplicationRunner {
                 "2026-10-24 ~ 2026-11-13",
                 "2026-12-18",
                 officialUrl,
+                null,
                 22
         );
     }
 
     private void ensureExamInfo(String examType, String title, String description,
                                 String applicationPeriod, String examSchedule,
-                                String resultDate, String officialUrl, int displayOrder) {
+                                String resultDate, String officialUrl, String applicationUrl, int displayOrder) {
         if (examInfoRepository.findByTitle(title).isPresent()) {
             log.debug("[DataInitializer] 시험 정보 '{}' 이미 존재 — 건너뜀", title);
             return;
@@ -559,6 +562,7 @@ public class DataInitializer implements ApplicationRunner {
                 .examSchedule(examSchedule)
                 .resultDate(resultDate)
                 .officialUrl(officialUrl)
+                .applicationUrl(applicationUrl)
                 .isActive(true)
                 .displayOrder(displayOrder)
                 .build());

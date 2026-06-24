@@ -13,6 +13,7 @@ public record ExamInfoResponse(
         String examSchedule,
         String resultDate,
         String officialUrl,
+        String applicationUrl,
         boolean isActive,
         int displayOrder,
         LocalDateTime createdAt,
@@ -22,7 +23,7 @@ public record ExamInfoResponse(
         return new ExamInfoResponse(
                 e.getId(), e.getExamType(), e.getTitle(), e.getDescription(),
                 e.getApplicationPeriod(), e.getExamSchedule(), e.getResultDate(),
-                e.getOfficialUrl(), e.isActive(), e.getDisplayOrder(),
+                e.getOfficialUrl(), e.getApplicationUrl(), e.isActive(), e.getDisplayOrder(),
                 e.getCreatedAt(), e.getUpdatedAt()
         );
     }

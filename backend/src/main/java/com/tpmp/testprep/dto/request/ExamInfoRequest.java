@@ -11,6 +11,7 @@ public record ExamInfoRequest(
         @Size(max = 300) String examSchedule,
         @Size(max = 300) String resultDate,
         @Size(max = 500) String officialUrl,
+        @Size(max = 500) String applicationUrl,
         boolean isActive,
         int displayOrder
 ) {}

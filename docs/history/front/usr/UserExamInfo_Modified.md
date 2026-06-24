@@ -1,3 +1,32 @@
+## HIST-20260624-001
+
+- **날짜**: 2026-06-24
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보
+- **수정 개요**: 접수 기간이 활성(진행 중)이고 `applicationUrl`이 있을 때만 "원서 접수" CTA 버튼 노출
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | 카드 헤더 우측에 `appStatus === 'active' && item.applicationUrl` 조건부 "원서 접수" 링크(emerald 채움 버튼) 추가, officialUrl 링크와 함께 flex 컨테이너로 묶음 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exam-info/page.tsx`
+- 변경 전: 카드 헤더 우측에 `{item.officialUrl && <a ...>공식 홈페이지</a>}` 단독 존재 (`shrink-0` 직접 적용)
+- 변경 후:
+  - `shrink-0 flex items-center gap-2` div로 링크들을 감쌈
+  - `appStatus === 'active' && item.applicationUrl` 조건 시: emerald 채움 버튼 스타일(`bg-emerald-600 text-white px-3 py-1.5 rounded-lg`) "원서 접수" 링크 표시 (target=_blank, rel="noopener noreferrer", 외부 화살표 아이콘)
+  - officialUrl 링크는 기존 텍스트 스타일 유지 (항상 표시)
+- 이유: 접수 기간 진행 중인 경우에만 원서접수 CTA를 노출해 사용자 행동 유도. officialUrl(상시 공식 홈)과 시각적으로 구분(채움 vs 텍스트 링크). "Q-Net" 등 종목 특정 문구 대신 중립 라벨 "원서 접수" 사용.
+
+### 복원 방법
+HIST-20260624-001 복원 시:
+- 카드 헤더의 링크 그룹 div를 제거하고 `{item.officialUrl && <a className="shrink-0 ...">공식 홈페이지</a>}` 단독 구조로 복원
+- "원서 접수" 조건부 링크 제거
+
+---
+
 ## HIST-20260612-004
 
 - **날짜**: 2026-06-12

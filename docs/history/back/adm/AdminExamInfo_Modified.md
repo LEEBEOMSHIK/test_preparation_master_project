@@ -1,3 +1,53 @@
+## HIST-20260624-001
+
+- **날짜**: 2026-06-24
+- **수정 범위**: 관리자 백엔드 / 시험 정보
+- **수정 개요**: ExamInfo에 원서접수 URL(`applicationUrl`) 필드 추가 — officialUrl 패턴 미러링
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/entity/ExamInfo.java` | 수정 | `application_url` 컬럼 필드 추가, 빌더/update 메서드 파라미터에 applicationUrl 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/request/ExamInfoRequest.java` | 수정 | record에 `@Size(max=500) String applicationUrl` 필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/ExamInfoResponse.java` | 수정 | record에 `String applicationUrl` 필드 추가, `from()`에서 `e.getApplicationUrl()` 매핑 |
+| `backend/src/main/java/com/tpmp/testprep/service/ExamInfoService.java` | 수정 | `create()` 빌더, `update()` 호출에 `applicationUrl` 추가 |
+| `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java` | 수정 | `ensureExamInfo()` 시그니처에 `applicationUrl` 파라미터 추가, 기존 3개 호출부에 `null` 전달 |
+
+### 수정 상세
+
+#### `entity/ExamInfo.java`
+- 변경 전: `officialUrl` 필드 바로 다음에 `isActive` 필드
+- 변경 후: `@Column(name = "application_url", length = 500) private String applicationUrl;` 삽입, 빌더 생성자와 `update()` 메서드 파라미터에 `String applicationUrl` 추가 및 할당 (`ddl-auto=update`로 컬럼 자동 생성)
+- 이유: 원서접수 사이트 URL을 별도 필드로 관리, officialUrl(상시 공식 홈페이지)과 명확히 분리
+
+#### `dto/request/ExamInfoRequest.java`
+- 변경 전: `officialUrl` 다음 바로 `isActive`, `displayOrder`
+- 변경 후: `@Size(max = 500) String applicationUrl` 필드를 `officialUrl` 바로 다음에 추가
+
+#### `dto/response/ExamInfoResponse.java`
+- 변경 전: record 필드 `officialUrl, isActive, displayOrder, createdAt, updatedAt`, `from()`에서 10개 인자
+- 변경 후: `applicationUrl` 필드 추가 (officialUrl 다음), `from()`에 `e.getApplicationUrl()` 인자 추가
+
+#### `service/ExamInfoService.java`
+- 변경 전: `create()` builder에 `.officialUrl()` 다음 바로 `.isActive()`, `update()` 호출 9개 인자
+- 변경 후: `.applicationUrl(request.applicationUrl())` 추가, `update()` 호출에 `request.applicationUrl()` 추가
+
+#### `config/DataInitializer.java`
+- 변경 전: `ensureExamInfo()` 8개 파라미터 (officialUrl, displayOrder 포함)
+- 변경 후: `String applicationUrl` 파라미터 추가(9개), 기존 3개 호출부에 `null` 전달 (시드 데이터는 접수 URL 미확정)
+
+### 복원 방법
+HIST-20260624-001 복원 시:
+- `ExamInfo.java`: `applicationUrl` 필드 제거, 빌더/update 파라미터에서 제거
+- `ExamInfoRequest.java`: `applicationUrl` record 필드 제거
+- `ExamInfoResponse.java`: `applicationUrl` record 필드 및 `from()` 인자 제거
+- `ExamInfoService.java`: builder `.applicationUrl()` 제거, `update()` 호출 인자에서 제거
+- `DataInitializer.java`: `ensureExamInfo()` 파라미터 `applicationUrl` 제거, 3개 호출부 `null` 인자 제거
+- DB: `ALTER TABLE exam_info DROP COLUMN application_url;` (필요 시)
+
+---
+
 ## HIST-20260602-001
 
 - **날짜**: 2026-06-02

@@ -1,3 +1,38 @@
+## HIST-20260624-001
+
+- **날짜**: 2026-06-24
+- **수정 범위**: 관리자 프론트엔드 / 시험 정보 관리
+- **수정 개요**: 시험 정보 관리 폼에 "접수 사이트 URL" 입력란 추가, 목록 카드에 접수 사이트 링크 노출
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `ExamInfo` 인터페이스에 `applicationUrl?: string` 필드 추가 |
+| `frontend/src/app/admin/exam-info/page.tsx` | 수정 | `EMPTY_FORM`/`FormState`에 `applicationUrl: ''` 추가, `openEdit`/`handleSave`에 연결, `renderFormFields`에 입력란 추가, 목록 카드에 접수 사이트 링크 추가 |
+
+### 수정 상세
+
+#### `frontend/src/types/index.ts`
+- 변경 전: `officialUrl?: string;` 다음 바로 `isActive`
+- 변경 후: `officialUrl?: string;` 다음에 `applicationUrl?: string;` 추가
+
+#### `frontend/src/app/admin/exam-info/page.tsx`
+- 변경 전: `EMPTY_FORM`에 `officialUrl: ''`, `openEdit`에 `officialUrl: item.officialUrl ?? ''`, payload에 `officialUrl: form.officialUrl`, `renderFormFields` 내 공식 홈페이지 URL 입력란만 존재, 목록 카드에 officialUrl 링크만 존재
+- 변경 후:
+  - `EMPTY_FORM`에 `applicationUrl: ''` 추가
+  - `openEdit`에 `applicationUrl: item.applicationUrl ?? ''` 추가
+  - payload에 `applicationUrl: form.applicationUrl` 추가
+  - `renderFormFields` 내 "공식 홈페이지 URL" 입력란 바로 다음에 "접수 사이트 URL" `<input type="url">` 추가 (placeholder로 노출 조건 안내)
+  - 목록 카드 일정 요약 영역에 `item.applicationUrl`이 있을 때 "접수 사이트 ↗" (emerald 색상) 링크 추가
+
+### 복원 방법
+HIST-20260624-001 복원 시:
+- `types/index.ts`: `applicationUrl?: string` 제거
+- `admin/exam-info/page.tsx`: `EMPTY_FORM.applicationUrl` 제거, `openEdit`/payload에서 제거, `renderFormFields`에서 "접수 사이트 URL" 입력란 제거, 목록 카드 applicationUrl 링크 제거
+
+---
+
 ## HIST-20260506-007
 
 - **날짜**: 2026-05-06

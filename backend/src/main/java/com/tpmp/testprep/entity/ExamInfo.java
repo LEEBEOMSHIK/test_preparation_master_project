@@ -36,6 +36,9 @@ public class ExamInfo {
     @Column(name = "official_url", length = 500)
     private String officialUrl;
 
+    @Column(name = "application_url", length = 500)
+    private String applicationUrl;
+
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
@@ -62,7 +65,7 @@ public class ExamInfo {
     @Builder
     public ExamInfo(String examType, String title, String description,
                     String applicationPeriod, String examSchedule, String resultDate,
-                    String officialUrl, boolean isActive, int displayOrder) {
+                    String officialUrl, String applicationUrl, boolean isActive, int displayOrder) {
         this.examType = examType;
         this.title = title;
         this.description = description;
@@ -70,13 +73,14 @@ public class ExamInfo {
         this.examSchedule = examSchedule;
         this.resultDate = resultDate;
         this.officialUrl = officialUrl;
+        this.applicationUrl = applicationUrl;
         this.isActive = isActive;
         this.displayOrder = displayOrder;
     }
 
     public void update(String examType, String title, String description,
                        String applicationPeriod, String examSchedule, String resultDate,
-                       String officialUrl, boolean isActive, int displayOrder) {
+                       String officialUrl, String applicationUrl, boolean isActive, int displayOrder) {
         this.examType = examType;
         this.title = title;
         this.description = description;
@@ -84,6 +88,7 @@ public class ExamInfo {
         this.examSchedule = examSchedule;
         this.resultDate = resultDate;
         this.officialUrl = officialUrl;
+        this.applicationUrl = applicationUrl;
         this.isActive = isActive;
         this.displayOrder = displayOrder;
     }
