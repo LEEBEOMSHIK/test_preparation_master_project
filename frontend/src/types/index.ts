@@ -423,6 +423,11 @@ export interface QuizDailyStat {
   totalQuestions: number;
 }
 
+export interface PracticeDailyStat {
+  date: string;
+  totalExecutions: number;
+}
+
 export interface UserDashboardData {
   totalQuestions: number;
   totalCorrect: number;
@@ -433,4 +438,8 @@ export interface UserDashboardData {
   quizTotalQuestions: number;
   quizDomainStats: QuizDomainStat[];
   quizDailyStats: QuizDailyStat[];
+  practiceTotalExecutions: number;
+  practiceSuccessCount: number;
+  practiceSuccessRate: number;
+  practiceDailyStats: PracticeDailyStat[];
 }

@@ -1,3 +1,56 @@
+## HIST-20260624-001
+
+- **날짜**: 2026-06-24
+- **수정 범위**: 사용자 프론트엔드 / 통계 대시보드
+- **수정 개요**: 연습장 풀이 통계 섹션 추가 — PracticeDailyStat 타입 정의, UserDashboardData 4필드 확장, 스켈레톤 추가, 대시보드 페이지 연습장 섹션 렌더링
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | PracticeDailyStat 인터페이스 추가; UserDashboardData에 4필드(practiceTotalExecutions, practiceSuccessCount, practiceSuccessRate, practiceDailyStats) 추가 |
+| `frontend/src/components/ui/Skeleton.tsx` | 수정 | DashboardSkeleton 말미에 연습장 섹션 헤더(2줄) + 날짜별 실행량 수직 막대 스켈레톤 추가 |
+| `frontend/src/app/user/dashboard/page.tsx` | 수정 | PracticeDailyStat import, 빈 화면 조건 확장, 구조분해 4필드 추가, practiceDailyChartData 변환, 연습장 섹션 렌더링, PageHeader 부제 갱신 |
+| `CLAUDE.md` | 수정 | DashboardSkeleton 설명에 `+ 연습장 날짜별 실행량 막대` 추가 |
+
+### 수정 상세
+
+#### `frontend/src/types/index.ts`
+- 변경 전: QuizDailyStat 인터페이스까지만 존재. UserDashboardData에 9개 필드.
+- 변경 후:
+  - `PracticeDailyStat { date: string; totalExecutions: number; }` 추가 (QuizDailyStat 뒤)
+  - UserDashboardData에 4개 필드 추가: `practiceTotalExecutions: number; practiceSuccessCount: number; practiceSuccessRate: number; practiceDailyStats: PracticeDailyStat[];`
+- 이유: BE UserDashboardResponse 4필드 확장에 대응
+
+#### `frontend/src/components/ui/Skeleton.tsx`
+- 변경 전: DashboardSkeleton이 퀴즈 도메인별 풀이량 막대에서 종료.
+- 변경 후: 퀴즈 도메인별 막대 직후 2개 블록 추가
+  - 연습장 섹션 헤더 스켈레톤 (제목줄 h-3.5 w-28 + 부제줄 h-3 w-40 + 뱃지 h-4 w-24)
+  - 연습장 날짜별 실행량 수직 막대 스켈레톤 (헤더 h-3.5 w-32 + flex h-24 막대 14개)
+- 이유: 연습장 섹션 데이터 로딩 중 스켈레톤 표시
+
+#### `frontend/src/app/user/dashboard/page.tsx`
+- 변경 전: PracticeDailyStat 미사용. 빈 화면 조건 `totalQuestions===0 && quizTotalQuestions===0`. 구조분해 9필드. PageHeader 부제 "내 시험 응시 결과를 한눈에 확인하세요."
+- 변경 후:
+  - import에 `PracticeDailyStat` 추가
+  - 빈 화면 조건에 `&& data.practiceTotalExecutions === 0` 추가
+  - 구조분해에 practiceTotalExecutions/practiceSuccessCount/practiceSuccessRate/practiceDailyStats 추가
+  - `practiceDailyChartData` 변환: `{ date: d.date.slice(5), count: d.totalExecutions }`
+  - 퀴즈 섹션 앞에 연습장 섹션 추가 (`{practiceTotalExecutions > 0 && (...)}`)
+    - 섹션 헤더: 제목 "연습장 풀이 통계", 부제 "SQL 연습 실행 현황", 총 실행수 뱃지(teal 색상)
+    - 요약 3카드: 총 실행 / 성공 / 성공률(domainBarColor 색상 기준 적용)
+    - 날짜별 실행량 수직 BarChart: teal(#14b8a6) 계열, 마지막 막대 진한 색
+  - PageHeader 부제: "내 시험·퀴즈·연습장 결과를 한눈에 확인하세요."
+- 이유: 연습장 집계 BE 4필드 대응 렌더링 추가
+
+### 복원 방법
+이 ID(HIST-20260624-001)만으로 복원 시:
+1. `types/index.ts`에서 `PracticeDailyStat` 인터페이스 삭제, `UserDashboardData`에서 4개 필드 제거
+2. `Skeleton.tsx`의 DashboardSkeleton에서 연습장 섹션 헤더 + 날짜별 막대 2개 블록 제거
+3. `dashboard/page.tsx`에서 PracticeDailyStat import 제거, 빈 화면 조건 복원, 구조분해 4필드 제거, practiceDailyChartData 제거, 연습장 섹션 JSX 제거, PageHeader 부제 복원
+
+---
+
 ## HIST-20260622-001
 
 - **날짜**: 2026-06-22

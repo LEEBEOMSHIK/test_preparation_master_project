@@ -277,6 +277,25 @@ export function DashboardSkeleton() {
           </div>
         ))}
       </div>
+
+      {/* 연습장 풀이 통계 섹션 헤더 */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-1.5">
+          <Skeleton className="h-3.5 w-28" />
+          <Skeleton className="h-3 w-40" />
+        </div>
+        <Skeleton className="h-4 w-24 rounded-full" />
+      </div>
+
+      {/* 연습장 날짜별 실행량 수직 막대 */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 p-5">
+        <Skeleton className="h-3.5 w-32 mb-4" />
+        <div className="flex items-end gap-1 h-24">
+          {Array.from({ length: 14 }).map((_, i) => (
+            <Skeleton key={i} className="flex-1 rounded-sm" style={{ height: `${20 + (i % 6) * 12}%` }} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

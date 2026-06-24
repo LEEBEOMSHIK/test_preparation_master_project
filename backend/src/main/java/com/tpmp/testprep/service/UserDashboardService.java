@@ -2,6 +2,7 @@ package com.tpmp.testprep.service;
 
 import com.tpmp.testprep.dto.response.DailyStatResponse;
 import com.tpmp.testprep.dto.response.DomainStatResponse;
+import com.tpmp.testprep.dto.response.PracticeDailyStatResponse;
 import com.tpmp.testprep.dto.response.QuizDailyStatResponse;
 import com.tpmp.testprep.dto.response.QuizDomainStatResponse;
 import com.tpmp.testprep.dto.response.UserDashboardResponse;
@@ -9,6 +10,7 @@ import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.ExamHistoryRepository;
+import com.tpmp.testprep.repository.PracticeHistoryRepository;
 import com.tpmp.testprep.repository.QuizHistoryRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,7 @@ public class UserDashboardService {
     private final UserRepository userRepository;
     private final ExamHistoryRepository examHistoryRepository;
     private final QuizHistoryRepository quizHistoryRepository;
+    private final PracticeHistoryRepository practiceHistoryRepository;
 
     /**
      * 사용자 통계 대시보드 조회.
@@ -147,6 +150,31 @@ public class UserDashboardService {
                 .map(e -> new QuizDailyStatResponse(e.getKey(), e.getValue()))
                 .collect(Collectors.toList());
 
+        // ── 연습장: 총 실행수 / 성공수 ───────────────────────────
+        Object[] practiceTotals = normalizeSingleAggregateRow(
+                practiceHistoryRepository.sumTotalAndSuccessByEmailAndPeriod(email, from));
+
+        long practiceTotalExecutions = longValueAt(practiceTotals, 0);
+        long practiceSuccessCount    = longValueAt(practiceTotals, 1);
+        double practiceSuccessRate   = practiceTotalExecutions > 0
+                ? practiceSuccessCount * 100.0 / practiceTotalExecutions
+                : 0.0;
+
+        // ── 연습장: 날짜별 실행량 (날짜 ASC) ──────────────────────
+        List<PracticeDailyStatResponse> practiceDailyStats = practiceHistoryRepository
+                .aggregateDailyStatsByEmailAndPeriod(email, from)
+                .stream()
+                .filter(row -> row[0] != null)
+                .collect(Collectors.toMap(
+                        row -> toDateString(row[0]),
+                        row -> ((Number) row[1]).longValue(),
+                        Long::sum,
+                        java.util.TreeMap::new
+                ))
+                .entrySet().stream()
+                .map(e -> new PracticeDailyStatResponse(e.getKey(), e.getValue()))
+                .collect(Collectors.toList());
+
         return new UserDashboardResponse(
                 totalQuestions,
                 totalCorrect,
@@ -156,7 +184,11 @@ public class UserDashboardService {
                 dailyTrend,
                 quizTotalQuestions,
                 quizDomainStats,
-                quizDailyStats
+                quizDailyStats,
+                practiceTotalExecutions,
+                practiceSuccessCount,
+                practiceSuccessRate,
+                practiceDailyStats
         );
     }
 

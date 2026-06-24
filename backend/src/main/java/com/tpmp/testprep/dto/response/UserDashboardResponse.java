@@ -11,5 +11,9 @@ public record UserDashboardResponse(
         List<DailyStatResponse> dailyTrend,
         long quizTotalQuestions,
         List<QuizDomainStatResponse> quizDomainStats,
-        List<QuizDailyStatResponse> quizDailyStats
+        List<QuizDailyStatResponse> quizDailyStats,
+        long practiceTotalExecutions,
+        long practiceSuccessCount,
+        double practiceSuccessRate,
+        List<PracticeDailyStatResponse> practiceDailyStats
 ) {}

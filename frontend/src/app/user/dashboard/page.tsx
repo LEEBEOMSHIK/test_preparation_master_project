@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import { DashboardSkeleton } from '@/components/ui/Skeleton';
 import { userDashboardService, type DashboardPeriod } from '@/services/userDashboardService';
-import type { UserDashboardData, DomainStat, DailyStat, QuizDomainStat, QuizDailyStat } from '@/types';
+import type { UserDashboardData, DomainStat, DailyStat, QuizDomainStat, QuizDailyStat, PracticeDailyStat } from '@/types';
 
 // ── 기간 탭 ──────────────────────────────────────────────────────────────────
 
@@ -88,7 +88,7 @@ export default function UserDashboardPage() {
   }
 
   // ── 데이터 없음 ────────────────────────────────────────────────────────────
-  if (!data || (data.totalQuestions === 0 && data.quizTotalQuestions === 0)) {
+  if (!data || (data.totalQuestions === 0 && data.quizTotalQuestions === 0 && data.practiceTotalExecutions === 0)) {
     return (
       <div className="space-y-4">
         <PageHeader period={period} onPeriodChange={setPeriod} />
@@ -119,6 +119,10 @@ export default function UserDashboardPage() {
     quizTotalQuestions,
     quizDomainStats,
     quizDailyStats,
+    practiceTotalExecutions,
+    practiceSuccessCount,
+    practiceSuccessRate,
+    practiceDailyStats,
   } = data;
 
   // ── 차트 데이터 변환 ────────────────────────────────────────────────────────
@@ -148,6 +152,11 @@ export default function UserDashboardPage() {
   }));
 
   const quizDomainMaxCount = quizDomainChartData.reduce((max, d) => Math.max(max, d.count), 1);
+
+  const practiceDailyChartData = practiceDailyStats.map((d: PracticeDailyStat) => ({
+    date: d.date.slice(5), // "MM-DD"
+    count: d.totalExecutions,
+  }));
 
   return (
     <div className="space-y-5">
@@ -340,6 +349,101 @@ export default function UserDashboardPage() {
         )}
       </div>
 
+      {/* ── 연습장 풀이 통계 섹션 ─────────────────────────────────── */}
+      {practiceTotalExecutions > 0 && (
+        <div className="space-y-4">
+          {/* 섹션 헤더 */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">연습장 풀이 통계</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                SQL 연습 실행 현황
+              </p>
+            </div>
+            <span className="text-sm font-bold text-teal-600 dark:text-teal-400">
+              총 {practiceTotalExecutions.toLocaleString()}회 실행
+            </span>
+          </div>
+
+          {/* 요약 카드 3개 */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
+              <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">
+                총 실행
+              </p>
+              <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                {practiceTotalExecutions.toLocaleString()}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
+              <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">
+                성공
+              </p>
+              <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                {practiceSuccessCount.toLocaleString()}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
+              <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">
+                성공률
+              </p>
+              <p className={`text-xl font-bold ${
+                practiceSuccessRate >= 70
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : practiceSuccessRate >= 40
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : 'text-rose-600 dark:text-rose-400'
+              }`}>
+                {practiceSuccessRate.toFixed(1)}%
+              </p>
+            </div>
+          </div>
+
+          {/* 날짜별 실행량 수직 BarChart */}
+          {practiceDailyChartData.length > 0 && (
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">
+                날짜별 실행량
+              </p>
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart
+                  data={practiceDailyChartData}
+                  margin={{ left: 0, right: 4, top: 0, bottom: 0 }}
+                  barCategoryGap={practiceDailyChartData.length > 20 ? '10%' : '30%'}
+                >
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={practiceDailyChartData.length > 14 ? 3 : 0}
+                  />
+                  <YAxis hide />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                    contentStyle={{
+                      fontSize: 12,
+                      borderRadius: 8,
+                      border: '1px solid #e5e7eb',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                    }}
+                    formatter={(v) => [typeof v === 'number' ? `${v}회` : '', '실행 수']}
+                  />
+                  <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+                    {practiceDailyChartData.map((_, index) => (
+                      <Cell
+                        key={index}
+                        fill={index === practiceDailyChartData.length - 1 ? '#14b8a6' : '#14b8a655'}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── 퀴즈 풀이량 섹션 ──────────────────────────────────────── */}
       {quizTotalQuestions > 0 && (
         <div className="space-y-4">
@@ -462,7 +566,7 @@ function PageHeader({ period, onPeriodChange }: PageHeaderProps) {
       <div>
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">통계 대시보드</h2>
         <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">
-          내 시험 응시 결과를 한눈에 확인하세요.
+          내 시험·퀴즈·연습장 결과를 한눈에 확인하세요.
         </p>
       </div>
       <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">

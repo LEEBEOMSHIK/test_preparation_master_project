@@ -1,3 +1,60 @@
+## HIST-20260624-001
+
+- **날짜**: 2026-06-24
+- **수정 범위**: 사용자 백엔드 / 통계 대시보드
+- **수정 개요**: 연습장(PracticeHistory) 풀이 통계를 사용자 대시보드에 반영 — 총 실행수·성공수·성공률·날짜별 실행량 4필드 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/dto/response/PracticeDailyStatResponse.java` | 추가 | 연습장 날짜별 실행량 응답 record(date, totalExecutions) |
+| `backend/src/main/java/com/tpmp/testprep/repository/PracticeHistoryRepository.java` | 수정 | 집계 메서드 2개 추가 — sumTotalAndSuccessByEmailAndPeriod, aggregateDailyStatsByEmailAndPeriod |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/UserDashboardResponse.java` | 수정 | practiceTotalExecutions, practiceSuccessCount, practiceSuccessRate, practiceDailyStats 4필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserDashboardService.java` | 수정 | PracticeHistoryRepository 주입, 연습장 집계 블록 추가, return에 4개 인수 추가 |
+
+### 수정 상세
+
+#### `PracticeDailyStatResponse.java` (신규)
+- 변경 전: 없음
+- 변경 후: `record(String date, long totalExecutions)` — QuizDailyStatResponse 패턴 동일
+- 이유: 연습장 날짜별 실행량 응답 전용 DTO
+
+#### `PracticeHistoryRepository.java`
+- 변경 전: `JpaRepository<PracticeHistory, Long>, JpaSpecificationExecutor<PracticeHistory>` 상속만 존재.
+- 변경 후: JPQL @Query 집계 메서드 2개 추가
+  - `sumTotalAndSuccessByEmailAndPeriod(email, from)` — COUNT(p) + SUM(CASE WHEN resultType='ERROR' THEN 0 ELSE 1 END)
+  - `aggregateDailyStatsByEmailAndPeriod(email, from)` — CAST(executedAt AS date) GROUP BY ASC
+  - 식별자 전략: email String 직접 바인딩(FK 없음). `@Param("email")`, `@Param("from")` 사용.
+- 이유: PracticeHistory에 userId FK 없으므로 userEmail String으로 직접 집계
+
+#### `UserDashboardResponse.java`
+- 변경 전: 9개 필드 record (totalQuestions ~ quizDailyStats)
+- 변경 후: 4개 필드 추가 — `long practiceTotalExecutions, long practiceSuccessCount, double practiceSuccessRate, List<PracticeDailyStatResponse> practiceDailyStats`
+- 이유: record 확장, 기존 9개 필드 순서 유지
+
+#### `UserDashboardService.java`
+- 변경 전: PracticeHistoryRepository 미주입. getDashboard()가 9개 인수로 return.
+- 변경 후:
+  - `PracticeHistoryRepository practiceHistoryRepository` 필드 추가 (@RequiredArgsConstructor 자동 주입)
+  - import: `PracticeDailyStatResponse`, `PracticeHistoryRepository` 추가
+  - quizDailyStats 블록 직후 연습장 집계 블록 추가:
+    - `normalizeSingleAggregateRow(practiceHistoryRepository.sumTotalAndSuccessByEmailAndPeriod(email, from))` → totalExecutions/successCount
+    - `practiceSuccessRate = totalExecutions > 0 ? successCount * 100.0 / totalExecutions : 0.0`
+    - `aggregateDailyStatsByEmailAndPeriod(email, from)` → TreeMap(날짜 ASC) → PracticeDailyStatResponse 리스트
+  - return에 4개 인수 추가 (기존 9개 뒤)
+  - 기존 헬퍼(normalizeSingleAggregateRow, longValueAt, toDateString) 재사용
+- 이유: 연습장 실행 현황을 대시보드에 통합 제공
+
+### 복원 방법
+이 ID(HIST-20260624-001)만으로 복원 시:
+1. `PracticeDailyStatResponse.java` 파일 삭제
+2. `PracticeHistoryRepository.java`에서 추가된 2개 @Query 메서드 및 import(Query, Param, LocalDateTime, List) 제거
+3. `UserDashboardResponse.java`에서 추가된 4개 필드 제거
+4. `UserDashboardService.java`에서 PracticeHistoryRepository 필드/import 제거, 연습장 집계 블록 제거, return 인수 9개로 복원
+
+---
+
 ## HIST-20260622-002
 
 - **날짜**: 2026-06-22
