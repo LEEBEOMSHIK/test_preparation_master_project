@@ -3,6 +3,7 @@ import type { ApiResponse, DomainMaster } from '@/types';
 
 export interface QuizQuestion {
   id: number;
+  title?: string;
   content: string;
   questionType: string;
   options?: string[];

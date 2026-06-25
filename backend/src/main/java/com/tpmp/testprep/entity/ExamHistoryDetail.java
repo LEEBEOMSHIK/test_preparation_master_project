@@ -58,6 +58,10 @@ public class ExamHistoryDetail {
     @Column(length = 20)
     private String language;
 
+    /** 문항 카테고리명 스냅샷 (채점 시점 비정규화 — FK 없이 String) */
+    @Column(name = "category_name", length = 100)
+    private String categoryName;
+
     /** ExamHistory.addDetail() 에서 양방향 연관 세팅을 위해 패키지 가시성으로 제공 */
     void setExamHistory(ExamHistory examHistory) {
         this.examHistory = examHistory;

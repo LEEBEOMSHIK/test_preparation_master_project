@@ -26,6 +26,78 @@ function answerLabel(q: Question, userAnswer: string | undefined): string {
 }
 
 
+// ── 답안 목록 공용 렌더 함수 (사이드바 · 모바일 시트 공유) ─────────────────
+interface AnswerSheetContentProps {
+  questions: Question[];
+  answers: Record<number, string>;
+  flagged: Set<number>;
+  current: number;
+  setCurrent: (idx: number) => void;
+  onNavigate?: () => void; // 모바일 시트에서 이동 후 시트 닫기용
+}
+
+function AnswerSheetContent({
+  questions,
+  answers,
+  flagged,
+  current,
+  setCurrent,
+  onNavigate,
+}: AnswerSheetContentProps) {
+  return (
+    <>
+      <div className="space-y-1">
+        {questions.map((question, idx) => {
+          const userAnswer = answers[question.id];
+          const isAnswered = !!userAnswer;
+          const isCurrentQ = idx === current;
+          const isFlaggedQ = flagged.has(question.id);
+          const label = answerLabel(question, userAnswer);
+
+          return (
+            <button
+              key={question.id}
+              onClick={() => {
+                setCurrent(idx);
+                onNavigate?.();
+              }}
+              className={[
+                'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition relative',
+                isFlaggedQ ? 'bg-amber-200 text-amber-800 border border-amber-400 font-semibold' :
+                isCurrentQ ? 'bg-indigo-100 text-indigo-700 border border-indigo-300 ring-1 ring-indigo-400' :
+                isAnswered ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
+                'bg-gray-50 text-gray-400 border border-gray-200 hover:border-indigo-300',
+              ].join(' ')}
+            >
+              <span className={['shrink-0 w-7 text-left', isCurrentQ ? 'text-indigo-400' : 'text-gray-500'].join(' ')}>
+                {idx + 1}번
+              </span>
+              <span className="flex-1 min-w-0 font-bold text-sm truncate text-right">
+                {label || <span className="font-normal opacity-30">—</span>}
+              </span>
+              {isFlaggedQ && (
+                <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 범례 */}
+      <div className="mt-3 space-y-1.5 text-xs text-gray-500">
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded bg-indigo-50 border border-indigo-200 shrink-0" />
+          답변 완료 ({Object.keys(answers).length}/{questions.length})
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded bg-amber-50 border border-amber-300 shrink-0" />
+          체크 ({flagged.size}개)
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function ExamTakingPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -43,6 +115,7 @@ export default function ExamTakingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [flagAlert, setFlagAlert] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
+  const [showAnswerSheet, setShowAnswerSheet] = useState(false);
   const examDone = useRef(false);
 
   // 1분 경고 배너
@@ -510,57 +583,17 @@ export default function ExamTakingPage() {
             </div>
           </div>
 
-          {/* ── 오른쪽: 답안지 ── */}
-          <div className="w-full lg:w-64 shrink-0 flex flex-col gap-4">
+          {/* ── 오른쪽: 답안지 (lg 이상에서만 표시) ── */}
+          <div className="hidden lg:flex w-64 shrink-0 flex-col gap-4">
             <div className="bg-white rounded-xl border border-gray-200 p-4 flex-1 overflow-y-auto max-h-[calc(100vh-10rem)]">
               <p className="text-xs font-semibold text-gray-500 mb-3">답안 현황</p>
-
-              {/* 수직 목록: 문항번호(좌) | 답안(우) 수평 배치 */}
-              <div className="space-y-1">
-                {questions.map((question, idx) => {
-                  const userAnswer = answers[question.id];
-                  const isAnswered = !!userAnswer;
-                  const isCurrentQ = idx === current;
-                  const isFlaggedQ = flagged.has(question.id);
-                  const label = answerLabel(question, userAnswer);
-
-                  return (
-                    <button
-                      key={question.id}
-                      onClick={() => setCurrent(idx)}
-                      className={[
-                        'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition relative',
-                        isFlaggedQ ? 'bg-amber-200 text-amber-800 border border-amber-400 font-semibold' :
-                        isCurrentQ ? 'bg-indigo-100 text-indigo-700 border border-indigo-300 ring-1 ring-indigo-400' :
-                        isAnswered ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
-                        'bg-gray-50 text-gray-400 border border-gray-200 hover:border-indigo-300',
-                      ].join(' ')}
-                    >
-                      <span className={['shrink-0 w-7 text-left', isCurrentQ ? 'text-indigo-400' : 'text-gray-500'].join(' ')}>
-                        {idx + 1}번
-                      </span>
-                      <span className="flex-1 min-w-0 font-bold text-sm truncate text-right">
-                        {label || <span className="font-normal opacity-30">—</span>}
-                      </span>
-                      {isFlaggedQ && (
-                        <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* 범례 */}
-              <div className="mt-3 space-y-1.5 text-xs text-gray-500">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded bg-indigo-50 border border-indigo-200 shrink-0" />
-                  답변 완료 ({Object.keys(answers).length}/{questions.length})
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded bg-amber-50 border border-amber-300 shrink-0" />
-                  체크 ({flagged.size}개)
-                </div>
-              </div>
+              <AnswerSheetContent
+                questions={questions}
+                answers={answers}
+                flagged={flagged}
+                current={current}
+                setCurrent={setCurrent}
+              />
             </div>
 
             <button onClick={() => submitExam(false)} disabled={submitting}
@@ -570,6 +603,72 @@ export default function ExamTakingPage() {
           </div>
         </div>
       </main>
+
+      {/* ── 모바일 FAB: 답안 현황 버튼 (lg 미만에서만 표시) ── */}
+      <button
+        onClick={() => setShowAnswerSheet(true)}
+        className="fixed bottom-4 right-4 lg:hidden z-40 flex items-center gap-2 bg-indigo-600 text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-lg hover:bg-indigo-700 active:bg-indigo-800 transition"
+        aria-label="답안 현황 열기"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 shrink-0">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        <span>
+          답안 {Object.keys(answers).length}/{questions.length}
+        </span>
+      </button>
+
+      {/* ── 모바일 Bottom Sheet: 답안 현황 오버레이 (lg 미만에서만 표시) ── */}
+      {showAnswerSheet && (
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
+          {/* 딤 배경 — 클릭 시 닫힘 */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowAnswerSheet(false)}
+            aria-hidden="true"
+          />
+
+          {/* 시트 본체 */}
+          <div className="relative bg-white rounded-t-2xl shadow-2xl max-h-[80vh] flex flex-col">
+            {/* 시트 헤더 */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-700">답안 현황</h2>
+              <button
+                onClick={() => setShowAnswerSheet(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+                aria-label="닫기"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* 답안 목록 (스크롤) */}
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              <AnswerSheetContent
+                questions={questions}
+                answers={answers}
+                flagged={flagged}
+                current={current}
+                setCurrent={setCurrent}
+                onNavigate={() => setShowAnswerSheet(false)}
+              />
+            </div>
+
+            {/* 시험 제출 버튼 */}
+            <div className="px-5 py-4 border-t border-gray-100">
+              <button
+                onClick={() => { setShowAnswerSheet(false); submitExam(false); }}
+                disabled={submitting}
+                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50 transition"
+              >
+                {submitting ? '채점 중...' : '시험 제출'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

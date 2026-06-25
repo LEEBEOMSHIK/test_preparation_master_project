@@ -6,6 +6,7 @@ import java.util.List;
 
 public record QuizQuestionView(
         Long id,
+        String title,
         String content,
         String questionType,
         List<String> options,
@@ -17,6 +18,7 @@ public record QuizQuestionView(
     public static QuizQuestionView from(QuestionBank qb) {
         return new QuizQuestionView(
                 qb.getId(),
+                qb.getTitle(),
                 qb.getContent(),
                 qb.getQuestionType().name(),
                 qb.getOptions(),

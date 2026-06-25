@@ -1,3 +1,224 @@
+## HIST-20260625-005
+
+- **날짜**: 2026-06-25
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리 목록
+- **수정 개요**: 문항 목록 검색 패널에 시험연도·회차 클라이언트 사이드 필터 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | 시험연도·회차 입력 상태 추가, 검색 UI에 두 입력칸 삽입, handleSearch·초기화·useMemo 필터·의존성 배열 확장 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/page.tsx`
+
+- **상태 추가**
+  - 변경 전: `keyword/typeFilter/dateFrom/dateTo` + `appliedKeyword/appliedTypeFilter/appliedDateFrom/appliedDateTo` 4쌍
+  - 변경 후: `yearFilter/roundFilter` + `appliedYearFilter/appliedRoundFilter` 2쌍 추가 (string 타입, 빈 문자열이면 조건 미적용)
+
+- **검색 UI (`<div className="flex flex-wrap items-end gap-3">` 내부)**
+  - 변경 전: 문항내용 → 유형 → 등록일(시작) → 등록일(종료) → 검색 버튼
+  - 변경 후: 문항내용 → 유형 → **시험연도(w-24) → 회차(w-24)** → 등록일(시작) → 등록일(종료) → 검색 버튼
+  - 라벨/인풋 스타일은 기존 필드와 동일 (`block text-xs font-medium text-gray-500 mb-1` 라벨, `px-3 py-2 rounded-lg border ...` 인풋)
+  - `type="number"`, placeholder로 사용 예시 표시, Enter 키로 검색 가능
+
+- **`handleSearch`**
+  - 변경 전: keyword/typeFilter/dateFrom/dateTo만 applied 상태로 복사
+  - 변경 후: yearFilter/roundFilter → appliedYearFilter/appliedRoundFilter 복사 추가
+
+- **초기화 버튼 표시 조건**
+  - 변경 전: `keyword || typeFilter || dateFrom || dateTo || appliedKeyword || ...` 8개 조건
+  - 변경 후: yearFilter/roundFilter/appliedYearFilter/appliedRoundFilter 4개 조건 추가
+
+- **초기화 버튼 onClick**
+  - 변경 전: 4개 입력·4개 applied 상태 초기화
+  - 변경 후: yearFilter/roundFilter/appliedYearFilter/appliedRoundFilter 초기화 추가
+
+- **`filtered` useMemo 필터 조건**
+  - 변경 전: kw·typeFilter·날짜 범위만 적용
+  - 변경 후: `appliedYearFilter !== ''`이면 `q.examYear !== Number(appliedYearFilter)`인 항목 제외; `appliedRoundFilter !== ''`이면 `q.examRound !== Number(appliedRoundFilter)`인 항목 제외. null/undefined인 문항은 조건이 걸리면 자연히 제외(정확 매칭).
+  - 의존성 배열에 `appliedYearFilter, appliedRoundFilter` 추가
+
+- **이유**: AI 커스텀 문항과 시험 기출 문항이 혼재하는 상황에서 특정 연도·회차의 기출 문항만 빠르게 조회하는 UX 필요. 백엔드 변경 없이 기존 500건 클라이언트 로드 패턴 위에서 동작.
+
+### 복원 방법
+이 ID(HIST-20260625-005)만으로 복원 시:
+- `yearFilter/roundFilter/appliedYearFilter/appliedRoundFilter` 상태 4개 제거
+- 검색 UI에서 시험연도·회차 `<div>` 2개 제거
+- `handleSearch`에서 두 applied 복사 라인 제거
+- 초기화 버튼 조건·onClick에서 4개 항목 제거
+- `filtered` useMemo의 yearFilter/roundFilter 필터 2줄 제거 및 의존성 배열에서 제거
+
+---
+
+## HIST-20260625-004
+
+- **날짜**: 2026-06-25
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리 목록
+- **수정 개요**: HIST-20260625-003 갭 수정 — 제목 없는 문항(title null)에도 'AI 커스텀' 배지가 표시되도록 셀 구조 재배치. 배지/서브텍스트 줄을 title 분기 밖으로 공통화.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | td 내부 구조 재배치: title 유무 분기를 텍스트 행 단독으로 좁히고, 연/회차·AI커스텀 배지 줄을 title 분기 밖 공통 위치로 이동 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/page.tsx` (문항 테이블 td 셀)
+
+- 변경 전 구조 (HIST-20260625-003 적용 후):
+  ```tsx
+  <td ...>
+    {q.title ? (
+      <div>
+        <p className="truncate font-medium">{q.title}</p>
+        {/* 배지/서브텍스트가 title 분기 안에만 존재 */}
+        {(q.examYear != null || q.examRound != null) ? ( ... ) : ( 'AI 커스텀' 배지 )}
+      </div>
+    ) : (
+      <p className="truncate text-gray-500">{stripHtml(q.content)}</p>
+      {/* title 없으면 배지 없음 — 갭 */}
+    )}
+  </td>
+  ```
+
+- 변경 후 구조:
+  ```tsx
+  <td ...>
+    <div>
+      {/* 텍스트 행: title 있으면 제목, 없으면 content */}
+      {q.title ? (
+        <p className="truncate font-medium">{q.title}</p>
+      ) : (
+        <p className="truncate text-gray-500">{stripHtml(q.content)}</p>
+      )}
+      {/* 배지 행: title 유무와 독립적으로 항상 렌더 */}
+      {(q.examYear != null || q.examRound != null) ? (
+        <p className="text-xs text-slate-400 mt-0.5">...</p>
+      ) : (
+        <span className="... bg-amber-50 text-amber-600 ...">AI 커스텀</span>
+      )}
+    </div>
+  </td>
+  ```
+
+- 이유: HIST-20260625-003에서 배지를 `q.title` true 분기 안에만 넣어, AI 커스텀 문항 중 제목이 없는 경우(오히려 흔한 케이스)에는 배지가 표시되지 않는 갭이 있었음. 텍스트 행과 배지 행을 분리하여 각각 독립적으로 렌더링하도록 구조 변경.
+
+### 복원 방법
+이 ID(HIST-20260625-004)만으로 복원 시: HIST-20260625-003의 "변경 후" 코드(배지가 title 분기 안에 있는 구조)를 `questions/page.tsx` 해당 위치에 적용한다.
+
+---
+
+## HIST-20260625-003
+
+- **날짜**: 2026-06-25
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리 목록
+- **수정 개요**: 문항 목록에서 examYear·examRound 둘 다 null인 문항에 'AI 커스텀' amber 배지 표시 (방식 A 휴리스틱)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | 제목 아래 연/회차 서브텍스트를 `if/else` 분기로 확장 — 연/회차 중 하나라도 있으면 기존 slate 텍스트, 둘 다 null이면 amber pill 배지 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/page.tsx` (L311-317 영역)
+- 변경 전:
+  ```tsx
+  {(q.examYear || q.examRound) && (
+    <p className="text-xs text-slate-400 mt-0.5">
+      {q.examYear ? `${q.examYear}년` : ''}
+      {q.examYear && q.examRound ? ' ' : ''}
+      {q.examRound ? `제${q.examRound}회` : ''}
+    </p>
+  )}
+  ```
+- 변경 후:
+  ```tsx
+  {(q.examYear != null || q.examRound != null) ? (
+    <p className="text-xs text-slate-400 mt-0.5">
+      {q.examYear != null ? `${q.examYear}년` : ''}
+      {q.examYear != null && q.examRound != null ? ' ' : ''}
+      {q.examRound != null ? `제${q.examRound}회` : ''}
+    </p>
+  ) : (
+    <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600 border border-amber-100">
+      AI 커스텀
+    </span>
+  )}
+  ```
+- 이유: AI 생성·커스텀 문항은 시험 연도/회차가 없으므로 기존 빈 상태에서 배지로 시각 구분. `|| falsy` 체크에서 `!= null` 명시 체크로 변경하여 `examYear = 0` 같은 엣지 케이스도 안전하게 처리.
+- 다크모드: 이 화면 기존 배지(TYPE_COLOR)가 다크모드 변형을 사용하지 않으므로 amber 배지도 동일 패턴으로 라이트 전용 적용.
+
+### 복원 방법
+이 ID(HIST-20260625-003)만으로 복원 시: 위 "변경 전" 코드를 `questions/page.tsx` 해당 위치에 적용한다.
+
+---
+
+## HIST-20260625-002
+
+- **날짜**: 2026-06-25
+- **수정 범위**: 관리자 프론트엔드 / 시험지 문항 관리
+- **수정 개요**: 시험지 생성·편집 화면에서 categoryId 누락 수정 — papers/new·papers/[id]/edit 두 화면의 문항 payload에 `categoryId` 추가 (HIST-20260625-001 자기진단 오류 정정)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/papers/new/page.tsx` | 수정 | `adminCreateExamWithQuestions` 문항 매핑에 `categoryId: q.categoryId ?? null` 추가 |
+| `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` | 수정 | `adminAddQuestionsBulk` 문항 매핑에 `categoryId: q.categoryId ?? null` 추가 |
+
+### 수정 상세
+
+#### `papers/new/page.tsx`
+- 변경 전: `selected.map((q) => ({ content, questionType, options, answer, explanation, code, language }))` — categoryId 누락.
+- 변경 후: 동일 map에 `categoryId: q.categoryId ?? null` 추가. `allQuestions`는 `QuestionSummary[]`이고 `QuestionSummary.categoryId?`가 이미 존재하므로 타입 안전.
+- 이유: categoryId가 없으면 BE QuestionRequest.categoryId=null → Question.category=null → ExamHistoryDetail.categoryName=null → 집계 쿼리 IS NOT NULL 조건으로 약점 차트 영구 공백.
+
+#### `papers/[id]/edit/page.tsx`
+- 변경 전: `toAdd.map((q) => ({ content, questionType, options, answer, explanation, code, language }))` — categoryId 누락.
+- 변경 후: 동일 map에 `categoryId: q.categoryId ?? null` 추가.
+- 이유: new/page.tsx와 동일.
+
+### HIST-20260625-001 자기진단 정정
+HIST-20260625-001의 "기존 new/page.tsx·edit/page.tsx가 QuestionSummary 타입으로 categoryId를 처리하고 있어 추가 FE 변경 불필요" 진단이 잘못되었다. 그 두 경로는 `admin/exams/questions/new`·`[id]/edit`(문제은행)이고, 실제 시험지 문항 진입점인 `admin/exams/papers/new`·`[id]/edit`는 categoryId를 payload에 포함하지 않고 있었다. 이번 HIST-20260625-002에서 해당 누락을 수정 완료.
+
+### 복원 방법
+이 ID(HIST-20260625-002)만으로 복원 시:
+- `papers/new/page.tsx`: selected.map의 `categoryId: q.categoryId ?? null` 줄 제거
+- `papers/[id]/edit/page.tsx`: toAdd.map의 `categoryId: q.categoryId ?? null` 줄 제거
+
+---
+
+## HIST-20260625-001
+
+- **날짜**: 2026-06-25
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리
+- **수정 개요**: frontend/src/types/index.ts의 ExamQuestion 인터페이스에 categoryId·categoryName 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | ExamQuestion 인터페이스에 `categoryId?: number`, `categoryName?: string` 추가 |
+
+### 수정 상세
+
+#### `types/index.ts`
+- 변경 전: ExamQuestion에 id·seq·content·questionType·options·answer·explanation·code·language 9필드.
+- 변경 후: `categoryId?: number`, `categoryName?: string` 2필드 추가. 백엔드 QuestionDetailResponse의 신규 필드와 타입 일치.
+- 이유: 시험지 문항 편집 화면에서 categoryId·categoryName을 폼에 미리 채우기 위함.
+- 자기진단 오류: "papers/new·papers/[id]/edit에서 추가 FE 변경 불필요"는 잘못된 진단이었음. → HIST-20260625-002에서 수정 완료.
+
+### 복원 방법
+이 ID(HIST-20260625-001)만으로 복원 시: ExamQuestion 인터페이스에서 categoryId·categoryName 필드 제거.
+
+---
+
 ## HIST-20260528-007
 
 - **날짜**: 2026-05-28

@@ -387,7 +387,7 @@ function QuizPlayContent() {
       {/* 문제 카드 */}
       <div className="relative bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
         {/* 연도/회차 배지 (우측 상단) */}
-        {(q.examYear != null || q.examRound != null) && (
+        {(q.examYear != null || q.examRound != null) ? (
           <span className="absolute top-4 right-4 text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
             {q.examYear != null && q.examRound != null
               ? `${q.examYear}년 ${q.examRound}회`
@@ -395,7 +395,20 @@ function QuizPlayContent() {
               ? `${q.examYear}년`
               : `${q.examRound}회`}
           </span>
+        ) : (
+          <span className="absolute top-4 right-4 text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100">
+            AI 커스텀
+          </span>
         )}
+        {/* 문항 관리 제목 헤더 (title이 있을 때만) */}
+        {q.title && q.title.trim() !== '' && (
+          <div className="pr-24 pb-3 border-b border-gray-100">
+            <span className="text-xs font-semibold text-gray-400 leading-tight">
+              {q.title}
+            </span>
+          </div>
+        )}
+
         <RichContent html={q.content} className="text-gray-800 font-medium text-base pr-24" />
 
         {q.code && (

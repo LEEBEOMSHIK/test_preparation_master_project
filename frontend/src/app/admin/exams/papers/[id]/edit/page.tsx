@@ -136,6 +136,7 @@ export default function AdminExamPaperEditPage() {
           explanation:  q.explanation ?? null,
           code:         q.code ?? null,
           language:     q.language ?? null,
+          categoryId:   q.categoryId ?? null,
         })),
       );
       // 문항 목록 새로고침

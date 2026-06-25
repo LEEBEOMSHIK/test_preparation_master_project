@@ -51,16 +51,20 @@ export default function AdminQuestionsPage() {
   const [detailQ,      setDetailQ]      = useState<QuestionDetailItem | null>(null);
 
   // 검색 조건 (입력)
-  const [keyword,    setKeyword]    = useState('');
-  const [typeFilter, setTypeFilter] = useState<QuestionType | ''>('');
-  const [dateFrom,   setDateFrom]   = useState('');
-  const [dateTo,     setDateTo]     = useState('');
+  const [keyword,     setKeyword]     = useState('');
+  const [typeFilter,  setTypeFilter]  = useState<QuestionType | ''>('');
+  const [yearFilter,  setYearFilter]  = useState('');
+  const [roundFilter, setRoundFilter] = useState('');
+  const [dateFrom,    setDateFrom]    = useState('');
+  const [dateTo,      setDateTo]      = useState('');
 
   // 검색 조건 (적용됨)
-  const [appliedKeyword,    setAppliedKeyword]    = useState('');
-  const [appliedTypeFilter, setAppliedTypeFilter] = useState<QuestionType | ''>('');
-  const [appliedDateFrom,   setAppliedDateFrom]   = useState('');
-  const [appliedDateTo,     setAppliedDateTo]     = useState('');
+  const [appliedKeyword,      setAppliedKeyword]      = useState('');
+  const [appliedTypeFilter,   setAppliedTypeFilter]   = useState<QuestionType | ''>('');
+  const [appliedYearFilter,   setAppliedYearFilter]   = useState('');
+  const [appliedRoundFilter,  setAppliedRoundFilter]  = useState('');
+  const [appliedDateFrom,     setAppliedDateFrom]     = useState('');
+  const [appliedDateTo,       setAppliedDateTo]       = useState('');
 
   // 정렬
   const [sortField, setSortField] = useState<SortField>('updatedAt');
@@ -94,6 +98,8 @@ export default function AdminQuestionsPage() {
   const handleSearch = () => {
     setAppliedKeyword(keyword);
     setAppliedTypeFilter(typeFilter);
+    setAppliedYearFilter(yearFilter);
+    setAppliedRoundFilter(roundFilter);
     setAppliedDateFrom(dateFrom);
     setAppliedDateTo(dateTo);
     setPage(0);
@@ -121,6 +127,8 @@ export default function AdminQuestionsPage() {
         if (!inTitle && !inContent) return false;
       }
       if (appliedTypeFilter && q.questionType !== appliedTypeFilter) return false;
+      if (appliedYearFilter  !== '' && q.examYear  !== Number(appliedYearFilter))  return false;
+      if (appliedRoundFilter !== '' && q.examRound !== Number(appliedRoundFilter)) return false;
       const created = new Date(q.createdAt).getTime();
       if (fromMs && created < fromMs) return false;
       if (toMs   && created > toMs)   return false;
@@ -133,7 +141,7 @@ export default function AdminQuestionsPage() {
       const diff = new Date(av).getTime() - new Date(bv).getTime();
       return sortDir === 'asc' ? diff : -diff;
     });
-  }, [allQuestions, appliedKeyword, appliedTypeFilter, appliedDateFrom, appliedDateTo, sortField, sortDir]);
+  }, [allQuestions, appliedKeyword, appliedTypeFilter, appliedYearFilter, appliedRoundFilter, appliedDateFrom, appliedDateTo, sortField, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged      = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -192,6 +200,30 @@ export default function AdminQuestionsPage() {
             </select>
           </div>
 
+          <div className="w-24">
+            <label className="block text-xs font-medium text-gray-500 mb-1">시험연도</label>
+            <input
+              type="number"
+              value={yearFilter}
+              onChange={(e) => setYearFilter(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="예: 2024"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            />
+          </div>
+
+          <div className="w-24">
+            <label className="block text-xs font-medium text-gray-500 mb-1">회차</label>
+            <input
+              type="number"
+              value={roundFilter}
+              onChange={(e) => setRoundFilter(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="예: 1"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            />
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">등록일 (시작)</label>
             <input
@@ -219,11 +251,12 @@ export default function AdminQuestionsPage() {
             검색
           </button>
 
-          {(keyword || typeFilter || dateFrom || dateTo || appliedKeyword || appliedTypeFilter || appliedDateFrom || appliedDateTo) && (
+          {(keyword || typeFilter || yearFilter || roundFilter || dateFrom || dateTo ||
+            appliedKeyword || appliedTypeFilter || appliedYearFilter || appliedRoundFilter || appliedDateFrom || appliedDateTo) && (
             <button
               onClick={() => {
-                setKeyword(''); setTypeFilter(''); setDateFrom(''); setDateTo('');
-                setAppliedKeyword(''); setAppliedTypeFilter(''); setAppliedDateFrom(''); setAppliedDateTo('');
+                setKeyword(''); setTypeFilter(''); setYearFilter(''); setRoundFilter(''); setDateFrom(''); setDateTo('');
+                setAppliedKeyword(''); setAppliedTypeFilter(''); setAppliedYearFilter(''); setAppliedRoundFilter(''); setAppliedDateFrom(''); setAppliedDateTo('');
                 setPage(0);
               }}
               className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
@@ -305,20 +338,24 @@ export default function AdminQuestionsPage() {
                       {page * pageSize + idx + 1}
                     </td>
                     <td className="px-4 py-3.5 text-gray-900 max-w-0">
-                      {q.title ? (
-                        <div>
+                      <div>
+                        {q.title ? (
                           <p className="truncate font-medium">{q.title}</p>
-                          {(q.examYear || q.examRound) && (
-                            <p className="text-xs text-slate-400 mt-0.5">
-                              {q.examYear ? `${q.examYear}년` : ''}
-                              {q.examYear && q.examRound ? ' ' : ''}
-                              {q.examRound ? `제${q.examRound}회` : ''}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="truncate text-gray-500">{stripHtml(q.content)}</p>
-                      )}
+                        ) : (
+                          <p className="truncate text-gray-500">{stripHtml(q.content)}</p>
+                        )}
+                        {(q.examYear != null || q.examRound != null) ? (
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {q.examYear != null ? `${q.examYear}년` : ''}
+                            {q.examYear != null && q.examRound != null ? ' ' : ''}
+                            {q.examRound != null ? `제${q.examRound}회` : ''}
+                          </p>
+                        ) : (
+                          <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600 border border-amber-100">
+                            AI 커스텀
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3.5 text-center whitespace-nowrap">
                       <span className={[

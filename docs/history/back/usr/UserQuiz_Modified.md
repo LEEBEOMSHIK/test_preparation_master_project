@@ -1,3 +1,51 @@
+## HIST-20260625-001
+
+- **날짜**: 2026-06-25
+- **수정 범위**: 사용자 백엔드 / 퀴즈
+- **수정 개요**: `QuizQuestionView` record에 `String title` 필드 추가 — 관리용 문항 제목을 퀴즈 응답에 포함
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuizQuestionView.java` | 수정 | `String title` 필드 추가(id 다음, content 앞), `from()` 팩토리에 `qb.getTitle()` 매핑 추가 |
+
+### 수정 상세
+
+#### `dto/response/QuizQuestionView.java`
+- 변경 전:
+  ```java
+  public record QuizQuestionView(
+          Long id,
+          String content,
+          String questionType,
+          List<String> options,
+          String code,
+          String language,
+          Integer examYear,
+          Integer examRound) { ... }
+  ```
+- 변경 후:
+  ```java
+  public record QuizQuestionView(
+          Long id,
+          String title,
+          String content,
+          String questionType,
+          List<String> options,
+          String code,
+          String language,
+          Integer examYear,
+          Integer examRound) { ... }
+  ```
+  `from()` 내부 두 번째 인자로 `qb.getTitle()` 추가.
+- 이유: FE 퀴즈 플레이 화면에서 관리용 제목(QuestionBank.title)을 문제 카드 상단 헤더로 노출하기 위해 DTO에 필드 포함.
+
+### 복원 방법
+이 ID(HIST-20260625-001)만으로 복원 시 `QuizQuestionView` record에서 `String title` 필드 제거, `from()` 메서드의 두 번째 인자 `qb.getTitle()` 제거.
+
+---
+
 ## HIST-20260622-002
 
 - **날짜**: 2026-06-22

@@ -100,6 +100,8 @@ export interface ExamQuestion {
   explanation?: string;
   code?: string;
   language?: string;
+  categoryId?: number;
+  categoryName?: string;
 }
 
 export interface QuestionSummary {

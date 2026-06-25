@@ -9,6 +9,7 @@ import com.tpmp.testprep.dto.response.UserDashboardResponse;
 import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
+import com.tpmp.testprep.repository.ExamHistoryDetailRepository;
 import com.tpmp.testprep.repository.ExamHistoryRepository;
 import com.tpmp.testprep.repository.PracticeHistoryRepository;
 import com.tpmp.testprep.repository.QuizHistoryRepository;
@@ -36,6 +37,7 @@ public class UserDashboardService {
 
     private final UserRepository userRepository;
     private final ExamHistoryRepository examHistoryRepository;
+    private final ExamHistoryDetailRepository examHistoryDetailRepository;
     private final QuizHistoryRepository quizHistoryRepository;
     private final PracticeHistoryRepository practiceHistoryRepository;
 
@@ -63,10 +65,11 @@ public class UserDashboardService {
         long totalCorrect   = longValueAt(examTotals, 1);
         double overallRate  = totalQuestions > 0 ? totalCorrect * 100.0 / totalQuestions : 0.0;
 
-        // ── 시험 전용: 도메인별 정답률 ────────────────────────────
+        // ── 시험 전용: 도메인별 정답률 (문항 카테고리 기준) ──────────────────────────
         Map<String, long[]> domainMap = new LinkedHashMap<>();
 
-        examHistoryRepository.aggregateDomainStatsByUserAndPeriod(user.getId(), from)
+        // ExamHistoryDetail.categoryName 기준 집계 (문항 카테고리, 쿼리 내부에서 이미 정답률 ASC 정렬)
+        examHistoryDetailRepository.aggregateDomainStatsByUserAndPeriod(user.getId(), from)
                 .stream()
                 .filter(row -> row[0] != null)
                 .forEach(row -> {

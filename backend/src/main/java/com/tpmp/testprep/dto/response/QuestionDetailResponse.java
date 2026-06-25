@@ -13,7 +13,9 @@ public record QuestionDetailResponse(
         String answer,
         String explanation,
         String code,
-        String language
+        String language,
+        Long categoryId,
+        String categoryName
 ) {
     public static QuestionDetailResponse from(Question q) {
         return new QuestionDetailResponse(
@@ -25,7 +27,9 @@ public record QuestionDetailResponse(
                 q.getAnswer(),
                 q.getExplanation(),
                 q.getCode(),
-                q.getLanguage()
+                q.getLanguage(),
+                q.getCategory() != null ? q.getCategory().getId() : null,
+                q.getCategory() != null ? q.getCategory().getName() : null
         );
     }
 }

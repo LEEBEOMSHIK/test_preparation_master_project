@@ -6,6 +6,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.util.List;
+import com.tpmp.testprep.entity.DomainSlave;
 
 @Entity
 @Table(name = "questions")
@@ -52,10 +53,15 @@ public class Question {
     @Column(length = 20)
     private String language;
 
+    /** 문항 카테고리 (DomainSlave, nullable) — 채점 스냅샷 집계에 활용 */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private DomainSlave category;
+
     @Builder
     public Question(Exam exam, Integer seq, String content, QuestionType questionType,
                     List<String> options, String answer, String explanation,
-                    String sourceFile, String code, String language) {
+                    String sourceFile, String code, String language, DomainSlave category) {
         this.exam = exam;
         this.seq = seq;
         this.content = content;
@@ -66,11 +72,12 @@ public class Question {
         this.sourceFile = sourceFile;
         this.code = code;
         this.language = language;
+        this.category = category;
     }
 
     public void update(String content, QuestionType questionType,
                        List<String> options, String answer, String explanation,
-                       String code, String language) {
+                       String code, String language, DomainSlave category) {
         this.content = content;
         this.questionType = questionType;
         this.options = options;
@@ -78,6 +85,7 @@ public class Question {
         this.explanation = explanation;
         this.code = code;
         this.language = language;
+        this.category = category;
     }
 
     public enum QuestionType {

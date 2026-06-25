@@ -1,3 +1,77 @@
+## HIST-20260625-001
+
+- **날짜**: 2026-06-25
+- **수정 범위**: 사용자 백엔드 / 통계 대시보드 · 시험 응시
+- **수정 개요**: 약점 도메인 집계를 시험 카테고리(ExamHistory JOIN examination JOIN category) 기준에서 문항 카테고리(ExamHistoryDetail.categoryName 스냅샷) 기준으로 전환
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/entity/Question.java` | 수정 | DomainSlave category FK(LAZY, nullable) 추가; @Builder·update() 파라미터 반영 |
+| `backend/src/main/java/com/tpmp/testprep/entity/ExamHistoryDetail.java` | 수정 | categoryName 비정규화 스냅샷 필드(String, length=100) 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/request/QuestionRequest.java` | 수정 | categoryId(Long, nullable) 필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionDetailResponse.java` | 수정 | categoryId·categoryName 필드 추가; from()에서 null-safe 매핑 |
+| `backend/src/main/java/com/tpmp/testprep/service/ExamService.java` | 수정 | DomainSlaveRepository 주입; addQuestion·addQuestionsBulk·createExamWithQuestions에 category 바인딩 추가 |
+| `backend/src/main/java/com/tpmp/testprep/repository/QuestionRepository.java` | 수정 | findByExamIdOrderBySeqAscWithCategory (LEFT JOIN FETCH q.category) 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserExaminationService.java` | 수정 | submitExam에서 새 fetch join 쿼리 사용; ExamHistoryDetail.builder에 categoryName 스냅샷 추가 |
+| `backend/src/main/java/com/tpmp/testprep/repository/ExamHistoryDetailRepository.java` | 수정 | aggregateDomainStatsByUserAndPeriod 집계 쿼리 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserDashboardService.java` | 수정 | ExamHistoryDetailRepository 주입; 도메인 집계 소스를 examHistoryRepository → examHistoryDetailRepository로 교체 |
+
+### 수정 상세
+
+#### `Question.java`
+- 변경 전: category 필드 없음. Builder/update() 파라미터에 category 없음.
+- 변경 후: `@ManyToOne(fetch=LAZY) @JoinColumn(name="category_id") private DomainSlave category;` 추가. Builder(category), update(…, category) 파라미터 추가.
+- 이유: 문항에 카테고리를 연결해 채점 시점 스냅샷(ExamHistoryDetail.categoryName)에 반영하기 위함
+
+#### `ExamHistoryDetail.java`
+- 변경 전: categoryName 필드 없음.
+- 변경 후: `@Column(name="category_name", length=100) private String categoryName;` 추가 (@Builder 포함).
+- 이유: QuizHistory.domainName 패턴 동일. FK 없이 String 비정규화 — 카테고리 변경 시에도 과거 이력 불변 유지.
+
+#### `QuestionRequest.java`
+- 변경 전: language까지 7필드.
+- 변경 후: `Long categoryId` 추가 (nullable, @Param 바인딩 사용).
+
+#### `QuestionDetailResponse.java`
+- 변경 전: 9필드 record (id~language).
+- 변경 후: categoryId·categoryName 2필드 추가. from()에서 `q.getCategory() != null ? q.getCategory().getId() : null` null-safe 매핑.
+
+#### `ExamService.java`
+- 변경 전: DomainSlaveRepository 미주입. addQuestion/addQuestionsBulk/createExamWithQuestions의 Question.builder()에 category 없음.
+- 변경 후: `private final DomainSlaveRepository domainSlaveRepository;` 추가. 각 메서드에서 `req.categoryId() != null ? domainSlaveRepository.findById(req.categoryId()).orElse(null) : null`로 category 조회 후 빌더에 전달. 파일업로드 경로(buildAndSaveQuestions 등)는 category=null 유지.
+
+#### `QuestionRepository.java`
+- 변경 전: `findByExamIdOrderBySeqAsc` 파생 쿼리만 존재 (category LAZY 로딩 → N+1 위험).
+- 변경 후: `findByExamIdOrderBySeqAscWithCategory` 추가 (`LEFT JOIN FETCH q.category`). submitExam에서 해당 메서드 사용.
+
+#### `UserExaminationService.java`
+- 변경 전: submitExam에서 `questionRepository.findByExamIdOrderBySeqAsc` 사용. ExamHistoryDetail.builder에 categoryName 없음.
+- 변경 후: `questionRepository.findByExamIdOrderBySeqAscWithCategory` 사용. detail 빌더에 `.categoryName(q.getCategory() != null ? q.getCategory().getName() : null)` 추가.
+
+#### `ExamHistoryDetailRepository.java`
+- 변경 전: `findByExamHistory_IdOrderBySeqAsc` 하나만 존재.
+- 변경 후: `aggregateDomainStatsByUserAndPeriod(userId, from)` JPQL @Query 추가. SELECT categoryName·COUNT·SUM(correct). categoryName IS NOT NULL 필터. 정답률 ASC(CASE WHEN) 정렬.
+
+#### `UserDashboardService.java`
+- 변경 전: 도메인 집계가 `examHistoryRepository.aggregateDomainStatsByUserAndPeriod(시험 카테고리 기준)` 호출.
+- 변경 후: `examHistoryDetailRepository.aggregateDomainStatsByUserAndPeriod(문항 카테고리 스냅샷 기준)` 호출로 교체. ExamHistoryDetailRepository 필드·import 추가. ExamHistoryRepository의 기존 메서드는 삭제 안 함(관리자 통계 재사용 가능성).
+
+### 복원 방법
+이 ID(HIST-20260625-001)만으로 복원 시:
+1. Question.java: category 필드·Builder 파라미터·update 파라미터 제거; DomainSlave import 제거
+2. ExamHistoryDetail.java: categoryName 필드 제거
+3. QuestionRequest.java: categoryId 필드 제거
+4. QuestionDetailResponse.java: categoryId·categoryName 필드 제거; from()에서 관련 매핑 제거
+5. ExamService.java: DomainSlaveRepository 필드·import 제거; addQuestion/addQuestionsBulk/createExamWithQuestions에서 category 조회·빌더 전달 코드 제거
+6. QuestionRepository.java: findByExamIdOrderBySeqAscWithCategory 메서드 제거
+7. UserExaminationService.java: submitExam을 `findByExamIdOrderBySeqAsc`로 되돌리기; detail 빌더에서 categoryName 줄 제거
+8. ExamHistoryDetailRepository.java: aggregateDomainStatsByUserAndPeriod 메서드·import 제거
+9. UserDashboardService.java: ExamHistoryDetailRepository 필드·import 제거; 도메인 집계 호출을 examHistoryRepository로 원복
+
+---
+
 ## HIST-20260624-001
 
 - **날짜**: 2026-06-24

@@ -1,3 +1,102 @@
+## HIST-20260625-002
+
+- **날짜**: 2026-06-25
+- **수정 범위**: 사용자 프론트엔드 / 퀴즈 플레이
+- **수정 개요**: `QuizQuestion` 인터페이스에 `title` 필드 추가, 퀴즈 문제 카드 상단에 title 헤더 렌더링(null/빈 문자열 시 미렌더)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/quizService.ts` | 수정 | `QuizQuestion` 인터페이스에 `title?: string` 필드 추가 (content 위) |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | 문제 카드 배지와 `RichContent` 사이에 title 헤더 블록 추가 |
+
+### 수정 상세
+
+#### `frontend/src/services/quizService.ts`
+- 변경 전:
+  ```ts
+  export interface QuizQuestion {
+    id: number;
+    content: string;
+    ...
+  }
+  ```
+- 변경 후:
+  ```ts
+  export interface QuizQuestion {
+    id: number;
+    title?: string;
+    content: string;
+    ...
+  }
+  ```
+- 이유: BE `QuizQuestionView`에 추가된 `title` 필드를 FE 타입에 반영.
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx` (L403 영역)
+- 변경 전: `<RichContent html={q.content} ...>` 바로 위에 title 관련 마크업 없음
+- 변경 후: `q.title && q.title.trim() !== ''`일 때 `text-xs font-semibold text-gray-400` 텍스트 + `border-b border-gray-100`으로 본문과 시각 구분하는 헤더 블록 삽입. `pr-24` 적용으로 우상단 배지와 가로 겹침 방지.
+- 이유: 관리자가 입력한 문항 제목(관리용)을 사용자 화면에 small/muted 스타일로 노출하되, 콘텐츠 본문(`text-gray-800 font-medium`)보다 위계를 낮게 표시.
+
+### 복원 방법
+이 ID(HIST-20260625-002)만으로 복원 시:
+1. `quizService.ts` `QuizQuestion`에서 `title?: string` 줄 제거.
+2. `quiz/[categoryId]/page.tsx`에서 `{q.title && q.title.trim() !== '' && (...)}` 블록 제거.
+
+---
+
+## HIST-20260625-001
+
+- **날짜**: 2026-06-25
+- **수정 범위**: 사용자 프론트엔드 / 퀴즈 플레이
+- **수정 개요**: 퀴즈 문제 카드 우상단 연/회차 배지를 `if/else` 분기로 확장 — examYear·examRound 둘 다 null이면 'AI 커스텀' amber 배지 표시
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | 문제 카드 우상단 배지를 조건부 분기로 확장 — 연/회차 존재 시 기존 indigo 배지, 둘 다 null 시 amber 배지 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx` (L390-398 영역)
+- 변경 전:
+  ```tsx
+  {(q.examYear != null || q.examRound != null) && (
+    <span className="absolute top-4 right-4 text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+      {q.examYear != null && q.examRound != null
+        ? `${q.examYear}년 ${q.examRound}회`
+        : q.examYear != null
+        ? `${q.examYear}년`
+        : `${q.examRound}회`}
+    </span>
+  )}
+  ```
+- 변경 후:
+  ```tsx
+  {(q.examYear != null || q.examRound != null) ? (
+    <span className="absolute top-4 right-4 text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+      {q.examYear != null && q.examRound != null
+        ? `${q.examYear}년 ${q.examRound}회`
+        : q.examYear != null
+        ? `${q.examYear}년`
+        : `${q.examRound}회`}
+    </span>
+  ) : (
+    <span className="absolute top-4 right-4 text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100">
+      AI 커스텀
+    </span>
+  )}
+  ```
+- 이유: AI 생성/커스텀 문항을 풀 때 연/회차 배지가 아예 없어 문항 출처가 불분명했음. amber 배지로 시각적으로 구분하여 사용자가 출처를 인식할 수 있게 함.
+- 다크모드: 이 화면의 기존 indigo 배지가 `dark:` 변형 없이 라이트 전용 클래스만 사용하므로 amber 배지도 동일 패턴 적용.
+- 위치/크기: 기존 indigo 배지와 동일한 `absolute top-4 right-4`, `px-2.5 py-0.5 rounded-full text-xs font-medium` 유지.
+
+### 복원 방법
+이 ID(HIST-20260625-001)만으로 복원 시: 위 "변경 전" 코드를 `user/quiz/[categoryId]/page.tsx` 해당 위치에 적용한다.
+
+---
+
 ## HIST-20260622-001
 
 - **날짜**: 2026-06-22

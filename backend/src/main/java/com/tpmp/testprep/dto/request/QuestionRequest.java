@@ -32,5 +32,8 @@ public record QuestionRequest(
         String code,
 
         @Size(max = 50, message = "언어는 50자를 초과할 수 없습니다.")
-        String language
+        String language,
+
+        /** 문항 카테고리 ID (nullable) — DomainSlave.id */
+        Long categoryId
 ) {}

@@ -5,10 +5,12 @@ import com.tpmp.testprep.dto.request.QuestionRequest;
 import com.tpmp.testprep.dto.response.ExamSummaryResponse;
 import com.tpmp.testprep.dto.response.QuestionDetailResponse;
 import com.tpmp.testprep.entity.Exam;
+import com.tpmp.testprep.entity.DomainSlave;
 import com.tpmp.testprep.entity.Question;
 import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
+import com.tpmp.testprep.repository.DomainSlaveRepository;
 import com.tpmp.testprep.repository.ExamRepository;
 import com.tpmp.testprep.repository.QuestionRepository;
 import com.tpmp.testprep.repository.UserRepository;
@@ -49,6 +51,7 @@ public class ExamService {
     private final ExamRepository examRepository;
     private final QuestionRepository questionRepository;
     private final UserRepository userRepository;
+    private final DomainSlaveRepository domainSlaveRepository;
 
     @Value("${app.upload.path}")
     private String uploadPath;
@@ -122,6 +125,9 @@ public class ExamService {
     public void addQuestion(Long examId, QuestionRequest request) {
         Exam exam = getExamDetail(examId);
         int seq = questionRepository.maxSeqByExamId(examId) + 1;
+        DomainSlave category = (request.categoryId() != null)
+                ? domainSlaveRepository.findById(request.categoryId()).orElse(null)
+                : null;
         Question question = Question.builder()
                 .exam(exam)
                 .seq(seq)
@@ -132,6 +138,7 @@ public class ExamService {
                 .explanation(request.explanation())
                 .code(request.code())
                 .language(request.language())
+                .category(category)
                 .build();
         questionRepository.save(question);
     }
@@ -144,6 +151,9 @@ public class ExamService {
         List<Question> questions = new ArrayList<>();
         for (int i = 0; i < requests.size(); i++) {
             QuestionRequest req = requests.get(i);
+            DomainSlave category = (req.categoryId() != null)
+                    ? domainSlaveRepository.findById(req.categoryId()).orElse(null)
+                    : null;
             questions.add(Question.builder()
                     .exam(exam)
                     .seq(startSeq + i)
@@ -154,6 +164,7 @@ public class ExamService {
                     .explanation(req.explanation())
                     .code(req.code())
                     .language(req.language())
+                    .category(category)
                     .build());
         }
         questionRepository.saveAll(questions);
@@ -178,6 +189,9 @@ public class ExamService {
             List<Question> questions = new ArrayList<>();
             for (int i = 0; i < questionRequests.size(); i++) {
                 QuestionRequest req = questionRequests.get(i);
+                DomainSlave category = (req.categoryId() != null)
+                        ? domainSlaveRepository.findById(req.categoryId()).orElse(null)
+                        : null;
                 questions.add(Question.builder()
                         .exam(exam)
                         .seq(i + 1)
@@ -188,6 +202,7 @@ public class ExamService {
                         .explanation(req.explanation())
                         .code(req.code())
                         .language(req.language())
+                        .category(category)
                         .build());
             }
             questionRepository.saveAll(questions);

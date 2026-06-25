@@ -90,6 +90,7 @@ export default function AdminExamPaperNewPage() {
           explanation: q.explanation ?? null,
           code: q.code ?? null,
           language: q.language ?? null,
+          categoryId: q.categoryId ?? null,
         })),
       );
       router.push('/admin/exams/papers');

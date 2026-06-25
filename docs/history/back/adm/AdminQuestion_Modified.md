@@ -1,3 +1,52 @@
+## HIST-20260625-001
+
+- **날짜**: 2026-06-25
+- **수정 범위**: 관리자 백엔드 / 시험지 문항 관리
+- **수정 개요**: Question 엔티티에 문항 카테고리(DomainSlave) FK 추가, ExamService에 카테고리 바인딩 적용, QuestionDetailResponse에 categoryId·categoryName 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/entity/Question.java` | 수정 | DomainSlave category FK(LAZY, nullable) 추가; @Builder·update() 파라미터 반영 |
+| `backend/src/main/java/com/tpmp/testprep/dto/request/QuestionRequest.java` | 수정 | categoryId(Long, nullable) 필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionDetailResponse.java` | 수정 | categoryId·categoryName 필드 추가; from()에서 null-safe 매핑 |
+| `backend/src/main/java/com/tpmp/testprep/service/ExamService.java` | 수정 | DomainSlaveRepository 주입; addQuestion·addQuestionsBulk·createExamWithQuestions에 category 바인딩 추가 |
+| `backend/src/main/java/com/tpmp/testprep/repository/QuestionRepository.java` | 수정 | findByExamIdOrderBySeqAscWithCategory (LEFT JOIN FETCH q.category) 추가 |
+
+### 수정 상세
+
+#### `Question.java`
+- 변경 전: category 필드 없음.
+- 변경 후: `@ManyToOne(fetch=LAZY) @JoinColumn(name="category_id") private DomainSlave category;` 추가. Builder(category 파라미터), update(…, DomainSlave category) 파라미터 추가.
+- 이유: 시험지 문항에 카테고리 연결로 채점 시점 스냅샷 집계 가능하게 함
+
+#### `QuestionRequest.java`
+- 변경 전: language까지 7필드.
+- 변경 후: `Long categoryId` 추가 (nullable).
+
+#### `QuestionDetailResponse.java`
+- 변경 전: 9필드 record (id~language).
+- 변경 후: categoryId·categoryName 추가. from()에서 null-safe 매핑.
+
+#### `ExamService.java`
+- 변경 전: DomainSlaveRepository 미주입. 문항 빌더에 category 없음.
+- 변경 후: `DomainSlaveRepository domainSlaveRepository` 주입. addQuestion·addQuestionsBulk·createExamWithQuestions에서 `req.categoryId() != null ? domainSlaveRepository.findById(req.categoryId()).orElse(null) : null`로 category 조회 후 빌더에 전달. 파일업로드 파싱 경로는 category=null 유지.
+
+#### `QuestionRepository.java`
+- 변경 전: `findByExamIdOrderBySeqAsc` 파생 쿼리만 존재.
+- 변경 후: `findByExamIdOrderBySeqAscWithCategory` 추가 (`LEFT JOIN FETCH q.category`). category LAZY 로딩 N+1 방지.
+
+### 복원 방법
+이 ID(HIST-20260625-001)만으로 복원 시:
+1. Question.java: category 필드·DomainSlave import·Builder 파라미터·update() 파라미터 제거
+2. QuestionRequest.java: categoryId 필드 제거
+3. QuestionDetailResponse.java: categoryId·categoryName 필드 및 from() 매핑 제거
+4. ExamService.java: DomainSlaveRepository 필드·DomainSlave import 제거; 각 메서드에서 category 조회·빌더 전달 코드 제거
+5. QuestionRepository.java: findByExamIdOrderBySeqAscWithCategory 메서드 제거
+
+---
+
 ## HIST-20260529-002
 
 - **날짜**: 2026-05-29

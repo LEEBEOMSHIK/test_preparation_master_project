@@ -110,7 +110,8 @@ public class UserExaminationService {
         Examination examination = examinationRepository.findByIdWithPaper(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EXAMINATION_NOT_FOUND));
 
-        List<Question> questions = questionRepository.findByExamIdOrderBySeqAsc(
+        // category LEFT JOIN FETCH — N+1 방지
+        List<Question> questions = questionRepository.findByExamIdOrderBySeqAscWithCategory(
                 examination.getExamPaper().getId()
         );
         int total = questions.size();
@@ -158,6 +159,7 @@ public class UserExaminationService {
                     .explanation(q.getExplanation())
                     .code(q.getCode())
                     .language(q.getLanguage())
+                    .categoryName(q.getCategory() != null ? q.getCategory().getName() : null)
                     .build();
             history.addDetail(detail);
         }

@@ -15,4 +15,8 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
     int countByExamId(@Param("examId") Long examId);
 
     List<Question> findByExamIdOrderBySeqAsc(Long examId);
+
+    /** 시험 제출 채점용 — category LAZY 로딩 N+1 방지를 위해 LEFT JOIN FETCH 적용 */
+    @Query("SELECT q FROM Question q LEFT JOIN FETCH q.category WHERE q.exam.id = :examId ORDER BY q.seq ASC")
+    List<Question> findByExamIdOrderBySeqAscWithCategory(@Param("examId") Long examId);
 }
