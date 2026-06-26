@@ -1,3 +1,43 @@
+## HIST-20260626-004
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 (답안 현황 접근 UI)
+- **수정 개요**: 모바일(lg 미만) 답안 현황 접근을 우하단 FAB에서 상단 고정(sticky) 요약바로 교체 — 탭 시 기존 바텀시트 오픈
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | FAB 블록 삭제, sticky 요약바 추가, main 내부 p-4 wrapper div 삽입 |
+
+### 수정 상세
+
+#### `frontend/src/app/exam/[id]/page.tsx`
+
+- **변경 전**: 모바일 답안 접근이 `fixed bottom-4 right-4 lg:hidden z-40` FAB(`답안 N/M`)였음. `<main className="flex-1 mt-14 p-4">`로 p-4가 main에 직접 있었음.
+- **변경 후**: FAB 제거. `<main className="flex-1 mt-14">`(p-4를 내부 wrapper div로 이동). main 최상단에 `sticky top-14 z-30 lg:hidden w-full` 요약바(button) 삽입, 그 아래 `<div className="p-4">`로 기존 콘텐츠 감쌈.
+- **이유**: FAB는 콘텐츠 위에 떠 있어 가시성이 떨어지고("영역이 안 보인다"는 사용자 피드백), 탭 영역이 좁음. sticky 요약바는 헤더 바로 아래 항상 노출되어 진행 상황 확인이 쉽고 전체 가로가 탭 영역이라 접근성이 개선됨.
+
+### 요약바 동작 규격
+
+| 항목 | 내용 |
+|------|------|
+| 위치 | `sticky top-14 z-30` — 헤더(fixed h-14) 바로 아래, 스크롤 시 상단 고정 |
+| 노출 조건 | `lg:hidden` — lg 미만 화면 전용(lg 이상은 기존 우측 사이드바 유지) |
+| 표시 내용 | 인디고 진행 바(h-0.5, 답한/총 비율) + `답안 N/M · 미응답 K`(+ flagged>0이면 `· 체크 F`) + 우측 "답안 보기" chevron |
+| 탭 동작 | `setShowAnswerSheet(true)` → 기존 바텀시트 그대로 오픈(문항 이동·제출 무수정) |
+| 데이터 소스 | `Object.keys(answers).length`, `questions.length`, `flagged.size` |
+
+### 복원 방법
+
+HIST-20260626-004 복원 시:
+1. `<main className="flex-1 mt-14">`를 `<main className="flex-1 mt-14 p-4">`로 되돌린다.
+2. sticky 요약바 `<button className="sticky top-14 z-30 lg:hidden ...">` 블록 전체 삭제.
+3. `<div className="p-4">` 래퍼 태그 및 닫는 `</div>` 제거.
+4. `</main>` 바로 뒤(바텀시트 앞)에 FAB 복원: `<button onClick={() => setShowAnswerSheet(true)} className="fixed bottom-4 right-4 lg:hidden z-40 ...">답안 {Object.keys(answers).length}/{questions.length}</button>`.
+
+---
+
 ## HIST-20260626-003
 
 - **날짜**: 2026-06-26

@@ -572,7 +572,47 @@ export default function ExamTakingPage() {
       </header>
 
       {/* 본문 */}
-      <main className="flex-1 mt-14 p-4">
+      <main className="flex-1 mt-14">
+        {/* ── 모바일 상단 고정 요약바 (lg 미만에서만 표시) ── */}
+        <button
+          onClick={() => setShowAnswerSheet(true)}
+          className="sticky top-14 z-30 lg:hidden w-full bg-white border-b border-gray-200 shadow-sm flex flex-col"
+          aria-label="답안 현황 열기"
+        >
+          {/* 진행 바 */}
+          <div className="h-0.5 bg-gray-100 w-full">
+            <div
+              className="h-full bg-indigo-500 transition-all duration-300"
+              style={{ width: questions.length > 0 ? `${(Object.keys(answers).length / questions.length) * 100}%` : '0%' }}
+            />
+          </div>
+          {/* 텍스트 행 */}
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <div className="flex items-center gap-3 text-sm">
+              <span className="font-semibold text-gray-800">
+                답안 <span className="text-indigo-600">{Object.keys(answers).length}</span>/{questions.length}
+              </span>
+              <span className="text-gray-400">·</span>
+              <span className="text-gray-500">
+                미응답 {questions.length - Object.keys(answers).length}
+              </span>
+              {flagged.size > 0 && (
+                <>
+                  <span className="text-gray-400">·</span>
+                  <span className="text-amber-600 font-medium">체크 {flagged.size}</span>
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-1 text-xs text-indigo-600 font-medium">
+              답안 보기
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-3.5 h-3.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+        </button>
+
+        <div className="p-4">
         <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-4">
 
           {/* ── 왼쪽: 문제 영역 ── */}
@@ -711,21 +751,8 @@ export default function ExamTakingPage() {
             </button>
           </div>
         </div>
+        </div>
       </main>
-
-      {/* ── 모바일 FAB: 답안 현황 버튼 (lg 미만에서만 표시) ── */}
-      <button
-        onClick={() => setShowAnswerSheet(true)}
-        className="fixed bottom-4 right-4 lg:hidden z-40 flex items-center gap-2 bg-indigo-600 text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-lg hover:bg-indigo-700 active:bg-indigo-800 transition"
-        aria-label="답안 현황 열기"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 shrink-0">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-        </svg>
-        <span>
-          답안 {Object.keys(answers).length}/{questions.length}
-        </span>
-      </button>
 
       {/* ── 모바일 Bottom Sheet: 답안 현황 오버레이 (lg 미만에서만 표시) ── */}
       {showAnswerSheet && (
