@@ -1,3 +1,47 @@
+## HIST-20260626-003
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 게이트 화면 — 최근 응시일 표시
+- **수정 개요**: 게이트 화면에 최신 회차의 "최근 응시일"을 표시. BE 응답(`ExamHistoryDetailResponse.takenAt`)·FE 타입(`ExamHistoryDetailResult.takenAt`)은 이미 존재하여 표시 배선만 추가(BE 변경·재기동 불필요).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | `takenAt` state 추가, init()에서 `saved.takenAt` 세팅, 게이트 화면에 "최근 응시일" 표시 |
+
+### 수정 상세
+
+#### `app/exam/[id]/page.tsx`
+
+**1. 상태 추가 (`attemptCount` 선언 인근)**
+- `const [takenAt, setTakenAt] = useState<string | null>(null);` 추가 — 게이트에 표시할 최신 응시일 보관
+
+**2. init() latestRes 처리**
+- `setAttemptCount(saved.attemptCount ?? 1);` 직후에 `setTakenAt(saved.takenAt ?? null);` 추가 — undefined 방어(null 폴백)
+
+**3. 게이트 화면 — "총 N회 응시" 칩 아래에 응시일 줄 추가**
+- `takenAt`이 있을 때만 렌더:
+  ```tsx
+  {takenAt && (
+    <p className="text-xs text-gray-400">
+      최근 응시일:{' '}
+      <span className="font-medium text-gray-500">
+        {new Date(takenAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+      </span>
+    </p>
+  )}
+  ```
+- 포맷: `ko-KR` 날짜(예: 2026년 6월 26일), 시간 미표시. 다회차이므로 "최근 응시일"로 표기(최신 1건 기준).
+
+### 복원 방법
+이 ID(HIST-20260626-003)만으로 복원 시:
+1. `exam/[id]/page.tsx`에서 `takenAt` useState 제거
+2. `init()`에서 `setTakenAt(...)` 라인 제거
+3. 게이트 화면의 "최근 응시일" 블록(`{takenAt && (...)}`) 제거
+
+---
+
 ## HIST-20260626-002
 
 - **날짜**: 2026-06-26

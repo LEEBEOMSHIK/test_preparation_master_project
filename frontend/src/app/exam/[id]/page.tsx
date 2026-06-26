@@ -116,6 +116,8 @@ export default function ExamTakingPage() {
   const [pendingResult, setPendingResult] = useState<ExaminationSubmitResult | null>(null);
   // 총 응시 횟수 — 게이트 화면에 "총 N회 응시" 표시용
   const [attemptCount, setAttemptCount] = useState(0);
+  // 최근 응시일 — 게이트 화면에 표시, null이면 비표시
+  const [takenAt, setTakenAt] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [flagAlert, setFlagAlert] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
@@ -177,6 +179,8 @@ export default function ExamTakingPage() {
             };
             // 총 응시 횟수 세팅 (0/undefined 방어)
             setAttemptCount(saved.attemptCount ?? 1);
+            // 최근 응시일 세팅
+            setTakenAt(saved.takenAt ?? null);
             // 결과 화면으로 직행하지 않고 선택 게이트 화면에 보관
             setPendingResult(restored);
             examDone.current = true; // 진행 중 세션 없음 → beforeunload 경고 비활성
@@ -400,6 +404,14 @@ export default function ExamTakingPage() {
                 </span>
               )}
             </div>
+            {takenAt && (
+              <p className="text-xs text-gray-400">
+                최근 응시일:{' '}
+                <span className="font-medium text-gray-500">
+                  {new Date(takenAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </span>
+              </p>
+            )}
           </div>
 
           {/* 요약 카드 */}
