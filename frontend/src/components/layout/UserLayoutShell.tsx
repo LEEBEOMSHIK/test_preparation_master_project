@@ -120,7 +120,7 @@ const USER_FALLBACK_NAV: MenuConfig[] = [
   group(111, '내 기록', '/user/group/records', 'records', 3, [
     leaf(100, '통계 대시보드', '/user/dashboard',     'dashboard', 1),
     leaf(109, '시험 이력',     '/user/exam-history',  'history',   2),
-    leaf(108, '즐겨찾기',      '/user/bookmarks',     'bookmark',  3),
+    leaf(108, '복습 표시',     '/user/bookmarks',     'bookmark',  3),
   ]),
   group(112, '도움말', '/user/group/help', 'help', 4, [
     leaf(101, '시험 정보', '/user/exam-info',  'examinfo', 1),

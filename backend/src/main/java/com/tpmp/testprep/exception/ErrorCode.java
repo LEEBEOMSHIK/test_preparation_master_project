@@ -31,7 +31,7 @@ public enum ErrorCode {
 
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
-    BOOKMARK_NOT_FOUND(HttpStatus.NOT_FOUND, "즐겨찾기를 찾을 수 없습니다."),
+    BOOKMARK_NOT_FOUND(HttpStatus.NOT_FOUND, "복습 표시 항목을 찾을 수 없습니다."),
     NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
 
     // Inquiry

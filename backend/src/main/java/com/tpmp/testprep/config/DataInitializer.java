@@ -354,8 +354,8 @@ public class DataInitializer implements ApplicationRunner {
 
     private void ensureBookmarkMenu() {
         if (!menuConfigRepository.existsByUrl("/user/bookmarks")) {
-            saveMenu(null, "즐겨찾기", "/user/bookmarks", "bookmark", 8, MenuConfig.MenuType.USER, "USER,ADMIN");
-            log.info("[DataInitializer] 즐겨찾기 사용자 메뉴 추가 완료");
+            saveMenu(null, "복습 표시", "/user/bookmarks", "bookmark", 8, MenuConfig.MenuType.USER, "USER,ADMIN");
+            log.info("[DataInitializer] 복습 표시 사용자 메뉴 추가 완료");
         }
     }
 

@@ -1,3 +1,33 @@
+## HIST-20260626-001
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 사용자 프론트엔드 / 복습 표시(즐겨찾기 문구 통일)
+- **수정 개요**: 사용자에게 보이는 "즐겨찾기" 한글 문구를 "복습 표시"로 전역 통일. URL·변수명·iconKey는 유지.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| frontend/src/app/user/bookmarks/page.tsx | 수정 | 페이지 제목·빈 상태 문구·해제 버튼 title 5곳 교체 |
+| frontend/src/components/layout/UserLayoutShell.tsx | 수정 | USER_FALLBACK_NAV 즐겨찾기 → 복습 표시 (name만 변경) |
+
+### 수정 상세
+
+#### `app/user/bookmarks/page.tsx`
+- 변경 전: 로딩/빈상태/정상 헤더 `즐겨찾기`, 빈 상태 본문 `즐겨찾기한 문항이 없습니다` / `문항을 즐겨찾기해보세요.`, 버튼 title `즐겨찾기 해제`
+- 변경 후: 헤더 3곳 → `복습 표시`, 본문 → `복습 표시한 문항이 없습니다` / `복습 표시해보세요.`, title → `복습 표시 해제`
+- 이유: 퀴즈·시험 토글 버튼 문구가 이미 "복습 표시"로 변경됨에 따라 목록 페이지 문구 일관성 확보
+
+#### `components/layout/UserLayoutShell.tsx`
+- 변경 전: `leaf(108, '즐겨찾기', '/user/bookmarks', 'bookmark', 3)`
+- 변경 후: `leaf(108, '복습 표시', '/user/bookmarks', 'bookmark', 3)` — id·url·iconKey·order 유지
+- 이유: API 실패 시 fallback 네비도 문구를 DB(menu_config)와 일치시키기 위함
+
+### 복원 방법
+이 ID(HIST-20260626-001)만으로 복원 시: 위 "변경 전" 문자열을 각 파일에 재적용한다.
+
+---
+
 ## HIST-20260612-001
 
 - **날짜**: 2026-06-12

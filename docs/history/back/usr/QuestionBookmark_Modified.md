@@ -1,3 +1,33 @@
+## HIST-20260626-001
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 사용자 백엔드 / 복습 표시 문구 통일
+- **수정 개요**: DataInitializer 시딩 문구 및 ErrorCode 에러 메시지를 "즐겨찾기"에서 "복습 표시"로 변경. enum 상수명·URL 유지.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java | 수정 | ensureBookmarkMenu() 내 saveMenu name, log 문구 변경 |
+| backend/src/main/java/com/tpmp/testprep/exception/ErrorCode.java | 수정 | BOOKMARK_NOT_FOUND 에러 메시지 문자열 변경 |
+
+### 수정 상세
+
+#### `config/DataInitializer.java`
+- 변경 전: `saveMenu(null, "즐겨찾기", ...)`, `log.info("[DataInitializer] 즐겨찾기 사용자 메뉴 추가 완료")`
+- 변경 후: `saveMenu(null, "복습 표시", ...)`, `log.info("[DataInitializer] 복습 표시 사용자 메뉴 추가 완료")`
+- 이유: fresh seed 시 menu_config에 "복습 표시"로 저장되어야 UI 문구와 일관됨. 기존 DB row는 메인이 UPDATE로 별도 반영.
+
+#### `exception/ErrorCode.java`
+- 변경 전: `BOOKMARK_NOT_FOUND(HttpStatus.NOT_FOUND, "즐겨찾기를 찾을 수 없습니다.")`
+- 변경 후: `BOOKMARK_NOT_FOUND(HttpStatus.NOT_FOUND, "복습 표시 항목을 찾을 수 없습니다.")` — enum 상수명 BOOKMARK_NOT_FOUND 유지
+- 이유: API 에러 응답 메시지를 사용자 노출 문구와 일치시켜 일관성 확보
+
+### 복원 방법
+이 ID(HIST-20260626-001)만으로 복원 시: 위 "변경 전" 문자열을 각 파일에 재적용한다.
+
+---
+
 ## HIST-20260612-002
 
 - **날짜**: 2026-06-12
