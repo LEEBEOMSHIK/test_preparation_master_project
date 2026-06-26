@@ -397,6 +397,8 @@ export interface ExamHistoryDetailResult {
   score: number;
   takenAt: string;
   results: QuestionResult[];
+  /** 해당 시험의 총 응시 횟수 (getLatestResult 전용; 회차 결과 조회 시 1) */
+  attemptCount?: number;
 }
 
 // ──────────────────────────────────────────

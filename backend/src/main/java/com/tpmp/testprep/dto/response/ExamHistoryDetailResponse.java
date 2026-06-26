@@ -16,9 +16,16 @@ public record ExamHistoryDetailResponse(
         int correct,
         int score,
         LocalDateTime takenAt,
-        List<QuestionResultResponse> results
+        List<QuestionResultResponse> results,
+        long attemptCount
 ) {
+    /** 단일 이력 조회용 — 응시 횟수 불필요한 경우(회차 결과 재조회) */
     public static ExamHistoryDetailResponse of(ExamHistory history, List<ExamHistoryDetail> details) {
+        return of(history, details, 1L);
+    }
+
+    /** 응시 횟수를 포함한 생성 */
+    public static ExamHistoryDetailResponse of(ExamHistory history, List<ExamHistoryDetail> details, long attemptCount) {
         List<QuestionResultResponse> results = details.stream()
                 .map(QuestionResultResponse::of)
                 .toList();
@@ -28,7 +35,8 @@ public record ExamHistoryDetailResponse(
                 history.getCorrectCount(),
                 (int) Math.round(history.getScore()),
                 history.getTakenAt(),
-                results
+                results,
+                attemptCount
         );
     }
 }

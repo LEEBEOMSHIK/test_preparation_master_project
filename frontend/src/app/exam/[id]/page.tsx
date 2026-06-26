@@ -112,6 +112,10 @@ export default function ExamTakingPage() {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [result, setResult] = useState<ExaminationSubmitResult | null>(null);
+  // 이력 복원 결과 — 선택 게이트 화면에서 보관, 사용자 선택 후 result 또는 null로 전환
+  const [pendingResult, setPendingResult] = useState<ExaminationSubmitResult | null>(null);
+  // 총 응시 횟수 — 게이트 화면에 "총 N회 응시" 표시용
+  const [attemptCount, setAttemptCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [flagAlert, setFlagAlert] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
@@ -171,9 +175,12 @@ export default function ExamTakingPage() {
               score: saved.score,
               results: saved.results,
             };
-            setResult(restored);
-            examDone.current = true;
-            return; // 이미 완료된 시험 — start 호출 생략
+            // 총 응시 횟수 세팅 (0/undefined 방어)
+            setAttemptCount(saved.attemptCount ?? 1);
+            // 결과 화면으로 직행하지 않고 선택 게이트 화면에 보관
+            setPendingResult(restored);
+            examDone.current = true; // 진행 중 세션 없음 → beforeunload 경고 비활성
+            return; // 이미 응시 이력 있음 — 세션 시작 생략
           }
         } catch {
           // 미응시(404) 또는 오류 → 세션 시작으로 진행
@@ -252,12 +259,12 @@ export default function ExamTakingPage() {
   });
 
   // ── 타이머 effect ─────────────────────────────────────────────────────────
-  // 조건: 아직 결과가 없고 secondsLeft > 0 일 때 틱
-  const timerActive = !result && secondsLeft > 0;
+  // 조건: 결과/게이트 없이 secondsLeft > 0 일 때 틱
+  const timerActive = !result && !pendingResult && secondsLeft > 0;
   useEffect(() => {
     if (!timerActive) {
-      // secondsLeft 가 0인데 result 도 없는 경우(로드 후 이미 만료) → 즉시 자동제출
-      if (!result && secondsLeft === 0 && !loading) {
+      // secondsLeft가 0인데 result·pendingResult도 없는 경우(로드 후 이미 만료) → 즉시 자동제출
+      if (!result && !pendingResult && secondsLeft === 0 && !loading) {
         submitFnRef.current?.(true);
       }
       return;
@@ -304,9 +311,10 @@ export default function ExamTakingPage() {
     router.push('/user/exams');
   };
 
-  // 다시 풀기 — 세션 reset 후 타이머 재시작
+  // 다시 풀기 — 결과 화면·선택 게이트 양쪽에서 공통 사용. 세션 reset 후 타이머 재시작
   const handleRetake = useCallback(async () => {
     setResult(null);
+    setPendingResult(null); // 게이트 화면에서도 호출되므로 함께 초기화
     setAnswers({});
     setFlagged(new Set());
     setCurrent(0);
@@ -363,6 +371,95 @@ export default function ExamTakingPage() {
         showSavedBanner
         onRetake={handleRetake}
       />
+    );
+  }
+
+  // 선택 게이트 화면 — 이력이 있을 때 "결과 보기 / 다시 풀기" 선택
+  if (pendingResult) {
+    const pct = pendingResult.total > 0 ? Math.round((pendingResult.correct / pendingResult.total) * 100) : 0;
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-sm p-8 flex flex-col gap-6">
+          {/* 아이콘 */}
+          <div className="flex justify-center">
+            <div className="w-14 h-14 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-7 h-7 text-indigo-500">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+              </svg>
+            </div>
+          </div>
+
+          {/* 제목 + 안내 */}
+          <div className="text-center space-y-2">
+            <h2 className="text-lg font-bold text-gray-900 truncate">{exam?.title}</h2>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <p className="text-sm text-gray-500">이미 응시한 시험입니다</p>
+              {attemptCount > 0 && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100">
+                  총 {attemptCount}회 응시
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* 요약 카드 */}
+          <div className="bg-gray-50 rounded-xl border border-gray-200 px-6 py-4 flex items-center justify-around gap-4">
+            <div className="text-center">
+              <p className="text-xs text-gray-400 mb-0.5">점수</p>
+              <p className="text-2xl font-bold text-indigo-600">{pendingResult.score}<span className="text-sm font-normal text-gray-400 ml-0.5">점</span></p>
+            </div>
+            <div className="w-px h-10 bg-gray-200" />
+            <div className="text-center">
+              <p className="text-xs text-gray-400 mb-0.5">정답</p>
+              <p className="text-2xl font-bold text-gray-800">
+                {pendingResult.correct}<span className="text-sm font-normal text-gray-400">/{pendingResult.total}</span>
+              </p>
+            </div>
+            <div className="w-px h-10 bg-gray-200" />
+            <div className="text-center">
+              <p className="text-xs text-gray-400 mb-0.5">정답률</p>
+              <p className={['text-2xl font-bold', pct >= 70 ? 'text-emerald-600' : 'text-amber-600'].join(' ')}>
+                {pct}<span className="text-sm font-normal text-gray-400 ml-0.5">%</span>
+              </p>
+            </div>
+          </div>
+
+          {/* 주요 액션 버튼 */}
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => { setResult(pendingResult); setPendingResult(null); }}
+              className="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 active:bg-indigo-800 transition"
+            >
+              지난 결과 보기
+            </button>
+            <button
+              onClick={handleRetake}
+              className="w-full py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-50 active:bg-gray-100 transition"
+            >
+              다시 풀기
+            </button>
+          </div>
+
+          {/* 보조 액션 */}
+          <div className="flex flex-col items-center gap-2 pt-1 border-t border-gray-100">
+            <button
+              onClick={() => router.push('/user/exam-history')}
+              className="flex items-center gap-1.5 text-sm text-indigo-500 hover:text-indigo-700 font-medium transition"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              전체 이력 보기
+            </button>
+            <button
+              onClick={() => router.push('/user/exams')}
+              className="text-xs text-gray-400 hover:text-gray-600 transition"
+            >
+              시험 목록으로 돌아가기
+            </button>
+          </div>
+        </div>
+      </div>
     );
   }
 

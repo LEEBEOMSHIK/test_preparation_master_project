@@ -1,3 +1,50 @@
+## HIST-20260626-001
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 사용자 백엔드 / 시험 응시 횟수(attemptCount) 응답 보강
+- **수정 개요**: getLatestResult API 응답에 해당 시험의 총 응시 횟수(attemptCount)를 포함하도록 Repository·DTO·Service 보강
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../repository/ExamHistoryRepository.java` | 수정 | `countByUser_IdAndExamination_Id` 메서드 추가 |
+| `backend/.../dto/response/ExamHistoryDetailResponse.java` | 수정 | `attemptCount` 필드 추가(long), `of()` 오버로드 2개로 분리 |
+| `backend/.../service/UserExaminationService.java` | 수정 | `getLatestResult`에서 count 조회 후 DTO에 포함 |
+
+### 수정 상세
+
+#### `ExamHistoryRepository.java`
+- 변경 전: `countByUser_IdAndExamination_Id` 없음
+- 변경 후: `long countByUser_IdAndExamination_Id(Long userId, Long examinationId);` 추가
+- 이유: 특정 사용자·시험 조합의 총 응시 횟수를 JPA derived query로 조회
+
+#### `ExamHistoryDetailResponse.java`
+- 변경 전: record 6필드(historyId/total/correct/score/takenAt/results), `of(ExamHistory, List<ExamHistoryDetail>)` 단일 팩토리
+- 변경 후: `long attemptCount` 필드 추가(7필드), `of(history, details)` → 내부적으로 `attemptCount=1` 위임, `of(history, details, long attemptCount)` 오버로드 추가
+- 이유: 기존 회차별 결과 조회(`getHistoryResult`)는 호출 방식 유지(attemptCount=1), 최신 결과 조회만 실제 횟수를 채워 반환
+
+#### `UserExaminationService.java`
+- 변경 전: `getLatestResult` → `ExamHistoryDetailResponse.of(history, details)` 4인자(실제론 2인자)
+- 변경 후: `long attemptCount = examHistoryRepository.countByUser_IdAndExamination_Id(user.getId(), examinationId);` 추가 → `ExamHistoryDetailResponse.of(history, details, attemptCount)` 3인자 호출
+- 이유: 프론트 게이트 화면에 "총 N회 응시" 표기를 지원하기 위해 서버에서 횟수를 집계해 반환
+
+### 영향 범위 확인
+
+| 호출처 | 영향 |
+|--------|------|
+| `GET /user/examinations/{id}/result` (getLatestResult) | attemptCount 필드 추가 (기존 필드 무변경) |
+| `GET /user/examinations/history/{historyId}` (getHistoryResult) | `of(history, details)` 2인자 사용 → attemptCount=1로 자동 설정 (무영향) |
+| 프론트 `ExamHistoryDetailResult` 타입 | `attemptCount?: number` optional 추가 — 하위 호환 |
+
+### 복원 방법
+이 ID(HIST-20260626-001)만으로 복원 시:
+1. `ExamHistoryRepository.java`에서 `countByUser_IdAndExamination_Id` 메서드 제거
+2. `ExamHistoryDetailResponse.java`에서 `attemptCount` 필드 제거, `of(history, details, long)` 오버로드 제거, `of(history, details)` 를 직접 생성자 호출로 복원
+3. `UserExaminationService.java`에서 `long attemptCount = examHistoryRepository.countByUser_IdAndExamination_Id(...)` 라인 제거, `of()` 호출을 2인자로 복원
+
+---
+
 ## HIST-20260623-001
 
 - **날짜**: 2026-06-23

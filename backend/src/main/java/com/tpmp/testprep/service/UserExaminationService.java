@@ -203,7 +203,10 @@ public class UserExaminationService {
         List<ExamHistoryDetail> details =
                 examHistoryDetailRepository.findByExamHistory_IdOrderBySeqAsc(history.getId());
 
+        // 총 응시 횟수 집계
+        long attemptCount = examHistoryRepository.countByUser_IdAndExamination_Id(user.getId(), examinationId);
+
         // 구버전 이력(detail 없음)이어도 예외 없이 빈 결과 반환
-        return ExamHistoryDetailResponse.of(history, details);
+        return ExamHistoryDetailResponse.of(history, details, attemptCount);
     }
 }

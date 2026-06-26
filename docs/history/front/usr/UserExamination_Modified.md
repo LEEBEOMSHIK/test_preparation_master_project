@@ -1,8 +1,112 @@
+## HIST-20260626-002
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 게이트 화면 — 다회차 응시 정보 표기 보강
+- **수정 개요**: 게이트 화면("이미 응시한 시험입니다")에 총 응시 횟수 칩과 "전체 이력 보기" 보조 링크를 추가. 타입에 `attemptCount` 필드 추가.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `ExamHistoryDetailResult`에 `attemptCount?: number` 필드 추가 |
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | `attemptCount` state 추가, init()에서 세팅, 게이트 화면 UI 보강(횟수 칩 + 전체 이력 링크) |
+
+### 수정 상세
+
+#### `types/index.ts`
+- 변경 전: `ExamHistoryDetailResult` 6필드(historyId/total/correct/score/takenAt/results)
+- 변경 후: `attemptCount?: number` optional 필드 추가 (주석: "getLatestResult 전용; 회차 결과 조회 시 1")
+- 이유: BE 응답에 새로 추가된 attemptCount를 TS strict 타입으로 수용. optional로 선언해 기존 코드 하위 호환 유지.
+
+#### `app/exam/[id]/page.tsx`
+
+**1. 상태 추가 (L116 인근)**
+- 변경 전: `pendingResult` state만 있음
+- 변경 후: `const [attemptCount, setAttemptCount] = useState(0);` 추가 — 게이트 화면에 표시할 총 응시 횟수 보관
+
+**2. init() latestRes 처리 (L167 인근)**
+- 변경 전: `setPendingResult(restored);` 직전에 attemptCount 세팅 없음
+- 변경 후: `setAttemptCount(saved.attemptCount ?? 1);` 추가 — undefined/0 방어(기본 1)
+
+**3. 게이트 화면 제목 영역 (L389-392 인근)**
+- 변경 전: `<p className="text-sm text-gray-500">이미 응시한 시험입니다</p>`
+- 변경 후: 안내 문구 옆에 `attemptCount > 0`이면 인디고 배경 칩(`총 N회 응시`) 인라인 표시. flex-wrap으로 좁은 화면 대응.
+
+**4. 보조 액션 영역 (L416-441 인근)**
+- 변경 전: 버튼 2개([지난 결과 보기]/[다시 풀기]) + 하단 텍스트 링크 1개(시험 목록으로 돌아가기)
+- 변경 후: 버튼 2개 유지 → 하단에 `border-t` 구분선 + 보조 액션 영역 추가:
+  - "전체 이력 보기" 텍스트 버튼 — 시계 아이콘, `router.push('/user/exam-history')` — indigo 톤으로 주요 버튼과 시각적 위계 구분
+  - "시험 목록으로 돌아가기" 텍스트 링크 — 기존과 동일, 위계 최하위(gray-400)
+- /user/exam-history는 examinationId 필터 미지원 → 일반 이력 목록으로 이동 (필터 신규 구현은 이번 범위 외)
+
+### 복원 방법
+이 ID(HIST-20260626-002)만으로 복원 시:
+1. `types/index.ts`에서 `ExamHistoryDetailResult.attemptCount` 필드 제거
+2. `exam/[id]/page.tsx`에서 `attemptCount` useState 제거
+3. `init()`에서 `setAttemptCount(...)` 라인 제거
+4. 게이트 화면 제목 영역을 `<p className="text-sm text-gray-500">이미 응시한 시험입니다</p>` 단일로 복원
+5. 보조 액션 영역(border-t 포함 블록)을 `<button onClick={() => router.push('/user/exams')} ...>시험 목록으로 돌아가기</button>` 단일로 복원
+
+---
+
+## HIST-20260626-001
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 화면
+- **수정 개요**: 이미 응시 이력이 있는 시험 진입 시 결과 화면으로 직행하지 않고 "지난 결과 보기 / 다시 풀기" 선택 게이트 화면을 먼저 표시하도록 UX 개선
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | pendingResult 상태 추가, init() ②단계 수정, 선택 게이트 화면 렌더 분기 추가, handleRetake 공통화, 타이머 자동제출 가드 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/exam/[id]/page.tsx`
+
+**1. 상태 추가 (L115-116)**
+- 변경 전: `result` 상태만 존재
+- 변경 후: `pendingResult: ExaminationSubmitResult | null` 상태 추가 — 이력 복원 결과를 사용자 선택 전까지 보관
+- 이유: 결과 직행 없이 게이트 화면을 통한 선택이 필요하기 때문
+
+**2. init() ②단계 (L176-179)**
+- 변경 전: `setResult(restored); examDone.current = true; return;`
+- 변경 후: `setPendingResult(restored); examDone.current = true; return;`
+- 이유: 이력 복원 결과를 `result`가 아닌 `pendingResult`에 보관해 게이트 화면을 경유하도록 변경
+
+**3. 타이머 자동제출 가드 (L259, L263)**
+- 변경 전: `const timerActive = !result && secondsLeft > 0;` / `if (!result && secondsLeft === 0 && !loading)`
+- 변경 후: `const timerActive = !result && !pendingResult && secondsLeft > 0;` / `if (!result && !pendingResult && secondsLeft === 0 && !loading)`
+- 이유: 게이트 상태에서 secondsLeft가 0이면 자동제출이 잘못 트리거되는 것을 방지
+
+**4. handleRetake 공통화 (L313)**
+- 변경 전: `setResult(null);` 만 호출
+- 변경 후: `setResult(null); setPendingResult(null);` — 게이트 화면에서 호출 시에도 pendingResult 초기화
+- 이유: 결과 화면과 게이트 화면 양쪽에서 동일한 함수를 재사용하여 중복 로직 방지
+
+**5. 선택 게이트 화면 렌더 분기 추가 (L373-449)**
+- 변경 전: `result` 있으면 결과 화면, 없으면 응시 UI
+- 변경 후: `result` → 결과 화면 / `pendingResult` → 선택 게이트 화면 / else → 응시 UI
+- 게이트 화면 구성: 시험 제목, "이미 응시한 시험입니다" 안내, 점수·정답수·정답률 요약 카드, [지난 결과 보기] / [다시 풀기] 버튼, 시험 목록으로 링크
+- [지난 결과 보기]: `setResult(pendingResult); setPendingResult(null);` → 기존 ExamResultDisplay 표시
+- [다시 풀기]: `handleRetake()` 호출 → 세션 reset·타이머 재시작·응시 UI 진입
+
+### 복원 방법
+이 ID(HIST-20260626-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 항목에 적용한다.
+- `pendingResult` 상태 제거
+- `setPendingResult(restored)` → `setResult(restored)`로 복구
+- `timerActive`, 자동제출 조건에서 `!pendingResult` 제거
+- `handleRetake` 내 `setPendingResult(null)` 제거
+- `if (pendingResult)` 렌더 분기 블록 전체 삭제
+
+---
+
 ## HIST-20260625-001
 
 - **날짜**: 2026-06-25
 - **수정 범위**: 사용자 프론트엔드 / 시험 응시 — 모바일 답안 현황 접근
-- **수정 개요**: lg 미만 화면에서 답안지 접근 불가 문제 해결 — 기존 사이드바 `hidden lg:flex` 전환, 답안 목록 마크업을 `AnswerSheetContent` 컴포넌트로 공통화, 모바일 FAB(하단 고정 버튼) + Bottom Sheet 오버레이 추가
+- **수정 개요**: lg 미만 화면에서 답안 접근 불가 문제 해결 — 기존 사이드바 `hidden lg:flex` 전환, 답안 목록 마크업을 `AnswerSheetContent` 컴포넌트로 공통화, 모바일 FAB(하단 고정 버튼) + Bottom Sheet 오버레이 추가
 
 ### 수정 파일 목록
 
