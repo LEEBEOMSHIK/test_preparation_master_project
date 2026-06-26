@@ -1,3 +1,78 @@
+## HIST-20260626-003
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 사용자 프론트엔드 / 시험 이력 목록
+- **수정 개요**: 상단 "뒤로"(router.back) 버튼을 "시험 목록으로"(router.push('/user/exams')) 버튼으로 변경
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-history/page.tsx` | 수정 | 뒤로 버튼 onClick·라벨·aria-label 변경 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exam-history/page.tsx`
+- 변경 전: `onClick={() => router.back()}`, `aria-label="이전으로 돌아가기"`, 라벨 `"뒤로"`
+- 변경 후: `onClick={() => router.push('/user/exams')}`, `aria-label="시험 목록으로"`, 라벨 `"시험 목록으로"`
+- 이유: `router.back()`은 진입 경로에 따라 시험 목록이 아닌 다른 화면으로 이동할 수 있어, 사용자 기대(항상 시험 목록으로 이동)와 불일치할 수 있음. 명시적 경로로 고정해 일관된 네비게이션 보장. chevron-left 아이콘·위치·스타일은 그대로 유지.
+
+### 복원 방법
+HIST-20260626-003 복원 시:
+- `user/exam-history/page.tsx`의 버튼 `onClick`을 `() => router.back()`으로, `aria-label`을 `"이전으로 돌아가기"`로, 라벨 span을 `"뒤로"`로 되돌린다(HIST-20260626-002 상태로 복귀).
+
+---
+
+## HIST-20260626-002
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 사용자 프론트엔드 / 시험 이력 목록
+- **수정 개요**: "뒤로" 버튼을 제목과 같은 줄에서 분리해 헤더 위 독립 줄(상단 좌측)로 이동
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-history/page.tsx` | 수정 | 뒤로 버튼을 헤더 div 외부로 분리, 제목·총N건은 기존 양끝 정렬 유지 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exam-history/page.tsx`
+- 변경 전: `<div className="flex items-center justify-between">` 안의 `<div className="flex items-center gap-2">` 그룹에 뒤로 버튼과 `<h1>시험 이력</h1>`이 나란히 배치
+- 변경 후: 뒤로 버튼을 `space-y-4` 컨테이너의 첫 번째 독립 자식으로 이동. 헤더 div에는 `<h1>`과 "총 N건" span만 남겨 양끝 정렬 유지. `space-y-4`가 뒤로 버튼과 헤더 사이 간격 담당
+- 이유: 버튼이 제목에 바짝 붙어 어색한 레이아웃 개선, 별도 줄로 분리해 시각적 계층 명확화
+
+### 복원 방법
+HIST-20260626-002 복원 시:
+- `user/exam-history/page.tsx`에서 독립 `<button>` 뒤로 버튼을 제거하고, 헤더 div 내부에 `<div className="flex items-center gap-2">` 그룹을 복원한 뒤 뒤로 버튼과 `<h1>`을 해당 그룹 안에 재배치한다(HIST-20260626-001 상태로 복귀).
+
+---
+
+## HIST-20260626-001
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 사용자 프론트엔드 / 시험 이력 목록
+- **수정 개요**: 시험 이력 목록 헤더에 "뒤로" 버튼(chevron-left + 라벨) 추가, router.back() 연결
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-history/page.tsx` | 수정 | 헤더 제목 영역을 좌측 그룹(뒤로 버튼 + 제목)으로 묶고 뒤로가기 버튼 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exam-history/page.tsx`
+- 변경 전: 헤더가 `<div className="flex items-center justify-between">` 안에 `<h1>시험 이력</h1>` 단독으로 위치
+- 변경 후: 좌측에 `<div className="flex items-center gap-2">` 그룹을 추가해 chevron-left SVG + "뒤로" 라벨 버튼을 h1 앞에 배치. 버튼에 `aria-label="이전으로 돌아가기"`, `onClick={() => router.back()}` 연결. 우측 "총 N건"은 위치 유지. 다크모드 클래스(`dark:`) 패턴 동일 적용
+- 이유: 여러 경로(대시보드·게이트 '전체 이력 보기' 등)에서 진입 시 이전 화면으로 돌아가는 네비게이션이 없어 UX 불편
+
+### 복원 방법
+HIST-20260626-001 복원 시:
+- `user/exam-history/page.tsx` 헤더의 좌측 그룹(`<div className="flex items-center gap-2">`)을 제거하고 `<h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">시험 이력</h1>` 단독으로 복원한다.
+
+---
+
 ## HIST-20260614-001
 
 - **날짜**: 2026-06-14

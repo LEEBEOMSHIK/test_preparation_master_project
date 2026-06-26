@@ -50,6 +50,24 @@ export default function ExamHistoryPage() {
 
   return (
     <div className="space-y-4">
+      {/* 시험 목록으로 */}
+      <button
+        onClick={() => router.push('/user/exams')}
+        aria-label="시험 목록으로"
+        className="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          className="w-4 h-4"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        <span className="text-sm">시험 목록으로</span>
+      </button>
+
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">시험 이력</h1>
