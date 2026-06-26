@@ -1,3 +1,33 @@
+## HIST-20260626-005
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 — 개념노트 버튼 시각 개선
+- **수정 개요**: 시험 응시 화면의 개념노트 버튼을 퀴즈 화면과 동일한 인디고 테마(라벨 "개념 정리"/"개념 정리됨", 항상 인디고 테두리)로 통일. 비활성 상태에서도 인디고 톤 유지.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | 개념노트 버튼 className·라벨·title 변경 — 인디고 테마 통일 |
+
+### 수정 상세
+
+#### `frontend/src/app/exam/[id]/page.tsx` (L638-652 영역)
+- 변경 전:
+  - className: 노트 있음 `text-indigo-600 bg-indigo-50 border-indigo-200 hover:bg-indigo-100`, 없음 `text-gray-400 border-transparent hover:border-gray-200 hover:text-indigo-500 hover:bg-indigo-50`
+  - 라벨: 있음 `'노트'`, 없음 `'메모'`
+  - title: `"개념노트 작성"`
+- 변경 후:
+  - className: 노트 있음 `bg-indigo-50 border-indigo-300 text-indigo-700 hover:bg-indigo-100`, 없음 `border-indigo-200 text-indigo-500 hover:bg-indigo-50` (항상 인디고 테두리, 회색 비활성 제거)
+  - 라벨: 있음 `'개념 정리됨'`, 없음 `'개념 정리'`
+  - title: `"이 문제의 개념을 정리합니다"`
+- 이유: 퀴즈(HIST-20260626-001)와 동일한 인디고 테마로 통일하여 두 화면 간 UI 일관성 확보. `questionNotes[q.id]` 판정 로직 및 `openNoteModal` 동작 무변경.
+
+### 복원 방법
+이 ID(HIST-20260626-005)만으로 복원 시: `exam/[id]/page.tsx` 해당 버튼의 className을 `text-gray-400 border-transparent hover:border-gray-200 hover:text-indigo-500 hover:bg-indigo-50` (없음) / `text-indigo-600 bg-indigo-50 border-indigo-200 hover:bg-indigo-100` (있음)으로, 라벨을 `'메모'`/`'노트'`로, title을 `"개념노트 작성"`으로 되돌린다.
+
+---
+
 ## HIST-20260626-004
 
 - **날짜**: 2026-06-26

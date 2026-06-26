@@ -635,20 +635,21 @@ export default function ExamTakingPage() {
                   </svg>
                   {isFlagged ? '체크됨' : '나중에 확인'}
                 </button>
+                {/* 개념 정리 버튼 — 인디고 테마, 퀴즈 화면과 동일한 디자인 */}
                 <button
                   onClick={() => openNoteModal(q, current)}
-                  title="개념노트 작성"
+                  title="이 문제의 개념을 정리합니다"
                   className={[
                     'ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs border transition',
                     questionNotes[q.id]
-                      ? 'text-indigo-600 bg-indigo-50 border-indigo-200 hover:bg-indigo-100'
-                      : 'text-gray-400 border-transparent hover:border-gray-200 hover:text-indigo-500 hover:bg-indigo-50',
+                      ? 'bg-indigo-50 border-indigo-300 text-indigo-700 hover:bg-indigo-100'
+                      : 'border-indigo-200 text-indigo-500 hover:bg-indigo-50',
                   ].join(' ')}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
                   </svg>
-                  {questionNotes[q.id] ? '노트' : '메모'}
+                  {questionNotes[q.id] ? '개념 정리됨' : '개념 정리'}
                 </button>
                 <span className="text-xs text-gray-400">{current + 1} / {questions.length}</span>
               </div>

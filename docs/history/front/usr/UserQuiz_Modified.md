@@ -1,3 +1,48 @@
+## HIST-20260626-001
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 사용자 프론트엔드 / 퀴즈 플레이 — 개념노트·즐겨찾기 버튼 시각 구분
+- **수정 개요**: 개념노트(인디고 테마 "개념 정리") vs 즐겨찾기(앰버 테마 "복습 표시") 버튼을 색·라벨·테두리로 뚜렷이 구분. 비활성 상태에서도 각자 테마색 테두리/틴트를 적용해 회색 알약처럼 동일해 보이던 문제 해결.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | 개념노트 버튼 인디고 테마·라벨·title 변경, 즐겨찾기 버튼 앰버 테마·라벨·title 변경 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx` (L515-550 영역)
+
+**개념노트 버튼**
+- 변경 전:
+  - className: `"flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition hover:bg-white/60"` (테두리 없음, 회색 호버)
+  - 아이콘 color: 노트 있음 `text-indigo-500`, 없음 `text-gray-400`
+  - 라벨: 있음 `'노트'`, 없음 `'메모'`
+  - title: `"개념노트 작성"`
+- 변경 후:
+  - className: 노트 있음 `bg-indigo-50 border-indigo-300 text-indigo-700 hover:bg-indigo-100`, 없음 `border-indigo-200 text-indigo-500 hover:bg-indigo-50` (항상 border 표시)
+  - 아이콘: 상위 button의 테마색 상속(currentColor)
+  - 라벨: 있음 `'개념 정리됨'`, 없음 `'개념 정리'`
+  - title: `"이 문제의 개념을 정리합니다"`
+
+**즐겨찾기 버튼**
+- 변경 전:
+  - className: `"flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition disabled:opacity-50 hover:bg-white/60"` (테두리 없음, 회색 호버)
+  - 채운 별 color: `text-amber-400`, 빈 별 color: `text-gray-400`
+  - 라벨: 표시됨 `'즐겨찾기됨'`, 미표시 `'즐겨찾기'`
+  - title: 표시됨 `'즐겨찾기 해제'`, 미표시 `'즐겨찾기 추가'`
+- 변경 후:
+  - className: 표시됨 `bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100`, 미표시 `border-amber-200 text-amber-500 hover:bg-amber-50` (항상 border 표시)
+  - 채운 별: `text-amber-500`, 빈 별: currentColor 상속
+  - 라벨: 표시됨 `'복습함'`, 미표시 `'복습 표시'`
+  - title: 표시됨 `'복습 표시 해제'`, 미표시 `'나중에 다시 풀 문제로 표시'`
+
+### 복원 방법
+이 ID(HIST-20260626-001)만으로 복원 시: 위 "변경 전" className·라벨·title·아이콘 색을 `quiz/[categoryId]/page.tsx` L515-550 영역에 재적용한다.
+
+---
+
 ## HIST-20260625-002
 
 - **날짜**: 2026-06-25
