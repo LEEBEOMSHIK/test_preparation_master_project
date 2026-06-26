@@ -1,3 +1,36 @@
+## HIST-20260626-001
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 관리자 프론트엔드 / 시험지 관리 — 문항 목록 카테고리 배지 추가
+- **수정 개요**: 시험지 수정(edit) 화면의 현재 문항 목록 + 은행 문항 피커, 시험지 등록(new) 화면의 문항 선택 목록 3곳에 카테고리 배지 추가. 값 있으면 회색 pill, 없으면 `—`.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` | 수정 | 현재 문항 목록(examQuestions) + 은행 문항 피커(filteredBank) 각 행에 categoryName 배지 추가 |
+| `frontend/src/app/admin/exams/papers/new/page.tsx` | 수정 | 문항 선택 목록(filteredQuestions) 각 행에 categoryName 배지 추가 |
+
+### 수정 상세
+
+#### `papers/[id]/edit/page.tsx` — 현재 문항 목록
+- 변경 전: `questionType` 배지만 표시
+- 변경 후: `questionType` 배지 왼쪽에 `q.categoryName ? <pill>categoryName</pill> : <span>—</span>` 추가
+- 스타일: `shrink-0 mt-0.5 inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600` (문항관리 화면과 동일)
+
+#### `papers/[id]/edit/page.tsx` — 은행 문항 피커
+- 변경 전: `questionType` 배지만 표시 (`QuestionSummary` 타입, `categoryName` 필드 보유)
+- 변경 후: 동일 패턴으로 categoryName 배지 추가
+
+#### `papers/new/page.tsx` — 문항 선택 목록
+- 변경 전: `questionType` 배지만 표시
+- 변경 후: 동일 패턴으로 categoryName 배지 추가
+
+### 복원 방법
+이 ID(HIST-20260626-001)로 복원 시 3곳의 `{q.categoryName ? ... : <span className="...">—</span>}` 블록을 제거한다.
+
+---
+
 ## HIST-20260619-001
 
 - **날짜**: 2026-06-19

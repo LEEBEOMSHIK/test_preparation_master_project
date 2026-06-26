@@ -276,6 +276,13 @@ export default function AdminExamPaperNewPage() {
                           </p>
                         )}
                       </div>
+                      {q.categoryName ? (
+                        <span className="shrink-0 mt-0.5 inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          {q.categoryName}
+                        </span>
+                      ) : (
+                        <span className="shrink-0 mt-0.5 text-xs text-gray-300">—</span>
+                      )}
                       <span className={[
                         'shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium',
                         TYPE_COLOR[q.questionType],

@@ -1,3 +1,27 @@
+## HIST-20260626-001
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 관리자 백엔드 / 시험지 관리 — getExamQuestions N+1 수정
+- **수정 개요**: `getExamQuestions`가 `findByExamIdOrderBySeqAsc`(category LAZY) 를 사용하던 것을 기존 `findByExamIdOrderBySeqAscWithCategory`(LEFT JOIN FETCH category)로 교체하여 N+1 방지 및 categoryName 응답 보장
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/.../service/ExamService.java` | 수정 | `getExamQuestions` 내 조회 메서드를 fetch join 버전으로 교체 |
+
+### 수정 상세
+
+#### `service/ExamService.java`
+- 변경 전: `questionRepository.findByExamIdOrderBySeqAsc(examId)` — category LAZY, N+1 발생
+- 변경 후: `questionRepository.findByExamIdOrderBySeqAscWithCategory(examId)` — `LEFT JOIN FETCH q.category`, N+1 방지
+- 이유: `open-in-view: false` 환경에서 트랜잭션 내부라 LazyInit 예외는 발생하지 않지만, category 건당 SELECT N+1이 발생했음. 이미 `QuestionRepository`에 fetch join 쿼리가 존재했으므로 재사용. categoryName이 `QuestionDetailResponse`에 정상 채워지는 것을 보장.
+
+### 복원 방법
+이 ID(HIST-20260626-001)로 복원 시 `ExamService.getExamQuestions`의 `findByExamIdOrderBySeqAscWithCategory` → `findByExamIdOrderBySeqAsc`로 되돌린다.
+
+---
+
 ## HIST-20260619-001
 
 - **날짜**: 2026-06-19

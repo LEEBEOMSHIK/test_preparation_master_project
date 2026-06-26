@@ -102,7 +102,7 @@ public class ExamService {
 
     public List<QuestionDetailResponse> getExamQuestions(Long examId) {
         getExamDetail(examId); // verify exam exists
-        return questionRepository.findByExamIdOrderBySeqAsc(examId)
+        return questionRepository.findByExamIdOrderBySeqAscWithCategory(examId)
                 .stream().map(QuestionDetailResponse::from).toList();
     }
 

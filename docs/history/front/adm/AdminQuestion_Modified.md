@@ -1,3 +1,63 @@
+## HIST-20260626-001
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리 목록
+- **수정 개요**: 문항 목록 테이블에 '카테고리' 컬럼 추가, 검색 패널에 카테고리 조회 조건 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | 카테고리 상태 쌍 추가, categoryOptions useMemo 산출, 필터 조건 추가, 검색 UI 카테고리 select 삽입, 테이블 헤더·행 카테고리 셀 추가, TableSkeleton cols 6→7 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/page.tsx`
+
+- **상태 추가**
+  - 변경 전: `categoryFilter`/`appliedCategoryFilter` 없음
+  - 변경 후: `categoryFilter` + `appliedCategoryFilter` (string, 기본값 `''`) 쌍 추가
+
+- **categoryOptions useMemo (신규)**
+  - 변경 전: 없음
+  - 변경 후: `allQuestions`에서 `categoryName`이 있는 항목만 중복 제거 후 알파벳 정렬 → `<select>` 옵션으로 사용
+
+- **filtered useMemo 필터 조건 추가**
+  - 변경 전: 카테고리 조건 없음
+  - 변경 후: `appliedCategoryFilter === ''` → 미적용 / `'__UNCATEGORIZED__'` → `!q.categoryName` 문항만 / 그 외 → `q.categoryName === appliedCategoryFilter`; 의존성 배열에 `appliedCategoryFilter` 추가
+
+- **검색 패널 UI**
+  - 변경 전: 유형 select → 시험연도 → 회차 순서
+  - 변경 후: 유형 select → **카테고리 select (전체/미분류/카테고리명 목록)** → 시험연도 → 회차
+  - `handleSearch`, 초기화 조건/리셋에 `categoryFilter`/`appliedCategoryFilter` 포함
+
+- **테이블 헤더**
+  - 변경 전: No. / 문항 제목·내용 / 유형 / 등록일 / 수정일 / 관리 (6열)
+  - 변경 후: No. / 문항 제목·내용 / 유형 / **카테고리** / 등록일 / 수정일 / 관리 (7열)
+
+- **테이블 행 셀 추가**
+  - 변경 전: 유형 배지 셀 다음 바로 등록일 셀
+  - 변경 후: 유형 배지 셀 → **카테고리 셀** (값 있으면 `bg-gray-100 text-gray-600` 뱃지, 없으면 `—` 회색) → 등록일 셀
+
+- **TableSkeleton**
+  - 변경 전: `cols={6}`
+  - 변경 후: `cols={7}`
+
+- **이유**: 카테고리별 문항 분류 현황 파악 및 필터링 지원 — 기존 `QuestionSummary.categoryName` 필드와 백엔드 응답을 활용하여 BE 변경 없이 FE만으로 구현
+
+### 복원 방법
+이 ID(HIST-20260626-001)만으로 복원 시 위 "수정 상세"의 변경 전 내용을 적용한다.
+- 상태: `categoryFilter`/`appliedCategoryFilter` 제거
+- `categoryOptions` useMemo 제거
+- `filtered` useMemo에서 카테고리 조건 블록 제거, 의존성 배열에서 `appliedCategoryFilter` 제거
+- 검색 패널 카테고리 `<div>` 블록 제거
+- `handleSearch`/초기화 버튼 조건·리셋에서 category 항목 제거
+- 테이블 헤더 `<th>카테고리</th>` 제거
+- 테이블 행 카테고리 `<td>` 블록 제거
+- `TableSkeleton cols={7}` → `cols={6}`
+
+---
+
 ## HIST-20260625-005
 
 - **날짜**: 2026-06-25

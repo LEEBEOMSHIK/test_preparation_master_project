@@ -51,20 +51,22 @@ export default function AdminQuestionsPage() {
   const [detailQ,      setDetailQ]      = useState<QuestionDetailItem | null>(null);
 
   // 검색 조건 (입력)
-  const [keyword,     setKeyword]     = useState('');
-  const [typeFilter,  setTypeFilter]  = useState<QuestionType | ''>('');
-  const [yearFilter,  setYearFilter]  = useState('');
-  const [roundFilter, setRoundFilter] = useState('');
-  const [dateFrom,    setDateFrom]    = useState('');
-  const [dateTo,      setDateTo]      = useState('');
+  const [keyword,          setKeyword]          = useState('');
+  const [typeFilter,       setTypeFilter]       = useState<QuestionType | ''>('');
+  const [categoryFilter,   setCategoryFilter]   = useState('');
+  const [yearFilter,       setYearFilter]       = useState('');
+  const [roundFilter,      setRoundFilter]      = useState('');
+  const [dateFrom,         setDateFrom]         = useState('');
+  const [dateTo,           setDateTo]           = useState('');
 
   // 검색 조건 (적용됨)
-  const [appliedKeyword,      setAppliedKeyword]      = useState('');
-  const [appliedTypeFilter,   setAppliedTypeFilter]   = useState<QuestionType | ''>('');
-  const [appliedYearFilter,   setAppliedYearFilter]   = useState('');
-  const [appliedRoundFilter,  setAppliedRoundFilter]  = useState('');
-  const [appliedDateFrom,     setAppliedDateFrom]     = useState('');
-  const [appliedDateTo,       setAppliedDateTo]       = useState('');
+  const [appliedKeyword,          setAppliedKeyword]          = useState('');
+  const [appliedTypeFilter,       setAppliedTypeFilter]       = useState<QuestionType | ''>('');
+  const [appliedCategoryFilter,   setAppliedCategoryFilter]   = useState('');
+  const [appliedYearFilter,       setAppliedYearFilter]       = useState('');
+  const [appliedRoundFilter,      setAppliedRoundFilter]      = useState('');
+  const [appliedDateFrom,         setAppliedDateFrom]         = useState('');
+  const [appliedDateTo,           setAppliedDateTo]           = useState('');
 
   // 정렬
   const [sortField, setSortField] = useState<SortField>('updatedAt');
@@ -98,6 +100,7 @@ export default function AdminQuestionsPage() {
   const handleSearch = () => {
     setAppliedKeyword(keyword);
     setAppliedTypeFilter(typeFilter);
+    setAppliedCategoryFilter(categoryFilter);
     setAppliedYearFilter(yearFilter);
     setAppliedRoundFilter(roundFilter);
     setAppliedDateFrom(dateFrom);
@@ -115,6 +118,14 @@ export default function AdminQuestionsPage() {
     setPage(0);
   };
 
+  // 로드된 전체 문항에서 중복 제거한 카테고리 목록 산출
+  const categoryOptions = useMemo(() => {
+    const names = allQuestions
+      .map((q) => q.categoryName ?? null)
+      .filter((n): n is string => n !== null && n.trim() !== '');
+    return Array.from(new Set(names)).sort();
+  }, [allQuestions]);
+
   const filtered = useMemo(() => {
     const kw     = appliedKeyword.trim().toLowerCase();
     const fromMs = appliedDateFrom ? new Date(appliedDateFrom).getTime() : null;
@@ -127,6 +138,13 @@ export default function AdminQuestionsPage() {
         if (!inTitle && !inContent) return false;
       }
       if (appliedTypeFilter && q.questionType !== appliedTypeFilter) return false;
+      if (appliedCategoryFilter !== '') {
+        if (appliedCategoryFilter === '__UNCATEGORIZED__') {
+          if (q.categoryName) return false;
+        } else {
+          if (q.categoryName !== appliedCategoryFilter) return false;
+        }
+      }
       if (appliedYearFilter  !== '' && q.examYear  !== Number(appliedYearFilter))  return false;
       if (appliedRoundFilter !== '' && q.examRound !== Number(appliedRoundFilter)) return false;
       const created = new Date(q.createdAt).getTime();
@@ -141,7 +159,7 @@ export default function AdminQuestionsPage() {
       const diff = new Date(av).getTime() - new Date(bv).getTime();
       return sortDir === 'asc' ? diff : -diff;
     });
-  }, [allQuestions, appliedKeyword, appliedTypeFilter, appliedYearFilter, appliedRoundFilter, appliedDateFrom, appliedDateTo, sortField, sortDir]);
+  }, [allQuestions, appliedKeyword, appliedTypeFilter, appliedCategoryFilter, appliedYearFilter, appliedRoundFilter, appliedDateFrom, appliedDateTo, sortField, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged      = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -200,6 +218,21 @@ export default function AdminQuestionsPage() {
             </select>
           </div>
 
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">카테고리</label>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            >
+              <option value="">전체</option>
+              <option value="__UNCATEGORIZED__">미분류</option>
+              {categoryOptions.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="w-24">
             <label className="block text-xs font-medium text-gray-500 mb-1">시험연도</label>
             <input
@@ -251,12 +284,12 @@ export default function AdminQuestionsPage() {
             검색
           </button>
 
-          {(keyword || typeFilter || yearFilter || roundFilter || dateFrom || dateTo ||
-            appliedKeyword || appliedTypeFilter || appliedYearFilter || appliedRoundFilter || appliedDateFrom || appliedDateTo) && (
+          {(keyword || typeFilter || categoryFilter || yearFilter || roundFilter || dateFrom || dateTo ||
+            appliedKeyword || appliedTypeFilter || appliedCategoryFilter || appliedYearFilter || appliedRoundFilter || appliedDateFrom || appliedDateTo) && (
             <button
               onClick={() => {
-                setKeyword(''); setTypeFilter(''); setYearFilter(''); setRoundFilter(''); setDateFrom(''); setDateTo('');
-                setAppliedKeyword(''); setAppliedTypeFilter(''); setAppliedYearFilter(''); setAppliedRoundFilter(''); setAppliedDateFrom(''); setAppliedDateTo('');
+                setKeyword(''); setTypeFilter(''); setCategoryFilter(''); setYearFilter(''); setRoundFilter(''); setDateFrom(''); setDateTo('');
+                setAppliedKeyword(''); setAppliedTypeFilter(''); setAppliedCategoryFilter(''); setAppliedYearFilter(''); setAppliedRoundFilter(''); setAppliedDateFrom(''); setAppliedDateTo('');
                 setPage(0);
               }}
               className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
@@ -270,7 +303,7 @@ export default function AdminQuestionsPage() {
       {/* 목록 */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
-          <TableSkeleton rows={5} cols={6} />
+          <TableSkeleton rows={5} cols={7} />
         ) : error ? (
           <div className="p-10 text-center text-red-400 text-sm">{error}</div>
         ) : filtered.length === 0 ? (
@@ -310,6 +343,7 @@ export default function AdminQuestionsPage() {
                   <th className="px-4 py-3 w-12 text-center whitespace-nowrap">No.</th>
                   <th className="px-4 py-3">문항 제목 / 내용</th>
                   <th className="px-4 py-3 w-24 text-center whitespace-nowrap">유형</th>
+                  <th className="px-4 py-3 w-28 text-center whitespace-nowrap">카테고리</th>
                   <th className="px-4 py-3 w-28 whitespace-nowrap">
                     <button
                       onClick={() => handleSort('createdAt')}
@@ -364,6 +398,15 @@ export default function AdminQuestionsPage() {
                       ].join(' ')}>
                         {TYPE_LABEL[q.questionType]}
                       </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      {q.categoryName ? (
+                        <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          {q.categoryName}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 text-gray-400 whitespace-nowrap">
                       {fmtDate(q.createdAt)}
