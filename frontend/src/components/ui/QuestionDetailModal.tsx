@@ -11,6 +11,8 @@ export interface QuestionDetailItem {
   title?: string;
   examYear?: number;
   examRound?: number;
+  categoryId?: number;
+  categoryName?: string;
   content: string;
   questionType: QuestionType;
   options?: string[];
@@ -73,6 +75,11 @@ export function QuestionDetailModal({ question, onClose, hideEditLink = false }:
                 ].join(' ')}>
                   {TYPE_LABEL[question.questionType]}
                 </span>
+                {question.categoryName && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                    {question.categoryName}
+                  </span>
+                )}
                 {(question.examYear || question.examRound) && (
                   <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
                     {question.examYear ? `${question.examYear}년` : ''}

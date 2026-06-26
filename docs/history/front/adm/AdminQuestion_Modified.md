@@ -1,3 +1,40 @@
+## HIST-20260626-002
+
+- **날짜**: 2026-06-26
+- **수정 범위**: 관리자 프론트엔드 / 공용 UI (문항 상세 팝업)
+- **수정 개요**: 공용 컴포넌트 `QuestionDetailModal`의 헤더 배지 행에 카테고리 배지 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/QuestionDetailModal.tsx` | 수정 | `QuestionDetailItem` 인터페이스에 `categoryId?`·`categoryName?` 추가; 헤더 배지 행에 categoryName 조건부 렌더 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/QuestionDetailModal.tsx`
+
+- **인터페이스 변경**
+  - 변경 전: `QuestionDetailItem`에 `examRound?: number` 이후 content 필드
+  - 변경 후: `examRound?: number` 다음에 `categoryId?: number`, `categoryName?: string` 두 필드 추가 (optional — 기존 사용처 깨지지 않음)
+
+- **헤더 배지 행 변경**
+  - 변경 전: questionType 배지 → (examYear/examRound) 배지 순서
+  - 변경 후: questionType 배지 → **categoryName 배지(있을 때만)** → (examYear/examRound) 배지 순서
+  - 스타일: `px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600`
+  - 조건: `{question.categoryName && ( ... )}` — categoryName이 없으면 아무것도 렌더하지 않음
+
+- **이유**: 문항 상세 팝업에서 해당 문항의 카테고리(문제 유형)를 시각적으로 확인하기 위함. 문항관리 목록 카테고리 배지와 동일한 톤(`bg-gray-100 text-gray-600`) 사용.
+
+- **공용 컴포넌트 파급 범위**: 이 컴포넌트는 문항관리, 시험지 관리 상세, 사용자 북마크 등 여러 화면에서 공유됨. `categoryName`을 `QuestionDetailItem`에 담아 넘기는 사용처에서는 자동으로 배지가 표시됨. 넘기지 않는 기존 사용처는 배지가 렌더되지 않아 동작에 영향 없음.
+
+### 복원 방법
+이 ID(HIST-20260626-002)만으로 복원 시:
+- `QuestionDetailItem`에서 `categoryId?: number`, `categoryName?: string` 두 필드 제거
+- 헤더 배지 행에서 `{question.categoryName && ( <span ...>{question.categoryName}</span> )}` 블록 제거
+
+---
+
 ## HIST-20260626-001
 
 - **날짜**: 2026-06-26
