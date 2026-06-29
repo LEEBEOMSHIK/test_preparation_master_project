@@ -20,8 +20,11 @@ export function RichContent({ html, className = '' }: Props) {
         '[&_h2]:text-xl [&_h2]:font-bold [&_h2]:mb-1.5',
         '[&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mb-1',
         '[&_a]:text-indigo-600 [&_a]:underline [&_a]:break-all',
-        // 표·코드 등 폭이 큰 콘텐츠는 컨테이너를 벗어나지 않고 가로 스크롤 처리
+        // 코드 블록(<pre>)을 어두운 박스로 분리 — 지문(<p>)과 상하 여백으로 명확히 구분
         '[&_pre]:overflow-x-auto [&_pre]:max-w-full',
+        '[&_pre]:bg-gray-900 [&_pre]:text-gray-100',
+        '[&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:my-3',
+        '[&_pre]:text-sm [&_pre]:leading-relaxed [&_pre]:font-mono',
         '[&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto',
         className,
       ].join(' ')}
