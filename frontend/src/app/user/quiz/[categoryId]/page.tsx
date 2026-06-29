@@ -402,8 +402,8 @@ function QuizPlayContent() {
         )}
         {/* 문항 관리 제목 헤더 (title이 있을 때만) */}
         {q.title && q.title.trim() !== '' && (
-          <div className="pr-24 pb-3 border-b border-gray-100">
-            <span className="text-xs font-semibold text-gray-400 leading-tight">
+          <div className="pr-24 pb-3 mb-2 border-b border-gray-200">
+            <span className="text-sm font-semibold text-gray-500 leading-tight">
               {q.title}
             </span>
           </div>

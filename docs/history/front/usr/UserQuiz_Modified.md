@@ -1,3 +1,45 @@
+## HIST-20260629-001
+
+- **날짜**: 2026-06-29
+- **수정 범위**: 사용자 프론트엔드 / 퀴즈 플레이 — 문항 title 헤더 시각 분리 강화
+- **수정 개요**: title 헤더 텍스트를 text-xs→text-sm / text-gray-400→text-gray-500으로 키우고, 구분선을 border-gray-100→border-gray-200으로 진하게, title 블록에 mb-2를 추가해 본문과 확실히 분리
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | title 헤더 블록 className 조정 — 텍스트 크기·색·구분선·하단 여백 강화 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx` (L403-412 영역)
+- 변경 전:
+  ```tsx
+  <div className="pr-24 pb-3 border-b border-gray-100">
+    <span className="text-xs font-semibold text-gray-400 leading-tight">
+      {q.title}
+    </span>
+  </div>
+  ```
+- 변경 후:
+  ```tsx
+  <div className="pr-24 pb-3 mb-2 border-b border-gray-200">
+    <span className="text-sm font-semibold text-gray-500 leading-tight">
+      {q.title}
+    </span>
+  </div>
+  ```
+- 이유:
+  - `text-xs text-gray-400`(12px, 옅은 회색) → `text-sm text-gray-500`(14px, 중간 회색)으로 본문보다 작되 뚜렷한 부제 라벨로 위계 명확화
+  - `border-gray-100`(거의 투명) → `border-gray-200`(가시적 구분선)으로 헤더/본문 경계선 강화
+  - `mb-2` 추가: 기존 부모 `space-y-5`와 합산되어 title 블록 아래 실질적인 공백 확보
+  - title 없을 때(q.title 빈 값) 조건부 렌더 로직(`q.title && q.title.trim() !== ''`) 및 `pr-24` 유지
+
+### 복원 방법
+이 ID(HIST-20260629-001)만으로 복원 시: `quiz/[categoryId]/page.tsx` title 헤더 div 를 `"pr-24 pb-3 border-b border-gray-100"`, span을 `"text-xs font-semibold text-gray-400 leading-tight"`로 되돌리고 `mb-2` 제거.
+
+---
+
 ## HIST-20260626-001
 
 - **날짜**: 2026-06-26
