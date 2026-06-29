@@ -139,6 +139,7 @@ docker-compose.yml
 | `<ExamResultDisplay result examinationTitle onBack backLabel showSavedBanner />` | `src/components/ui/ExamResultDisplay.tsx` | 시험 결과 렌더(점수카드·전체/오답필터·아코디언) 공용 |
 | `<LinkedQuestionBox note />` | `src/components/ui/LinkedQuestionBox.tsx` | 개념노트에 연결된 시험·퀴즈 문제 박스 (내 노트 상세 + 공개 탐색 상세 공용) |
 | `<CodeBlock code language size showHeader className />` | `src/components/ui/CodeBlock.tsx` | 구문강조 코드 블록 (Darcula 다크 고정, react-syntax-highlighter Light 빌드) |
+| `<CodeAnswerInput value onChange disabled placeholder onCtrlEnter rows />` | `src/components/ui/CodeAnswerInput.tsx` | CODE 유형 멀티라인 monospace 답안 입력 (Tab 들여쓰기·Ctrl+Enter 제출) |
 
 새 유틸 함수는 `src/lib/`에, 새 UI 컴포넌트는 `src/components/ui/`에 추가하고 위 표를 즉시 갱신한다.
 

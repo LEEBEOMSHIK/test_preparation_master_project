@@ -1,3 +1,28 @@
+## HIST-20260629-002
+
+- **날짜**: 2026-06-29
+- **수정 범위**: 사용자 백엔드 / 퀴즈 채점 (CODE 유형 정규화)
+- **수정 개요**: `AnswerGrader.isCorrect` CODE 분기에 보수안 정규화(CRLF→LF·줄 끝 공백 제거·앞뒤 빈 줄 제거)를 추가하여, 퀴즈 채점(`UserQuizService.checkAnswer`)에서도 코드 답안의 줄 끝 공백·줄바꿈 차이가 정답으로 처리됨. 들여쓰기는 정답의 일부로 보존. 상세는 동일 변경을 다룬 [back/usr/UserExamination_Modified.md HIST-20260629-002] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | CODE 분기 분리 + `normalizeCode` 정규화 추가 (퀴즈·시험 공용) |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 수정 | CODE 정규화 케이스 6개 추가 |
+
+### 수정 상세
+
+#### `service/support/AnswerGrader.java`
+- `UserQuizService.checkAnswer`는 `AnswerGrader.isCorrect(qb.getQuestionType().name(), qb.getAnswer(), request.userAnswer())`를 호출하므로, CODE 분기 정규화 추가만으로 퀴즈 채점에 자동 반영됨(퀴즈 서비스 코드 자체 변경 없음)
+- 정규화 내용: CRLF→LF, 각 줄 `stripTrailing`, 전체 `strip`. 줄 내부 들여쓰기는 보존
+- 이유: 코드 문항을 멀티라인으로 입력하면서 발생하는 줄 끝 공백·줄바꿈 차이로 인한 오채점 해소
+
+### 복원 방법
+이 ID(HIST-20260629-002)만으로 복원 시: `AnswerGrader.java`의 CODE 분기·`normalizeCode` 제거(시험 채점 복원과 동일), 테스트 추가 케이스 6개 삭제.
+
+---
+
 ## HIST-20260629-001
 
 - **날짜**: 2026-06-29

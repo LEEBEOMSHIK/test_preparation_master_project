@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { RichContent } from '@/components/ui/RichContent';
+import { CodeBlock } from '@/components/ui/CodeBlock';
 import { stripHtml } from '@/lib/html';
 import type { ExamResultData } from '@/types';
 
@@ -215,26 +216,62 @@ export function ExamResultDisplay({
 
                       {/* 내 답 / 정답 (객관식 외) */}
                       {item.questionType !== 'MULTIPLE_CHOICE' && (
-                        <div className="flex flex-col gap-1.5">
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="text-gray-500 shrink-0 w-14">내 답</span>
-                            <span
-                              className={[
-                                'font-medium',
-                                item.correct ? 'text-green-700' : 'text-red-600',
-                              ].join(' ')}
-                            >
-                              {item.userAnswer || (
-                                <span className="text-gray-400 font-normal">미제출</span>
+                        <div className="flex flex-col gap-2 text-sm">
+                          {item.questionType === 'CODE' ? (
+                            <>
+                              <div>
+                                <span className={[
+                                  'text-xs font-semibold',
+                                  item.correct ? 'text-green-600' : 'text-red-500',
+                                ].join(' ')}>내 답</span>
+                                {item.userAnswer ? (
+                                  <CodeBlock
+                                    code={item.userAnswer}
+                                    language={item.language}
+                                    showHeader={false}
+                                    size="xs"
+                                    className="mt-1"
+                                  />
+                                ) : (
+                                  <span className="ml-2 text-gray-400 font-normal">미제출</span>
+                                )}
+                              </div>
+                              {!item.correct && (
+                                <div>
+                                  <span className="text-xs font-semibold text-green-600">정답</span>
+                                  <CodeBlock
+                                    code={item.correctAnswer ?? ''}
+                                    language={item.language}
+                                    showHeader={false}
+                                    size="xs"
+                                    className="mt-1"
+                                  />
+                                </div>
                               )}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="text-gray-500 shrink-0 w-14">정답</span>
-                            <span className="font-medium text-green-700">
-                              {item.correctAnswer ?? '—'}
-                            </span>
-                          </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-500 shrink-0 w-14">내 답</span>
+                                <span
+                                  className={[
+                                    'font-medium',
+                                    item.correct ? 'text-green-700' : 'text-red-600',
+                                  ].join(' ')}
+                                >
+                                  {item.userAnswer || (
+                                    <span className="text-gray-400 font-normal">미제출</span>
+                                  )}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-500 shrink-0 w-14">정답</span>
+                                <span className="font-medium text-green-700">
+                                  {item.correctAnswer ?? '—'}
+                                </span>
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
 

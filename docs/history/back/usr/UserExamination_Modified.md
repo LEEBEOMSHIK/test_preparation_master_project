@@ -1,3 +1,40 @@
+## HIST-20260629-002
+
+- **날짜**: 2026-06-29
+- **수정 범위**: 사용자 백엔드 / 채점 (CODE 유형 정규화)
+- **수정 개요**: `AnswerGrader.isCorrect`에서 CODE 유형을 별도 분기로 분리하고 보수안 정규화(CRLF→LF·줄 끝 공백 제거·앞뒤 빈 줄 제거) 후 `equalsIgnoreCase` 비교. 줄 내부 연속 공백(들여쓰기)은 정답의 일부로 보존. SHORT_ANSWER·MULTIPLE_CHOICE·OX 경로 무변경. 시험 제출 채점(`UserExaminationService.submitExam`)이 이 헬퍼를 통해 동일 적용됨.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | CODE 분기 분리 + `normalizeCode` 정규화 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 수정 | CODE 정규화 케이스 6개 추가 (기존 17케이스 무변경) |
+
+### 수정 상세
+
+#### `service/support/AnswerGrader.java`
+- `isCorrect`: 기존 `// MULTIPLE_CHOICE, OX, CODE 통문자열 비교` 폴스루에서 CODE만 분리 →
+  ```java
+  if ("CODE".equals(questionType)) {
+      return normalizeCode(correctAnswer).equalsIgnoreCase(normalizeCode(userAnswer));
+  }
+  ```
+- `private static String normalizeCode(String s)` 추가 (보수안):
+  1. CRLF→LF, 단독 CR→LF
+  2. `split("\n", -1)` 후 각 줄 `stripTrailing()`로 줄 끝 공백 제거
+  3. 전체 `strip()`으로 앞뒤 빈 줄/공백 제거
+  - 줄 내부 연속 공백(들여쓰기)은 건드리지 않음
+- 이유: 코드 답안에서 줄 끝 공백·CRLF·앞뒤 빈 줄 차이로 정답이 오답 처리되던 문제 해소. 들여쓰기는 정답의 일부이므로 보존(적극 정규화는 오채점 위험으로 기각)
+
+#### `test/.../AnswerGraderTest.java`
+- 추가 케이스 6개: 줄 끝 공백/CRLF/앞뒤 빈 줄 차이 → 정답, 내부 빈 줄 차이·들여쓰기(연속 스페이스) 차이 → 오답, 복합 → 정답
+
+### 복원 방법
+이 ID(HIST-20260629-002)만으로 복원 시: `AnswerGrader.java`의 CODE 분기와 `normalizeCode` 메서드를 제거하고 CODE를 다시 MULTIPLE_CHOICE/OX 폴스루(`trim().equalsIgnoreCase`)로 되돌림, `AnswerGraderTest.java`에서 추가한 6개 케이스 삭제.
+
+---
+
 ## HIST-20260629-001
 
 - **날짜**: 2026-06-29

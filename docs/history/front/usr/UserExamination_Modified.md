@@ -1,3 +1,32 @@
+## HIST-20260629-001
+
+- **날짜**: 2026-06-29
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시·결과 — CODE 문항 답안 입력·결과 표시 개선
+- **수정 개요**: 시험 응시 CODE 답안 입력을 기존 `<textarea rows={4}>`에서 공용 `CodeAnswerInput`(rows=6, Tab 들여쓰기)으로 교체. 문제 CodeBlock에 `max-h-48 overflow-y-auto` 추가. 시험·퀴즈 공용 결과 화면 `ExamResultDisplay`에서 CODE 유형의 내 답/정답을 인라인 텍스트 대신 `CodeBlock`(구문강조)으로 렌더.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | CODE 답안 textarea → CodeAnswerInput(rows=6) 교체, CodeBlock에 max-h 추가 |
+| `frontend/src/components/ui/ExamResultDisplay.tsx` | 수정 | CODE 유형 내 답/정답을 CodeBlock(showHeader=false, size="xs")으로 표시, 그 외 유형은 기존 span 유지 |
+
+### 수정 상세
+
+#### `frontend/src/app/exam/[id]/page.tsx`
+- CODE 답안 입력(L702 영역): `<textarea rows={4} font-mono>` → `<CodeAnswerInput value={answers[q.id] ?? ''} onChange={v => handleAnswer(q.id, v)} placeholder="코드 답안을 입력하세요" rows={6} />` (제출은 별도 버튼이므로 onCtrlEnter 미전달). 객관식·OX·단답은 무변경
+- CodeBlock(L661): `className="max-h-48 overflow-y-auto"` 추가
+
+#### `frontend/src/components/ui/ExamResultDisplay.tsx`
+- 내 답/정답 표시부(L216 영역): `item.questionType === 'CODE'`이면 내 답·정답을 각각 `<CodeBlock code={...} language={item.language} showHeader={false} size="xs" className="mt-1" />`로 렌더(미제출은 "미제출" span 유지, 정답은 오답일 때만 표시). OX·SHORT_ANSWER는 기존 span 그대로
+- 이유: 코드 답안이 길거나 다줄일 때 인라인 span은 가독성이 낮음. 공용 CodeBlock 재사용
+- 비고: `QuestionResult.language?: string` 기존 존재로 타입 변경 없음. `ExamResultDisplay`는 시험 결과·퀴즈 결과 양쪽 공용이나 CODE 조건 분기라 기존 경로 무영향
+
+### 복원 방법
+이 ID(HIST-20260629-001)만으로 복원 시: `exam/[id]/page.tsx`의 CodeAnswerInput을 기존 `<textarea rows={4} className="...font-mono...">`로 되돌리고 CodeBlock의 max-h 제거, `ExamResultDisplay.tsx`의 CODE 분기를 제거해 모든 비객관식 유형을 기존 span 표시로 복원, CodeBlock import 제거.
+
+---
+
 ## HIST-20260626-005
 
 - **날짜**: 2026-06-26

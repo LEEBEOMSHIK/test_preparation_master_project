@@ -11,7 +11,10 @@ import java.util.stream.Collectors;
  * 콤마 분리 후 토큰을 trim·소문자화하여 Set 비교하므로 순서와 공백 차이는 무시된다.
  *
  * <p>CODE 유형은 콤마가 코드 문법의 일부일 수 있으므로 절대 분리하지 않고
- * 기존과 동일하게 통문자열 equalsIgnoreCase 비교한다.
+ * 통문자열 비교한다. 단, 줄 끝 trailing 공백·CRLF 차이·앞뒤 빈 줄은 정규화하여
+ * 무시한다. 줄 내부 연속 공백(들여쓰기)은 정답의 일부이므로 절대 건드리지 않는다.
+ *
+ * <p>MULTIPLE_CHOICE·OX 는 기존과 동일하게 trim·equalsIgnoreCase 비교한다.
  */
 public final class AnswerGrader {
 
@@ -32,13 +35,46 @@ public final class AnswerGrader {
         if ("SHORT_ANSWER".equals(questionType)) {
             return multiSetMatch(correctAnswer, userAnswer);
         }
-        // MULTIPLE_CHOICE, OX, CODE — 통문자열 비교
+        if ("CODE".equals(questionType)) {
+            // CODE 정규화 비교:
+            // - CRLF→LF, 단독 CR→LF
+            // - 각 줄 끝 trailing 공백 제거
+            // - 전체 앞뒤 빈 줄/공백 제거
+            // - 줄 내부 연속 공백(들여쓰기)은 건드리지 않음
+            return normalizeCode(correctAnswer).equalsIgnoreCase(normalizeCode(userAnswer));
+        }
+        // MULTIPLE_CHOICE, OX — 통문자열 비교
         return correctAnswer.trim().equalsIgnoreCase(userAnswer.trim());
     }
 
     // -----------------------------------------------------------------------
     // Private helpers
     // -----------------------------------------------------------------------
+
+    /**
+     * CODE 유형 정규화 (보수안):
+     * <ol>
+     *   <li>CRLF → LF, 단독 CR → LF</li>
+     *   <li>각 줄 끝 trailing 공백 제거 (stripTrailing)</li>
+     *   <li>전체 앞뒤 빈 줄·공백 제거 (strip)</li>
+     * </ol>
+     * 줄 내부 연속 공백(들여쓰기)은 정답의 일부이므로 절대 건드리지 않는다.
+     */
+    private static String normalizeCode(String s) {
+        // 1. CRLF → LF, 단독 CR → LF
+        String normalized = s.replace("\r\n", "\n").replace("\r", "\n");
+        // 2. 각 줄 끝 trailing 공백 제거
+        String[] lines = normalized.split("\n", -1);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < lines.length; i++) {
+            sb.append(lines[i].stripTrailing());
+            if (i < lines.length - 1) {
+                sb.append('\n');
+            }
+        }
+        // 3. 전체 앞뒤 빈 줄/공백 제거
+        return sb.toString().strip();
+    }
 
     /**
      * 양쪽 문자열을 콤마로 분리 → 토큰 trim·소문자화 → 빈 토큰 제거 → Set 동일성 검사.

@@ -10,6 +10,7 @@ import { QuizCardSkeleton } from '@/components/ui/Skeleton';
 import { ExamResultDisplay } from '@/components/ui/ExamResultDisplay';
 import { ConceptNoteModal } from '@/components/ui/ConceptNoteModal';
 import { CodeBlock } from '@/components/ui/CodeBlock';
+import { CodeAnswerInput } from '@/components/ui/CodeAnswerInput';
 import { stripHtml } from '@/lib/html';
 
 const CIRCLED = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
@@ -658,7 +659,7 @@ export default function ExamTakingPage() {
               <RichContent html={q.content} className="text-gray-800 text-sm" />
 
               {/* 코드 블록 (CODE 유형 또는 code 필드가 있는 경우) */}
-              {q.code && <CodeBlock code={q.code} language={q.language} />}
+              {q.code && <CodeBlock code={q.code} language={q.language} className="max-h-48 overflow-y-auto" />}
 
               {/* 선택지 (객관식) */}
               {isMultiple && q.options && (
@@ -701,12 +702,11 @@ export default function ExamTakingPage() {
               {/* 단답형 / 코드 답안 입력 */}
               {!isMultiple && !isOX && (
                 isCode ? (
-                  <textarea
+                  <CodeAnswerInput
                     value={answers[q.id] ?? ''}
-                    onChange={e => handleAnswer(q.id, e.target.value)}
-                    placeholder="답을 입력하세요"
-                    rows={4}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-y"
+                    onChange={v => handleAnswer(q.id, v)}
+                    placeholder="코드 답안을 입력하세요"
+                    rows={6}
                   />
                 ) : (
                   <input

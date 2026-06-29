@@ -1,3 +1,35 @@
+## HIST-20260629-002
+
+- **날짜**: 2026-06-29
+- **수정 범위**: 사용자 프론트엔드 / 퀴즈 플레이 — CODE 문항 답안 입력 개선
+- **수정 개요**: CODE 유형 답안 입력을 단일 라인 `<input>`에서 공용 `CodeAnswerInput`(멀티라인 monospace, Tab=공백2칸 들여쓰기, Ctrl+Enter 제출)으로 교체. SHORT_ANSWER 단답은 기존 input 유지. 문제 CodeBlock에 `max-h-48 overflow-y-auto` 추가로 긴 코드에서도 답안칸이 같은 화면에 보이도록 함. 공용 컴포넌트 `CodeAnswerInput` 신설.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/CodeAnswerInput.tsx` | 추가 | CODE 유형 멀티라인 monospace 답안 입력 공용 컴포넌트 신설 |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | `isCode` 분기 추가, CODE면 CodeAnswerInput·그 외 주관식은 기존 input. CodeBlock에 max-h 추가 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `CodeAnswerInput` 행 추가 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/CodeAnswerInput.tsx` (신규)
+- props: `value`, `onChange`, `disabled?`, `placeholder?`, `onCtrlEnter?`, `rows?(기본6)`, `className?`
+- Tab 키: `e.preventDefault()` 후 커서(`selectionStart/End`) 위치에 공백 2칸(`TAB_INSERT`) 삽입, `requestAnimationFrame`에서 `setSelectionRange`로 커서 복원 → 포커스 이동 방지
+- Ctrl+Enter(또는 Cmd+Enter): `onCtrlEnter?.()` 실행. 상단에 `코드 답안 입력 (Tab: 들여쓰기 · Ctrl+Enter: 제출)` 안내 레이블(onCtrlEnter 없으면 제출 안내 숨김)
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- `const isCode = q.questionType === 'CODE';` 추가 (L351 영역)
+- 주관식 렌더(L474 영역): `isCode`면 `<CodeAnswerInput value={inputValue} onChange={setInputValue} disabled={submitted} placeholder="코드 답안을 입력하세요" onCtrlEnter={handleSubmitAnswer} />`, 아니면 기존 `<input onKeyDown Enter=제출>` 유지 (Enter 즉시제출/멀티라인 줄바꿈 충돌 해소)
+- CodeBlock(L414): `className="max-h-48 overflow-y-auto"` 추가
+- 이유: CODE 답안은 줄바꿈·들여쓰기가 필요해 단일 라인 input이 부적합. 퀴즈·시험 공용화로 CLAUDE.md "동일 로직 2곳↑ 공통 추출" 준수
+
+### 복원 방법
+이 ID(HIST-20260629-002)만으로 복원 시: `CodeAnswerInput.tsx` 삭제, 퀴즈 page에서 `isCode` 분기·import 제거하고 주관식을 기존 단일 `<input>`으로 되돌림, CodeBlock의 `max-h-48 overflow-y-auto` 제거, CLAUDE.md 표 행 제거.
+
+---
+
 ## HIST-20260629-001
 
 - **날짜**: 2026-06-29

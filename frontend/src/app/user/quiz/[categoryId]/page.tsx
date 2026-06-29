@@ -10,6 +10,7 @@ import { QuizCardSkeleton } from '@/components/ui/Skeleton';
 import { ConceptNoteModal } from '@/components/ui/ConceptNoteModal';
 import { ExamResultDisplay } from '@/components/ui/ExamResultDisplay';
 import { CodeBlock } from '@/components/ui/CodeBlock';
+import { CodeAnswerInput } from '@/components/ui/CodeAnswerInput';
 import { stripHtml } from '@/lib/html';
 import type { ConceptNote, ExamResultData, QuestionResult, QuestionType } from '@/types';
 
@@ -350,6 +351,7 @@ function QuizPlayContent() {
 
   const isMultipleChoice = q.questionType === 'MULTIPLE_CHOICE';
   const isOX = q.questionType === 'OX';
+  const isCode = q.questionType === 'CODE';
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
@@ -412,7 +414,7 @@ function QuizPlayContent() {
         <RichContent html={q.content} className="text-gray-800 font-medium text-base pr-24" />
 
         {q.code && (
-          <CodeBlock code={q.code} language={q.language} />
+          <CodeBlock code={q.code} language={q.language} className="max-h-48 overflow-y-auto" />
         )}
 
         {/* 선택지 */}
@@ -471,17 +473,27 @@ function QuizPlayContent() {
           </div>
         )}
 
-        {/* 주관식 */}
+        {/* 주관식 (단답형 · CODE) */}
         {!isMultipleChoice && !isOX && (
           <div className="space-y-2">
-            <input
-              value={inputValue}
-              onChange={e => setInputValue(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSubmitAnswer()}
-              placeholder="답을 입력하고 Enter 또는 정답확인 버튼을 누르세요"
-              disabled={!!answerState?.submitted}
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-50"
-            />
+            {isCode ? (
+              <CodeAnswerInput
+                value={inputValue}
+                onChange={setInputValue}
+                disabled={!!answerState?.submitted}
+                placeholder="코드 답안을 입력하세요"
+                onCtrlEnter={handleSubmitAnswer}
+              />
+            ) : (
+              <input
+                value={inputValue}
+                onChange={e => setInputValue(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSubmitAnswer()}
+                placeholder="답을 입력하고 Enter 또는 정답확인 버튼을 누르세요"
+                disabled={!!answerState?.submitted}
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-50"
+              />
+            )}
             {!answerState?.submitted && (
               <button
                 onClick={handleSubmitAnswer}

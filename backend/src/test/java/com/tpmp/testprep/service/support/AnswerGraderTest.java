@@ -97,6 +97,56 @@ class AnswerGraderTest {
         assertThat(AnswerGrader.isCorrect("CODE", "Return X", "return x")).isTrue();
     }
 
+    // ── 정규화 케이스 (보수안 검증) ─────────────────────────────────────────
+
+    @Test
+    @DisplayName("CODE: 줄 끝 공백 차이는 정답으로 처리")
+    void code_trailingSpaceDiff_correct() {
+        String correct = "def foo():  \n    return 1";
+        String user    = "def foo():\n    return 1";
+        assertThat(AnswerGrader.isCorrect("CODE", correct, user)).isTrue();
+    }
+
+    @Test
+    @DisplayName("CODE: CRLF vs LF 줄바꿈 차이는 정답으로 처리")
+    void code_crlfVsLf_correct() {
+        String correct = "def foo():\r\n    return 1";
+        String user    = "def foo():\n    return 1";
+        assertThat(AnswerGrader.isCorrect("CODE", correct, user)).isTrue();
+    }
+
+    @Test
+    @DisplayName("CODE: 앞뒤 빈 줄 차이는 정답으로 처리")
+    void code_leadingTrailingBlankLines_correct() {
+        String correct = "\n\ndef foo():\n    return 1\n\n";
+        String user    = "def foo():\n    return 1";
+        assertThat(AnswerGrader.isCorrect("CODE", correct, user)).isTrue();
+    }
+
+    @Test
+    @DisplayName("CODE: 중간(내부) 빈 줄 차이는 오답 (앞뒤만 trim, 내부 줄 차이는 유지)")
+    void code_innerBlankLineDiff_incorrect() {
+        String correct = "def foo():\n    return 1";
+        String user    = "def foo():\n\n    return 1";
+        assertThat(AnswerGrader.isCorrect("CODE", correct, user)).isFalse();
+    }
+
+    @Test
+    @DisplayName("CODE: 들여쓰기(줄 내부 연속 스페이스) 차이는 오답 (보수안 핵심)")
+    void code_indentationDiff_incorrect() {
+        String correct = "def foo():\n    return 1";   // 스페이스 4칸
+        String user    = "def foo():\n  return 1";    // 스페이스 2칸
+        assertThat(AnswerGrader.isCorrect("CODE", correct, user)).isFalse();
+    }
+
+    @Test
+    @DisplayName("CODE: CRLF + 줄끝공백 + 앞뒤빈줄 복합 차이는 정답으로 처리")
+    void code_complexNormalization_correct() {
+        String correct = "\r\ndef foo():  \r\n    return 1  \r\n\r\n";
+        String user    = "def foo():\n    return 1";
+        assertThat(AnswerGrader.isCorrect("CODE", correct, user)).isTrue();
+    }
+
     // -----------------------------------------------------------------------
     // MULTIPLE_CHOICE
     // -----------------------------------------------------------------------
