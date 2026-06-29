@@ -1,3 +1,42 @@
+## HIST-20260629-002
+
+- **날짜**: 2026-06-29
+- **수정 범위**: 사용자 프론트엔드 / 공용 RichContent 컴포넌트 (시험·퀴즈·개념노트·상세모달 등 본문 전반)
+- **수정 개요**: `<pre>` 코드 블록 및 내부 `<code>` 긴 줄 가로 스크롤 → 줄바꿈(wrap)으로 교체
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/RichContent.tsx` | 수정 | `[&_pre]:overflow-x-auto` 제거 → `whitespace-pre-wrap break-words` 추가, `[&_pre_code]` 동일 적용 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/RichContent.tsx`
+
+- 변경 전:
+  ```
+  '[&_pre]:overflow-x-auto [&_pre]:max-w-full',
+  ```
+- 변경 후:
+  ```
+  '[&_pre]:max-w-full [&_pre]:whitespace-pre-wrap [&_pre]:break-words',
+  '[&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words',
+  ```
+- 이유: `overflow-x-auto`가 있으면 긴 코드 줄이 박스를 벗어나 가로 스크롤이 생겼음. `whitespace-pre-wrap`은 기존 공백·개행을 보존하면서 컨테이너 너비를 초과할 때만 줄바꿈하므로, 들여쓰기 등 서식을 유지한 채 스크롤 없이 박스 안에서 렌더된다. `[&_pre_code]`도 동일하게 적용하여 `<pre><code>` 중첩 구조에서도 보장. 다크 박스(bg-gray-900, p-3, rounded-lg 등)는 변경 없음.
+
+### 복원 방법
+
+이 ID(HIST-20260629-002)만으로 복원 시, `frontend/src/components/ui/RichContent.tsx`의 `<pre>` 관련 2줄을 아래 1줄로 되돌린다.
+
+```
+'[&_pre]:overflow-x-auto [&_pre]:max-w-full',
+```
+
+그리고 `[&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words` 행을 삭제한다.
+
+---
+
 ## HIST-20260629-001
 
 - **날짜**: 2026-06-29

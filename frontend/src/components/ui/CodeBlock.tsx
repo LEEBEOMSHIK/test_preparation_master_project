@@ -127,18 +127,21 @@ export function CodeBlock({
       <SyntaxHighlighter
         language={prismLang}
         style={darculaCustom}
+        wrapLongLines
         customStyle={{
           background:    '#2b2b2b',
           margin:        0,
           padding:       '1rem',
-          overflowX:     'auto',
           lineHeight:    '1.625',
-          whiteSpace:    'pre',
+          whiteSpace:    'pre-wrap',
+          wordBreak:     'break-word',
         }}
         codeTagProps={{
           style: {
             fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
             fontSize,
+            whiteSpace:  'pre-wrap',
+            wordBreak:   'break-word',
           },
         }}
       >

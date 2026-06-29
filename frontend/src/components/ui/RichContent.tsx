@@ -21,7 +21,8 @@ export function RichContent({ html, className = '' }: Props) {
         '[&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mb-1',
         '[&_a]:text-indigo-600 [&_a]:underline [&_a]:break-all',
         // 코드 블록(<pre>)을 어두운 박스로 분리 — 지문(<p>)과 상하 여백으로 명확히 구분
-        '[&_pre]:overflow-x-auto [&_pre]:max-w-full',
+        '[&_pre]:max-w-full [&_pre]:whitespace-pre-wrap [&_pre]:break-words',
+        '[&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words',
         '[&_pre]:bg-gray-900 [&_pre]:text-gray-100',
         '[&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:my-3',
         '[&_pre]:text-sm [&_pre]:leading-relaxed [&_pre]:font-mono',

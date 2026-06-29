@@ -1,3 +1,67 @@
+## HIST-20260629-001
+
+- **날짜**: 2026-06-29
+- **수정 범위**: 사용자 프론트엔드 / 공용 CodeBlock 구문강조 컴포넌트
+- **수정 개요**: 긴 코드 줄 가로 스크롤 → 줄바꿈(wrap)으로 교체 (`wrapLongLines` 활성화 + `whiteSpace: 'pre-wrap'`)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/CodeBlock.tsx` | 수정 | `wrapLongLines` prop 추가, `customStyle`·`codeTagProps` 에 `whiteSpace: 'pre-wrap'`, `wordBreak: 'break-word'` 적용, `overflowX: 'auto'` 제거 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/CodeBlock.tsx`
+
+- 변경 전:
+  ```ts
+  customStyle={{
+    background:    '#2b2b2b',
+    margin:        0,
+    padding:       '1rem',
+    overflowX:     'auto',
+    lineHeight:    '1.625',
+    whiteSpace:    'pre',
+  }}
+  codeTagProps={{
+    style: {
+      fontFamily: '...',
+      fontSize,
+    },
+  }}
+  ```
+- 변경 후:
+  ```ts
+  wrapLongLines
+  customStyle={{
+    background:    '#2b2b2b',
+    margin:        0,
+    padding:       '1rem',
+    lineHeight:    '1.625',
+    whiteSpace:    'pre-wrap',
+    wordBreak:     'break-word',
+  }}
+  codeTagProps={{
+    style: {
+      fontFamily: '...',
+      fontSize,
+      whiteSpace:  'pre-wrap',
+      wordBreak:   'break-word',
+    },
+  }}
+  ```
+- 이유: `whiteSpace: 'pre'` + `overflowX: 'auto'`조합은 긴 줄을 가로 스크롤로 처리한다. `wrapLongLines`(react-syntax-highlighter가 각 토큰 span에 inline-wrap 스타일 적용) + `pre-wrap`(공백·개행 보존, 컨테이너 초과 시 줄바꿈) + `break-word`(단어 경계 없어도 강제 줄바꿈)로 교체하여 박스 안에서 wrap되게 한다. 들여쓰기·공백은 `pre-wrap`이 보존하므로 서식 손상 없음. 줄 번호·헤더·Darcula 테마는 영향 없음.
+
+### 복원 방법
+
+이 ID(HIST-20260629-001)만으로 복원 시, `frontend/src/components/ui/CodeBlock.tsx`에서:
+1. `wrapLongLines` prop 제거
+2. `customStyle`의 `whiteSpace: 'pre-wrap'`, `wordBreak: 'break-word'` → `whiteSpace: 'pre'`로, `overflowX: 'auto'` 다시 추가
+3. `codeTagProps.style`의 `whiteSpace`, `wordBreak` 항목 제거
+
+---
+
 ## HIST-20260623-002
 
 - **날짜**: 2026-06-23
