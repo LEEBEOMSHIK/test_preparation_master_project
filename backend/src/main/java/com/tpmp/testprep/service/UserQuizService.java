@@ -13,6 +13,7 @@ import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.DomainMasterRepository;
 import com.tpmp.testprep.repository.QuestionBankRepository;
 import com.tpmp.testprep.repository.UserRepository;
+import com.tpmp.testprep.service.support.AnswerGrader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -92,8 +93,8 @@ public class UserQuizService {
                 .filter(q -> "N".equals(q.getDelYn()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
 
-        boolean correct = qb.getAnswer() != null
-                && qb.getAnswer().trim().equalsIgnoreCase(request.userAnswer().trim());
+        boolean correct = AnswerGrader.isCorrect(
+                qb.getQuestionType().name(), qb.getAnswer(), request.userAnswer());
 
         // 스칼라 값 먼저 추출 — readOnly tx 내에서 LAZY 접근 가능, recorder에는 id만 전달
         Long userId = userRepository.findByEmail(email)

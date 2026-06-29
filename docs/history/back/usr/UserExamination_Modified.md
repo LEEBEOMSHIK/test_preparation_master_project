@@ -1,3 +1,40 @@
+## HIST-20260629-001
+
+- **날짜**: 2026-06-29
+- **수정 범위**: 사용자 백엔드 / 시험 채점
+- **수정 개요**: `UserExaminationService.submitExam` 두 곳 채점식을 `AnswerGrader.isCorrect`로 교체 — SHORT_ANSWER 복수 정답(콤마 구분) 지원
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/UserExaminationService.java` | 수정 | `submitExam` 내 results 집계·detail 스냅샷 2곳 채점식 교체, import 추가 |
+
+### 수정 상세
+
+#### `service/UserExaminationService.java`
+- 변경 전 (results 집계, 구 L124-125):
+  ```java
+  boolean isCorrect = userAnswer != null && q.getAnswer() != null
+          && userAnswer.trim().equalsIgnoreCase(q.getAnswer().trim());
+  ```
+- 변경 후:
+  ```java
+  boolean isCorrect = AnswerGrader.isCorrect(
+          q.getQuestionType().name(), q.getAnswer(), userAnswer);
+  ```
+- 변경 전 (detail 스냅샷, 구 L147-148): 동일한 인라인 비교식
+- 변경 후: 동일하게 `AnswerGrader.isCorrect` 호출로 교체
+- 이유: `AnswerGrader` 공통 헬퍼로 교체하여 SHORT_ANSWER 복수 정답 지원. null 처리(userAnswer=null → false)는 헬퍼 내부에서 동일하게 보장.
+
+### 복원 방법
+이 ID(HIST-20260629-001)만으로 복원 시:
+1. `UserExaminationService.java` import에서 `import com.tpmp.testprep.service.support.AnswerGrader` 제거
+2. results 집계 `AnswerGrader.isCorrect` 호출을 `userAnswer != null && q.getAnswer() != null && userAnswer.trim().equalsIgnoreCase(q.getAnswer().trim())` 로 복원
+3. detail 스냅샷 `AnswerGrader.isCorrect` 호출도 동일하게 복원
+
+---
+
 ## HIST-20260626-001
 
 - **날짜**: 2026-06-26

@@ -1,3 +1,45 @@
+## HIST-20260629-001
+
+- **날짜**: 2026-06-29
+- **수정 범위**: 사용자 백엔드 / 퀴즈 채점
+- **수정 개요**: `UserQuizService.checkAnswer` 채점 로직을 `AnswerGrader.isCorrect`로 교체 — SHORT_ANSWER 복수 정답(콤마 구분) 지원
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 추가 | 문항 유형별 채점 공통 헬퍼 신설 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java` | 수정 | `checkAnswer` 채점식을 `AnswerGrader.isCorrect` 호출로 교체, import 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 추가 | `AnswerGrader` 단위 테스트 (Spring 컨텍스트 없음, 17케이스) |
+
+### 수정 상세
+
+#### `service/support/AnswerGrader.java` (신규)
+- 변경 전: 없음
+- 변경 후: `public final class AnswerGrader` — `isCorrect(String questionType, String correctAnswer, String userAnswer)` 정적 메서드. SHORT_ANSWER일 때 콤마 분리 → trim/소문자/빈토큰제거 → Set 동일성 검사. 그 외 타입은 기존 `equalsIgnoreCase` 통문자열 비교.
+- 이유: 퀴즈·시험 공통 채점 로직을 단일 지점으로 집중, SHORT_ANSWER 복수 정답 지원
+
+#### `service/UserQuizService.java`
+- 변경 전:
+  ```java
+  boolean correct = qb.getAnswer() != null
+          && qb.getAnswer().trim().equalsIgnoreCase(request.userAnswer().trim());
+  ```
+- 변경 후:
+  ```java
+  boolean correct = AnswerGrader.isCorrect(
+          qb.getQuestionType().name(), qb.getAnswer(), request.userAnswer());
+  ```
+- 이유: 공통 헬퍼로 교체. null 안전 처리 및 복수 정답 지원을 헬퍼에서 일괄 처리.
+
+### 복원 방법
+이 ID(HIST-20260629-001)만으로 복원 시:
+1. `service/support/AnswerGrader.java` 삭제
+2. `test/.../service/support/AnswerGraderTest.java` 삭제
+3. `UserQuizService.java`에서 `AnswerGrader.isCorrect` 호출을 `qb.getAnswer() != null && qb.getAnswer().trim().equalsIgnoreCase(request.userAnswer().trim())` 로 복원, `import com.tpmp.testprep.service.support.AnswerGrader` 제거
+
+---
+
 ## HIST-20260625-001
 
 - **날짜**: 2026-06-25

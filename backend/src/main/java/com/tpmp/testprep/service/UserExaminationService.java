@@ -23,6 +23,7 @@ import com.tpmp.testprep.repository.ExamSessionRepository;
 import com.tpmp.testprep.repository.ExaminationRepository;
 import com.tpmp.testprep.repository.QuestionRepository;
 import com.tpmp.testprep.repository.UserRepository;
+import com.tpmp.testprep.service.support.AnswerGrader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -121,8 +122,8 @@ public class UserExaminationService {
         for (Question q : questions) {
             String raw = answers.getOrDefault(q.getId(), "");
             String userAnswer = raw.isEmpty() ? null : raw;
-            boolean isCorrect = userAnswer != null && q.getAnswer() != null
-                    && userAnswer.trim().equalsIgnoreCase(q.getAnswer().trim());
+            boolean isCorrect = AnswerGrader.isCorrect(
+                    q.getQuestionType().name(), q.getAnswer(), userAnswer);
             if (isCorrect) correct++;
             results.add(QuestionResultResponse.of(q, raw, isCorrect));
         }
@@ -144,8 +145,8 @@ public class UserExaminationService {
             Question q = questions.get(i);
             String raw = answers.getOrDefault(q.getId(), "");
             String userAnswer = raw.isEmpty() ? null : raw;
-            boolean isCorrect = userAnswer != null && q.getAnswer() != null
-                    && userAnswer.trim().equalsIgnoreCase(q.getAnswer().trim());
+            boolean isCorrect = AnswerGrader.isCorrect(
+                    q.getQuestionType().name(), q.getAnswer(), userAnswer);
 
             ExamHistoryDetail detail = ExamHistoryDetail.builder()
                     .questionId(q.getId())
