@@ -1,3 +1,36 @@
+## HIST-20260630-002
+
+- **날짜**: 2026-06-30
+- **수정 범위**: 관리자 백엔드 / AI 문항 분석 — RestClient 타임아웃 설정
+- **수정 개요**: OllamaTextProvider·AnthropicTextProvider의 `RestClient.create()` (무한 대기)를 `SimpleClientHttpRequestFactory` 기반 타임아웃 설정 RestClient로 교체하여 무한 행 방지. 로컬 Ollama 분석 오류의 근본 원인(프론트 axios 전역 10초 타임아웃)도 함께 수정(프론트 히스토리 HIST-20260630-001 참조).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/ai/OllamaTextProvider.java` | 수정 | `RestClient.create()` → `SimpleClientHttpRequestFactory(connect=5s, read=120s)` 기반 정적 필드 `REST_CLIENT`로 교체 |
+| `backend/src/main/java/com/tpmp/testprep/ai/AnthropicTextProvider.java` | 수정 | `RestClient.create()` → `SimpleClientHttpRequestFactory(connect=5s, read=60s)` 기반 정적 필드 `REST_CLIENT`로 교체 |
+
+### 수정 상세
+
+#### `OllamaTextProvider.java`
+- 변경 전: 매 호출마다 `RestClient.create()`로 타임아웃 없는 클라이언트 생성
+- 변경 후: static 초기화 블록에서 `SimpleClientHttpRequestFactory(connect=5s, read=120s)`로 `REST_CLIENT` 1회 생성 후 재사용
+- 이유: 로컬 7B 모델 콜드스타트+토큰생성이 10초를 초과하여 프론트가 먼저 끊기는 현상 발생 → 백엔드도 적절한 상한(120초)을 설정해 무한 대기 방지
+
+#### `AnthropicTextProvider.java`
+- 변경 전: 매 호출마다 `RestClient.create()`로 타임아웃 없는 클라이언트 생성
+- 변경 후: static 초기화 블록에서 `SimpleClientHttpRequestFactory(connect=5s, read=60s)`로 `REST_CLIENT` 1회 생성 후 재사용
+- 이유: 외부 API 무응답 시 스레드 무한 점유 방지. Anthropic은 60초면 충분(Ollama보다 짧게 설정)
+
+### 복원 방법
+이 ID(HIST-20260630-002)만으로 복원 시 아래 내용을 각 파일에 적용한다.
+
+1. `OllamaTextProvider.java` — `import SimpleClientHttpRequestFactory`, `import Duration` 제거. `static { ... }` 블록과 `REST_CLIENT` 필드 제거. `REST_CLIENT.post()` → `RestClient.create().post()`로 원복.
+2. `AnthropicTextProvider.java` — 동일 방식으로 원복.
+
+---
+
 ## HIST-20260630-001
 
 - **날짜**: 2026-06-30

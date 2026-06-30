@@ -8,9 +8,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.util.Map;
 
 @Component
@@ -26,6 +28,15 @@ public class OllamaTextProvider implements LlmTextProvider {
 
     private final ObjectMapper objectMapper;
 
+    private static final RestClient REST_CLIENT;
+
+    static {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(5));
+        factory.setReadTimeout(Duration.ofSeconds(120));
+        REST_CLIENT = RestClient.builder().requestFactory(factory).build();
+    }
+
     @Override
     public String call(String prompt, int maxTokens) {
         try {
@@ -35,7 +46,7 @@ public class OllamaTextProvider implements LlmTextProvider {
                     "stream", false,
                     "options", Map.of("num_predict", maxTokens)
             );
-            String raw = RestClient.create()
+            String raw = REST_CLIENT
                     .post()
                     .uri(baseUrl + "/api/generate")
                     .contentType(MediaType.APPLICATION_JSON)

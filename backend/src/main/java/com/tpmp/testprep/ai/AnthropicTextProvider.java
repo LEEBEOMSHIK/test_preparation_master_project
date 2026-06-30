@@ -8,9 +8,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -27,6 +29,15 @@ public class AnthropicTextProvider implements LlmTextProvider {
 
     private final ObjectMapper objectMapper;
 
+    private static final RestClient REST_CLIENT;
+
+    static {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(5));
+        factory.setReadTimeout(Duration.ofSeconds(60));
+        REST_CLIENT = RestClient.builder().requestFactory(factory).build();
+    }
+
     @Override
     public String call(String prompt, int maxTokens) {
         if (apiKey == null || apiKey.isBlank()) {
@@ -38,7 +49,7 @@ public class AnthropicTextProvider implements LlmTextProvider {
                     "max_tokens", maxTokens,
                     "messages", List.of(Map.of("role", "user", "content", prompt))
             );
-            String raw = RestClient.create()
+            String raw = REST_CLIENT
                     .post()
                     .uri("https://api.anthropic.com/v1/messages")
                     .header("x-api-key", apiKey)
