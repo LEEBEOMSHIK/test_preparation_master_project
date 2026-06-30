@@ -659,7 +659,7 @@ export default function ExamTakingPage() {
               <RichContent html={q.content} className="text-gray-800 text-sm" />
 
               {/* 코드 블록 (CODE 유형 또는 code 필드가 있는 경우) */}
-              {q.code && <CodeBlock code={q.code} language={q.language} className="max-h-48 overflow-y-auto" />}
+              {q.code && <CodeBlock code={q.code} language={q.language} />}
 
               {/* 선택지 (객관식) */}
               {isMultiple && q.options && (

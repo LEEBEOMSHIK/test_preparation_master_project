@@ -414,7 +414,7 @@ function QuizPlayContent() {
         <RichContent html={q.content} className="text-gray-800 font-medium text-base pr-24" />
 
         {q.code && (
-          <CodeBlock code={q.code} language={q.language} className="max-h-48 overflow-y-auto" />
+          <CodeBlock code={q.code} language={q.language} />
         )}
 
         {/* 선택지 */}

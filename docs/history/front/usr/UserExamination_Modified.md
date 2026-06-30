@@ -1,3 +1,33 @@
+## HIST-20260630-001
+
+- **날짜**: 2026-06-30
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 — CODE 문항 CodeBlock 높이 제한 제거
+- **수정 개요**: CODE 유형 문항 본문 CodeBlock에 적용된 `max-h-48 overflow-y-auto`(높이 제한 + 내부 스크롤)를 제거하여 코드 전체가 펼쳐지도록 복원. 가독성 회복.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | CodeBlock의 `className="max-h-48 overflow-y-auto"` prop 제거 (L662) |
+
+### 수정 상세
+
+#### `frontend/src/app/exam/[id]/page.tsx` (L661-663 영역)
+- 변경 전:
+  ```tsx
+  {q.code && <CodeBlock code={q.code} language={q.language} className="max-h-48 overflow-y-auto" />}
+  ```
+- 변경 후:
+  ```tsx
+  {q.code && <CodeBlock code={q.code} language={q.language} />}
+  ```
+- 이유: 직전 작업(HIST-20260629-001)에서 "긴 코드에서도 답안칸이 같은 화면에 보이도록" max-h-48을 추가했으나, 사용자 피드백으로 코드가 좁은 박스에 갇혀 스크롤해야 하는 가독성 문제가 제기됨. 높이 제한 없이 전체 코드를 펼쳐 표시하도록 되돌림. ExamResultDisplay 내 결과 화면의 CodeBlock(showHeader=false)은 대상 아님 — 무변경.
+
+### 복원 방법
+이 ID(HIST-20260630-001)만으로 복원 시: `exam/[id]/page.tsx` L662의 `{q.code && <CodeBlock code={q.code} language={q.language} />}`에 `className="max-h-48 overflow-y-auto"` prop을 다시 추가한다.
+
+---
+
 ## HIST-20260629-001
 
 - **날짜**: 2026-06-29
