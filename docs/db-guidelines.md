@@ -265,3 +265,9 @@ created_at     TIMESTAMP    NOT NULL
    - 새 테이블이면 `TableComment` 객체를 배열에 추가
    - FK 관계가 있으면 `fkRelations` 배열에 `{ column, foreignTable, foreignColumn, displayColumn }` 추가
    - `displayColumn`은 참조 테이블에서 레이블로 보여줄 컬럼명 (보통 `name` 또는 `title`)
+
+---
+
+## 10. 수동 마이그레이션
+
+Flyway/Liquibase 미사용 프로젝트이므로 스키마 변경(ALTER TABLE, CREATE TABLE 등) 시 `docs/db-migration/{YYYYMMDD}_{순번}_{설명}.sql` 파일로 SQL을 남기고, 운영·스테이징·로컬 각 환경에 수동으로 적용한다. 파일 상단에 목적·적용 대상·롤백 방법을 주석으로 명시한다.

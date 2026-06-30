@@ -38,7 +38,7 @@ public class Exam {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "del_yn", nullable = false, length = 1, columnDefinition = "char(1) not null default 'N'")
+    @Column(name = "del_yn", nullable = false, length = 1)
     private String delYn = "N";
 
     @PrePersist
