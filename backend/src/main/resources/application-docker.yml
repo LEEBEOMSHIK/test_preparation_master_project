@@ -33,3 +33,8 @@ app:
     path: ${UPLOAD_PATH:/uploads}
   oauth2:
     frontend-redirect-uri: ${OAUTH2_FRONTEND_REDIRECT_URI:http://localhost/auth/oauth/callback}
+  ai:
+    provider: ${AI_PROVIDER:anthropic}
+  anthropic:
+    api-key: ${ANTHROPIC_API_KEY}        # 기본값 없음 — 누락 시 기동 실패(fast-fail)
+    model: ${ANTHROPIC_MODEL:claude-haiku-4-5-20251001}
