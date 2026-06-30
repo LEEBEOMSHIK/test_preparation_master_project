@@ -1,0 +1,17 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+logging:
+  level:
+    com.tpmp: INFO
+    org.springframework.transaction: INFO
+    org.hibernate.SQL: WARN
+
+app:
+  ai:
+    provider: ${AI_PROVIDER:anthropic}
+  anthropic:
+    model: ${ANTHROPIC_MODEL:claude-sonnet-4-6}

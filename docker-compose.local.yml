@@ -1,0 +1,27 @@
+version: '3.9'
+
+# 로컬 개발용 DB 단독 실행
+# 사용법: docker-compose -f docker-compose.local.yml up -d
+# backend/frontend/nginx는 로컬 프로세스로 직접 기동한다.
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: tpmp-db-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-tpmp}
+      POSTGRES_USER: ${DB_USERNAME:-tpmp}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-tpmp_local_pw}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-tpmp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data_local:

@@ -1,20 +1,25 @@
 version: '3.9'
 
+# Base compose — 단독 실행 금지.
+# dev:  docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# prod: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# local DB only: docker-compose -f docker-compose.local.yml up -d
+
 services:
   db:
     image: postgres:15-alpine
     container_name: tpmp-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: tpmp
-      POSTGRES_USER: tpmp
+      POSTGRES_DB: ${DB_NAME:-tpmp}
+      POSTGRES_USER: ${DB_USERNAME:-tpmp}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-tpmp_local_pw}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tpmp"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-tpmp}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -29,16 +34,15 @@ services:
       db:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: docker
       DB_HOST: db
       DB_PORT: 5432
-      DB_NAME: tpmp
-      DB_USERNAME: tpmp
+      DB_NAME: ${DB_NAME:-tpmp}
+      DB_USERNAME: ${DB_USERNAME:-tpmp}
       DB_PASSWORD: ${DB_PASSWORD:-tpmp_local_pw}
       JWT_SECRET: ${JWT_SECRET:-change_me_to_256bit_secret_in_production}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
       UPLOAD_PATH: /uploads
-      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10MB}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-not_configured}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-not_configured}
       GOOGLE_OAUTH2_REDIRECT_URI: ${GOOGLE_OAUTH2_REDIRECT_URI:-https://not_configured/api/login/oauth2/code/google}
@@ -46,8 +50,13 @@ services:
       NOTION_CLIENT_ID: ${NOTION_CLIENT_ID:-}
       NOTION_CLIENT_SECRET: ${NOTION_CLIENT_SECRET:-}
       NOTION_REDIRECT_URI: ${NOTION_REDIRECT_URI:-http://localhost:8080/api/notion/callback}
+      NOTION_SUCCESS_REDIRECT: ${NOTION_SUCCESS_REDIRECT:-}
+      NOTION_FAILURE_REDIRECT: ${NOTION_FAILURE_REDIRECT:-}
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-tpmp_local_token_key_change_me}
       TOKEN_ENCRYPTION_KEY_PREVIOUS: ${TOKEN_ENCRYPTION_KEY_PREVIOUS:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-haiku-4-5-20251001}
+      AI_PROVIDER: ${AI_PROVIDER:-anthropic}
     ports:
       - "8080:8080"
     volumes:

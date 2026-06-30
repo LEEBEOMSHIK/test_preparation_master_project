@@ -1,0 +1,6 @@
+services:
+  backend:
+    restart: always
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}

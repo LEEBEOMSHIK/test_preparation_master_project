@@ -1,0 +1,19 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+logging:
+  level:
+    com.tpmp: DEBUG
+    org.springframework.transaction: DEBUG
+
+app:
+  ai:
+    provider: ${AI_PROVIDER:anthropic}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      model: ${OLLAMA_MODEL:qwen2.5:7b}
+  anthropic:
+    model: ${ANTHROPIC_MODEL:claude-haiku-4-5-20251001}

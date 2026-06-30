@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/tpmp
+    username: tpmp
+    password: ${DB_PASSWORD:tpmp_local_pw}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+logging:
+  level:
+    com.tpmp: DEBUG
+    org.springframework.transaction: DEBUG
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:local_dev_secret_change_in_production_please}
+  security:
+    token-encryption-key: ${TOKEN_ENCRYPTION_KEY:tpmp_local_token_key_change_me}
+  ai:
+    provider: ${AI_PROVIDER:ollama}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      model: ${OLLAMA_MODEL:qwen2.5:7b}
+  anthropic:
+    model: ${ANTHROPIC_MODEL:claude-haiku-4-5-20251001}

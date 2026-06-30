@@ -1,13 +1,16 @@
 spring:
   profiles:
     active: local
-
   jpa:
     open-in-view: false
     properties:
       hibernate:
-        format_sql: true
-
+        format_sql: false
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:tpmp}
+    username: ${DB_USERNAME:tpmp}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
   security:
     oauth2:
       client:
@@ -19,7 +22,6 @@ spring:
               - email
               - profile
             redirect-uri: ${GOOGLE_OAUTH2_REDIRECT_URI:http://localhost:8080/api/login/oauth2/code/google}
-
   servlet:
     multipart:
       enabled: true
@@ -31,8 +33,8 @@ logging:
     name: ./logs/app.log
   level:
     root: INFO
-    com.tpmp: DEBUG
-    org.springframework.transaction: DEBUG
+    com.tpmp: INFO
+    org.springframework.transaction: INFO
 
 management:
   endpoints:
@@ -49,42 +51,22 @@ springdoc:
   swagger-ui:
     path: /api/swagger-ui.html
 
----
-spring:
-  config:
-    activate:
-      on-profile: local
-
-  datasource:
-    url: jdbc:postgresql://localhost:5432/tpmp
-    username: tpmp
-    password: ${DB_PASSWORD:tpmp_local_pw}
-    driver-class-name: org.postgresql.Driver
-
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-
 app:
   jwt:
-    secret: ${JWT_SECRET:local_dev_secret_change_in_production_please}
-    access-token-expiry: 900000       # 15분 (ms)
-    refresh-token-expiry: 604800000   # 7일 (ms)
+    secret: ${JWT_SECRET}
+    access-token-expiry: 900000
+    refresh-token-expiry: 604800000
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
   upload:
     path: ${UPLOAD_PATH:./uploads}
   oauth2:
     frontend-redirect-uri: ${OAUTH2_FRONTEND_REDIRECT_URI:http://localhost:3000/auth/oauth/callback}
-  anthropic:
-    api-key: ${ANTHROPIC_API_KEY:}
-    model: claude-haiku-4-5-20251001
   ai:
-    provider: ${AI_PROVIDER:ollama}
-    ollama:
-      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-      model: ${OLLAMA_MODEL:qwen2.5:7b}
+    provider: ${AI_PROVIDER:anthropic}
+  anthropic:
+    api-key: ${ANTHROPIC_API_KEY}
+    model: ${ANTHROPIC_MODEL:claude-haiku-4-5-20251001}
   notion:
     client-id: ${NOTION_CLIENT_ID:}
     client-secret: ${NOTION_CLIENT_SECRET:}
@@ -92,6 +74,5 @@ app:
     success-redirect: ${NOTION_SUCCESS_REDIRECT:http://localhost:3000/user/settings?notion=connected}
     failure-redirect: ${NOTION_FAILURE_REDIRECT:http://localhost:3000/user/settings?notion=failed}
   security:
-    token-encryption-key: ${TOKEN_ENCRYPTION_KEY:tpmp_local_token_key_change_me}
-    # 키 회전 시에만 옛 키를 지정 — 기동 시 저장 토큰을 새 키로 재암호화 후 비워두면 됨
+    token-encryption-key: ${TOKEN_ENCRYPTION_KEY}
     token-encryption-key-previous: ${TOKEN_ENCRYPTION_KEY_PREVIOUS:}
