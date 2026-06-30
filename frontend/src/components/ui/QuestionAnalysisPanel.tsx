@@ -11,6 +11,10 @@ import { stripHtml } from '@/lib/html';
 interface Props {
   content: string;
   onApplyContent?: (html: string) => void;
+  /** CODE 문항일 때 분석 입력에 포함할 코드 원본 */
+  code?: string;
+  /** 코드 언어 (분석 프롬프트 표기용) */
+  language?: string;
 }
 
 const DIFFICULTY_STYLE: Record<string, string> = {
@@ -152,7 +156,7 @@ function ToggleBtn({
 
 // ── 메인 패널 ───────────────────────────────────────────────────────────────────
 
-export function QuestionAnalysisPanel({ content, onApplyContent }: Props) {
+export function QuestionAnalysisPanel({ content, onApplyContent, code, language }: Props) {
   // 패널 열림 상태
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [rebuildOpen,  setRebuildOpen]  = useState(false);
@@ -189,7 +193,7 @@ export function QuestionAnalysisPanel({ content, onApplyContent }: Props) {
     setAnalyzeError(null);
     setResult(null);
     try {
-      const res = await questionAnalysisService.analyze(content);
+      const res = await questionAnalysisService.analyze(content, code, language);
       if (res.data.success && res.data.data) setResult(res.data.data);
       else setAnalyzeError('분석 결과를 받아오지 못했습니다.');
     } catch (err) {

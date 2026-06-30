@@ -385,6 +385,8 @@ function ManualQuestionCard({
           <QuestionAnalysisPanel
             content={draft.content}
             onApplyContent={(html) => onChange('content', html)}
+            code={draft.code}
+            language={draft.language}
           />
         )}
 

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -52,7 +53,7 @@ class QuestionAnalysisServiceTest {
                 """;
         when(llmTextProvider.call(anyString(), anyInt())).thenReturn(json);
 
-        QuestionAnalysisResponse result = service.analyze("<p>스택과 큐의 차이를 설명하시오.</p>");
+        QuestionAnalysisResponse result = service.analyze("<p>스택과 큐의 차이를 설명하시오.</p>", null, null);
 
         assertThat(result.keywords()).containsExactly("스택", "큐");
         assertThat(result.domains()).containsExactly("자료구조");
@@ -75,7 +76,7 @@ class QuestionAnalysisServiceTest {
                 """;
         when(llmTextProvider.call(anyString(), anyInt())).thenReturn(fenced);
 
-        QuestionAnalysisResponse result = service.analyze("<p>OSI 7계층을 설명하시오.</p>");
+        QuestionAnalysisResponse result = service.analyze("<p>OSI 7계층을 설명하시오.</p>", null, null);
 
         assertThat(result.keywords()).contains("OSI", "7계층");
         assertThat(result.domains()).containsExactly("네트워크");
@@ -87,7 +88,7 @@ class QuestionAnalysisServiceTest {
     void analyze_invalidJson() {
         when(llmTextProvider.call(anyString(), anyInt())).thenReturn("not json");
 
-        assertThatThrownBy(() -> service.analyze("<p>문제 내용</p>"))
+        assertThatThrownBy(() -> service.analyze("<p>문제 내용</p>", null, null))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.AI_ANALYSIS_FAILED));
@@ -96,7 +97,7 @@ class QuestionAnalysisServiceTest {
     @Test
     @DisplayName("analyze_blankInput: 빈 HTML 입력 시 INVALID_INPUT 예외, LLM 미호출")
     void analyze_blankInput() {
-        assertThatThrownBy(() -> service.analyze("<p></p>"))
+        assertThatThrownBy(() -> service.analyze("<p></p>", null, null))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.INVALID_INPUT));
@@ -107,12 +108,35 @@ class QuestionAnalysisServiceTest {
     @Test
     @DisplayName("analyze_blankInput_emptyString: 빈 문자열 입력 시 INVALID_INPUT 예외, LLM 미호출")
     void analyze_blankInput_emptyString() {
-        assertThatThrownBy(() -> service.analyze(""))
+        assertThatThrownBy(() -> service.analyze("", null, null))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.INVALID_INPUT));
 
         verify(llmTextProvider, never()).call(anyString(), anyInt());
+    }
+
+    @Test
+    @DisplayName("analyze_withCode: 코드가 stripHtml 없이 프롬프트에 원본 포함")
+    void analyze_withCode_includesCodeInPrompt() {
+        String json = """
+                {
+                  "keywords": ["제네릭", "리스트"],
+                  "domains": ["프로그래밍"],
+                  "difficulty": "중",
+                  "summary": "코드 출력 결과를 묻는 문제입니다."
+                }
+                """;
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        when(llmTextProvider.call(promptCaptor.capture(), anyInt())).thenReturn(json);
+
+        String code = "List<Integer> list = new ArrayList<>();\nSystem.out.println(\"<hi>\");";
+        service.analyze("<p>아래 코드의 출력은?</p>", code, "java");
+
+        String prompt = promptCaptor.getValue();
+        // 코드 특수문자(< >)가 stripHtml에 훼손되지 않고 원본 그대로 포함되어야 함
+        assertThat(prompt).contains(code);
+        assertThat(prompt).contains("java");
     }
 
     // ── regenerate ─────────────────────────────────────────────────────────────

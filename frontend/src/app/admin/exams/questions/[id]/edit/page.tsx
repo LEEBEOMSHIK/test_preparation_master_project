@@ -388,6 +388,8 @@ export default function AdminQuestionEditPage() {
             <QuestionAnalysisPanel
               content={form.content}
               onApplyContent={(html) => update('content', html)}
+              code={form.code}
+              language={form.language}
             />
           )}
 

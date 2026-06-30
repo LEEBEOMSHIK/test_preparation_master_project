@@ -22,8 +22,8 @@ export interface QuestionRegenerate {
 const AI_TIMEOUT = { timeout: 120_000 } as const;
 
 export const questionAnalysisService = {
-  analyze: (content: string) =>
-    apiClient.post<ApiResponse<QuestionAnalysis>>('/admin/questions/analyze', { content }, AI_TIMEOUT),
+  analyze: (content: string, code?: string, language?: string) =>
+    apiClient.post<ApiResponse<QuestionAnalysis>>('/admin/questions/analyze', { content, code, language }, AI_TIMEOUT),
 
   regenerate: (data: RegenerateRequest) =>
     apiClient.post<ApiResponse<QuestionRegenerate>>('/admin/questions/regenerate', data, AI_TIMEOUT),

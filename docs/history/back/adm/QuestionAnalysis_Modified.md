@@ -1,3 +1,24 @@
+## HIST-20260701-001
+
+- **날짜**: 2026-07-01
+- **수정 범위**: 관리자 백엔드 / AI 문항 분석 — CODE 문항 코드 포함 분석
+- **수정 개요**: CODE 문항 분석 시 문제 설명(content)뿐 아니라 코드(code)·언어(language)도 분석 입력에 포함. 코드는 `stripHtml` 없이 원본 그대로 프롬프트에 삽입하여 `<`, `>` 등 코드 특수문자가 훼손되지 않도록 함. 비-CODE 문항은 기존과 동일(코드 섹션 없는 프롬프트).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/dto/request/QuestionAnalysisRequest.java` | 수정 | `code`, `language` optional 필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/QuestionAnalysisService.java` | 수정 | `analyze(content, code, language)` 시그니처 확장 + `buildAnalyzePrompt(content, code, language)`에 코드 섹션(stripHtml 미적용) 추가 |
+| `backend/src/main/java/com/tpmp/testprep/controller/AdminQuestionController.java` | 수정 | analyze 호출에 `request.code()`, `request.language()` 전달 |
+| `backend/src/test/java/com/tpmp/testprep/service/QuestionAnalysisServiceTest.java` | 수정 | analyze 호출 5곳 `(content, null, null)` 갱신 + `analyze_withCode` 케이스(코드 원본 프롬프트 포함 검증) 추가 |
+
+### 되돌림 방법
+
+`analyze`를 단일 인자(`analyze(content)`)로 복원, `QuestionAnalysisRequest`에서 `code`/`language` 제거, `buildAnalyzePrompt` 코드 섹션 제거, Controller 호출 원복, 테스트 원복.
+
+---
+
 ## HIST-20260630-002
 
 - **날짜**: 2026-06-30

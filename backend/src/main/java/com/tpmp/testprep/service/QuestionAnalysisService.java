@@ -22,11 +22,11 @@ public class QuestionAnalysisService {
 
     // ── 키워드·도메인 분석 ──────────────────────────────────────────────────────────
 
-    public QuestionAnalysisResponse analyze(String htmlContent) {
+    public QuestionAnalysisResponse analyze(String htmlContent, String code, String language) {
         String plainText = stripHtml(htmlContent);
         if (plainText.isBlank()) throw new BusinessException(ErrorCode.INVALID_INPUT);
 
-        String text = llmTextProvider.call(buildAnalyzePrompt(plainText), 1024);
+        String text = llmTextProvider.call(buildAnalyzePrompt(plainText, code, language), 1024);
         text = text.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
         try {
             return objectMapper.readValue(text, QuestionAnalysisResponse.class);
@@ -55,12 +55,18 @@ public class QuestionAnalysisService {
                    .trim();
     }
 
-    private String buildAnalyzePrompt(String content) {
+    private String buildAnalyzePrompt(String content, String code, String language) {
+        boolean hasCode = code != null && !code.isBlank();
+        String langLabel = (language != null && !language.isBlank()) ? language : "코드";
+        // code는 stripHtml 없이 원본 그대로 삽입 (< > 등 코드 특수문자 보존)
+        String codeSection = hasCode
+                ? ("\n\n[코드 (" + langLabel + ")]\n" + code)
+                : "";
         return """
                 다음 시험 문제를 분석하여 JSON 형식으로만 응답하세요.
 
                 문제:
-                %s
+                %s%s
 
                 아래 형식으로 분석 결과를 반환하세요:
                 {
@@ -71,7 +77,7 @@ public class QuestionAnalysisService {
                 }
 
                 JSON만 반환하고 다른 텍스트는 절대 포함하지 마세요.
-                """.formatted(content);
+                """.formatted(content, codeSection);
     }
 
     private String buildRegeneratePrompt(QuestionRegenerateRequest req) {

@@ -1,3 +1,24 @@
+## HIST-20260701-001
+
+- **날짜**: 2026-07-01
+- **수정 범위**: 관리자 프론트엔드 / AI 문항 분석 — CODE 코드 포함 분석
+- **수정 개요**: CODE 문항에서 QuestionAnalysisPanel이 코드(code)·언어(language)도 분석 API에 전달하도록 확장. 코드가 핵심인 프로그래밍 문항의 키워드/도메인 추출 정확도 향상.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/questionAnalysisService.ts` | 수정 | `analyze(content, code?, language?)`로 인자 확장 → 요청 body에 code/language 포함 |
+| `frontend/src/components/ui/QuestionAnalysisPanel.tsx` | 수정 | Props에 `code?`, `language?` 추가, analyze 호출에 전달 |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | CODE 패널에 `code={draft.code} language={draft.language}` 전달 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | CODE 패널에 `code={form.code} language={form.language}` 전달 |
+
+### 되돌림 방법
+
+`analyze`를 단일 인자로 복원, Panel Props에서 code/language 제거, 등록·수정 화면 패널의 code/language 전달 제거. (백엔드 변경은 back/adm HIST-20260701-001 참조)
+
+---
+
 ## HIST-20260630-001
 
 - **날짜**: 2026-06-30

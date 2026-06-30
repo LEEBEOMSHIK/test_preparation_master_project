@@ -85,7 +85,7 @@ public class AdminQuestionController {
     @PostMapping("/analyze")
     public ResponseEntity<ApiResponse<QuestionAnalysisResponse>> analyze(
             @Valid @RequestBody QuestionAnalysisRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(questionAnalysisService.analyze(request.content())));
+        return ResponseEntity.ok(ApiResponse.success(questionAnalysisService.analyze(request.content(), request.code(), request.language())));
     }
 
     /** 문항 AI 재구성 (키워드 기반 새 문제 생성) */
