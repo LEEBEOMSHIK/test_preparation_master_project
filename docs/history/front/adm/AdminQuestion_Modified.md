@@ -1,3 +1,60 @@
+## HIST-20260630-001
+
+- **날짜**: 2026-06-30
+- **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정 화면
+- **수정 개요**: CODE 유형 선택 시 QuestionAnalysisPanel을 코드 섹션(언어·코드·정답) 아래로 이동; 비-CODE 유형은 기존과 동일하게 문항 내용 바로 밑 위치 유지
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | 문항 내용 div 내 QuestionAnalysisPanel을 `{!isCode && (...)}` 조건부 렌더로 감쌈; CODE 섹션 `{isCode && (...)}` 블록 직후에 `{isCode && (<QuestionAnalysisPanel .../>)}` 추가 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | 동일 패턴 적용 (변수: form.content, update 함수) |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/new/page.tsx` (`ManualQuestionCard` 내부)
+
+- 변경 전:
+  ```tsx
+  <RichTextEditor ... />
+  <QuestionAnalysisPanel content={draft.content} onApplyContent={(html) => onChange('content', html)} />
+  </div>  {/* content div 닫힘 */}
+
+  {isCode && (
+    <div className="space-y-3"> {/* 언어·코드·정답 */} </div>
+  )}
+  ```
+- 변경 후:
+  ```tsx
+  <RichTextEditor ... />
+  {!isCode && (
+    <QuestionAnalysisPanel content={draft.content} onApplyContent={(html) => onChange('content', html)} />
+  )}
+  </div>  {/* content div 닫힘 */}
+
+  {isCode && (
+    <div className="space-y-3"> {/* 언어·코드·정답 */} </div>
+  )}
+
+  {isCode && (
+    <QuestionAnalysisPanel content={draft.content} onApplyContent={(html) => onChange('content', html)} />
+  )}
+  ```
+- 이유: CODE 유형일 때 분석 패널이 코드 입력 영역 위에 위치해 UX 흐름이 어색함. 코드 섹션을 먼저 보고 분석하는 자연스러운 순서로 개선.
+
+#### `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx`
+
+- 변경 전/후: new/page.tsx와 동일 패턴. 변수만 `form.content`, `update('content', html)` 사용.
+- 이유: 동일.
+
+### 복원 방법
+이 ID(HIST-20260630-001)만으로 복원 시:
+- 두 파일 모두 `{!isCode && (<QuestionAnalysisPanel ... />)}` 조건을 제거하고 `<QuestionAnalysisPanel ... />`을 무조건 렌더로 복원 (content div 내부).
+- CODE 섹션 직후 `{isCode && (<QuestionAnalysisPanel ... />)}` 블록 제거.
+
+---
+
 ## HIST-20260626-002
 
 - **날짜**: 2026-06-26

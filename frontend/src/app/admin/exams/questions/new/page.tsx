@@ -326,10 +326,12 @@ function ManualQuestionCard({
             placeholder={isCode ? '예: 아래 코드의 실행 결과를 작성하시오.' : '문항 내용을 입력하세요.'}
             minHeight={isCode ? 100 : 150}
           />
-          <QuestionAnalysisPanel
-            content={draft.content}
-            onApplyContent={(html) => onChange('content', html)}
-          />
+          {!isCode && (
+            <QuestionAnalysisPanel
+              content={draft.content}
+              onApplyContent={(html) => onChange('content', html)}
+            />
+          )}
         </div>
 
         {/* ── CODE 섹션 ── */}
@@ -377,6 +379,13 @@ function ManualQuestionCard({
               />
             </div>
           </div>
+        )}
+
+        {isCode && (
+          <QuestionAnalysisPanel
+            content={draft.content}
+            onApplyContent={(html) => onChange('content', html)}
+          />
         )}
 
         {/* ── MULTIPLE_CHOICE 보기 ── */}

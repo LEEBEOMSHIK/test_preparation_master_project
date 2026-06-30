@@ -337,10 +337,12 @@ export default function AdminQuestionEditPage() {
               placeholder={isCode ? '예: 아래 코드의 실행 결과를 작성하시오.' : '문항 내용을 입력하세요.'}
               minHeight={isCode ? 100 : 150}
             />
-            <QuestionAnalysisPanel
-              content={form.content}
-              onApplyContent={(html) => update('content', html)}
-            />
+            {!isCode && (
+              <QuestionAnalysisPanel
+                content={form.content}
+                onApplyContent={(html) => update('content', html)}
+              />
+            )}
           </div>
 
           {/* ── CODE ── */}
@@ -380,6 +382,13 @@ export default function AdminQuestionEditPage() {
                 />
               </div>
             </div>
+          )}
+
+          {isCode && (
+            <QuestionAnalysisPanel
+              content={form.content}
+              onApplyContent={(html) => update('content', html)}
+            />
           )}
 
           {/* ── MULTIPLE_CHOICE ── */}
