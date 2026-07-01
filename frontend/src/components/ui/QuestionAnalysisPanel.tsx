@@ -4,13 +4,24 @@ import { useState, useEffect, useRef } from 'react';
 import {
   questionAnalysisService,
   type QuestionAnalysis,
+  type QuestionRegenerate,
 } from '@/services/questionAnalysisService';
 import { keywordTagService, type KeywordTag } from '@/services/keywordTagService';
 import { stripHtml } from '@/lib/html';
+import { AlertModal } from './AlertModal';
+import { CodeBlock } from './CodeBlock';
+
+interface ApplyPayload {
+  content: string;
+  code?:   string;
+  answer?: string;
+}
 
 interface Props {
   content: string;
-  onApplyContent?: (html: string) => void;
+  onApply?: (payload: ApplyPayload) => void;
+  /** CODE 문항 여부 판별 */
+  questionType?: string;
   /** CODE 문항일 때 분석 입력에 포함할 코드 원본 */
   code?: string;
   /** 코드 언어 (분석 프롬프트 표기용) */
@@ -23,17 +34,14 @@ const DIFFICULTY_STYLE: Record<string, string> = {
   '상': 'text-rose-700 bg-rose-100 border-rose-300 dark:text-rose-300 dark:bg-rose-900/50 dark:border-rose-700',
 };
 
-const MOCK_REGENERATED = `def g(a):
+const MOCK_REGEN_CODE = `def g(a):
     m = [[x] for x in a]
     b = [row[:] for row in m]
     for i in range(len(b) - 1):
         b[i+1] += b[i]
     return sum(len(x) for x in m)
 
-print(g([1, 2, 3, 4]))
-
-# 위 코드의 실행 결과를 고르시오.
-# ① 4  ② 6  ③ 10  ④ 4`;
+print(g([1, 2, 3, 4]))`;
 
 const MOCK_RESULT: QuestionAnalysis = {
   keywords:   ['얕은 복사', '리스트 참조', 'in-place 연산', '중첩 리스트', '+=', '슬라이싱'],
@@ -156,7 +164,9 @@ function ToggleBtn({
 
 // ── 메인 패널 ───────────────────────────────────────────────────────────────────
 
-export function QuestionAnalysisPanel({ content, onApplyContent, code, language }: Props) {
+export function QuestionAnalysisPanel({ content, onApply, questionType, code, language }: Props) {
+  const isCode = questionType === 'CODE';
+
   // 패널 열림 상태
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [rebuildOpen,  setRebuildOpen]  = useState(false);
@@ -173,8 +183,11 @@ export function QuestionAnalysisPanel({ content, onApplyContent, code, language 
 
   // 재구성 (재구성 + AI 생성 공유)
   const [regenerating, setRegenerating] = useState(false);
-  const [regenerated,  setRegenerated]  = useState<string | null>(null);
+  const [regenerated,  setRegenerated]  = useState<QuestionRegenerate | null>(null);
   const [regenError,   setRegenError]   = useState<string | null>(null);
+
+  // 알림 팝업
+  const [alertMsg, setAlertMsg] = useState<string | null>(null);
 
   // AI 생성 폼
   const [selKeywords,   setSelKeywords]   = useState<string[]>([]);
@@ -205,7 +218,11 @@ export function QuestionAnalysisPanel({ content, onApplyContent, code, language 
   };
 
   const handleRegenerate = async () => {
-    if (!result || regenerating) return;
+    if (regenerating) return;
+    if (!result) {
+      setAlertMsg('먼저 \'분석 시작\'으로 키워드를 추출한 뒤 재구성할 수 있습니다.');
+      return;
+    }
     setRegenerating(true);
     setRegenError(null);
     setRegenerated(null);
@@ -213,12 +230,20 @@ export function QuestionAnalysisPanel({ content, onApplyContent, code, language 
       const res = await questionAnalysisService.regenerate({
         keywords: result.keywords, domains: result.domains,
         difficulty: result.difficulty, originalContent: content,
+        questionType, originalCode: code, language,
       });
-      if (res.data.success && res.data.data) setRegenerated(res.data.data.content);
+      if (res.data.success && res.data.data) setRegenerated(res.data.data);
       else setRegenError('재구성 결과를 받아오지 못했습니다.');
     } catch (err) {
-      if (isUnavailable(err)) setRegenerated(MOCK_REGENERATED);
-      else setRegenError('문제 재구성 중 오류가 발생했습니다.');
+      if (isUnavailable(err)) {
+        setRegenerated(
+          isCode
+            ? { content: '<p>위 코드의 실행 결과를 쓰시오.</p>', code: MOCK_REGEN_CODE, answer: '10' }
+            : { content: '<p>재구성된 문제 내용입니다.</p>' }
+        );
+      } else {
+        setRegenError('문제 재구성 중 오류가 발생했습니다.');
+      }
     } finally {
       setRegenerating(false);
     }
@@ -234,7 +259,11 @@ export function QuestionAnalysisPanel({ content, onApplyContent, code, language 
   };
 
   const handleGenerateFromTags = async () => {
-    if ((selKeywords.length === 0 && selDomains.length === 0) || regenerating) return;
+    if (regenerating) return;
+    if (selKeywords.length === 0 && selDomains.length === 0) {
+      setAlertMsg('키워드 또는 도메인을 하나 이상 선택하세요.');
+      return;
+    }
     setRegenerating(true);
     setRegenError(null);
     setRegenerated(null);
@@ -242,12 +271,20 @@ export function QuestionAnalysisPanel({ content, onApplyContent, code, language 
       const res = await questionAnalysisService.regenerate({
         keywords: selKeywords, domains: selDomains,
         difficulty: selDifficulty, originalContent: '',
+        questionType, language,
       });
-      if (res.data.success && res.data.data) setRegenerated(res.data.data.content);
+      if (res.data.success && res.data.data) setRegenerated(res.data.data);
       else setRegenError('재구성 결과를 받아오지 못했습니다.');
     } catch (err) {
-      if (isUnavailable(err)) setRegenerated(MOCK_REGENERATED);
-      else setRegenError('문제 생성 중 오류가 발생했습니다.');
+      if (isUnavailable(err)) {
+        setRegenerated(
+          isCode
+            ? { content: '<p>위 코드의 실행 결과를 쓰시오.</p>', code: MOCK_REGEN_CODE, answer: '10' }
+            : { content: '<p>재구성된 문제 내용입니다.</p>' }
+        );
+      } else {
+        setRegenError('문제 생성 중 오류가 발생했습니다.');
+      }
     } finally {
       setRegenerating(false);
     }
@@ -422,9 +459,29 @@ export function QuestionAnalysisPanel({ content, onApplyContent, code, language 
 
           {/* 재구성 결과 */}
           {regenError && <p className="text-xs text-rose-500 dark:text-rose-400">{regenError}</p>}
-          {regenerated && !regenerating && <RegenResult content={regenerated} original={content} onClose={() => setRegenerated(null)} onApply={onApplyContent ? () => { onApplyContent(regenerated); setRegenerated(null); } : undefined} />}
+          {regenerated && !regenerating && (
+            <RegenResult
+              regen={regenerated}
+              original={content}
+              originalCode={code}
+              language={language}
+              isCode={isCode}
+              onClose={() => setRegenerated(null)}
+              onApply={onApply ? () => {
+                onApply({ content: regenerated.content, code: regenerated.code, answer: regenerated.answer });
+                setRegenerated(null);
+              } : undefined}
+            />
+          )}
         </div>
       )}
+
+      {/* ── 알림 팝업 ── */}
+      <AlertModal
+        open={!!alertMsg}
+        message={alertMsg ?? ''}
+        onClose={() => setAlertMsg(null)}
+      />
 
       {/* ── AI 문제 생성 패널 (blue) ── */}
       {genOpen && (
@@ -468,7 +525,20 @@ export function QuestionAnalysisPanel({ content, onApplyContent, code, language 
           </button>
 
           {regenError && <p className="text-xs text-rose-500 dark:text-rose-400">{regenError}</p>}
-          {regenerated && !regenerating && <RegenResult content={regenerated} original={content} onClose={() => setRegenerated(null)} onApply={onApplyContent ? () => { onApplyContent(regenerated); setRegenerated(null); } : undefined} />}
+          {regenerated && !regenerating && (
+            <RegenResult
+              regen={regenerated}
+              original={content}
+              originalCode={code}
+              language={language}
+              isCode={isCode}
+              onClose={() => setRegenerated(null)}
+              onApply={onApply ? () => {
+                onApply({ content: regenerated.content, code: regenerated.code, answer: regenerated.answer });
+                setRegenerated(null);
+              } : undefined}
+            />
+          )}
         </div>
       )}
 
@@ -478,16 +548,22 @@ export function QuestionAnalysisPanel({ content, onApplyContent, code, language 
 
 // ── 재구성 결과 공통 컴포넌트 ────────────────────────────────────────────────────
 
-function RegenResult({ content, original, onClose, onApply }: {
-  content: string;
-  original?: string;
-  onClose: () => void;
-  onApply?: () => void;
+function RegenResult({
+  regen, original, originalCode, language, isCode, onClose, onApply,
+}: {
+  regen:        QuestionRegenerate;
+  original?:    string;
+  originalCode?: string;
+  language?:    string;
+  isCode:       boolean;
+  onClose:      () => void;
+  onApply?:     () => void;
 }) {
   const hasOriginal = !!original && stripHtml(original).trim().length > 0;
 
   return (
     <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+      {/* 헤더 */}
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
           {hasOriginal ? '재구성 미리보기' : '재구성된 문제'}
@@ -500,45 +576,96 @@ function RegenResult({ content, original, onClose, onApply }: {
         </button>
       </div>
 
-      {hasOriginal ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
-          {/* 기존 문항 */}
-          <div className="space-y-1">
+      {/* 비교 영역 */}
+      {isCode ? (
+        /* ── CODE 유형: 설명·코드·정답 항목별 좌우 비교 ── */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+          {/* 기존 */}
+          <div className="flex flex-col gap-1">
             <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">기존 문항</p>
-            <p className="text-xs leading-relaxed whitespace-pre-wrap p-3 rounded-lg border h-full
+            {/* 설명 */}
+            <p className="text-xs leading-relaxed whitespace-pre-wrap p-2.5 rounded-lg border flex-1
+              text-gray-500 bg-gray-50 border-gray-200
+              dark:text-gray-400 dark:bg-gray-800/40 dark:border-gray-700">
+              {hasOriginal ? stripHtml(original!) : '(설명 없음)'}
+            </p>
+            {/* 코드 */}
+            {originalCode ? (
+              <CodeBlock code={originalCode} language={language} showHeader={false} size="xs" />
+            ) : (
+              <p className="text-xs text-gray-400 dark:text-gray-600 italic p-2">코드 없음</p>
+            )}
+          </div>
+          {/* 재구성 */}
+          <div className="flex flex-col gap-1">
+            <p className="text-[11px] font-medium text-indigo-600 dark:text-indigo-300">재구성된 문항</p>
+            {/* 설명 */}
+            <p className="text-xs leading-relaxed whitespace-pre-wrap p-2.5 rounded-lg border flex-1
+              text-gray-800 bg-white border-indigo-300
+              dark:text-gray-100 dark:bg-indigo-950/40 dark:border-indigo-700">
+              {stripHtml(regen.content)}
+            </p>
+            {/* 코드 */}
+            {regen.code ? (
+              <CodeBlock code={regen.code} language={language} showHeader={false} size="xs" />
+            ) : (
+              <p className="text-xs text-gray-400 dark:text-gray-600 italic p-2">코드 없음</p>
+            )}
+            {/* 정답 */}
+            {regen.answer !== undefined && regen.answer !== null && (
+              <div>
+                <p className="text-[11px] font-medium text-indigo-500 dark:text-indigo-400 mb-0.5">정답</p>
+                <pre className="text-xs font-mono whitespace-pre-wrap p-2.5 rounded-lg border
+                  text-gray-800 bg-indigo-50 border-indigo-200
+                  dark:text-gray-100 dark:bg-indigo-950/30 dark:border-indigo-700">
+                  {regen.answer}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : hasOriginal ? (
+        /* ── 비-CODE: 설명 텍스트 좌우 비교 ── */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+          <div className="flex flex-col gap-1">
+            <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">기존 문항</p>
+            <p className="text-xs leading-relaxed whitespace-pre-wrap p-3 rounded-lg border flex-1
               text-gray-500 bg-gray-50 border-gray-200
               dark:text-gray-400 dark:bg-gray-800/40 dark:border-gray-700">
               {stripHtml(original!)}
             </p>
           </div>
-          {/* 재구성된 문항 */}
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <p className="text-[11px] font-medium text-indigo-600 dark:text-indigo-300">재구성된 문항</p>
-            <p className="text-xs leading-relaxed whitespace-pre-wrap p-3 rounded-lg border h-full
+            <p className="text-xs leading-relaxed whitespace-pre-wrap p-3 rounded-lg border flex-1
               text-gray-800 bg-white border-indigo-300
               dark:text-gray-100 dark:bg-indigo-950/40 dark:border-indigo-700">
-              {stripHtml(content)}
+              {stripHtml(regen.content)}
             </p>
           </div>
         </div>
       ) : (
+        /* ── 비-CODE, 원본 없음: 단일 박스 ── */
         <p className="text-xs leading-relaxed whitespace-pre-wrap p-3 rounded-lg border
           text-gray-800 bg-white border-gray-200
           dark:text-gray-200 dark:bg-gray-800/80 dark:border-gray-700">
-          {stripHtml(content)}
+          {stripHtml(regen.content)}
         </p>
       )}
 
+      {/* 교체 버튼 — 비교 영역 밖 독립 배치 */}
       {onApply && (
-        <button type="button" onClick={onApply}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition
-            border-indigo-500 text-white bg-indigo-500 hover:bg-indigo-600
-            dark:border-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
-          </svg>
-          이 문제로 교체
-        </button>
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+          <button type="button" onClick={onApply}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition
+              border-indigo-500 text-white bg-indigo-500 hover:bg-indigo-600
+              dark:border-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+            </svg>
+            이 문제로 교체
+          </button>
+        </div>
       )}
     </div>
   );

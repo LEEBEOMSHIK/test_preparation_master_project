@@ -1,3 +1,85 @@
+﻿## HIST-20260701-004
+
+- **날짜**: 2026-07-01
+- **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정·분석 패널 — CODE 재구성 code+answer 확장, onApply 콜백 재설계, RegenResult 겹침 수정
+- **수정 개요**: QuestionAnalysisPanel의 onApplyContent 단일 콜백을 onApply({content, code?, answer?}) 페이로드 콜백으로 재설계. CODE 재구성 시 설명·코드·정답 항목별 비교 UI 추가. RegenResult 비교 칼럼 겹침 버그(h-full 레이아웃 충돌) 수정.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/questionAnalysisService.ts` | 수정 | RegenerateRequest에 questionType?, originalCode?, language? 추가; QuestionRegenerate에 code?, answer? 추가 |
+| `frontend/src/components/ui/QuestionAnalysisPanel.tsx` | 수정 | Props: onApplyContent→onApply({content,code?,answer?}), questionType 추가; 상태: regenerated 타입 string→QuestionRegenerate; 핸들러: questionType/originalCode/language 요청 포함, 응답 객체 저장; MOCK: CODE 유형 시 code/answer 포함; RegenResult 컴포넌트 전면 재작업 |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | 비-CODE 패널: onApplyContent→onApply=(p)=>onChange(content); CODE 패널: onApply=(p)=>{onChange content+code+answer}, questionType 전달 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | 동일 패턴, update 함수 사용 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표 QuestionAnalysisPanel 시그니처 갱신 |
+
+### 수정 상세
+
+#### `questionAnalysisService.ts`
+- 변경 전: `RegenerateRequest`에 4필드, `QuestionRegenerate`에 content 단일 필드
+- 변경 후: `RegenerateRequest`에 questionType?·originalCode?·language? 추가; `QuestionRegenerate`에 code?·answer? 추가
+
+#### `QuestionAnalysisPanel.tsx`
+- Props:
+  - 변경 전: `onApplyContent?: (html: string) => void`
+  - 변경 후: `onApply?: (payload: { content: string; code?: string; answer?: string }) => void`, `questionType?: string` 추가
+- 상태: `regenerated: string | null` → `QuestionRegenerate | null`
+- handleRegenerate/handleGenerateFromTags: questionType, originalCode(=code prop), language 요청에 포함; 응답 data 객체 전체 저장; MOCK 폴백 isCode 분기
+- RegenResult 컴포넌트:
+  - 변경 전: `{content, original?, onClose, onApply?}` Props, 단순 텍스트 비교, 버튼이 비교 영역 안에 존재, h-full로 칼럼 겹침
+  - 변경 후: `{regen, original?, originalCode?, language?, isCode, onClose, onApply?}` Props, CODE: 설명·코드(CodeBlock)·정답 항목별 좌우 비교, 비-CODE: 기존 텍스트 비교, 버튼은 border-t pt-2 mt-2 독립 배치, h-full→flex-1, items-stretch→items-start로 겹침 해소
+- MOCK_REGENERATED 상수 삭제 → MOCK_REGEN_CODE(코드 전용)로 대체
+
+#### `new/page.tsx` / `edit/page.tsx`
+- 변경 전: `onApplyContent={(html) => onChange/update('content', html)}`
+- 변경 후:
+  - 비-CODE 위치: `onApply={(p) => onChange/update('content', p.content)}`, `questionType={draft/form.questionType}` 추가
+  - CODE 위치: `onApply={(p) => { onChange/update('content',...); if(p.code!==undefined)...; if(p.answer!==undefined)...; }}`
+
+### 복원 방법
+이 ID(HIST-20260701-004)만으로 복원 시:
+- `questionAnalysisService.ts`: RegenerateRequest 4필드 복원, QuestionRegenerate content 단일 필드 복원
+- `QuestionAnalysisPanel.tsx`: Props onApplyContent 복원, regenerated 타입 string 복원, RegenResult 이전 구조 복원, MOCK_REGENERATED 복원
+- `new/page.tsx`, `edit/page.tsx`: `onApply`→`onApplyContent`, questionType prop 제거, CODE 위치 content 단일 onChange/update로 복원
+
+---
+## HIST-20260701-003
+
+- **날짜**: 2026-07-01
+- **수정 범위**: 관리자 프론트엔드 / AI 문항 분석 패널 — 재구성 전제조건 미충족 시 AlertModal 안내
+- **수정 개요**: "재구성 시작" 클릭 시 키워드 추출(분석)을 아직 안 했으면 조용히 return하던 동작을 AlertModal 팝업으로 명확히 안내하도록 변경. "AI 문제 생성"도 방어적 AlertModal 안내 추가. 범용 알림 모달 컴포넌트(AlertModal) 신규 생성.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/AlertModal.tsx` | 추가 | 범용 알림 팝업 컴포넌트 (open·message·title·confirmLabel·onClose Props, ESC·오버레이 클릭 닫힘, amber 아이콘, 다크모드 대응) |
+| `frontend/src/components/ui/QuestionAnalysisPanel.tsx` | 수정 | `alertMsg` 상태 추가; `handleRegenerate`에서 `!result` 시 AlertModal 표시; `handleGenerateFromTags`에서 태그 0개 시 AlertModal 표시; AlertModal 렌더 추가 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 AlertModal 행 추가 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/AlertModal.tsx` (신규)
+- 변경 전: 존재하지 않음
+- 변경 후: Props `{ open, message, title='알림', confirmLabel='확인', onClose }` 수신. `open=false` 시 null 반환. 오버레이(`fixed inset-0 z-[9999] bg-black/50`) + 카드(`rounded-xl shadow-2xl`) 구조. amber 정보 아이콘. ESC 키 닫힘(`useEffect` keydown). 오버레이 클릭 닫힘. PermissionDeniedModal과 동일 톤·스타일.
+- 이유: 프로젝트에 범용 알림 모달이 없어 신규 생성.
+
+#### `frontend/src/components/ui/QuestionAnalysisPanel.tsx`
+- 변경 전: `handleRegenerate` — `if (!result || regenerating) return;` (조용한 return)
+- 변경 후: `if (regenerating) return;` → `if (!result) { setAlertMsg('먼저 \'분석 시작\'...'); return; }` 로 분리
+- 변경 전: `handleGenerateFromTags` — `if ((selKeywords.length === 0 && selDomains.length === 0) || regenerating) return;` (조용한 return)
+- 변경 후: `if (regenerating) return;` → `if (selKeywords.length === 0 && selDomains.length === 0) { setAlertMsg('키워드 또는 도메인을 하나 이상 선택하세요.'); return; }` 로 분리
+- 이유: 전제조건 미충족 시 아무 피드백이 없어 사용자가 버튼 고장으로 오인할 수 있음.
+
+### 복원 방법
+이 ID(HIST-20260701-003)만으로 복원 시:
+- `AlertModal.tsx` 삭제
+- `QuestionAnalysisPanel.tsx`: `import { AlertModal }` 제거, `alertMsg` 상태 제거, `handleRegenerate`를 `if (!result || regenerating) return;`으로 복원, `handleGenerateFromTags`를 `if ((selKeywords.length === 0 && selDomains.length === 0) || regenerating) return;`으로 복원, `<AlertModal .../>` 렌더 제거
+- `CLAUDE.md`: Shared Utilities 표에서 AlertModal 행 제거
+
+---
+
 ## HIST-20260701-002
 
 - **날짜**: 2026-07-01

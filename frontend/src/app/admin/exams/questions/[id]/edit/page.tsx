@@ -340,7 +340,8 @@ export default function AdminQuestionEditPage() {
             {!isCode && (
               <QuestionAnalysisPanel
                 content={form.content}
-                onApplyContent={(html) => update('content', html)}
+                questionType={form.questionType}
+                onApply={(p) => update('content', p.content)}
               />
             )}
           </div>
@@ -387,9 +388,14 @@ export default function AdminQuestionEditPage() {
           {isCode && (
             <QuestionAnalysisPanel
               content={form.content}
-              onApplyContent={(html) => update('content', html)}
+              questionType={form.questionType}
               code={form.code}
               language={form.language}
+              onApply={(p) => {
+                update('content', p.content);
+                if (p.code !== undefined) update('code', p.code);
+                if (p.answer !== undefined) update('answer', p.answer);
+              }}
             />
           )}
 

@@ -13,10 +13,15 @@ export interface RegenerateRequest {
   domains:         string[];
   difficulty:      string;
   originalContent: string;
+  questionType?:   string;
+  originalCode?:   string;
+  language?:       string;
 }
 
 export interface QuestionRegenerate {
   content: string;
+  code?:   string;
+  answer?: string;
 }
 
 const AI_TIMEOUT = { timeout: 120_000 } as const;

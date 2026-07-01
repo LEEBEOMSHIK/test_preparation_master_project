@@ -152,12 +152,17 @@ class QuestionAnalysisServiceTest {
                         List.of("알고리즘", "정렬"),
                         List.of("자료구조"),
                         "중",
+                        null,
+                        null,
+                        null,
                         null
                 )
         );
 
         assertThat(result.content()).contains("<p>첫 번째 단락 내용입니다.</p>");
         assertThat(result.content()).contains("<p>두 번째 단락 내용입니다.</p>");
+        assertThat(result.code()).isNull();
+        assertThat(result.answer()).isNull();
     }
 
     @Test
@@ -171,10 +176,97 @@ class QuestionAnalysisServiceTest {
                         List.of("데이터베이스"),
                         List.of("데이터베이스"),
                         "상",
+                        null,
+                        null,
+                        null,
                         null
                 )
         );
 
         assertThat(result.content()).isEqualTo("<p>단일 줄 문제입니다.</p>");
+        assertThat(result.code()).isNull();
+        assertThat(result.answer()).isNull();
+    }
+
+    // ── regenerateCode ─────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("regenerateCode_success: 유효 JSON 반환 시 content/code/answer 정상 매핑")
+    void regenerateCode_success() {
+        String json = """
+                {
+                  "content": "아래 코드의 실행 결과를 쓰시오.",
+                  "code": "print(1 + 2 * 3)",
+                  "answer": "7"
+                }
+                """;
+        when(llmTextProvider.call(anyString(), anyInt())).thenReturn(json);
+
+        QuestionRegenerateResponse result = service.regenerate(
+                new QuestionRegenerateRequest(
+                        List.of("연산자", "우선순위"),
+                        List.of("Python"),
+                        "하",
+                        "<p>기존 문제</p>",
+                        "CODE",
+                        "x = 1 + 2",
+                        "python"
+                )
+        );
+
+        assertThat(result.content()).isEqualTo("<p>아래 코드의 실행 결과를 쓰시오.</p>");
+        assertThat(result.code()).isEqualTo("print(1 + 2 * 3)");
+        assertThat(result.answer()).isEqualTo("7");
+    }
+
+    @Test
+    @DisplayName("regenerateCode_jsonFence: ```json 펜스 포함 응답도 정상 파싱")
+    void regenerateCode_jsonFence() {
+        String fenced = """
+                ```json
+                {
+                  "content": "다음 코드의 출력을 쓰시오.",
+                  "code": "for i in range(3): print(i)",
+                  "answer": "0\\n1\\n2"
+                }
+                ```
+                """;
+        when(llmTextProvider.call(anyString(), anyInt())).thenReturn(fenced);
+
+        QuestionRegenerateResponse result = service.regenerate(
+                new QuestionRegenerateRequest(
+                        List.of("반복문"),
+                        List.of("Python"),
+                        "하",
+                        null,
+                        "CODE",
+                        null,
+                        "python"
+                )
+        );
+
+        assertThat(result.content()).contains("다음 코드의 출력을 쓰시오.");
+        assertThat(result.code()).isEqualTo("for i in range(3): print(i)");
+    }
+
+    @Test
+    @DisplayName("regenerateCode_invalidJson: 비-JSON 응답 시 AI_ANALYSIS_FAILED 예외")
+    void regenerateCode_invalidJson() {
+        when(llmTextProvider.call(anyString(), anyInt())).thenReturn("비-JSON 텍스트");
+
+        assertThatThrownBy(() -> service.regenerate(
+                new QuestionRegenerateRequest(
+                        List.of("반복문"),
+                        List.of("Python"),
+                        "하",
+                        null,
+                        "CODE",
+                        null,
+                        "python"
+                )
+        ))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.AI_ANALYSIS_FAILED));
     }
 }

@@ -1,3 +1,3 @@
 package com.tpmp.testprep.dto.response;
 
-public record QuestionRegenerateResponse(String content) {}
+public record QuestionRegenerateResponse(String content, String code, String answer) {}

@@ -1,3 +1,54 @@
+## HIST-20260701-002
+
+- **날짜**: 2026-07-01
+- **수정 범위**: 관리자 백엔드 / 문항 AI 재구성 — CODE 문항 code+content+answer 통합 재생성
+- **수정 개요**: CODE 문항 재구성 시 content(설명)만 생성하던 것을 code(코드)·answer(정답)까지 함께 생성하도록 분기 확장. DTO에 questionType·originalCode·language 추가, 응답에 code·answer 필드 추가.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/dto/request/QuestionRegenerateRequest.java` | 수정 | 4→7 필드: questionType, originalCode, language 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionRegenerateResponse.java` | 수정 | 1→3 필드: code, answer 추가 (CODE만 채움, 비-CODE는 null) |
+| `backend/src/main/java/com/tpmp/testprep/service/QuestionAnalysisService.java` | 수정 | regenerate() 분기(TEXT/CODE), regenerateText/regenerateCode 분리, buildRegenerateCodePrompt, CodeRegenResult private record 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/QuestionAnalysisServiceTest.java` | 수정 | 기존 2케이스 7인자로 수정, CODE 재구성 신규 3케이스 추가 |
+
+### 수정 상세
+
+#### `QuestionRegenerateRequest.java`
+- 변경 전: `record(keywords, domains, difficulty, originalContent)` 4필드
+- 변경 후: `record(keywords, domains, difficulty, originalContent, questionType, originalCode, language)` 7필드
+- 이유: CODE 문항 재구성 시 원본 코드·언어 전달 필요
+
+#### `QuestionRegenerateResponse.java`
+- 변경 전: `record(String content)` 단일 필드
+- 변경 후: `record(String content, String code, String answer)` 3필드
+- 이유: CODE 재구성 결과의 코드·정답을 별도 필드로 반환, 비-CODE는 null 반환
+
+#### `QuestionAnalysisService.java`
+- 변경 전: `regenerate()`가 단일 텍스트 생성 로직만 존재, `new QuestionRegenerateResponse(html)` 반환
+- 변경 후:
+  - `regenerate()` → questionType="CODE"이면 `regenerateCode()`, 아니면 `regenerateText()` 분기
+  - `regenerateText()`: 기존 로직 이동, `new QuestionRegenerateResponse(html, null, null)` 반환
+  - `regenerateCode()`: LLM 호출(3072 토큰), ```json 펜스 제거, JSON 파싱 → `CodeRegenResult`, content는 `<p>` 감쌈
+  - `buildRegenerateCodePrompt()`: 언어·원본코드·설명·키워드·도메인·난이도 기반 프롬프트, JSON 반환 강제 지시
+  - `private record CodeRegenResult(String content, String code, String answer)` 파일 내 추가
+- 이유: CODE 유형 특화 재구성으로 실행 가능한 코드와 정답을 content와 함께 생성
+
+#### `QuestionAnalysisServiceTest.java`
+- 변경 전: `regenerate_success`, `regenerate_singleLine`에서 4인자 생성자 사용
+- 변경 후: 7인자로 수정 (끝에 null, null, null 추가), result.code()/result.answer() null 검증 추가
+- 신규: `regenerateCode_success`(content/code/answer 정상 매핑), `regenerateCode_jsonFence`(```json 펜스 파싱), `regenerateCode_invalidJson`(AI_ANALYSIS_FAILED)
+
+### 복원 방법
+이 ID(HIST-20260701-002)만으로 복원 시:
+- `QuestionRegenerateRequest`: 4필드 record로 되돌림
+- `QuestionRegenerateResponse`: `record(String content)` 단일 필드로 되돌림
+- `QuestionAnalysisService`: `regenerate()` 단일 메서드(기존 regenerateText 본문), 분기·신규 메서드·CodeRegenResult·buildRegenerateCodePrompt 삭제, 반환 `new QuestionRegenerateResponse(html)`으로 원복
+- `QuestionAnalysisServiceTest`: 기존 2케이스 4인자로 되돌림, 신규 3케이스 삭제
+
+---
+
 ## HIST-20260701-001
 
 - **날짜**: 2026-07-01

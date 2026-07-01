@@ -329,7 +329,8 @@ function ManualQuestionCard({
           {!isCode && (
             <QuestionAnalysisPanel
               content={draft.content}
-              onApplyContent={(html) => onChange('content', html)}
+              questionType={draft.questionType}
+              onApply={(p) => onChange('content', p.content)}
             />
           )}
         </div>
@@ -384,9 +385,14 @@ function ManualQuestionCard({
         {isCode && (
           <QuestionAnalysisPanel
             content={draft.content}
-            onApplyContent={(html) => onChange('content', html)}
+            questionType={draft.questionType}
             code={draft.code}
             language={draft.language}
+            onApply={(p) => {
+              onChange('content', p.content);
+              if (p.code !== undefined) onChange('code', p.code);
+              if (p.answer !== undefined) onChange('answer', p.answer);
+            }}
           />
         )}
 

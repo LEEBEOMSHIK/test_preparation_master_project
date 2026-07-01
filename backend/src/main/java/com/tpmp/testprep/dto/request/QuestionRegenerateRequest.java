@@ -6,5 +6,8 @@ public record QuestionRegenerateRequest(
         List<String> keywords,
         List<String> domains,
         String difficulty,
-        String originalContent
+        String originalContent,
+        String questionType,
+        String originalCode,
+        String language
 ) {}
