@@ -30,6 +30,9 @@ backend/logs/
 *.jar
 !gradle-wrapper.jar
 
+# 런타임 로그 (서버 실행 출력 등)
+*.log
+
 # Claude Code session files (agents·skills 디렉토리는 공유, 나머지 세션 파일은 제외)
 .claude/*
 !.claude/agents/
