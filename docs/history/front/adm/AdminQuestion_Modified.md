@@ -1,4 +1,70 @@
-﻿## HIST-20260701-005
+﻿## HIST-20260702-001
+
+- **날짜**: 2026-07-02
+- **수정 범위**: 관리자 프론트엔드 / AI 문항 분석 패널 — keyword_tag 전역 태그 사전 완전 제거, AI 문제 생성 태그 직접입력화
+- **수정 개요**: QuestionAnalysisPanel의 "태그 저장" 버튼·handleSaveTags 제거. TagMultiSelect를 keywordTagService 드롭다운 검색에서 자유 텍스트 직접입력(Enter/추가 버튼)으로 전환. keywordTagService.ts 파일 삭제. "AI 문제 생성" 안내 문구 변경.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/QuestionAnalysisPanel.tsx` | 수정 | keywordTagService import 제거, useRef 제거, TagMultiSelect 드롭다운→직접입력, saving/tagSaved 상태 제거, handleSaveTags 제거, 태그저장 버튼 블록 제거, pr-24 제거, 안내 문구·placeholder 변경, 알림 문구 "선택"→"입력" |
+| `frontend/src/services/keywordTagService.ts` | 삭제 | KeywordTag 타입, saveBulk/search API 서비스 |
+
+### 수정 상세
+
+#### `QuestionAnalysisPanel.tsx`
+
+**[1] import 변경**
+- 변경 전: `import { useState, useEffect, useRef } from 'react';` + `import { keywordTagService, type KeywordTag } from '@/services/keywordTagService';`
+- 변경 후: `import { useState, useEffect } from 'react';` (keywordTagService·useRef 제거)
+
+**[2] TagMultiSelect 컴포넌트 전면 교체**
+- 변경 전: `q`(검색어) state, `options: KeywordTag[]` state, `open`(드롭다운) state, `wrapRef` useRef; keywordTagService.search debounce 200ms useEffect; 외부 클릭 mousedown useEffect; 드롭다운 목록(useCount 표시 포함)
+- 변경 후: `inputVal` state 하나만; Enter 키/추가 버튼으로 onToggle 호출 후 입력창 비움; 중복·빈 값 방지; 선택 칩 표시(×제거)는 유지; API 호출 없음
+
+**[3] 상태 제거**
+- `saving: boolean`, `tagSaved: boolean` 제거
+- `useEffect(() => { setTagSaved(false); }, [result])` 제거
+
+**[4] handleSaveTags 함수 제거**
+- 변경 전: keywordTagService.saveBulk 호출 후 tagSaved=true 세팅
+- 변경 후: 함수 없음
+
+**[5] 키워드 추출 패널에서 "태그 저장" 버튼 블록 제거**
+- 변경 전: `<div className="relative ...">` + `{result && (<button ... 태그저장>)}` absolute 우상단 버튼 + 별도 flow 컨텐츠 div
+- 변경 후: `relative` class 제거, absolute 버튼 블록 삭제, flow 컨텐츠 div 단순화
+
+**[6] 결과 영역 pr-24 제거**
+- 변경 전: `<div className={result ? 'space-y-3 pr-24' : 'space-y-3'}>`
+- 변경 후: `<div className="space-y-3">`
+
+**[7] AI 문제 생성 패널 안내 문구 변경**
+- 변경 전: `"저장된 태그를 선택하여 새로운 문제를 생성합니다."`
+- 변경 후: `"키워드·도메인을 입력하여 새로운 문제를 생성합니다."`
+
+**[8] placeholder 변경**
+- 키워드: `"키워드 검색 또는 선택..."` → `"키워드 입력 후 Enter..."`
+- 도메인: `"도메인 검색 또는 선택..."` → `"도메인 입력 후 Enter..."`
+
+**[9] AlertModal 문구 변경**
+- `handleGenerateFromTags`: `"키워드 또는 도메인을 하나 이상 선택하세요."` → `"키워드 또는 도메인을 하나 이상 입력하세요."`
+
+#### `keywordTagService.ts` (삭제)
+- 변경 전: `KeywordTag` 인터페이스(id·name·type·useCount), `saveBulk(keywords, domains)` POST, `search(type, q?)` GET
+- 변경 후: 파일 없음
+
+#### grep 참조 확인 결과
+- 프론트엔드 전체에서 keywordTagService 참조: QuestionAnalysisPanel.tsx 및 keywordTagService.ts 2곳뿐 → 안전 삭제 확인
+
+### 복원 방법
+이 ID(HIST-20260702-001)만으로 복원 시:
+- `keywordTagService.ts` 재생성 (원본: `saveBulk` POST `/admin/keyword-tags/bulk`, `search` GET `/admin/keyword-tags`)
+- `QuestionAnalysisPanel.tsx`에서: import에 `useRef` 및 `keywordTagService/KeywordTag` 재추가; TagMultiSelect를 드롭다운 검색 방식으로 복원(q/options/open/wrapRef state, keywordTagService.search debounce useEffect, 외부클릭 useEffect); saving/tagSaved 상태 재추가; useEffect([result]) 재추가; handleSaveTags 함수 재추가; 키워드추출 패널에 태그저장 버튼 블록 및 relative/absolute 구조 복원; pr-24 복원; 안내문구·placeholder·AlertModal 문구 이전 값으로 복원
+
+---
+
+## HIST-20260701-005
 
 - **날짜**: 2026-07-01
 - **수정 범위**: 관리자 프론트엔드 / 문항 AI 분석 결과 영속화 — 분석 즉시저장(PATCH), 수정화면 복원, 신규등록 submit 시 저장, 재분석 덮어쓰기

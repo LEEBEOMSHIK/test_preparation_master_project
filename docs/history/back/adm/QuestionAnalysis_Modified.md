@@ -1,3 +1,46 @@
+## HIST-20260702-002
+
+- **날짜**: 2026-07-02
+- **수정 범위**: 관리자 백엔드 / AI 문항 분석 — keyword_tag 전역 태그 사전 완전 제거
+- **수정 개요**: keyword_tag(전역 태그 사전) 기능 전체 제거. 백엔드 6개 파일(Controller·Service·DTO·Repository·Entity) 삭제. DB 정리용 DROP SQL 추가.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/controller/AdminKeywordTagController.java` | 삭제 | keyword_tag CRUD REST 컨트롤러 |
+| `backend/src/main/java/com/tpmp/testprep/service/KeywordTagService.java` | 삭제 | keyword_tag 저장·조회 서비스 |
+| `backend/src/main/java/com/tpmp/testprep/dto/request/KeywordTagBulkRequest.java` | 삭제 | 태그 일괄저장 요청 DTO |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/KeywordTagResponse.java` | 삭제 | 태그 조회 응답 DTO |
+| `backend/src/main/java/com/tpmp/testprep/repository/KeywordTagRepository.java` | 삭제 | keyword_tag JPA 리포지토리 |
+| `backend/src/main/java/com/tpmp/testprep/entity/KeywordTag.java` | 삭제 | keyword_tag 엔티티 |
+| `docs/db-migration/20260702_01_drop_keyword_tag.sql` | 추가 | keyword_tag 테이블 DROP 마이그레이션 SQL |
+
+### 수정 상세
+
+#### 삭제된 백엔드 파일 요약
+- `AdminKeywordTagController`: `POST /admin/keyword-tags/bulk` (일괄저장), `GET /admin/keyword-tags` (type·q 검색) 엔드포인트
+- `KeywordTagService`: saveBulk(keywords, domains) — keyword·domain 태그 upsert; search(type, q) — 이름 contains 검색
+- `KeywordTagBulkRequest`: `record(List<String> keywords, List<String> domains)`
+- `KeywordTagResponse`: `record(Long id, String name, String type, long useCount)`
+- `KeywordTagRepository`: `JpaRepository<KeywordTag, Long>`, `findByTypeAndNameContainingIgnoreCase` 메서드
+- `KeywordTag`: id·name(unique per type)·type('KEYWORD'|'DOMAIN')·useCount 컬럼 엔티티
+
+#### grep 참조 확인 결과
+- 삭제 대상 6개 파일 외 백엔드 전체에서 KeywordTag 관련 클래스 참조 없음 (안전 삭제 확인)
+
+#### DB 마이그레이션
+- `docs/db-migration/20260702_01_drop_keyword_tag.sql`: `DROP TABLE IF EXISTS keyword_tag;`
+- 로컬 DB 실제 적용은 별도 수행. `ddl-auto: validate` 환경에서는 DB에 여분 테이블이 남아도 기동에 지장 없으므로 DROP은 정리 목적.
+
+### 복원 방법
+이 ID(HIST-20260702-002)만으로 복원 시:
+- 삭제된 6개 Java 파일을 원래 경로에 재생성 (각 파일의 변경 전 코드는 이 항목 작성 이전 git 커밋에서 확인)
+- `docs/db-migration/20260702_01_drop_keyword_tag.sql` 삭제
+- DROP이 이미 실행된 DB라면 `CREATE TABLE keyword_tag (...)` 재생성 필요
+
+---
+
 ## HIST-20260702-001
 
 - **날짜**: 2026-07-02

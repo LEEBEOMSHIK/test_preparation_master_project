@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   questionAnalysisService,
   type QuestionAnalysis,
   type QuestionRegenerate,
 } from '@/services/questionAnalysisService';
-import { keywordTagService, type KeywordTag } from '@/services/keywordTagService';
 import { stripHtml } from '@/lib/html';
 import { AlertModal } from './AlertModal';
 import { CodeBlock } from './CodeBlock';
@@ -59,41 +58,34 @@ function isUnavailable(err: unknown) {
     ?.response?.data?.error?.code === 'AI_SERVICE_UNAVAILABLE';
 }
 
-// ── 멀티셀렉트 콤보박스 ──────────────────────────────────────────────────────────
+// ── 태그 직접 입력 컴포넌트 ──────────────────────────────────────────────────────
 
 function TagMultiSelect({
-  tagType, selected, onToggle, placeholder,
+  selected, onToggle, placeholder,
 }: {
   tagType: 'KEYWORD' | 'DOMAIN';
   selected: string[];
   onToggle: (name: string) => void;
   placeholder: string;
 }) {
-  const [q, setQ]           = useState('');
-  const [options, setOptions] = useState<KeywordTag[]>([]);
-  const [open, setOpen]      = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const [inputVal, setInputVal] = useState('');
 
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      keywordTagService.search(tagType, q || undefined)
-        .then(res => { if (!cancelled && res.data.success) setOptions(res.data.data ?? []); })
-        .catch(() => {});
-    }, 200);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [tagType, q]);
+  const handleAdd = () => {
+    const trimmed = inputVal.trim();
+    if (!trimmed) return;
+    if (!selected.includes(trimmed)) onToggle(trimmed);
+    setInputVal('');
+  };
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAdd();
+    }
+  };
 
   return (
-    <div ref={wrapRef} className="relative">
+    <div>
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-1.5">
           {selected.map(s => (
@@ -107,35 +99,26 @@ function TagMultiSelect({
           ))}
         </div>
       )}
-      <input type="text" value={q}
-        onChange={e => { setQ(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        placeholder={placeholder}
-        className="w-full px-3 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-400 transition
-          bg-white border-gray-200 text-gray-700 placeholder-gray-400
-          dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-500"
-      />
-      {open && (
-        <div className="absolute z-20 top-full left-0 right-0 mt-1 max-h-36 overflow-y-auto rounded-lg border shadow-lg
-          bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-600">
-          {options.length === 0 ? (
-            <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
-              {q ? '검색 결과가 없습니다.' : '저장된 태그가 없습니다.'}
-            </p>
-          ) : options.map(opt => (
-            <button key={opt.id} type="button" onClick={() => { onToggle(opt.name); setQ(''); }}
-              className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-left transition
-                hover:bg-indigo-50 dark:hover:bg-indigo-900/40 ${
-                selected.includes(opt.name)
-                  ? 'text-indigo-700 font-semibold dark:text-indigo-300'
-                  : 'text-gray-700 dark:text-gray-300'
-              }`}>
-              <span>{opt.name}</span>
-              <span className="text-gray-300 dark:text-gray-600 tabular-nums">{opt.useCount}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="flex gap-1.5">
+        <input
+          type="text"
+          value={inputVal}
+          onChange={e => setInputVal(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          className="flex-1 px-3 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-400 transition
+            bg-white border-gray-200 text-gray-700 placeholder-gray-400
+            dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-500"
+        />
+        <button
+          type="button"
+          onClick={handleAdd}
+          className="px-2.5 py-1.5 text-xs font-medium rounded-lg border transition
+            border-indigo-300 text-indigo-600 bg-white hover:bg-indigo-50
+            dark:border-indigo-600 dark:text-indigo-300 dark:bg-transparent dark:hover:bg-indigo-900/30">
+          추가
+        </button>
+      </div>
     </div>
   );
 }
@@ -187,10 +170,6 @@ export function QuestionAnalysisPanel({ content, onApply, questionType, code, la
     setResult(initialResult ?? null);
   }, [initialResult]);
 
-  // 태그 저장
-  const [saving,   setSaving]   = useState(false);
-  const [tagSaved, setTagSaved] = useState(false);
-
   // 재구성 (재구성 + AI 생성 공유)
   const [regenerating, setRegenerating] = useState(false);
   const [regenerated,  setRegenerated]  = useState<QuestionRegenerate | null>(null);
@@ -205,8 +184,6 @@ export function QuestionAnalysisPanel({ content, onApply, questionType, code, la
   const [selDifficulty, setSelDifficulty] = useState<string>('중');
 
   const hasContent = stripHtml(content).trim().length > 10;
-
-  useEffect(() => { setTagSaved(false); }, [result]);
 
   // ── 핸들러 ──
 
@@ -267,19 +244,10 @@ export function QuestionAnalysisPanel({ content, onApply, questionType, code, la
     }
   };
 
-  const handleSaveTags = async () => {
-    if (!result || saving) return;
-    setSaving(true);
-    try {
-      await keywordTagService.saveBulk(result.keywords, result.domains);
-      setTagSaved(true);
-    } catch { /* silent */ } finally { setSaving(false); }
-  };
-
   const handleGenerateFromTags = async () => {
     if (regenerating) return;
     if (selKeywords.length === 0 && selDomains.length === 0) {
-      setAlertMsg('키워드 또는 도메인을 하나 이상 선택하세요.');
+      setAlertMsg('키워드 또는 도메인을 하나 이상 입력하세요.');
       return;
     }
     setRegenerating(true);
@@ -356,26 +324,8 @@ export function QuestionAnalysisPanel({ content, onApply, questionType, code, la
 
       {/* ── 키워드 추출 패널 (violet) ── */}
       {analysisOpen && (
-        <div className="relative rounded-xl border border-violet-200 bg-violet-50 dark:border-violet-700 dark:bg-violet-950/60 p-4">
+        <div className="rounded-xl border border-violet-200 bg-violet-50 dark:border-violet-700 dark:bg-violet-950/60 p-4">
 
-          {/* 태그 저장 — absolute 우상단 (결과 있을 때만) */}
-          {result && (
-            <button type="button" onClick={handleSaveTags} disabled={saving || tagSaved}
-              className={`absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border transition disabled:cursor-not-allowed ${
-                tagSaved
-                  ? 'border-emerald-300 text-emerald-700 bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:bg-emerald-900/30'
-                  : 'border-violet-300 text-violet-600 bg-white hover:bg-violet-50 dark:border-violet-600 dark:text-violet-300 dark:bg-violet-950 dark:hover:bg-violet-900/30'
-              }`}>
-              {saving
-                ? <><svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>저장 중...</>
-                : tagSaved
-                  ? <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>저장됨</>
-                  : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>태그 저장</>
-              }
-            </button>
-          )}
-
-          {/* flow 컨텐츠 — absolute 버튼과 분리 */}
           <div className="space-y-3">
           {/* 분석 시작 버튼 */}
           <button type="button" onClick={handleAnalyze} disabled={analyzing || !hasContent}
@@ -394,7 +344,7 @@ export function QuestionAnalysisPanel({ content, onApply, questionType, code, la
 
           {/* 결과 */}
           {result && !analyzing && (
-            <div className={`space-y-3 ${result ? 'pr-24' : ''}`}>
+            <div className="space-y-3">
               <div className="flex items-start gap-4">
                 <div className="shrink-0">
                   <p className="text-xs font-semibold text-violet-700 dark:text-violet-300 mb-1.5">난이도</p>
@@ -504,16 +454,16 @@ export function QuestionAnalysisPanel({ content, onApply, questionType, code, la
       {/* ── AI 문제 생성 패널 (blue) ── */}
       {genOpen && (
         <div className="rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/60 p-4 space-y-3">
-          <p className="text-xs text-blue-500 dark:text-blue-400">저장된 태그를 선택하여 새로운 문제를 생성합니다.</p>
+          <p className="text-xs text-blue-500 dark:text-blue-400">키워드·도메인을 입력하여 새로운 문제를 생성합니다.</p>
 
           <div className="space-y-2">
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">키워드</p>
-              <TagMultiSelect tagType="KEYWORD" selected={selKeywords} onToggle={toggleKeyword} placeholder="키워드 검색 또는 선택..." />
+              <TagMultiSelect tagType="KEYWORD" selected={selKeywords} onToggle={toggleKeyword} placeholder="키워드 입력 후 Enter..." />
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">도메인</p>
-              <TagMultiSelect tagType="DOMAIN" selected={selDomains} onToggle={toggleDomain} placeholder="도메인 검색 또는 선택..." />
+              <TagMultiSelect tagType="DOMAIN" selected={selDomains} onToggle={toggleDomain} placeholder="도메인 입력 후 Enter..." />
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">난이도</p>
