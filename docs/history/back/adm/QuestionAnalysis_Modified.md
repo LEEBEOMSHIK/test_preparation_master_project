@@ -1,3 +1,48 @@
+## HIST-20260701-003
+
+- **날짜**: 2026-07-01
+- **수정 범위**: 관리자 백엔드 / 문제 재구성(QuestionAnalysisService)
+- **수정 개요**: 로컬 Ollama 7B 모델 120초 타임아웃 초과 버그 수정 — 재구성 num_predict 축소 및 프롬프트 간결화 지시 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/QuestionAnalysisService.java` | 수정 | regenerateText maxTokens 2048→1024, regenerateCode maxTokens 3072→1536, 각 프롬프트에 간결화 지시 추가 |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/service/QuestionAnalysisService.java`
+
+**[1] regenerateText — maxTokens 축소**
+- 변경 전: `llmTextProvider.call(prompt, 2048)`
+- 변경 후: `llmTextProvider.call(prompt, 1024)`
+- 이유: 로컬 Ollama qwen2.5:7b가 2048 토큰 생성을 120초 안에 완료하지 못해 타임아웃 발생. analyze(1024)는 성공하므로 동일 수준으로 축소.
+
+**[2] regenerateCode — maxTokens 축소**
+- 변경 전: `llmTextProvider.call(prompt, 3072)`
+- 변경 후: `llmTextProvider.call(prompt, 1536)`
+- 이유: CODE 재구성도 동일 타임아웃 문제. 1536으로 절반 수준 축소.
+
+**[3] buildRegeneratePrompt (비-CODE) — 간결화 지시 추가**
+- 변경 전: 요구사항이 2줄 (동일 개념 다른 각도 + 번호·보기·정답 제외)
+- 변경 후: `- 문제는 간결하게 3~4문장 이내로 작성하세요` 한 줄 추가(총 3줄)
+- 이유: 모델이 불필요하게 긴 문제를 생성하지 않도록 유도해 출력 토큰 절감.
+
+**[4] buildRegenerateCodePrompt (CODE) — 간결화 지시 추가**
+- 변경 전: answer 항목 다음 바로 JSON 반환 지시
+- 변경 후: `- code는 20줄 이내로 간결하게, content는 1~2문장, answer는 짧게 작성하세요` 줄 추가 후 JSON 반환 지시
+- 이유: 코드·설명·정답 각각의 길이를 명시적으로 제한해 1536 토큰 예산 안에서 완성될 수 있도록 유도.
+
+### 복원 방법
+HIST-20260701-003 복원 시 아래 내용을 `QuestionAnalysisService.java`에 적용한다.
+- `regenerateText`: `llmTextProvider.call(prompt, 1024)` → `llmTextProvider.call(prompt, 2048)`
+- `regenerateCode`: `llmTextProvider.call(prompt, 1536)` → `llmTextProvider.call(prompt, 3072)`
+- `buildRegeneratePrompt`: `- 문제는 간결하게 3~4문장 이내로 작성하세요` 줄 제거
+- `buildRegenerateCodePrompt`: `- code는 20줄 이내로 간결하게, content는 1~2문장, answer는 짧게 작성하세요` 빈 줄 포함 2줄 제거
+
+---
+
 ## HIST-20260701-002
 
 - **날짜**: 2026-07-01

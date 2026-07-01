@@ -46,7 +46,7 @@ public class QuestionAnalysisService {
 
     private QuestionRegenerateResponse regenerateText(QuestionRegenerateRequest request) {
         String prompt = buildRegeneratePrompt(request);
-        String text = llmTextProvider.call(prompt, 2048);
+        String text = llmTextProvider.call(prompt, 1024);
         String html = Arrays.stream(text.split("\\n{2,}"))
                 .map(p -> "<p>" + p.strip().replace("\n", "<br>") + "</p>")
                 .collect(Collectors.joining());
@@ -59,7 +59,7 @@ public class QuestionAnalysisService {
 
     private QuestionRegenerateResponse regenerateCode(QuestionRegenerateRequest request) {
         String prompt = buildRegenerateCodePrompt(request);
-        String text = llmTextProvider.call(prompt, 3072);
+        String text = llmTextProvider.call(prompt, 1536);
         text = text.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
         try {
             CodeRegenResult parsed = objectMapper.readValue(text, CodeRegenResult.class);
@@ -135,6 +135,8 @@ public class QuestionAnalysisService {
                 - content: 문제 설명(코드 자체 미포함, 예: '아래 코드의 실행 결과를 쓰시오')
                 - answer: 코드의 예상 출력/정답(plain text)
 
+                - code는 20줄 이내로 간결하게, content는 1~2문장, answer는 짧게 작성하세요
+
                 반드시 JSON만 반환: {"content":"...","code":"...","answer":"..."} — 다른 텍스트 금지
                 """.formatted(
                 langLabel,
@@ -166,6 +168,7 @@ public class QuestionAnalysisService {
                 요구사항:
                 - %s
                 - 같은 개념을 다른 각도에서 묻는 새로운 문제를 만들어주세요
+                - 문제는 간결하게 3~4문장 이내로 작성하세요
                 - 문제 본문만 작성하고 번호, 보기(①②③), 정답은 포함하지 마세요
                 """.formatted(
                 String.join(", ", req.keywords()),
