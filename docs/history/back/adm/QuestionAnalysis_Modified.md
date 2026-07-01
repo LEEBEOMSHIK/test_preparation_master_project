@@ -1,3 +1,42 @@
+## HIST-20260702-001
+
+- **날짜**: 2026-07-02
+- **수정 범위**: 관리자 백엔드 / AI 문항 분석 — 프롬프트 한국어 강제
+- **수정 개요**: 로컬 Ollama qwen2.5:7b(중국 Alibaba 모델)가 keywords/domains/summary/content/answer에 중국어를 혼입하는 버그 수정. buildAnalyzePrompt·buildRegeneratePrompt·buildRegenerateCodePrompt에 한국어 강제 지시 추가.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/QuestionAnalysisService.java` | 수정 | 3개 프롬프트 빌더에 한국어 강제 문구 추가 |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/service/QuestionAnalysisService.java`
+
+**[1] buildAnalyzePrompt — keywords/domains/summary 한국어 강제**
+- 변경 전: `JSON만 반환하고 다른 텍스트는 절대 포함하지 마세요.` 1줄만 존재
+- 변경 후: 그 위에 `keywords, domains, summary는 모두 반드시 한국어로 작성하세요. 중국어·일본어 등 외국어를 절대 섞지 마세요. 단 널리 쓰이는 기술 용어·약어(예: SQL, HTTP, API, JVM)는 원문 그대로 사용해도 됩니다.` 추가
+- 이유: qwen2.5:7b가 분석 결과의 keywords/domains/summary를 중국어로 생성하는 경우 발생
+
+**[2] buildRegeneratePrompt (비-CODE) — 문제 본문 한국어 강제**
+- 변경 전: 요구사항 3줄(동일 개념 다른 각도 + 간결 3~4문장 + 번호·보기·정답 제외)
+- 변경 후: `- 문제는 반드시 한국어로 작성하세요(기술 약어 제외).` 1줄 추가(총 4줄)
+- 이유: qwen2.5:7b가 재구성 문제 본문을 중국어로 출력하는 경우 발생
+
+**[3] buildRegenerateCodePrompt (CODE) — content·answer·코드 주석 한국어 강제**
+- 변경 전: 간결화 지시 이후 바로 JSON 반환 지시
+- 변경 후: `- content(문제 설명)와 answer는 반드시 한국어로 작성하세요. 코드 주석도 한국어로. 중국어·일본어를 섞지 마세요(기술 약어 제외).` 1줄 추가
+- 이유: CODE 재구성에서도 content와 answer, 코드 주석이 중국어로 생성되는 경우 발생
+
+### 복원 방법
+이 ID(HIST-20260702-001)만으로 복원 시 `QuestionAnalysisService.java`에서 아래 3줄을 제거한다.
+- `buildAnalyzePrompt`: `keywords, domains, summary는 모두 반드시 한국어로 ...` 줄 제거
+- `buildRegeneratePrompt`: `- 문제는 반드시 한국어로 작성하세요(기술 약어 제외).` 줄 제거
+- `buildRegenerateCodePrompt`: `- content(문제 설명)와 answer는 반드시 한국어로 ...` 줄 제거
+
+---
+
 ## HIST-20260701-003
 
 - **날짜**: 2026-07-01

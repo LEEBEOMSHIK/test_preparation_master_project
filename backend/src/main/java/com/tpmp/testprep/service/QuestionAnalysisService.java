@@ -102,6 +102,7 @@ public class QuestionAnalysisService {
                   "summary": "문제 핵심 내용 1~2문장 요약"
                 }
 
+                keywords, domains, summary는 모두 반드시 한국어로 작성하세요. 중국어·일본어 등 외국어를 절대 섞지 마세요. 단 널리 쓰이는 기술 용어·약어(예: SQL, HTTP, API, JVM)는 원문 그대로 사용해도 됩니다.
                 JSON만 반환하고 다른 텍스트는 절대 포함하지 마세요.
                 """.formatted(content, codeSection);
     }
@@ -136,6 +137,7 @@ public class QuestionAnalysisService {
                 - answer: 코드의 예상 출력/정답(plain text)
 
                 - code는 20줄 이내로 간결하게, content는 1~2문장, answer는 짧게 작성하세요
+                - content(문제 설명)와 answer는 반드시 한국어로 작성하세요. 코드 주석도 한국어로. 중국어·일본어를 섞지 마세요(기술 약어 제외).
 
                 반드시 JSON만 반환: {"content":"...","code":"...","answer":"..."} — 다른 텍스트 금지
                 """.formatted(
@@ -170,6 +172,7 @@ public class QuestionAnalysisService {
                 - 같은 개념을 다른 각도에서 묻는 새로운 문제를 만들어주세요
                 - 문제는 간결하게 3~4문장 이내로 작성하세요
                 - 문제 본문만 작성하고 번호, 보기(①②③), 정답은 포함하지 마세요
+                - 문제는 반드시 한국어로 작성하세요(기술 약어 제외).
                 """.formatted(
                 String.join(", ", req.keywords()),
                 String.join(", ", req.domains()),
