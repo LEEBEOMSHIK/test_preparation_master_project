@@ -1,3 +1,21 @@
+## HIST-20260701-002
+
+- **날짜**: 2026-07-01
+- **수정 범위**: 관리자 프론트엔드 / AI 문항 분석 — 재구성 결과 비교 UI
+- **수정 개요**: "문제 재구성"·"AI 문제 생성" 결과가 새 문항만 보여주고 "이 문제로 교체" 시 기존 문항을 즉시 덮어써 비교 불가하던 것을, 적용 전 **기존 문항 vs 재구성 문항 좌우 2열 비교**(모바일 세로 스택) UI로 개선. 관리자가 교체 전 확인 가능.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/QuestionAnalysisPanel.tsx` | 수정 | `RegenResult`에 `original?` prop 추가, `hasOriginal`이면 `grid grid-cols-1 md:grid-cols-2`로 기존(muted)·재구성(indigo 강조) 좌우 비교 렌더. 없으면 기존 단일 박스 폴백. 사용처 2곳(재구성·AI 생성 패널)에 `original={content}` 전달. |
+
+### 되돌림 방법
+
+`RegenResult`를 단일 content 박스로 되돌리고 `original` prop·비교 grid 제거, 사용처의 `original={content}` 제거.
+
+---
+
 ## HIST-20260701-001
 
 - **날짜**: 2026-07-01
