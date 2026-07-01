@@ -75,13 +75,34 @@ public class QuestionBank extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String explanation;
 
+    /** AI 분석 — 핵심 키워드 목록 */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "ai_keywords", columnDefinition = "jsonb")
+    private List<String> aiKeywords;
+
+    /** AI 분석 — 도메인 목록 */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "ai_domains", columnDefinition = "jsonb")
+    private List<String> aiDomains;
+
+    /** AI 분석 — 난이도 (하/중/상) */
+    @Column(name = "ai_difficulty", length = 10)
+    private String aiDifficulty;
+
+    /** AI 분석 — 문항 요약 */
+    @Column(name = "ai_summary", columnDefinition = "TEXT")
+    private String aiSummary;
+
     @Builder
     public QuestionBank(String title, Integer examYear, Integer examRound,
                         String content, QuestionType questionType,
                         DomainSlave category, DomainSlave examType,
                         List<String> options, String answer,
                         String code, String language,
-                        String explanation, Long createdByUno) {
+                        String explanation,
+                        List<String> aiKeywords, List<String> aiDomains,
+                        String aiDifficulty, String aiSummary,
+                        Long createdByUno) {
         this.title = title;
         this.examYear = examYear;
         this.examRound = examRound;
@@ -94,6 +115,10 @@ public class QuestionBank extends BaseEntity {
         this.code = code;
         this.language = language;
         this.explanation = explanation;
+        this.aiKeywords = aiKeywords;
+        this.aiDomains = aiDomains;
+        this.aiDifficulty = aiDifficulty;
+        this.aiSummary = aiSummary;
         initAudit(createdByUno);
     }
 
@@ -102,7 +127,10 @@ public class QuestionBank extends BaseEntity {
                        DomainSlave category, DomainSlave examType,
                        List<String> options, String answer,
                        String code, String language,
-                       String explanation, Long modifiedByUno) {
+                       String explanation,
+                       List<String> aiKeywords, List<String> aiDomains,
+                       String aiDifficulty, String aiSummary,
+                       Long modifiedByUno) {
         this.title = title;
         this.examYear = examYear;
         this.examRound = examRound;
@@ -115,6 +143,24 @@ public class QuestionBank extends BaseEntity {
         this.code = code;
         this.language = language;
         this.explanation = explanation;
+        this.aiKeywords = aiKeywords;
+        this.aiDomains = aiDomains;
+        this.aiDifficulty = aiDifficulty;
+        this.aiSummary = aiSummary;
+        updateAudit(modifiedByUno);
+    }
+
+    /**
+     * AI 분석 결과 즉시 저장 전용 — 4개 ai_* 컬럼만 갱신한다.
+     * 재분석 시 호출되어 기존값을 덮어쓴다.
+     */
+    public void updateAnalysis(List<String> keywords, List<String> domains,
+                               String difficulty, String summary,
+                               Long modifiedByUno) {
+        this.aiKeywords = keywords;
+        this.aiDomains = domains;
+        this.aiDifficulty = difficulty;
+        this.aiSummary = summary;
         updateAudit(modifiedByUno);
     }
 

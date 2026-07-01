@@ -45,5 +45,18 @@ public record QuestionBankRequest(
         String language,
 
         @Size(max = 5000, message = "해설은 5000자를 초과할 수 없습니다.")
-        String explanation
+        String explanation,
+
+        /** AI 분석 — 키워드 목록 (선택) */
+        List<String> aiKeywords,
+
+        /** AI 분석 — 도메인 목록 (선택) */
+        List<String> aiDomains,
+
+        /** AI 분석 — 난이도 (선택) */
+        @Size(max = 10, message = "난이도는 10자를 초과할 수 없습니다.")
+        String aiDifficulty,
+
+        /** AI 분석 — 요약 (선택) */
+        String aiSummary
 ) {}

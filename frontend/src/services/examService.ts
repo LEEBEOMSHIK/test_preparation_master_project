@@ -77,6 +77,10 @@ export const examService = {
     code?: string;
     language?: string;
     explanation?: string;
+    aiKeywords?: string[];
+    aiDomains?: string[];
+    aiDifficulty?: string;
+    aiSummary?: string;
   }>) =>
     apiClient.post<ApiResponse<{ created: number }>>('/admin/questions/bulk', { questions }),
 
@@ -96,6 +100,10 @@ export const examService = {
     code?: string;
     language?: string;
     explanation?: string;
+    aiKeywords?: string[];
+    aiDomains?: string[];
+    aiDifficulty?: string;
+    aiSummary?: string;
   }) =>
     apiClient.put<ApiResponse<QuestionSummary>>(`/admin/questions/${id}`, data),
 };

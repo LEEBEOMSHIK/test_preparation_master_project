@@ -21,6 +21,10 @@ public record QuestionBankResponse(
         String code,
         String language,
         String explanation,
+        List<String> aiKeywords,
+        List<String> aiDomains,
+        String aiDifficulty,
+        String aiSummary,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
@@ -41,6 +45,10 @@ public record QuestionBankResponse(
                 qb.getCode(),
                 qb.getLanguage(),
                 qb.getExplanation(),
+                qb.getAiKeywords(),
+                qb.getAiDomains(),
+                qb.getAiDifficulty(),
+                qb.getAiSummary(),
                 qb.getCreateDt(),
                 qb.getModifiedDt()
         );

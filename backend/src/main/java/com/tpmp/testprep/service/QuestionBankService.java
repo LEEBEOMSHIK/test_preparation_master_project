@@ -1,5 +1,6 @@
 package com.tpmp.testprep.service;
 
+import com.tpmp.testprep.dto.request.QuestionAnalysisSaveRequest;
 import com.tpmp.testprep.dto.request.QuestionBankBulkRequest;
 import com.tpmp.testprep.dto.request.QuestionBankRequest;
 import com.tpmp.testprep.dto.response.QuestionBankResponse;
@@ -61,6 +62,10 @@ public class QuestionBankService {
                 .code(request.code())
                 .language(request.language())
                 .explanation(request.explanation())
+                .aiKeywords(request.aiKeywords())
+                .aiDomains(request.aiDomains())
+                .aiDifficulty(request.aiDifficulty())
+                .aiSummary(request.aiSummary())
                 .createdByUno(adminId)
                 .build();
         return QuestionBankResponse.from(questionBankRepository.save(qb));
@@ -84,6 +89,10 @@ public class QuestionBankService {
                         .code(req.code())
                         .language(req.language())
                         .explanation(req.explanation())
+                        .aiKeywords(req.aiKeywords())
+                        .aiDomains(req.aiDomains())
+                        .aiDifficulty(req.aiDifficulty())
+                        .aiSummary(req.aiSummary())
                         .createdByUno(adminId)
                         .build())
                 .toList();
@@ -103,7 +112,22 @@ public class QuestionBankService {
                   category, examType,
                   request.options(), request.answer(),
                   request.code(), request.language(),
-                  request.explanation(), adminId);
+                  request.explanation(),
+                  request.aiKeywords(), request.aiDomains(),
+                  request.aiDifficulty(), request.aiSummary(),
+                  adminId);
+        return QuestionBankResponse.from(qb);
+    }
+
+    /**
+     * AI 분석 결과 즉시 저장 (재분석 시 덮어쓰기).
+     * 수정 화면에서 "분석 시작" → 성공 시 호출. 문항의 ai_* 4개 컬럼만 갱신한다.
+     */
+    @Transactional
+    public QuestionBankResponse saveAnalysis(Long id, QuestionAnalysisSaveRequest req, String adminEmail) {
+        Long adminId = resolveAdminId(adminEmail);
+        QuestionBank qb = findActive(id);
+        qb.updateAnalysis(req.keywords(), req.domains(), req.difficulty(), req.summary(), adminId);
         return QuestionBankResponse.from(qb);
     }
 

@@ -1,6 +1,7 @@
 package com.tpmp.testprep.controller;
 
 import com.tpmp.testprep.dto.request.QuestionAnalysisRequest;
+import com.tpmp.testprep.dto.request.QuestionAnalysisSaveRequest;
 import com.tpmp.testprep.dto.request.QuestionBankBulkRequest;
 import com.tpmp.testprep.dto.request.QuestionBankRequest;
 import com.tpmp.testprep.dto.request.QuestionRegenerateRequest;
@@ -93,6 +94,15 @@ public class AdminQuestionController {
     public ResponseEntity<ApiResponse<QuestionRegenerateResponse>> regenerate(
             @RequestBody QuestionRegenerateRequest request) {
         return ResponseEntity.ok(ApiResponse.success(questionAnalysisService.regenerate(request)));
+    }
+
+    /** 문항 AI 분석 결과 즉시 저장 (재분석 시 덮어쓰기) */
+    @PatchMapping("/{id}/analysis")
+    public ResponseEntity<ApiResponse<QuestionBankResponse>> saveAnalysis(
+            @PathVariable Long id,
+            @Valid @RequestBody QuestionAnalysisSaveRequest request,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.success(questionBankService.saveAnalysis(id, request, email)));
     }
 
     /** 문항 삭제 (소프트 삭제) */

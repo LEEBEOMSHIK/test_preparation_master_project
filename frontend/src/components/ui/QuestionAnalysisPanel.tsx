@@ -26,6 +26,10 @@ interface Props {
   code?: string;
   /** 코드 언어 (분석 프롬프트 표기용) */
   language?: string;
+  /** 화면 진입 / 문항 전환 시 복원할 기존 분석 결과 */
+  initialResult?: QuestionAnalysis;
+  /** 분석 성공 시(초기·재분석 모두) 호출 — 부모가 DB 저장 및 state 갱신에 사용 */
+  onAnalyzed?: (result: QuestionAnalysis) => void;
 }
 
 const DIFFICULTY_STYLE: Record<string, string> = {
@@ -164,7 +168,7 @@ function ToggleBtn({
 
 // ── 메인 패널 ───────────────────────────────────────────────────────────────────
 
-export function QuestionAnalysisPanel({ content, onApply, questionType, code, language }: Props) {
+export function QuestionAnalysisPanel({ content, onApply, questionType, code, language, initialResult, onAnalyzed }: Props) {
   const isCode = questionType === 'CODE';
 
   // 패널 열림 상태
@@ -174,8 +178,14 @@ export function QuestionAnalysisPanel({ content, onApply, questionType, code, la
 
   // 분석
   const [analyzing,    setAnalyzing]    = useState(false);
-  const [result,       setResult]       = useState<QuestionAnalysis | null>(null);
+  const [result,       setResult]       = useState<QuestionAnalysis | null>(initialResult ?? null);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+
+  // 화면 진입 / 문항 전환 시 initialResult로 복원
+  // 의존성을 [initialResult]로만 한정하여 재분석 결과(setResult)가 되돌려지지 않음
+  useEffect(() => {
+    setResult(initialResult ?? null);
+  }, [initialResult]);
 
   // 태그 저장
   const [saving,   setSaving]   = useState(false);
@@ -207,11 +217,19 @@ export function QuestionAnalysisPanel({ content, onApply, questionType, code, la
     setResult(null);
     try {
       const res = await questionAnalysisService.analyze(content, code, language);
-      if (res.data.success && res.data.data) setResult(res.data.data);
-      else setAnalyzeError('분석 결과를 받아오지 못했습니다.');
+      if (res.data.success && res.data.data) {
+        setResult(res.data.data);
+        onAnalyzed?.(res.data.data);
+      } else {
+        setAnalyzeError('분석 결과를 받아오지 못했습니다.');
+      }
     } catch (err) {
-      if (isUnavailable(err)) setResult(MOCK_RESULT);
-      else setAnalyzeError('AI 분석 중 오류가 발생했습니다.');
+      if (isUnavailable(err)) {
+        setResult(MOCK_RESULT);
+        onAnalyzed?.(MOCK_RESULT);
+      } else {
+        setAnalyzeError('AI 분석 중 오류가 발생했습니다.');
+      }
     } finally {
       setAnalyzing(false);
     }

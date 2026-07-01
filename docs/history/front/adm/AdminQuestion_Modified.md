@@ -1,4 +1,58 @@
-﻿## HIST-20260701-004
+﻿## HIST-20260701-005
+
+- **날짜**: 2026-07-01
+- **수정 범위**: 관리자 프론트엔드 / 문항 AI 분석 결과 영속화 — 분석 즉시저장(PATCH), 수정화면 복원, 신규등록 submit 시 저장, 재분석 덮어쓰기
+- **수정 개요**: AI 분석 결과(keywords·domains·difficulty·summary)를 수정 화면에서 즉시 PATCH 저장하고, 재진입 시 initialResult로 복원. 신규 등록(new)은 submit payload에 포함. 재분석 시 덮어쓰기 보장.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/questionAnalysisService.ts` | 수정 | saveAnalysis(id, data) PATCH 메서드 추가 |
+| `frontend/src/services/examService.ts` | 수정 | adminCreateQuestionsBulk·adminUpdateQuestion 타입에 aiKeywords/aiDomains/aiDifficulty/aiSummary optional 추가 |
+| `frontend/src/types/index.ts` | 수정 | QuestionSummary에 aiKeywords?/aiDomains?/aiDifficulty?/aiSummary? 4필드 추가 |
+| `frontend/src/components/ui/QuestionAnalysisPanel.tsx` | 수정 | Props에 initialResult?/onAnalyzed? 추가; result 초기값=initialResult; useEffect([initialResult]) 동기화; handleAnalyze 성공·MOCK 폴백 모두 onAnalyzed 호출 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | FormState에 aiAnalysis 추가; 문항 로드 시 aiAnalysis 복원; handleAnalyzed 콜백(state갱신+silent PATCH); QuestionAnalysisPanel 두 위치에 initialResult/onAnalyzed 전달; handleSubmit payload에 ai 4필드 추가 |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | QuestionDraft에 aiAnalysis 추가; emptyDraft에 null; parseTextToQuestions·simulateFileParse 생성 draft에 aiAnalysis:null; ManualQuestionCard Props에 onAnalyzed 추가; QuestionAnalysisPanel 두 위치에 initialResult/onAnalyzed 전달; updateManualQuestion 타입 QuestionAnalysis 포함; 호출측 onAnalyzed 전달; handleSubmit payload에 ai 4필드 추가 |
+
+### 수정 상세
+
+#### `questionAnalysisService.ts`
+- 변경 전: analyze, regenerate 2개 메서드
+- 변경 후: saveAnalysis(id, data) PATCH `/admin/questions/${id}/analysis` 추가
+
+#### `examService.ts`
+- 변경 전: adminCreateQuestionsBulk·adminUpdateQuestion 타입에 ai 필드 없음
+- 변경 후: aiKeywords?·aiDomains?·aiDifficulty?·aiSummary? optional 추가
+
+#### `types/index.ts`
+- 변경 전: QuestionSummary에 ai 필드 없음
+- 변경 후: aiKeywords?/aiDomains?/aiDifficulty?/aiSummary? 4필드 추가
+
+#### `QuestionAnalysisPanel.tsx`
+- 변경 전: Props에 initialResult/onAnalyzed 없음; result 초기값 null; handleAnalyze에 onAnalyzed 없음
+- 변경 후: initialResult?/onAnalyzed? Props 추가; result 초기값=initialResult??null; useEffect(() => setResult(initialResult??null), [initialResult]) 복원 훅; handleAnalyze 정상/MOCK 폴백 양쪽 onAnalyzed?.(result) 호출
+
+#### `edit/page.tsx`
+- 변경 전: FormState에 aiAnalysis 없음; 문항 로드 시 ai 필드 무시; QuestionAnalysisPanel에 initialResult/onAnalyzed 없음; submit payload에 ai 필드 없음
+- 변경 후: FormState.aiAnalysis: QuestionAnalysis|null 추가; 로드 시 q.aiKeywords&&q.aiDomains 있으면 {keywords,domains,difficulty,summary}로 세팅; handleAnalyzed = update('aiAnalysis',result)+saveAnalysis(id,result).catch(()=>{}); 패널 두 곳에 initialResult/onAnalyzed 전달; submit에 aiKeywords/aiDomains/aiDifficulty/aiSummary 추가
+
+#### `new/page.tsx`
+- 변경 전: QuestionDraft에 aiAnalysis 없음; ManualQuestionCard onAnalyzed 없음; submit에 ai 없음
+- 변경 후: QuestionDraft.aiAnalysis 추가; emptyDraft/parseTextToQuestions/simulateFileParse aiAnalysis:null; ManualQuestionCard Props onAnalyzed:(result:QuestionAnalysis)=>void 추가; 패널 두 곳에 initialResult/onAnalyzed 전달; 호출측 onAnalyzed={(result)=>updateManualQuestion(q.localId,'aiAnalysis',result)}; submit payload에 ai 4필드 추가(ImportedDraft는 null→undefined)
+
+### 복원 방법
+이 ID(HIST-20260701-005)만으로 복원 시:
+- `questionAnalysisService.ts`: saveAnalysis 메서드 제거
+- `examService.ts`: adminCreateQuestionsBulk·adminUpdateQuestion에서 ai 4필드 제거
+- `types/index.ts`: QuestionSummary에서 ai 4필드 제거
+- `QuestionAnalysisPanel.tsx`: Props에서 initialResult/onAnalyzed 제거; result 초기값 null; useEffect([initialResult]) 제거; handleAnalyze에서 onAnalyzed 호출 제거
+- `edit/page.tsx`: FormState.aiAnalysis 제거; 로드 시 ai 복원 제거; handleAnalyzed 제거; 패널 Props initialResult/onAnalyzed 제거; submit payload ai 4필드 제거
+- `new/page.tsx`: QuestionDraft.aiAnalysis 제거; ManualQuestionCard onAnalyzed 제거; 드래프트 생성 시 aiAnalysis:null 제거; 패널 Props initialResult/onAnalyzed 제거; 호출측 onAnalyzed 제거; submit payload ai 필드 제거
+
+---
+
+## HIST-20260701-004
 
 - **날짜**: 2026-07-01
 - **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정·분석 패널 — CODE 재구성 code+answer 확장, onApply 콜백 재설계, RegenResult 겹침 수정

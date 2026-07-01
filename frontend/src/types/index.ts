@@ -120,6 +120,11 @@ export interface QuestionSummary {
   categoryName?: string;
   examTypeId?: number;
   examTypeName?: string;
+  /** AI 분석 결과 (미분석 시 undefined/null) */
+  aiKeywords?: string[];
+  aiDomains?: string[];
+  aiDifficulty?: string;
+  aiSummary?: string;
   createdAt: string;
   updatedAt?: string;
 }

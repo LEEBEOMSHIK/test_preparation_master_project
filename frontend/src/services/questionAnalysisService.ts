@@ -32,4 +32,11 @@ export const questionAnalysisService = {
 
   regenerate: (data: RegenerateRequest) =>
     apiClient.post<ApiResponse<QuestionRegenerate>>('/admin/questions/regenerate', data, AI_TIMEOUT),
+
+  /** AI 분석 결과 즉시 저장 / 재분석 시 덮어쓰기 */
+  saveAnalysis: (id: number, data: QuestionAnalysis) =>
+    apiClient.patch<ApiResponse<Record<string, unknown>>>(
+      `/admin/questions/${id}/analysis`,
+      { keywords: data.keywords, domains: data.domains, difficulty: data.difficulty, summary: data.summary },
+    ),
 };

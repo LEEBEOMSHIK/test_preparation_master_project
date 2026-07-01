@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { examService } from '@/services/examService';
 import { domainService } from '@/services/domainService';
+import { questionAnalysisService, type QuestionAnalysis } from '@/services/questionAnalysisService';
 import type { QuestionType, DomainMaster, DomainSlave } from '@/types';
 import { CodeEditor } from '@/components/ui/CodeEditor';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
@@ -54,6 +55,8 @@ interface FormState {
   explanation:  string;
   categoryId:   number | null;
   examTypeId:   number | null;
+  /** AI 분석 결과 (미분석 시 null) */
+  aiAnalysis:   QuestionAnalysis | null;
 }
 
 const defaultForm = (): FormState => ({
@@ -69,6 +72,7 @@ const defaultForm = (): FormState => ({
   explanation:  '',
   categoryId:   null,
   examTypeId:   null,
+  aiAnalysis:   null,
 });
 
 // ── Page ───────────────────────────────────────────────────────────────────────
@@ -114,14 +118,28 @@ export default function AdminQuestionEditPage() {
           explanation:  q.explanation ?? '',
           categoryId:   q.categoryId ?? null,
           examTypeId:   q.examTypeId ?? null,
+          aiAnalysis:   q.aiKeywords && q.aiDomains
+            ? {
+                keywords:   q.aiKeywords,
+                domains:    q.aiDomains,
+                difficulty: (q.aiDifficulty as QuestionAnalysis['difficulty']) ?? '중',
+                summary:    q.aiSummary ?? '',
+              }
+            : null,
         });
       })
       .catch(() => setError('문항 정보를 불러오지 못했습니다.'))
       .finally(() => setFetching(false));
   }, [id]);
 
-  const update = (field: keyof FormState, value: string | string[] | number | null) =>
+  const update = (field: keyof FormState, value: string | string[] | number | null | QuestionAnalysis) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  /** AI 분석 완료 콜백 — state 갱신 + DB 즉시 저장(silent 실패) */
+  const handleAnalyzed = (result: QuestionAnalysis) => {
+    update('aiAnalysis', result);
+    questionAnalysisService.saveAnalysis(id, result).catch(() => {});
+  };
 
   const handleTypeChange = (type: QuestionType) => {
     setForm((prev) => ({
@@ -156,6 +174,10 @@ export default function AdminQuestionEditPage() {
         code:         form.code   || undefined,
         language:     form.language || undefined,
         explanation:  form.explanation || undefined,
+        aiKeywords:   form.aiAnalysis?.keywords,
+        aiDomains:    form.aiAnalysis?.domains,
+        aiDifficulty: form.aiAnalysis?.difficulty,
+        aiSummary:    form.aiAnalysis?.summary,
       });
       router.push('/admin/exams/questions');
     } catch {
@@ -342,6 +364,8 @@ export default function AdminQuestionEditPage() {
                 content={form.content}
                 questionType={form.questionType}
                 onApply={(p) => update('content', p.content)}
+                initialResult={form.aiAnalysis ?? undefined}
+                onAnalyzed={handleAnalyzed}
               />
             )}
           </div>
@@ -396,6 +420,8 @@ export default function AdminQuestionEditPage() {
                 if (p.code !== undefined) update('code', p.code);
                 if (p.answer !== undefined) update('answer', p.answer);
               }}
+              initialResult={form.aiAnalysis ?? undefined}
+              onAnalyzed={handleAnalyzed}
             />
           )}
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { examService } from '@/services/examService';
 import { domainService } from '@/services/domainService';
+import { type QuestionAnalysis } from '@/services/questionAnalysisService';
 import type { QuestionType, DomainSlave, DomainMaster } from '@/types';
 import { CodeEditor } from '@/components/ui/CodeEditor';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
@@ -53,6 +54,8 @@ interface QuestionDraft {
   language:     string;
   categoryId:   number | null;
   examTypeId:   number | null;
+  /** AI 분석 결과 (미분석 시 null) */
+  aiAnalysis:   QuestionAnalysis | null;
 }
 
 interface ImportedDraft extends QuestionDraft {
@@ -78,6 +81,7 @@ const emptyDraft = (): QuestionDraft => ({
   language:     'javascript',
   categoryId:   null,
   examTypeId:   null,
+  aiAnalysis:   null,
 });
 
 function parseTextToQuestions(text: string): ImportedDraft[] {
@@ -94,6 +98,7 @@ function parseTextToQuestions(text: string): ImportedDraft[] {
         code: '', language: 'other',
         categoryId: null,
         examTypeId: null,
+        aiAnalysis: null,
         excluded: false, sourceHint: '클립보드',
       });
     }
@@ -136,6 +141,7 @@ async function simulateFileParse(file: File): Promise<ImportedDraft[]> {
           answer: '1', code: '', language: 'other',
           categoryId: null,
           examTypeId: null,
+          aiAnalysis: null,
           excluded: false, sourceHint: file.name,
         })),
       );
@@ -146,14 +152,15 @@ async function simulateFileParse(file: File): Promise<ImportedDraft[]> {
 // ── ManualQuestionCard ─────────────────────────────────────────────────────────
 
 function ManualQuestionCard({
-  draft, index, total, onChange, onRemove,
+  draft, index, total, onChange, onRemove, onAnalyzed,
   examTypeSlaves, questionTypeSlaves, examYearSlaves, examRoundSlaves,
 }: {
   draft:              QuestionDraft;
   index:              number;
   total:              number;
-  onChange:           (field: string, value: string | string[] | number | null) => void;
+  onChange:           (field: string, value: string | string[] | number | null | QuestionAnalysis) => void;
   onRemove:           () => void;
+  onAnalyzed:         (result: QuestionAnalysis) => void;
   examTypeSlaves:     DomainSlave[];
   questionTypeSlaves: DomainSlave[];
   examYearSlaves:     DomainSlave[];
@@ -331,6 +338,8 @@ function ManualQuestionCard({
               content={draft.content}
               questionType={draft.questionType}
               onApply={(p) => onChange('content', p.content)}
+              initialResult={draft.aiAnalysis ?? undefined}
+              onAnalyzed={onAnalyzed}
             />
           )}
         </div>
@@ -393,6 +402,8 @@ function ManualQuestionCard({
               if (p.code !== undefined) onChange('code', p.code);
               if (p.answer !== undefined) onChange('answer', p.answer);
             }}
+            initialResult={draft.aiAnalysis ?? undefined}
+            onAnalyzed={onAnalyzed}
           />
         )}
 
@@ -522,7 +533,7 @@ export default function AdminQuestionNewPage() {
   const removeManualQuestion = (id: string) =>
     setManualQuestions((p) => p.filter((q) => q.localId !== id));
 
-  const updateManualQuestion = (id: string, field: string, value: string | string[] | number | null) =>
+  const updateManualQuestion = (id: string, field: string, value: string | string[] | number | null | QuestionAnalysis) =>
     setManualQuestions((p) => p.map((q) => (q.localId === id ? { ...q, [field]: value } : q)));
 
   // ── File / clipboard helpers ─────────────────────────────────────────────────
@@ -634,6 +645,11 @@ export default function AdminQuestionNewPage() {
           answer:       q.answer || undefined,
           code:         q.code   || undefined,
           language:     q.language || undefined,
+          // aiAnalysis는 ManualQuestionDraft에만 존재; ImportedDraft는 null로 전송
+          aiKeywords:   q.aiAnalysis?.keywords,
+          aiDomains:    q.aiAnalysis?.domains,
+          aiDifficulty: q.aiAnalysis?.difficulty,
+          aiSummary:    q.aiAnalysis?.summary,
         })),
       );
       router.push('/admin/exams/questions');
@@ -705,6 +721,7 @@ export default function AdminQuestionNewPage() {
               examRoundSlaves={examRoundSlaves}
               onChange={(field, value) => updateManualQuestion(q.localId, field, value)}
               onRemove={() => removeManualQuestion(q.localId)}
+              onAnalyzed={(result) => updateManualQuestion(q.localId, 'aiAnalysis', result)}
             />
           ))}
           <button
