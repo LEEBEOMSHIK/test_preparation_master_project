@@ -1,4 +1,44 @@
-﻿## HIST-20260702-001
+﻿## HIST-20260703-001
+
+- **날짜**: 2026-07-03
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리 목록 — 검색 시험연도·회차 input→select 콤보박스
+- **수정 개요**: 문항관리 검색 패널의 시험연도·회차 조건을 `<input type="number">`에서 `allQuestions` 데이터 기반 `<select>` 콤보박스로 교체. yearOptions(내림차순)/roundOptions(오름차순) useMemo 추가. TypeScript strict `filter((v): v is number => v != null)` 적용.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | yearOptions·roundOptions useMemo 추가; 시험연도 input(w-24)→select(w-28); 회차 input→select; onKeyDown Enter 제거 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/page.tsx`
+
+**[1] yearOptions useMemo 추가 (categoryOptions 블록 직후)**
+- 변경 전: 없음
+- 변경 후: `allQuestions.map(q => q.examYear).filter((v): v is number => v != null)` → Set 중복제거 → 내림차순 정렬
+
+**[2] roundOptions useMemo 추가**
+- 변경 전: 없음
+- 변경 후: `allQuestions.map(q => q.examRound).filter((v): v is number => v != null)` → Set 중복제거 → 오름차순 정렬
+
+**[3] 시험연도 입력 교체**
+- 변경 전: `<div className="w-24">` + `<input type="number" placeholder="예: 2024" onKeyDown Enter→handleSearch />`
+- 변경 후: `<div className="w-28">` + `<select>전체 + yearOptions.map(y => {y}년)</select>`
+
+**[4] 회차 입력 교체**
+- 변경 전: `<div className="w-24">` + `<input type="number" placeholder="예: 1" onKeyDown Enter→handleSearch />`
+- 변경 후: `<div className="w-24">` + `<select>전체 + roundOptions.map(r => 제{r}회)</select>`
+
+### 복원 방법
+이 ID(HIST-20260703-001)만으로 복원 시:
+- `yearOptions`·`roundOptions` useMemo 2개 제거
+- 시험연도: `<div className="w-28">` → `<div className="w-24">`, select → `<input type="number" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} placeholder="예: 2024" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" />`
+- 회차: select → `<input type="number" value={roundFilter} onChange={(e) => setRoundFilter(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} placeholder="예: 1" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" />`
+
+---
+
+## HIST-20260702-001
 
 - **날짜**: 2026-07-02
 - **수정 범위**: 관리자 프론트엔드 / AI 문항 분석 패널 — keyword_tag 전역 태그 사전 완전 제거, AI 문제 생성 태그 직접입력화

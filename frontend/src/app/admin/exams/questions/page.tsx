@@ -126,6 +126,22 @@ export default function AdminQuestionsPage() {
     return Array.from(new Set(names)).sort();
   }, [allQuestions]);
 
+  // 시험연도 옵션: distinct, 내림차순(최신 연도 위)
+  const yearOptions = useMemo(() => {
+    const years = allQuestions
+      .map((q) => q.examYear)
+      .filter((v): v is number => v != null);
+    return Array.from(new Set(years)).sort((a, b) => b - a);
+  }, [allQuestions]);
+
+  // 회차 옵션: distinct, 오름차순
+  const roundOptions = useMemo(() => {
+    const rounds = allQuestions
+      .map((q) => q.examRound)
+      .filter((v): v is number => v != null);
+    return Array.from(new Set(rounds)).sort((a, b) => a - b);
+  }, [allQuestions]);
+
   const filtered = useMemo(() => {
     const kw     = appliedKeyword.trim().toLowerCase();
     const fromMs = appliedDateFrom ? new Date(appliedDateFrom).getTime() : null;
@@ -233,28 +249,32 @@ export default function AdminQuestionsPage() {
             </select>
           </div>
 
-          <div className="w-24">
+          <div className="w-28">
             <label className="block text-xs font-medium text-gray-500 mb-1">시험연도</label>
-            <input
-              type="number"
+            <select
               value={yearFilter}
               onChange={(e) => setYearFilter(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="예: 2024"
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-            />
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            >
+              <option value="">전체</option>
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>{y}년</option>
+              ))}
+            </select>
           </div>
 
           <div className="w-24">
             <label className="block text-xs font-medium text-gray-500 mb-1">회차</label>
-            <input
-              type="number"
+            <select
               value={roundFilter}
               onChange={(e) => setRoundFilter(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="예: 1"
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-            />
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            >
+              <option value="">전체</option>
+              {roundOptions.map((r) => (
+                <option key={r} value={r}>제{r}회</option>
+              ))}
+            </select>
           </div>
 
           <div>
