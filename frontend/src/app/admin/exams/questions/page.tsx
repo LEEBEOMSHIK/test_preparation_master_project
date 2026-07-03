@@ -376,29 +376,37 @@ export default function AdminQuestionsPage() {
                     No.
                     <span
                       onMouseDown={(e) => startResize(0, e)}
-                      className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none bg-gray-300 hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:hover:bg-indigo-500"
-                    />
+                      className="group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center"
+                    >
+                      <span className="w-px h-full bg-gray-300 group-hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:group-hover:bg-indigo-500" />
+                    </span>
                   </th>
                   <th className="relative px-4 py-3">
                     문항 제목 / 내용
                     <span
                       onMouseDown={(e) => startResize(1, e)}
-                      className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none bg-gray-300 hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:hover:bg-indigo-500"
-                    />
+                      className="group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center"
+                    >
+                      <span className="w-px h-full bg-gray-300 group-hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:group-hover:bg-indigo-500" />
+                    </span>
                   </th>
                   <th className="relative px-4 py-3 text-center whitespace-nowrap">
                     유형
                     <span
                       onMouseDown={(e) => startResize(2, e)}
-                      className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none bg-gray-300 hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:hover:bg-indigo-500"
-                    />
+                      className="group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center"
+                    >
+                      <span className="w-px h-full bg-gray-300 group-hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:group-hover:bg-indigo-500" />
+                    </span>
                   </th>
                   <th className="relative px-4 py-3 text-center whitespace-nowrap">
                     카테고리
                     <span
                       onMouseDown={(e) => startResize(3, e)}
-                      className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none bg-gray-300 hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:hover:bg-indigo-500"
-                    />
+                      className="group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center"
+                    >
+                      <span className="w-px h-full bg-gray-300 group-hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:group-hover:bg-indigo-500" />
+                    </span>
                   </th>
                   <th className="relative px-4 py-3 whitespace-nowrap">
                     <button
@@ -410,8 +418,10 @@ export default function AdminQuestionsPage() {
                     </button>
                     <span
                       onMouseDown={(e) => startResize(4, e)}
-                      className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none bg-gray-300 hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:hover:bg-indigo-500"
-                    />
+                      className="group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center"
+                    >
+                      <span className="w-px h-full bg-gray-300 group-hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:group-hover:bg-indigo-500" />
+                    </span>
                   </th>
                   <th className="relative px-4 py-3 whitespace-nowrap">
                     <button
@@ -423,8 +433,10 @@ export default function AdminQuestionsPage() {
                     </button>
                     <span
                       onMouseDown={(e) => startResize(5, e)}
-                      className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none bg-gray-300 hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:hover:bg-indigo-500"
-                    />
+                      className="group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center"
+                    >
+                      <span className="w-px h-full bg-gray-300 group-hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:group-hover:bg-indigo-500" />
+                    </span>
                   </th>
                   <th className="relative px-4 py-3 text-center whitespace-nowrap">관리</th>
                 </tr>
