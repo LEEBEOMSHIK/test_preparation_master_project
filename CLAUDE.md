@@ -84,8 +84,8 @@ docker-compose.yml
 2. 수정 파일 3개↑ · 파일 간 의존관계 있음 · 설계 옵션 2개↑ → webapp-planner 사용.
 3. 단순 파일 읽기(경로가 이미 알려진 경우)는 Read·Grep 직접 사용한다.
 4. 작업 결과가 CLAUDE.md에 영향 시 webapp-developer가 즉시 이 파일을 업데이트한다.
-5. 신규 기능 구현·보안 변경·리팩토링 완료 후 webapp-verifier가 컨벤션·타입·히스토리를 정적 점검한다.
-6. 정적 검증 통과 후 webapp-tester가 빌드·테스트·타입체크를 실제 실행해 런타임 결함을 확인한다.
+5. **webapp-developer 구현이 끝나면 규모·파일 수와 무관하게** webapp-verifier가 컨벤션·타입·누락·히스토리를 정적 점검한다. 단일 파일·소규모 변경이라도 메인이 직접 `tsc`·`grep`만으로 이 단계를 갈음해 건너뛰지 않는다.
+6. 정적 검증 통과 후 webapp-tester가 빌드·타입체크·테스트를 실제 실행해 런타임 결함을 확인한다. dev 서버 가동 중이면 `npm run build`(.next 캐시 충돌) 대신 `npx tsc --noEmit`·lint 위주로 실행한다.
 
 ---
 
