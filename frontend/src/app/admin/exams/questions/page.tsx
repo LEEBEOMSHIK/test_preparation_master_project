@@ -8,6 +8,7 @@ import { TableSkeleton } from '@/components/ui/Skeleton';
 import type { QuestionSummary, QuestionType } from '@/types';
 import { stripHtml } from '@/lib/html';
 import { QuestionDetailModal, type QuestionDetailItem } from '@/components/ui/QuestionDetailModal';
+import { useColumnResize } from '@/lib/useColumnResize';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -75,6 +76,12 @@ export default function AdminQuestionsPage() {
   // 페이지네이션
   const [page,     setPage]     = useState(0);
   const [pageSize, setPageSize] = useState<10 | 20 | 50>(10);
+
+  // 컬럼 드래그 리사이즈 (No. / 문항제목 / 유형 / 카테고리 / 등록일 / 수정일 / 관리)
+  const { widths, startResize } = useColumnResize(
+    'tpmp:admin-questions:col-widths',
+    [56, 360, 96, 112, 112, 112, 160],
+  );
 
   useEffect(() => {
     examService
@@ -357,32 +364,69 @@ export default function AdminQuestionsPage() {
               </div>
             </div>
 
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
+              <colgroup>
+                {widths.map((w, i) => (
+                  <col key={i} style={{ width: w }} />
+                ))}
+              </colgroup>
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs text-gray-500 font-medium uppercase tracking-wide">
-                  <th className="px-4 py-3 w-12 text-center whitespace-nowrap">No.</th>
-                  <th className="px-4 py-3">문항 제목 / 내용</th>
-                  <th className="px-4 py-3 w-24 text-center whitespace-nowrap">유형</th>
-                  <th className="px-4 py-3 w-28 text-center whitespace-nowrap">카테고리</th>
-                  <th className="px-4 py-3 w-28 whitespace-nowrap">
+                  <th className="relative px-4 py-3 text-center whitespace-nowrap">
+                    No.
+                    <span
+                      onMouseDown={(e) => startResize(0, e)}
+                      className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none bg-gray-300 hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:hover:bg-indigo-500"
+                    />
+                  </th>
+                  <th className="relative px-4 py-3">
+                    문항 제목 / 내용
+                    <span
+                      onMouseDown={(e) => startResize(1, e)}
+                      className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none bg-gray-300 hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:hover:bg-indigo-500"
+                    />
+                  </th>
+                  <th className="relative px-4 py-3 text-center whitespace-nowrap">
+                    유형
+                    <span
+                      onMouseDown={(e) => startResize(2, e)}
+                      className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none bg-gray-300 hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:hover:bg-indigo-500"
+                    />
+                  </th>
+                  <th className="relative px-4 py-3 text-center whitespace-nowrap">
+                    카테고리
+                    <span
+                      onMouseDown={(e) => startResize(3, e)}
+                      className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none bg-gray-300 hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:hover:bg-indigo-500"
+                    />
+                  </th>
+                  <th className="relative px-4 py-3 whitespace-nowrap">
                     <button
                       onClick={() => handleSort('createdAt')}
-                      className="inline-flex items-center hover:text-gray-700 transition"
+                      className="inline-flex items-center hover:text-gray-700 transition pr-2"
                     >
                       등록일
                       <SortIcon active={sortField === 'createdAt'} dir={sortDir} />
                     </button>
+                    <span
+                      onMouseDown={(e) => startResize(4, e)}
+                      className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none bg-gray-300 hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:hover:bg-indigo-500"
+                    />
                   </th>
-                  <th className="px-4 py-3 w-28 whitespace-nowrap">
+                  <th className="relative px-4 py-3 whitespace-nowrap">
                     <button
                       onClick={() => handleSort('updatedAt')}
-                      className="inline-flex items-center hover:text-gray-700 transition"
+                      className="inline-flex items-center hover:text-gray-700 transition pr-2"
                     >
                       수정일
                       <SortIcon active={sortField === 'updatedAt'} dir={sortDir} />
                     </button>
+                    <span
+                      onMouseDown={(e) => startResize(5, e)}
+                      className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none bg-gray-300 hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:hover:bg-indigo-500"
+                    />
                   </th>
-                  <th className="px-4 py-3 w-40 text-center whitespace-nowrap">관리</th>
+                  <th className="relative px-4 py-3 text-center whitespace-nowrap">관리</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -411,7 +455,7 @@ export default function AdminQuestionsPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap overflow-hidden">
                       <span className={[
                         'inline-block px-2 py-0.5 rounded-full text-xs font-medium',
                         TYPE_COLOR[q.questionType],
@@ -419,7 +463,7 @@ export default function AdminQuestionsPage() {
                         {TYPE_LABEL[q.questionType]}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap overflow-hidden">
                       {q.categoryName ? (
                         <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                           {q.categoryName}
@@ -428,10 +472,10 @@ export default function AdminQuestionsPage() {
                         <span className="text-xs text-gray-300">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3.5 text-gray-400 whitespace-nowrap">
+                    <td className="px-4 py-3.5 text-gray-400 whitespace-nowrap overflow-hidden">
                       {fmtDate(q.createdAt)}
                     </td>
-                    <td className="px-4 py-3.5 text-gray-400 whitespace-nowrap">
+                    <td className="px-4 py-3.5 text-gray-400 whitespace-nowrap overflow-hidden">
                       {q.updatedAt ? fmtDate(q.updatedAt) : '-'}
                     </td>
                     <td className="px-4 py-3.5 text-center">

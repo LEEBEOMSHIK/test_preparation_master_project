@@ -1,4 +1,118 @@
-﻿## HIST-20260703-001
+﻿## HIST-20260703-004
+
+- **날짜**: 2026-07-03
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리 목록 — 리사이즈 핸들 시각성 개선 (HIST-20260703-002 후속)
+- **수정 개요**: 컬럼 리사이즈 핸들이 평소 배경 없이 `hover:bg-indigo-300`만 있어 경계가 안 보이던 문제 해결. 핸들 span 6개(인덱스 0~5)에 평소 표시용 `bg-gray-300`(다크 `dark:bg-gray-600`) + hover 강조 `hover:bg-indigo-400`(다크 `dark:hover:bg-indigo-500`) + `transition-colors` 적용.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | 리사이즈 핸들 6개 className에 평소 구분선 색(bg-gray-300/dark:bg-gray-600) + hover 강조(indigo-400/500) + transition-colors 추가 |
+
+### 되돌림 방법
+
+핸들 span className을 `absolute top-0 right-0 h-full w-1 cursor-col-resize select-none hover:bg-indigo-300`으로 원복.
+
+---
+
+## HIST-20260703-003
+
+- **날짜**: 2026-07-03
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리 목록 — 리사이즈 UX 완성도 개선 (HIST-20260703-002 후속)
+- **수정 개요**: (1) table-fixed 전환 후 컬럼을 좁힐 때 유형·카테고리·등록일·수정일 td 내용이 인접 셀로 시각 넘침 — `overflow-hidden` 추가. (2) 드래그 도중 컴포넌트 언마운트 시 mousemove/mouseup 리스너 잔존 + body 스타일 미복원 문제 — `activeCleanupRef` + 언마운트 `useEffect` cleanup 추가.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | 유형·카테고리 td에 `overflow-hidden` 추가(2개); 등록일·수정일 td에 `overflow-hidden` 추가(2개) |
+| `frontend/src/lib/useColumnResize.ts` | 수정 | `activeCleanupRef` useRef 추가; 언마운트 `useEffect` cleanup 추가; `removeListeners` 공통 함수로 리팩토링(정상 mouseup·언마운트 양쪽 재사용) |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/page.tsx`
+- **유형 td**: `className="px-4 py-3.5 text-center whitespace-nowrap"` → `"... overflow-hidden"` 추가
+- **카테고리 td**: 동일 패턴 적용
+- **등록일 td**: `className="px-4 py-3.5 text-gray-400 whitespace-nowrap"` → `"... overflow-hidden"` 추가
+- **수정일 td**: 동일 패턴 적용
+- 제목/내용 td는 이미 `max-w-0` + inner `truncate` 적용 중 → 변경 없음
+- No. td, 관리 td는 내용 특성상 overflow 불필요 → 변경 없음
+
+#### `frontend/src/lib/useColumnResize.ts`
+- 변경 전: `onMouseUp` 안에서만 리스너 제거. 드래그 중 언마운트 시 `mousemove`·`mouseup` 리스너 잔존, `document.body.userSelect/cursor` 미복원
+- 변경 후:
+  - `activeCleanupRef = useRef<(() => void) | null>(null)` 추가
+  - `useEffect(() => () => { activeCleanupRef.current?.(); }, [])` 언마운트 cleanup 추가
+  - `startResize` 내부: `removeListeners()` 공통 함수(스타일 복원 + 양쪽 리스너 제거 + ref null화)로 추출
+  - `onMouseUp`은 `removeListeners()` 호출 후 localStorage 저장만 담당
+  - `document.addEventListener` 직후 `activeCleanupRef.current = removeListeners` 등록
+
+### 복원 방법
+이 ID(HIST-20260703-003)만으로 복원 시:
+- `page.tsx`: 유형·카테고리 td className에서 `overflow-hidden` 제거(2개), 등록일·수정일 td에서 제거(2개)
+- `useColumnResize.ts`: `activeCleanupRef` 선언 제거; 언마운트 `useEffect` 제거; `removeListeners` 인라인 제거 후 이전 `onMouseUp` 구조(직접 스타일 복원 + 리스너 제거 + localStorage 저장) 복원
+
+---
+
+## HIST-20260703-002
+
+- **날짜**: 2026-07-03
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리 목록 — 테이블 컬럼 드래그 리사이즈 + localStorage 영속
+- **수정 개요**: 문항관리 목록 표의 컬럼 너비를 th 경계 핸들 드래그로 조절하는 기능 추가. 조절된 너비는 localStorage(`tpmp:admin-questions:col-widths`)에 저장되어 새로고침 후에도 유지. 공통 훅 `useColumnResize`(SSR 안전, 최소 40px 제한, 드래그 중 텍스트 선택 방지) 신설. 라이브러리 없이 순수 React+document 이벤트로 구현.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/useColumnResize.ts` | 추가 | 컬럼 드래그 리사이즈 훅 신규 생성. storageKey·defaultWidths 수신 → widths 배열 + startResize 핸들러 반환 |
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | useColumnResize import·훅 호출 추가; table에 `table-fixed`; `<colgroup>` 삽입; 7개 th에서 고정폭 클래스 제거 + `relative` 추가 + 핸들 `<span>` 삽입(마지막 컬럼 제외); 등록일·수정일 정렬 버튼에 `pr-2` 추가(핸들 겹침 방지) |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `useColumnResize` 행 추가 |
+
+### 수정 상세
+
+#### `frontend/src/lib/useColumnResize.ts` (신규)
+- 변경 전: 존재하지 않음
+- 변경 후: `useColumnResize(storageKey, defaultWidths)` 훅. 초기화 시 localStorage[storageKey] 파싱(길이 불일치·파싱 실패 시 defaultWidths 폴백). `startResize(index, e)`: mousedown에서 startX·startWidth 캡처 → mousemove로 delta 계산해 widths[index] 갱신(최소 40px) → mouseup에서 리스너 제거 + localStorage 저장 + cursor/userSelect 복원. `widthsRef`(useEffect 동기화)로 mouseup 시점 최신값 확보. `typeof window` 체크로 SSR 안전.
+- 이유: 여러 관리자 테이블에서 재사용 가능하도록 공통 훅으로 추출.
+
+#### `frontend/src/app/admin/exams/questions/page.tsx`
+- **import 추가**: `import { useColumnResize } from '@/lib/useColumnResize';`
+- **훅 호출 추가** (페이지네이션 상태 선언 직후):
+  - 변경 전: 없음
+  - 변경 후: `const { widths, startResize } = useColumnResize('tpmp:admin-questions:col-widths', [56, 360, 96, 112, 112, 112, 160]);`
+- **table 클래스**:
+  - 변경 전: `className="w-full text-sm"`
+  - 변경 후: `className="w-full text-sm table-fixed"`
+- **colgroup 삽입** (thead 바로 위):
+  - 변경 전: 없음
+  - 변경 후: `<colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>`
+- **th No.**: `w-12` 제거, `relative` 추가, 핸들 `<span>` 추가 (index 0)
+- **th 문항제목/내용**: `relative` 추가, 핸들 `<span>` 추가 (index 1)
+- **th 유형**: `w-24` 제거, `relative` 추가, 핸들 `<span>` 추가 (index 2)
+- **th 카테고리**: `w-28` 제거, `relative` 추가, 핸들 `<span>` 추가 (index 3)
+- **th 등록일**: `w-28` 제거, `relative` 추가, 정렬 버튼에 `pr-2` 추가, 핸들 `<span>` 추가 (index 4)
+- **th 수정일**: `w-28` 제거, `relative` 추가, 정렬 버튼에 `pr-2` 추가, 핸들 `<span>` 추가 (index 5)
+- **th 관리**: `w-40` 제거, `relative` 추가 (마지막 컬럼이므로 핸들 없음)
+- 핸들 스타일: `absolute top-0 right-0 h-full w-1 cursor-col-resize select-none hover:bg-indigo-300`
+
+#### `CLAUDE.md`
+- Shared Utilities 표에 `useColumnResize(storageKey, defaultWidths)` 행 추가 (`src/lib/useColumnResize.ts`)
+
+### 복원 방법
+이 ID(HIST-20260703-002)만으로 복원 시:
+- `frontend/src/lib/useColumnResize.ts` 파일 삭제
+- `frontend/src/app/admin/exams/questions/page.tsx`:
+  - `import { useColumnResize }` 줄 제거
+  - `const { widths, startResize } = useColumnResize(...)` 훅 호출 블록(주석 포함 3줄) 제거
+  - `<table className="w-full text-sm table-fixed">` → `<table className="w-full text-sm">`
+  - `<colgroup>...</colgroup>` 블록 제거
+  - 각 `<th>` 복원: `relative` 제거, 원래 고정폭 클래스 복원(`w-12`/`w-24`/`w-28`/`w-28`/`w-28`/`w-40`), 핸들 `<span>` 제거, 등록일·수정일 버튼 `pr-2` 제거
+- `CLAUDE.md`: Shared Utilities 표에서 `useColumnResize` 행 제거
+
+---
+
+## HIST-20260703-001
 
 - **날짜**: 2026-07-03
 - **수정 범위**: 관리자 프론트엔드 / 문항 관리 목록 — 검색 시험연도·회차 input→select 콤보박스
