@@ -1,3 +1,79 @@
+## HIST-20260704-003
+
+- **날짜**: 2026-07-04
+- **수정 범위**: 관리자 프론트엔드 / FAQ 관리, 1:1 문의 관리
+- **수정 개요**: 두 표 모두 관리 컬럼 버튼 잘림 수정(FAQ 160→210px, 문의 120→160px) + localStorage 키 `:v2` 갱신. 두 표 모두 이미 filter→reduce 방식의 생략부호 페이지네이션을 쓰고 있었으나, 공통 `Pagination` 컴포넌트로 통일 교체.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/faq/page.tsx` | 수정 | `useColumnResize` storageKey `tpmp:admin-faq:col-widths` → `:v2`, 관리 컬럼 기본폭 160→210; `filter→reduce` 인라인 페이지네이션을 `<Pagination page={page} totalPages={totalPages} onChange={setPage} />`로 교체 |
+| `frontend/src/app/admin/inquiries/page.tsx` | 수정 | `useColumnResize` storageKey `tpmp:admin-inquiries:col-widths` → `:v2`, 관리 컬럼 기본폭 120→160; `filter→reduce` 인라인 페이지네이션을 `<Pagination page={page} totalPages={totalPages} onChange={setPage} />`로 교체 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/faq/page.tsx`
+- 변경 전: `useColumnResize('tpmp:admin-faq:col-widths', [48, 300, 64, 64, 100, 160])`; 페이지네이션은 `filter→reduce`로 직접 구현.
+- 변경 후: `useColumnResize('tpmp:admin-faq:col-widths:v2', [48, 300, 64, 64, 100, 210])`; `<Pagination page={page} totalPages={totalPages} onChange={setPage} />`.
+- 이유: 관리 컬럼 폭이 "수정"(링크)+"공개/비공개"+"삭제" 3개 요소 총폭보다 좁아 잘림.
+
+#### `frontend/src/app/admin/inquiries/page.tsx`
+- 변경 전: `useColumnResize('tpmp:admin-inquiries:col-widths', [48, 280, 96, 100, 96, 100, 120])`; 페이지네이션은 `filter→reduce`로 직접 구현.
+- 변경 후: `useColumnResize('tpmp:admin-inquiries:col-widths:v2', [48, 280, 96, 100, 96, 100, 160])`; `<Pagination page={page} totalPages={totalPages} onChange={setPage} />`.
+- 이유: 상태가 `PENDING`/`ON_HOLD`일 때 "보류/대기로"+"삭제" 버튼 2개가 함께 표시되어 폭 부족으로 잘림.
+
+### 복원 방법
+이 ID(HIST-20260704-003)만으로 복원 시: 두 파일의 `useColumnResize` 호출을 `:v2` 이전 storageKey·기본폭으로 되돌리고, Pagination import를 제거한 뒤 각 파일의 페이지네이션 블록을 원래의 `filter→reduce` 인라인 코드로 복원한다.
+
+## HIST-20260703-002
+
+- **날짜**: 2026-07-03
+- **수정 범위**: 관리자 프론트엔드 / FAQ 관리
+- **수정 개요**: 테이블 컬럼 드래그 리사이즈 적용 (배치2) — 6컬럼 table-fixed 전환
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/faq/page.tsx` | 수정 | useColumnResize/ColResizeHandle import 추가, 훅 호출, table-fixed, colgroup, th에 relative+핸들(0~4), w-12/w-16/w-28/w-36 삭제, 질문 td overflow-hidden |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/faq/page.tsx`
+- 변경 전: `<table className="w-full text-sm">`, th에 `w-12`, `w-16`(×2), `w-28`, `w-36` 인라인 너비, 리사이즈 기능 없음, 질문 td `max-w-xs`
+- 변경 후: `<table className="w-full table-fixed text-sm">`, `<colgroup>` 6컬럼 너비 `[48,300,64,64,100,160]`, th 0~4에 `relative`+ColResizeHandle, 마지막 '관리' th 핸들 제외, 질문 td `overflow-hidden`
+- 이유: 배치2 컬럼 드래그 리사이즈 적용 — storageKey `tpmp:admin-faq:col-widths`
+
+### 복원 방법
+이 ID(HIST-20260703-002)만으로 복원 시 import 2줄 제거, 훅 제거, `table-fixed` 제거, colgroup 제거, th에서 relative+핸들 제거 후 원래 w-* 클래스 복원, 질문 td `overflow-hidden`→`max-w-xs`.
+
+---
+
+## HIST-20260703-001
+
+- **날짜**: 2026-07-03
+- **수정 범위**: 관리자 프론트엔드 / 1:1 문의 관리
+- **수정 개요**: 테이블 컬럼 드래그 리사이즈 적용 (배치2) — 7컬럼 table-fixed 전환
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/inquiries/page.tsx` | 수정 | useColumnResize/ColResizeHandle import 추가, 훅 호출, table-fixed, colgroup, th에 relative+핸들(0~5), w-12/w-24/w-28 삭제, 제목 td overflow-hidden |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/inquiries/page.tsx`
+- 변경 전: `<table className="w-full text-sm">`, th에 `w-12`, `w-24`(×3), `w-28` 인라인 너비, 리사이즈 기능 없음, 제목 td `max-w-xs`
+- 변경 후: `<table className="w-full table-fixed text-sm">`, `<colgroup>` 7컬럼 너비 `[48,280,96,100,96,100,120]`, th 0~5에 `relative`+ColResizeHandle, 마지막 '관리' th 핸들 제외, 제목 td `overflow-hidden`
+- 이유: 배치2 컬럼 드래그 리사이즈 적용 — storageKey `tpmp:admin-inquiries:col-widths`
+
+### 복원 방법
+이 ID(HIST-20260703-001)만으로 복원 시 import 2줄 제거, 훅 제거, `table-fixed` 제거, colgroup 제거, th에서 relative+핸들 제거 후 원래 w-* 클래스 복원, 제목 td `overflow-hidden`→`max-w-xs`.
+
+---
+
 ## HIST-20260430-005
 
 - **날짜**: 2026-04-30

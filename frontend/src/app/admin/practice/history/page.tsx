@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { practiceAdminService, type PracticeHistoryItem } from '@/services/practiceAdminService';
 import { TableSkeleton } from '@/components/ui/Skeleton';
+import { useColumnResize } from '@/lib/useColumnResize';
+import { ColResizeHandle } from '@/components/ui/ColResizeHandle';
+import { Pagination } from '@/components/ui/Pagination';
 
 const RESULT_TYPES = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER', 'ERROR'];
 
@@ -45,6 +48,9 @@ export default function PracticeHistoryPage() {
 
   const emailDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sqlDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 마지막 컬럼(실행 시각)은 읽기전용이라 폭은 그대로 두고 localStorage 키만 v2로 갱신
+  const { widths, startResize } = useColumnResize('tpmp:admin-practice-history:col-widths:v2', [56, 160, 280, 96, 100, 72, 160]);
 
   const PAGE_SIZE = 20;
 
@@ -210,16 +216,17 @@ export default function PracticeHistoryPage() {
             {hasActiveFilter ? '검색 조건에 해당하는 기록이 없습니다.' : '실행 기록이 없습니다.'}
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-fixed">
+            <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
               <tr>
-                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide w-12">순번</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">이메일</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">SQL 내용</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide w-24">결과 유형</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide w-28">DB 종류</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide w-16">행 수</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide w-40">실행 시각</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide relative">순번<ColResizeHandle onMouseDown={(e) => startResize(0, e)} /></th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide relative">이메일<ColResizeHandle onMouseDown={(e) => startResize(1, e)} /></th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide relative">SQL 내용<ColResizeHandle onMouseDown={(e) => startResize(2, e)} /></th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide relative">결과 유형<ColResizeHandle onMouseDown={(e) => startResize(3, e)} /></th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide relative">DB 종류<ColResizeHandle onMouseDown={(e) => startResize(4, e)} /></th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide relative">행 수<ColResizeHandle onMouseDown={(e) => startResize(5, e)} /></th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide relative">실행 시각</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -235,7 +242,7 @@ export default function PracticeHistoryPage() {
                   >
                     <td className="px-3 py-3 text-center text-xs text-gray-400 dark:text-gray-500 tabular-nums">{seqNo}</td>
                     <td className="px-4 py-3 text-gray-700 dark:text-gray-200 font-mono text-xs">{item.userEmail}</td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 max-w-xs">
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 overflow-hidden">
                       <code className="block truncate text-xs font-mono">{item.sqlContent}</code>
                       {item.errorMessage && (
                         <span className="text-red-500 dark:text-red-400 text-xs mt-0.5 block truncate">{item.errorMessage}</span>
@@ -276,41 +283,7 @@ export default function PracticeHistoryPage() {
         )}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-1">
-          <button
-            onClick={() => setPage(p => Math.max(0, p - 1))}
-            disabled={page === 0}
-            className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            이전
-          </button>
-          {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-            const p = totalPages <= 7 ? i : Math.max(0, Math.min(page - 3, totalPages - 7)) + i;
-            return (
-              <button
-                key={p}
-                onClick={() => setPage(p)}
-                className={[
-                  'w-9 h-9 text-sm rounded-lg border transition-colors',
-                  p === page
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700',
-                ].join(' ')}
-              >
-                {p + 1}
-              </button>
-            );
-          })}
-          <button
-            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-            disabled={page >= totalPages - 1}
-            className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            다음
-          </button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }

@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { examService } from '@/services/examService';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import type { ExamSummary } from '@/types';
+import { useColumnResize } from '@/lib/useColumnResize';
+import { ColResizeHandle } from '@/components/ui/ColResizeHandle';
 
 const MODE_LABEL: Record<string, string> = {
   SEQUENTIAL: '순차',
@@ -14,6 +16,8 @@ const MODE_LABEL: Record<string, string> = {
 
 export default function AdminExamPapersPage() {
   const router = useRouter();
+  // 관리 컬럼(수정/삭제 버튼) 클리핑 방지 위해 160→200 확대 + localStorage 키 v2 갱신
+  const { widths, startResize } = useColumnResize('tpmp:admin-exam-papers:col-widths:v2', [48, 280, 96, 72, 100, 200]);
   const [allPapers, setAllPapers] = useState<ExamSummary[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
@@ -140,15 +144,16 @@ export default function AdminExamPapersPage() {
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center text-gray-400 text-sm">검색 결과가 없습니다.</div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs text-gray-500 font-medium uppercase tracking-wide">
-                <th className="px-4 py-3 w-12 text-center whitespace-nowrap">No.</th>
-                <th className="px-4 py-3">시험지 제목</th>
-                <th className="px-4 py-3 w-24 text-center whitespace-nowrap">출제 방식</th>
-                <th className="px-4 py-3 w-20 text-center whitespace-nowrap">문항 수</th>
-                <th className="px-4 py-3 w-28 whitespace-nowrap">등록일</th>
-                <th className="px-4 py-3 w-44 text-center whitespace-nowrap">관리</th>
+                <th className="px-4 py-3 text-center whitespace-nowrap relative">No.<ColResizeHandle onMouseDown={(e) => startResize(0, e)} /></th>
+                <th className="px-4 py-3 relative">시험지 제목<ColResizeHandle onMouseDown={(e) => startResize(1, e)} /></th>
+                <th className="px-4 py-3 text-center whitespace-nowrap relative">출제 방식<ColResizeHandle onMouseDown={(e) => startResize(2, e)} /></th>
+                <th className="px-4 py-3 text-center whitespace-nowrap relative">문항 수<ColResizeHandle onMouseDown={(e) => startResize(3, e)} /></th>
+                <th className="px-4 py-3 whitespace-nowrap relative">등록일<ColResizeHandle onMouseDown={(e) => startResize(4, e)} /></th>
+                <th className="px-4 py-3 text-center whitespace-nowrap">관리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -157,7 +162,7 @@ export default function AdminExamPapersPage() {
                   <td className="px-4 py-3.5 text-gray-400 text-center whitespace-nowrap">
                     {idx + 1}
                   </td>
-                  <td className="px-4 py-3.5 font-medium text-gray-900 max-w-0">
+                  <td className="px-4 py-3.5 font-medium text-gray-900 overflow-hidden">
                     <p className="truncate">{paper.title}</p>
                   </td>
                   <td className="px-4 py-3.5 text-center whitespace-nowrap">

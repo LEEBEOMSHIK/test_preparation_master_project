@@ -1,3 +1,25 @@
+## HIST-20260704-033
+
+- **날짜**: 2026-07-04
+- **수정 범위**: 관리자 프론트엔드 / 테이블 관리 > DB 조회
+- **수정 개요**: 윈도잉 없이 전체 페이지 버튼(최대 10개)을 그리던 인라인 페이지네이션을 공통 `Pagination` 컴포넌트로 교체.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/tables/data/page.tsx` | 수정 | `이전`/`Array.from({length: Math.min(totalPages,10)})`/`다음` 인라인 페이지네이션을 `<Pagination page={page} totalPages={totalPages} onChange={handlePageChange} />`로 교체 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/tables/data/page.tsx`
+- 변경 전: `이전` 버튼 + `Array.from({length: Math.min(totalPages, 10)}, ...)`로 최대 10개 번호 버튼(그 이상은 잘려 접근 불가) + `다음` 버튼.
+- 변경 후: `<Pagination page={page} totalPages={totalPages} onChange={handlePageChange} />` (첫/마지막 고정 + 현재 ±2 + 생략부호).
+- 이유: 이 표는 `useColumnResize`를 쓰지 않아 컬럼 폭 클리핑 이슈는 없으나, 페이지네이션 로직이 다른 관리자 표와 달라 10페이지 초과 시 뒷쪽 페이지로 이동할 수 없었다.
+
+### 복원 방법
+이 ID(HIST-20260704-033)만으로 복원 시: Pagination import를 제거하고 페이지네이션 블록을 `이전`/`Array.from({length: Math.min(totalPages,10)})`/`다음` 인라인 코드로 복원한다.
+
 ## HIST-20260421-032
 
 - **날짜**: 2026-04-21

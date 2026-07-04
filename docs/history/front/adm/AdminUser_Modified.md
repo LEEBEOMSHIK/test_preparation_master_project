@@ -1,3 +1,55 @@
+## HIST-20260704-002
+
+- **날짜**: 2026-07-04
+- **수정 범위**: 관리자 프론트엔드 / 계정 관리
+- **수정 개요**: 상세 버튼 잘림 수정 — 마지막 컬럼 기본폭 72→110px, localStorage 키 `:v2` 갱신. (이 표는 클라이언트 슬라이싱 페이지네이션이 없어 Pagination 컴포넌트 교체 대상 아님)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/users/page.tsx` | 수정 | `useColumnResize` storageKey `tpmp:admin-users:col-widths` → `:v2`, 마지막(상세) 컬럼 기본폭 72→110 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/users/page.tsx`
+- 변경 전: `useColumnResize('tpmp:admin-users:col-widths', [48, 120, 200, 80, 200, 110, 72])`
+- 변경 후: `useColumnResize('tpmp:admin-users:col-widths:v2', [48, 120, 200, 80, 200, 110, 110])`
+- 이유: "상세" 버튼 하나만 있음에도 td 좌우 패딩(32px)을 빼면 실제 콘텐츠 영역이 40px에 불과해 텍스트가 잘렸다.
+
+### 복원 방법
+이 ID(HIST-20260704-002)만으로 복원 시: `useColumnResize` 호출을 `('tpmp:admin-users:col-widths', [48, 120, 200, 80, 200, 110, 72])`로 되돌린다.
+
+## HIST-20260703-001
+
+- **날짜**: 2026-07-03
+- **수정 범위**: 관리자 프론트엔드 / 계정 관리
+- **수정 개요**: 계정 목록 표에 컬럼 드래그 리사이즈 적용 (배치3)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/users/page.tsx` | 수정 | `useColumnResize`·`ColResizeHandle` import, `table-fixed`+`colgroup`, th에 `relative`+핸들(0~5), 세부권한 td `overflow-hidden` |
+
+### 수정 상세
+
+#### `admin/users/page.tsx`
+- 변경 전: `<table className="w-full text-sm">`, th에 인라인 `w-*` 클래스, 세부권한 td `overflow-hidden` 없음
+- 변경 후:
+  - `useColumnResize('tpmp:admin-users:col-widths', [48,120,200,80,200,110,72])` 호출
+  - `<table className="w-full table-fixed text-sm">`
+  - `<colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>`
+  - th 0~5에 `relative` + `<ColResizeHandle onMouseDown={(e) => startResize(i, e)} />` 추가, 마지막 '상세' th 제외
+  - 세부권한 td `className`에 `overflow-hidden` 추가 (flex-wrap 유지)
+  - 기존 th 인라인 `w-12`, `w-24`, `w-32`, `w-20` 제거
+- 이유: 컬럼 너비를 마우스 드래그로 조정하고 localStorage에 영구 저장
+
+### 복원 방법
+HIST-20260703-001 복원 시: `useColumnResize`·`ColResizeHandle` import 제거, `widths`/`startResize` 선언 제거, `table-fixed` 제거, `<colgroup>` 제거, th에서 `relative`·핸들 제거 및 인라인 `w-*` 복원, 세부권한 td에서 `overflow-hidden` 제거.
+
+---
+
 ## HIST-20260430-004
 
 - **날짜**: 2026-04-30

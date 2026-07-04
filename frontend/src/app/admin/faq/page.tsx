@@ -4,6 +4,9 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { faqService } from '@/services/faqService';
 import { TableSkeleton } from '@/components/ui/Skeleton';
+import { useColumnResize } from '@/lib/useColumnResize';
+import { ColResizeHandle } from '@/components/ui/ColResizeHandle';
+import { Pagination } from '@/components/ui/Pagination';
 import type { Faq } from '@/types';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
@@ -20,6 +23,12 @@ export default function AdminFaqPage() {
   const [keyword, setKeyword] = useState('');
   // 검색 조건 (적용됨)
   const [appliedKeyword, setAppliedKeyword] = useState('');
+
+  // 관리 컬럼(수정/공개토글/삭제 버튼) 클리핑 방지 위해 160→210 확대 + localStorage 키 v2 갱신
+  const { widths, startResize } = useColumnResize(
+    'tpmp:admin-faq:col-widths:v2',
+    [48, 300, 64, 64, 100, 210],
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -129,15 +138,16 @@ export default function AdminFaqPage() {
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center text-sm text-gray-400">검색 결과가 없습니다.</div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-12 whitespace-nowrap">No.</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">질문</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-16 whitespace-nowrap">순서</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-16 whitespace-nowrap">공개</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-28 whitespace-nowrap">등록일</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-36 whitespace-nowrap">관리</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 whitespace-nowrap relative">No.<ColResizeHandle onMouseDown={(e) => startResize(0, e)} /></th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 relative">질문<ColResizeHandle onMouseDown={(e) => startResize(1, e)} /></th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 whitespace-nowrap relative">순서<ColResizeHandle onMouseDown={(e) => startResize(2, e)} /></th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 whitespace-nowrap relative">공개<ColResizeHandle onMouseDown={(e) => startResize(3, e)} /></th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 whitespace-nowrap relative">등록일<ColResizeHandle onMouseDown={(e) => startResize(4, e)} /></th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 whitespace-nowrap">관리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -146,7 +156,7 @@ export default function AdminFaqPage() {
                   <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
                     {page * pageSize + idx + 1}
                   </td>
-                  <td className="px-4 py-3 max-w-xs">
+                  <td className="px-4 py-3 overflow-hidden">
                     <p className="font-medium text-gray-900 truncate">{faq.question}</p>
                     <p className="text-gray-400 truncate text-xs mt-0.5">{faq.answer}</p>
                   </td>
@@ -211,45 +221,7 @@ export default function AdminFaqPage() {
             </select>
             <span>/ 총 {totalElements}건</span>
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 disabled:opacity-40 hover:bg-gray-50"
-            >
-              이전
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i)
-              .filter((i) => Math.abs(i - page) <= 2 || i === 0 || i === totalPages - 1)
-              .reduce<(number | '...')[]>((acc, i, idx, arr) => {
-                if (idx > 0 && (i as number) - (arr[idx - 1] as number) > 1) acc.push('...');
-                acc.push(i);
-                return acc;
-              }, [])
-              .map((item, i) =>
-                item === '...' ? (
-                  <span key={`e-${i}`} className="px-2 text-gray-400">…</span>
-                ) : (
-                  <button
-                    key={item}
-                    onClick={() => setPage(item as number)}
-                    className={[
-                      'w-8 h-8 rounded-lg text-sm transition-colors',
-                      page === item ? 'bg-indigo-600 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50',
-                    ].join(' ')}
-                  >
-                    {(item as number) + 1}
-                  </button>
-                )
-              )}
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-              disabled={page >= totalPages - 1}
-              className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 disabled:opacity-40 hover:bg-gray-50"
-            >
-              다음
-            </button>
-          </div>
+          <Pagination page={page} totalPages={totalPages} onChange={setPage} />
         </div>
       )}
     </div>

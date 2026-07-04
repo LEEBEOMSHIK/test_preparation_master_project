@@ -1,3 +1,55 @@
+## HIST-20260704-002
+
+- **날짜**: 2026-07-04
+- **수정 범위**: 관리자 프론트엔드 / 시험지 관리
+- **수정 개요**: 관리 컬럼(수정/삭제 아이콘 버튼) 잘림 수정 — 기본폭 160→200px, localStorage 키 `:v2` 갱신. (이 표는 클라이언트 슬라이싱 페이지네이션이 없어 Pagination 컴포넌트 교체 대상 아님)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/papers/page.tsx` | 수정 | `useColumnResize` storageKey `tpmp:admin-exam-papers:col-widths` → `:v2`, 관리 컬럼 기본폭 160→200 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/papers/page.tsx`
+- 변경 전: `useColumnResize('tpmp:admin-exam-papers:col-widths', [48, 280, 96, 72, 100, 160])`
+- 변경 후: `useColumnResize('tpmp:admin-exam-papers:col-widths:v2', [48, 280, 96, 72, 100, 200])`
+- 이유: 아이콘+텍스트로 구성된 "수정"/"삭제" 버튼 2개(각 ~70px) + 여백을 160px 컬럼이 담지 못해 잘렸다.
+
+### 복원 방법
+이 ID(HIST-20260704-002)만으로 복원 시: `useColumnResize` 호출을 `('tpmp:admin-exam-papers:col-widths', [48, 280, 96, 72, 100, 160])`로 되돌린다.
+
+## HIST-20260703-001
+
+- **날짜**: 2026-07-03
+- **수정 범위**: 관리자 프론트엔드 / 시험지 관리
+- **수정 개요**: 시험지 목록 표에 컬럼 드래그 리사이즈 적용 (배치3)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/papers/page.tsx` | 수정 | `useColumnResize`·`ColResizeHandle` import, `table-fixed`+`colgroup`, th에 `relative`+핸들(0~4), 시험지제목 td `max-w-0` → `overflow-hidden` |
+
+### 수정 상세
+
+#### `admin/exams/papers/page.tsx`
+- 변경 전: `<table className="w-full text-sm">`, th에 인라인 `w-12`/`w-24`/`w-20`/`w-28`/`w-44`, 시험지제목 td `max-w-0`
+- 변경 후:
+  - `useColumnResize('tpmp:admin-exam-papers:col-widths', [48,280,96,72,100,160])` 호출
+  - `<table className="w-full table-fixed text-sm">`
+  - `<colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>`
+  - th 0~4에 `relative` + `<ColResizeHandle>` 추가, 마지막 '관리' th 제외
+  - 시험지제목 td: `max-w-0` → `overflow-hidden` (내부 `<p className="truncate">` 유지)
+  - 기존 th 인라인 `w-*` 삭제
+- 이유: 컬럼 너비를 마우스 드래그로 조정하고 localStorage에 영구 저장
+
+### 복원 방법
+HIST-20260703-001 복원 시: import 2개 제거, `widths`/`startResize` 제거, `table-fixed` 제거, `<colgroup>` 제거, th에서 `relative`·핸들 제거 및 인라인 `w-*` 복원, 시험지제목 td `overflow-hidden` → `max-w-0`.
+
+---
+
 ## HIST-20260626-001
 
 - **날짜**: 2026-06-26

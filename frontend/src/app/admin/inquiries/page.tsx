@@ -4,6 +4,9 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { inquiryService } from '@/services/inquiryService';
 import { TableSkeleton } from '@/components/ui/Skeleton';
+import { useColumnResize } from '@/lib/useColumnResize';
+import { ColResizeHandle } from '@/components/ui/ColResizeHandle';
+import { Pagination } from '@/components/ui/Pagination';
 import type { Inquiry, InquiryStatus } from '@/types';
 import { INQUIRY_STATUS_LABEL, INQUIRY_TYPE_LABEL } from '@/types';
 
@@ -35,6 +38,12 @@ export default function AdminInquiriesPage() {
   const [keyword, setKeyword]               = useState('');
   // 검색 조건 (적용됨)
   const [appliedKeyword, setAppliedKeyword] = useState('');
+
+  // 관리 컬럼(보류/삭제 버튼) 클리핑 방지 위해 120→160 확대 + localStorage 키 v2 갱신
+  const { widths, startResize } = useColumnResize(
+    'tpmp:admin-inquiries:col-widths:v2',
+    [48, 280, 96, 100, 96, 100, 160],
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -159,16 +168,17 @@ export default function AdminInquiriesPage() {
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center text-sm text-gray-400">검색 결과가 없습니다.</div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-12 whitespace-nowrap">No.</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">제목</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-24 whitespace-nowrap">유형</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-24 whitespace-nowrap">작성자</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-24 whitespace-nowrap">상태</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-28 whitespace-nowrap">등록일</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-24 whitespace-nowrap">관리</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 whitespace-nowrap relative">No.<ColResizeHandle onMouseDown={(e) => startResize(0, e)} /></th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 relative">제목<ColResizeHandle onMouseDown={(e) => startResize(1, e)} /></th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 whitespace-nowrap relative">유형<ColResizeHandle onMouseDown={(e) => startResize(2, e)} /></th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 whitespace-nowrap relative">작성자<ColResizeHandle onMouseDown={(e) => startResize(3, e)} /></th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 whitespace-nowrap relative">상태<ColResizeHandle onMouseDown={(e) => startResize(4, e)} /></th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 whitespace-nowrap relative">등록일<ColResizeHandle onMouseDown={(e) => startResize(5, e)} /></th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 whitespace-nowrap">관리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -177,7 +187,7 @@ export default function AdminInquiriesPage() {
                   <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
                     {page * pageSize + idx + 1}
                   </td>
-                  <td className="px-4 py-3 font-medium max-w-xs">
+                  <td className="px-4 py-3 font-medium overflow-hidden">
                     <Link
                       href={`/admin/inquiries/${inquiry.id}`}
                       className="text-gray-900 hover:text-indigo-600 transition-colors truncate block"
@@ -248,47 +258,7 @@ export default function AdminInquiriesPage() {
             <span>/ 총 {totalElements}건</span>
           </div>
 
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors"
-            >
-              이전
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i)
-              .filter((i) => Math.abs(i - page) <= 2 || i === 0 || i === totalPages - 1)
-              .reduce<(number | '...')[]>((acc, i, idx, arr) => {
-                if (idx > 0 && (i as number) - (arr[idx - 1] as number) > 1) acc.push('...');
-                acc.push(i);
-                return acc;
-              }, [])
-              .map((item, i) =>
-                item === '...' ? (
-                  <span key={`ellipsis-${i}`} className="px-2 text-gray-400">…</span>
-                ) : (
-                  <button
-                    key={item}
-                    onClick={() => setPage(item as number)}
-                    className={[
-                      'w-8 h-8 rounded-lg text-sm transition-colors',
-                      page === item
-                        ? 'bg-indigo-600 text-white'
-                        : 'border border-gray-200 text-gray-600 hover:bg-gray-50',
-                    ].join(' ')}
-                  >
-                    {(item as number) + 1}
-                  </button>
-                )
-              )}
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-              disabled={page >= totalPages - 1}
-              className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors"
-            >
-              다음
-            </button>
-          </div>
+          <Pagination page={page} totalPages={totalPages} onChange={setPage} />
         </div>
       )}
     </div>

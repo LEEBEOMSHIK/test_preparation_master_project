@@ -1,3 +1,43 @@
+## HIST-20260704-002
+
+- **날짜**: 2026-07-04
+- **수정 범위**: 관리자 프론트엔드 / 시험 관리
+- **수정 개요**: 관리 컬럼(수정/삭제 아이콘 버튼) 잘림 수정 — 기본폭 140→200px, localStorage 키 `:v2` 갱신. (이 표는 클라이언트 슬라이싱 페이지네이션이 없어 Pagination 컴포넌트 교체 대상 아님)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/page.tsx` | 수정 | `useColumnResize` storageKey `tpmp:admin-exams:col-widths` → `:v2`, 관리 컬럼 기본폭 140→200 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/page.tsx`
+- 변경 전: `useColumnResize('tpmp:admin-exams:col-widths', [48, 240, 140, 200, 88, 100, 140])`
+- 변경 후: `useColumnResize('tpmp:admin-exams:col-widths:v2', [48, 240, 140, 200, 88, 100, 200])`
+- 이유: 아이콘+텍스트로 구성된 "수정"/"삭제" 버튼 2개(각 ~70px) + 여백을 140px 컬럼이 담지 못해 잘렸다.
+
+### 복원 방법
+이 ID(HIST-20260704-002)만으로 복원 시: `useColumnResize` 호출을 `('tpmp:admin-exams:col-widths', [48, 240, 140, 200, 88, 100, 140])`로 되돌린다.
+
+## HIST-20260703-001
+
+- **날짜**: 2026-07-03
+- **수정 범위**: 관리자 프론트엔드 / 시험 관리 — 목록 표 컬럼 리사이즈
+- **수정 개요**: 시험 목록 표(exams/page.tsx)에 컬럼 드래그 리사이즈 적용. `useColumnResize`('tpmp:admin-exams:col-widths', [48,240,140,200,88,100,140]) + `table-fixed` + `<colgroup>` + 각 th(관리 제외 0~5)에 `<ColResizeHandle />`. 기존 인라인 w-* 삭제, 시험제목·사용시험지 td overflow-hidden.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/page.tsx` | 수정 | 컬럼 리사이즈(useColumnResize+ColResizeHandle+table-fixed+colgroup) 적용, 7컬럼 |
+
+### 되돌림 방법
+
+useColumnResize/ColResizeHandle import·호출 제거, table-fixed·colgroup·핸들 제거, 기존 th 고정폭 w-* 복원.
+
+---
+
 ## HIST-20260430-003
 
 - **날짜**: 2026-04-30

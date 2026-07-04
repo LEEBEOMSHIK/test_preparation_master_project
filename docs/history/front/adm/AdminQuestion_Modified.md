@@ -1,4 +1,71 @@
-﻿## HIST-20260703-005
+﻿## HIST-20260704-007
+
+- **날짜**: 2026-07-04
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리
+- **수정 개요**: (1) 관리 컬럼(상세/수정/삭제 버튼) 잘림 수정 — 기본폭 160→240px, localStorage 키 `:v2` 갱신. (2) 페이지네이션의 깨진 생략부호(…) 로직을 신규 공통 `Pagination` 컴포넌트로 교체.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/Pagination.tsx` | 추가 | 관리자 목록 표 공용 페이지네이션 컴포넌트 신규 생성 (0-based, 첫/마지막 고정 + 현재 ±2 윈도우 + 생략부호 1개 삽입, 다크모드 대응) |
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | `useColumnResize` storageKey `tpmp:admin-questions:col-widths` → `:v2`, 관리 컬럼 기본폭 160→240; 인라인 `show`/`gap` 페이지네이션 블록(생략부호 미출력 버그)을 `<Pagination page={page} totalPages={totalPages} onChange={setPage} />`로 교체 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `Pagination` 행 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/page.tsx`
+- 변경 전: `useColumnResize('tpmp:admin-questions:col-widths', [56, 360, 96, 112, 112, 112, 160])`; 페이지네이션은 `Array.from({length: totalPages}, ...)` 내부에서 `show`/`gap` boolean을 조합해 렌더(gap 조건이 깨져 있어 …가 표시되지 않고 페이지 번호가 붙어보임).
+- 변경 후: `useColumnResize('tpmp:admin-questions:col-widths:v2', [56, 360, 96, 112, 112, 112, 240])`; 페이지네이션 블록을 `<div className="px-5 py-4 border-t border-gray-100"><Pagination page={page} totalPages={totalPages} onChange={setPage} /></div>`로 단순화.
+- 이유: 관리 컬럼 폭이 상세/수정/삭제 버튼 3개 총폭(~232px)보다 좁아 wrapper(overflow-hidden)에 잘렸고, 페이지네이션 생략부호 로직이 깨져 있어 통일된 공통 컴포넌트로 교체.
+
+### 복원 방법
+이 ID(HIST-20260704-007)만으로 복원 시: `useColumnResize` 호출을 `('tpmp:admin-questions:col-widths', [56, 360, 96, 112, 112, 112, 160])`로 되돌리고, Pagination import를 제거한 뒤 페이지네이션 블록을 원래의 `Array.from`+`show`/`gap` 인라인 코드로 복원한다.
+
+## HIST-20260703-006
+
+- **날짜**: 2026-07-03
+- **수정 범위**: 관리자 프론트엔드 / 공통 UI — 컬럼 리사이즈 핸들 공통 컴포넌트 추출, 문항관리표 통일
+- **수정 개요**: 문항관리 표 6개 th에 인라인으로 반복되던 리사이즈 핸들 span 구조를 `ColResizeHandle` 공통 컴포넌트로 추출. questions/page.tsx를 해당 컴포넌트로 통일(순수 리팩토링). 이후 다른 관리자 표 재사용 전제 작업. CLAUDE.md Shared Utilities 표에 행 추가.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/ColResizeHandle.tsx` | 추가 | 드래그 리사이즈 핸들 컴포넌트 신규 생성 (얇은 선 w-px + 8px 히트영역 w-2 중첩 구조) |
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | ColResizeHandle import 추가; th 내 인라인 핸들 span 6개(index 0~5)를 `<ColResizeHandle onMouseDown={(e) => startResize(N, e)} />`로 교체 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 ColResizeHandle 행 추가 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/ColResizeHandle.tsx` (신규)
+- 변경 전: 존재하지 않음
+- 변경 후: `'use client'` 지시자 포함. Props `{ onMouseDown: (e: React.MouseEvent) => void }`. 바깥 span(`group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center`) + 안쪽 span(`w-px h-full bg-gray-300 group-hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:group-hover:bg-indigo-500`) 중첩 구조.
+- 이유: 6개 th에 동일 span 6벌이 중복되어 있어 공통 컴포넌트로 추출. 이후 다른 관리자 표에서 재사용 가능.
+
+#### `frontend/src/app/admin/exams/questions/page.tsx`
+- 변경 전: 각 th 안에 `<span onMouseDown={(e) => startResize(N, e)} className="group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center"><span className="w-px h-full ... " /></span>` 6벌 (N=0~5)
+- 변경 후: `import { ColResizeHandle } from '@/components/ui/ColResizeHandle';` 추가; 6개 핸들 각각 `<ColResizeHandle onMouseDown={(e) => startResize(N, e)} />`로 교체
+- 이유: 순수 리팩토링. 동작·시각 변화 없음.
+
+#### `CLAUDE.md`
+- 변경 전: Shared Utilities 표에 ColResizeHandle 없음
+- 변경 후: ColResizeHandle 행 추가
+
+### 복원 방법
+이 ID(HIST-20260703-006)만으로 복원 시:
+- `frontend/src/components/ui/ColResizeHandle.tsx` 파일 삭제
+- `frontend/src/app/admin/exams/questions/page.tsx`: `import { ColResizeHandle }` 줄 제거; `<ColResizeHandle onMouseDown={(e) => startResize(N, e)} />` 6개를 아래 span 구조로 원복:
+  ```tsx
+  <span onMouseDown={(e) => startResize(N, e)} className="group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center">
+    <span className="w-px h-full bg-gray-300 group-hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:group-hover:bg-indigo-500" />
+  </span>
+  ```
+- `CLAUDE.md`: Shared Utilities 표에서 ColResizeHandle 행 제거
+
+---
+
+## HIST-20260703-005
 
 - **날짜**: 2026-07-03
 - **수정 범위**: 관리자 프론트엔드 / 문항 관리 목록 — 리사이즈 핸들 두께 개선 (HIST-20260703-004 후속)

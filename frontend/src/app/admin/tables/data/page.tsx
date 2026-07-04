@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { dbTableService, type TableColumn } from '@/services/dbTableService';
 import { getTableMeta, type FkRelation } from '@/data/tableComments';
+import { Pagination } from '@/components/ui/Pagination';
 
 function isAutoColumn(col: TableColumn) {
   return col.is_identity === 'YES' ||
@@ -531,36 +532,7 @@ export default function AdminDbDataPage() {
       )}
 
       {/* 페이지네이션 */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-1">
-          <button
-            onClick={() => handlePageChange(page - 1)}
-            disabled={page === 0}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-          >
-            이전
-          </button>
-          {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => (
-            <button
-              key={i}
-              onClick={() => handlePageChange(i)}
-              className={[
-                'px-3 py-1.5 text-sm border rounded-lg',
-                i === page ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50',
-              ].join(' ')}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            onClick={() => handlePageChange(page + 1)}
-            disabled={page >= totalPages - 1}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-          >
-            다음
-          </button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onChange={handlePageChange} />
     </div>
   );
 }

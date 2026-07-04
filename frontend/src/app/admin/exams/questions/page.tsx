@@ -9,6 +9,8 @@ import type { QuestionSummary, QuestionType } from '@/types';
 import { stripHtml } from '@/lib/html';
 import { QuestionDetailModal, type QuestionDetailItem } from '@/components/ui/QuestionDetailModal';
 import { useColumnResize } from '@/lib/useColumnResize';
+import { ColResizeHandle } from '@/components/ui/ColResizeHandle';
+import { Pagination } from '@/components/ui/Pagination';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -78,9 +80,10 @@ export default function AdminQuestionsPage() {
   const [pageSize, setPageSize] = useState<10 | 20 | 50>(10);
 
   // 컬럼 드래그 리사이즈 (No. / 문항제목 / 유형 / 카테고리 / 등록일 / 수정일 / 관리)
+  // 관리 컬럼(상세/수정/삭제 버튼 3개, ~232px) 클리핑 방지 위해 160→240 확대 + localStorage 키 v2 갱신
   const { widths, startResize } = useColumnResize(
-    'tpmp:admin-questions:col-widths',
-    [56, 360, 96, 112, 112, 112, 160],
+    'tpmp:admin-questions:col-widths:v2',
+    [56, 360, 96, 112, 112, 112, 240],
   );
 
   useEffect(() => {
@@ -374,39 +377,19 @@ export default function AdminQuestionsPage() {
                 <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs text-gray-500 font-medium uppercase tracking-wide">
                   <th className="relative px-4 py-3 text-center whitespace-nowrap">
                     No.
-                    <span
-                      onMouseDown={(e) => startResize(0, e)}
-                      className="group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center"
-                    >
-                      <span className="w-px h-full bg-gray-300 group-hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:group-hover:bg-indigo-500" />
-                    </span>
+                    <ColResizeHandle onMouseDown={(e) => startResize(0, e)} />
                   </th>
                   <th className="relative px-4 py-3">
                     문항 제목 / 내용
-                    <span
-                      onMouseDown={(e) => startResize(1, e)}
-                      className="group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center"
-                    >
-                      <span className="w-px h-full bg-gray-300 group-hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:group-hover:bg-indigo-500" />
-                    </span>
+                    <ColResizeHandle onMouseDown={(e) => startResize(1, e)} />
                   </th>
                   <th className="relative px-4 py-3 text-center whitespace-nowrap">
                     유형
-                    <span
-                      onMouseDown={(e) => startResize(2, e)}
-                      className="group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center"
-                    >
-                      <span className="w-px h-full bg-gray-300 group-hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:group-hover:bg-indigo-500" />
-                    </span>
+                    <ColResizeHandle onMouseDown={(e) => startResize(2, e)} />
                   </th>
                   <th className="relative px-4 py-3 text-center whitespace-nowrap">
                     카테고리
-                    <span
-                      onMouseDown={(e) => startResize(3, e)}
-                      className="group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center"
-                    >
-                      <span className="w-px h-full bg-gray-300 group-hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:group-hover:bg-indigo-500" />
-                    </span>
+                    <ColResizeHandle onMouseDown={(e) => startResize(3, e)} />
                   </th>
                   <th className="relative px-4 py-3 whitespace-nowrap">
                     <button
@@ -416,12 +399,7 @@ export default function AdminQuestionsPage() {
                       등록일
                       <SortIcon active={sortField === 'createdAt'} dir={sortDir} />
                     </button>
-                    <span
-                      onMouseDown={(e) => startResize(4, e)}
-                      className="group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center"
-                    >
-                      <span className="w-px h-full bg-gray-300 group-hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:group-hover:bg-indigo-500" />
-                    </span>
+                    <ColResizeHandle onMouseDown={(e) => startResize(4, e)} />
                   </th>
                   <th className="relative px-4 py-3 whitespace-nowrap">
                     <button
@@ -431,12 +409,7 @@ export default function AdminQuestionsPage() {
                       수정일
                       <SortIcon active={sortField === 'updatedAt'} dir={sortDir} />
                     </button>
-                    <span
-                      onMouseDown={(e) => startResize(5, e)}
-                      className="group absolute top-0 -right-1 h-full w-2 cursor-col-resize select-none flex justify-center"
-                    >
-                      <span className="w-px h-full bg-gray-300 group-hover:bg-indigo-400 transition-colors dark:bg-gray-600 dark:group-hover:bg-indigo-500" />
-                    </span>
+                    <ColResizeHandle onMouseDown={(e) => startResize(5, e)} />
                   </th>
                   <th className="relative px-4 py-3 text-center whitespace-nowrap">관리</th>
                 </tr>
@@ -529,47 +502,8 @@ export default function AdminQuestionsPage() {
             </table>
 
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-1 px-5 py-4 border-t border-gray-100">
-                <button
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  disabled={page === 0}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => {
-                  const show = i === 0 || i === totalPages - 1 || Math.abs(i - page) <= 2;
-                  const gap  = i > 0 && Math.abs(i - page) === 3 && (i === 1 || i === totalPages - 2);
-                  if (!show && !gap) return null;
-                  if (gap) return <span key={i} className="w-8 text-center text-gray-400 text-xs">…</span>;
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => setPage(i)}
-                      className={[
-                        'w-8 h-8 flex items-center justify-center rounded-lg text-xs font-medium transition',
-                        page === i
-                          ? 'bg-indigo-600 text-white'
-                          : 'border border-gray-200 text-gray-600 hover:bg-gray-50',
-                      ].join(' ')}
-                    >
-                      {i + 1}
-                    </button>
-                  );
-                })}
-
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                  disabled={page === totalPages - 1}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
+              <div className="px-5 py-4 border-t border-gray-100">
+                <Pagination page={page} totalPages={totalPages} onChange={setPage} />
               </div>
             )}
           </>

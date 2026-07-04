@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { adminUserService, type AdminUser } from '@/services/adminUserService';
 import { TableSkeleton } from '@/components/ui/Skeleton';
+import { useColumnResize } from '@/lib/useColumnResize';
+import { ColResizeHandle } from '@/components/ui/ColResizeHandle';
 
 type TabKey = 'ALL' | 'USER' | 'ADMIN';
 
@@ -53,6 +55,9 @@ export default function AdminUsersPage() {
 
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+
+  // 상세 버튼 클리핑 방지 위해 마지막 컬럼 72→110 확대 + localStorage 키 v2 갱신
+  const { widths, startResize } = useColumnResize('tpmp:admin-users:col-widths:v2', [48, 120, 200, 80, 200, 110, 110]);
 
   const TABS: { key: TabKey; label: string }[] = [
     { key: 'ALL', label: '전체' },
@@ -122,16 +127,17 @@ export default function AdminUsersPage() {
         {loading ? (
           <TableSkeleton rows={5} cols={7} />
         ) : (
-        <table className="w-full text-sm">
+        <table className="w-full table-fixed text-sm">
+          <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 w-12">No.</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">이름</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">이메일</th>
-              <th className="px-4 py-3 text-center font-medium text-gray-600 w-24">역할</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">세부 권한</th>
-              <th className="px-4 py-3 text-center font-medium text-gray-600 w-32 whitespace-nowrap">가입일</th>
-              <th className="px-4 py-3 text-center font-medium text-gray-600 w-20">상세</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 relative">No.<ColResizeHandle onMouseDown={(e) => startResize(0, e)} /></th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 relative">이름<ColResizeHandle onMouseDown={(e) => startResize(1, e)} /></th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 relative">이메일<ColResizeHandle onMouseDown={(e) => startResize(2, e)} /></th>
+              <th className="px-4 py-3 text-center font-medium text-gray-600 relative">역할<ColResizeHandle onMouseDown={(e) => startResize(3, e)} /></th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 relative">세부 권한<ColResizeHandle onMouseDown={(e) => startResize(4, e)} /></th>
+              <th className="px-4 py-3 text-center font-medium text-gray-600 whitespace-nowrap relative">가입일<ColResizeHandle onMouseDown={(e) => startResize(5, e)} /></th>
+              <th className="px-4 py-3 text-center font-medium text-gray-600">상세</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -156,7 +162,7 @@ export default function AdminUsersPage() {
                     {ROLE_LABEL[u.role] ?? u.role}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 overflow-hidden">
                   {u.grantedPermissions?.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
                       {u.grantedPermissions.map(p => (

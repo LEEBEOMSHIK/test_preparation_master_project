@@ -140,8 +140,10 @@ docker-compose.yml
 | `<LinkedQuestionBox note />` | `src/components/ui/LinkedQuestionBox.tsx` | 개념노트에 연결된 시험·퀴즈 문제 박스 (내 노트 상세 + 공개 탐색 상세 공용) |
 | `<CodeBlock code language size showHeader className />` | `src/components/ui/CodeBlock.tsx` | 구문강조 코드 블록 (Darcula 다크 고정, react-syntax-highlighter Light 빌드) |
 | `<CodeAnswerInput value onChange disabled placeholder onCtrlEnter rows />` | `src/components/ui/CodeAnswerInput.tsx` | CODE 유형 멀티라인 monospace 답안 입력 (Tab 들여쓰기·Ctrl+Enter 제출) |
+| `<ColResizeHandle onMouseDown />` | `src/components/ui/ColResizeHandle.tsx` | th 내부 드래그 리사이즈 핸들(얇은 선+8px 히트영역) 캡슐화 |
 | `<AlertModal open message title confirmLabel onClose />` | `src/components/ui/AlertModal.tsx` | 범용 알림 팝업(확인 버튼, ESC·오버레이 클릭으로 닫힘) |
 | `useColumnResize(storageKey, defaultWidths)` | `src/lib/useColumnResize.ts` | 테이블 컬럼 드래그 리사이즈 훅 — widths 배열 + startResize 핸들러 반환, localStorage 영속 |
+| `<Pagination page totalPages onChange className />` | `src/components/ui/Pagination.tsx` | 관리자 목록 표 공용 페이지네이션(0-based) — 첫/마지막 고정 + 현재 ±2 윈도우 + 생략부호(…), 화살표·번호 버튼 다크모드 대응 |
 
 새 유틸 함수는 `src/lib/`에, 새 UI 컴포넌트는 `src/components/ui/`에 추가하고 위 표를 즉시 갱신한다.
 

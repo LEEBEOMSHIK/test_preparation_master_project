@@ -1,3 +1,61 @@
+## HIST-20260704-002
+
+- **날짜**: 2026-07-04
+- **수정 범위**: 관리자 프론트엔드 / 개념노트 관리
+- **수정 개요**: 관리 컬럼(공개전환/삭제 버튼) 잘림 수정 — 기본폭 140→200px, localStorage 키 `:v2` 갱신. 인라인 페이지네이션을 공통 `Pagination` 컴포넌트로 교체.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/concepts/page.tsx` | 수정 | `useColumnResize` storageKey `tpmp:admin-concepts:col-widths` → `:v2`, 관리 컬럼 기본폭 140→200; `이전`/번호/`다음` 인라인 페이지네이션 블록을 `<Pagination page={page} totalPages={totalPages} onChange={setPage} />`로 교체 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/concepts/page.tsx`
+- 변경 전: `useColumnResize('tpmp:admin-concepts:col-widths', [280, 120, 80, 100, 140])`; 페이지네이션은 `이전`/전체 페이지 번호 버튼(윈도잉 없음)/`다음` 인라인 렌더.
+- 변경 후: `useColumnResize('tpmp:admin-concepts:col-widths:v2', [280, 120, 80, 100, 200])`; `{!loading && <Pagination page={page} totalPages={totalPages} onChange={setPage} />}`.
+- 이유: 관리 컬럼 폭이 "비공개 전환"/"공개 전환" + "삭제" 버튼 총폭보다 좁아 잘렸고, 전체 페이지 번호를 다 그리던 페이지네이션을 윈도잉+생략부호가 있는 공통 컴포넌트로 통일.
+
+### 복원 방법
+이 ID(HIST-20260704-002)만으로 복원 시: `useColumnResize` 호출을 `('tpmp:admin-concepts:col-widths', [280, 120, 80, 100, 140])`로 되돌리고, Pagination import를 제거한 뒤 페이지네이션 블록을 `이전`/`Array.from({length: totalPages})`/`다음` 인라인 코드로 복원한다.
+
+## HIST-20260703-001
+
+- **날짜**: 2026-07-03
+- **수정 범위**: 관리자 프론트엔드 / 개념노트 관리
+- **수정 개요**: 개념노트 목록 표에 컬럼 드래그 리사이즈 적용 (useColumnResize + ColResizeHandle + table-fixed + colgroup)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/concepts/page.tsx` | 수정 | useColumnResize·ColResizeHandle import, 훅 호출, table-fixed, colgroup, th에 relative+핸들, 제목 td overflow-hidden |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/concepts/page.tsx`
+- 변경 전: `<table className="w-full text-sm">`, th에 고정폭 없음·핸들 없음, 제목 td `max-w-xs truncate`
+- 변경 후:
+  - `import { useColumnResize }` / `import { ColResizeHandle }` 추가
+  - `const { widths, startResize } = useColumnResize('tpmp:admin-concepts:col-widths', [280, 120, 80, 100, 140]);`
+  - `<table className="w-full text-sm table-fixed">`
+  - `<colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>` (thead 바로 위)
+  - th 0~3에 `relative` 클래스 + `<ColResizeHandle onMouseDown={(e) => startResize(i, e)} />`, th 4(관리)는 핸들 없음
+  - 제목 td: `max-w-xs` → `overflow-hidden`
+- 이유: 컬럼 드래그 리사이즈 기능 추가 (localStorage 영속)
+
+### 복원 방법
+HIST-20260703-001 복원 시:
+- useColumnResize·ColResizeHandle import 2줄 제거
+- `useColumnResize(...)` 훅 호출 라인 제거
+- `table-fixed` 제거 → `className="w-full text-sm"`
+- `<colgroup>` 블록 삭제
+- 각 th에서 `relative` 클래스 및 `<ColResizeHandle .../>` 제거
+- 제목 td: `overflow-hidden` → `max-w-xs`
+
+---
+
 ## HIST-20260612-001
 
 - **날짜**: 2026-06-12

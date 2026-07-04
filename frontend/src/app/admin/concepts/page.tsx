@@ -5,6 +5,9 @@ import { conceptNoteService } from '@/services/conceptNoteService';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { RichContent } from '@/components/ui/RichContent';
 import type { ConceptNote } from '@/types';
+import { useColumnResize } from '@/lib/useColumnResize';
+import { ColResizeHandle } from '@/components/ui/ColResizeHandle';
+import { Pagination } from '@/components/ui/Pagination';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 
@@ -19,6 +22,9 @@ export default function AdminConceptsPage() {
   const [keyword, setKeyword]               = useState('');
   // 검색 조건 (적용됨)
   const [appliedKeyword, setAppliedKeyword] = useState('');
+
+  // 관리 컬럼(공개전환/삭제 버튼) 클리핑 방지 위해 140→200 확대 + localStorage 키 v2 갱신
+  const { widths, startResize } = useColumnResize('tpmp:admin-concepts:col-widths:v2', [280, 120, 80, 100, 200]);
 
   useEffect(() => {
     setLoading(true);
@@ -132,14 +138,15 @@ export default function AdminConceptsPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-fixed">
+            <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-600">제목</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600">작성자</th>
-                <th className="px-4 py-3 text-center font-medium text-gray-600">공개</th>
-                <th className="px-4 py-3 text-center font-medium text-gray-600">수정일</th>
-                <th className="px-4 py-3 text-center font-medium text-gray-600">관리</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600 relative">제목<ColResizeHandle onMouseDown={(e) => startResize(0, e)} /></th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600 relative">작성자<ColResizeHandle onMouseDown={(e) => startResize(1, e)} /></th>
+                <th className="px-4 py-3 text-center font-medium text-gray-600 relative">공개<ColResizeHandle onMouseDown={(e) => startResize(2, e)} /></th>
+                <th className="px-4 py-3 text-center font-medium text-gray-600 relative">수정일<ColResizeHandle onMouseDown={(e) => startResize(3, e)} /></th>
+                <th className="px-4 py-3 text-center font-medium text-gray-600 relative">관리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -150,7 +157,7 @@ export default function AdminConceptsPage() {
                     className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => setExpanded(expanded === note.id ? null : note.id)}
                   >
-                    <td className="px-4 py-3 max-w-xs truncate font-medium text-gray-800">
+                    <td className="px-4 py-3 overflow-hidden truncate font-medium text-gray-800">
                       {note.title}
                     </td>
                     <td className="px-4 py-3 text-gray-600">{note.userName ?? '-'}</td>
@@ -201,37 +208,7 @@ export default function AdminConceptsPage() {
       )}
 
       {/* Pagination */}
-      {!loading && totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2">
-          <button
-            disabled={page === 0}
-            onClick={() => setPage((p) => p - 1)}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-          >
-            이전
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i)}
-              className={`px-3 py-1.5 text-sm rounded-lg border ${
-                i === page
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            disabled={page >= totalPages - 1}
-            onClick={() => setPage((p) => p + 1)}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-          >
-            다음
-          </button>
-        </div>
-      )}
+      {!loading && <Pagination page={page} totalPages={totalPages} onChange={setPage} />}
     </div>
   );
 }

@@ -1,3 +1,60 @@
+## HIST-20260704-002
+
+- **날짜**: 2026-07-04
+- **수정 범위**: 관리자 프론트엔드 / 연습장 관리 (기록 관리)
+- **수정 개요**: localStorage 키 `:v2` 갱신(마지막 컬럼은 읽기전용이라 폭은 유지). 슬라이딩 윈도우(최대 7개) 인라인 페이지네이션을 공통 `Pagination` 컴포넌트로 교체.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/practice/history/page.tsx` | 수정 | `useColumnResize` storageKey `tpmp:admin-practice-history:col-widths` → `:v2`(폭 배열 변경 없음); `이전`/번호(최대 7개 슬라이딩)/`다음` 인라인 페이지네이션을 `<Pagination page={page} totalPages={totalPages} onChange={setPage} />`로 교체 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/practice/history/page.tsx`
+- 변경 전: `useColumnResize('tpmp:admin-practice-history:col-widths', [56, 160, 280, 96, 100, 72, 160])`; `Array.from({length: Math.min(totalPages,7)}, ...)` 슬라이딩 윈도우(생략부호 없음).
+- 변경 후: `useColumnResize('tpmp:admin-practice-history:col-widths:v2', [56, 160, 280, 96, 100, 72, 160])`; `<Pagination page={page} totalPages={totalPages} onChange={setPage} />`.
+- 이유: 마지막 컬럼("실행 시각")은 읽기전용이라 클리핑 대상이 아니므로 폭은 유지, 페이지네이션을 생략부호가 있는 공통 컴포넌트로 통일.
+
+### 복원 방법
+이 ID(HIST-20260704-002)만으로 복원 시: `useColumnResize` storageKey를 `tpmp:admin-practice-history:col-widths`로 되돌리고, Pagination import를 제거한 뒤 슬라이딩 윈도우(최대 7개) 인라인 페이지네이션 블록을 복원한다.
+
+## HIST-20260703-001
+
+- **날짜**: 2026-07-03
+- **수정 범위**: 관리자 프론트엔드 / 연습장 관리 (기록 관리)
+- **수정 개요**: 기록 관리 목록 표에 컬럼 드래그 리사이즈 적용 (useColumnResize + ColResizeHandle + table-fixed + colgroup)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/practice/history/page.tsx` | 수정 | useColumnResize·ColResizeHandle import, 훅 호출, table-fixed, colgroup, th 인라인 w-* 제거+relative+핸들, SQL내용 td overflow-hidden |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/practice/history/page.tsx`
+- 변경 전: `<table className="w-full text-sm">`, th에 `w-12`(순번)·`w-24`(결과유형)·`w-28`(DB종류)·`w-16`(행수)·`w-40`(실행시각) 인라인 고정폭, SQL내용 td `max-w-xs`
+- 변경 후:
+  - `import { useColumnResize }` / `import { ColResizeHandle }` 추가
+  - `const { widths, startResize } = useColumnResize('tpmp:admin-practice-history:col-widths', [56, 160, 280, 96, 100, 72, 160]);`
+  - `<table className="w-full text-sm table-fixed">`
+  - `<colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>`
+  - 5개 th에서 `w-*` 삭제, th 0~5에 `relative` + `<ColResizeHandle onMouseDown={(e) => startResize(i, e)} />`, th 6(실행시각)은 핸들 없음
+  - SQL내용 td: `max-w-xs` → `overflow-hidden`; 확장행 `<td colSpan={7}>` 그대로 유지
+- 이유: 컬럼 드래그 리사이즈 기능 추가 (7컬럼, localStorage 영속)
+
+### 복원 방법
+HIST-20260703-001 복원 시:
+- useColumnResize·ColResizeHandle import 2줄 제거, 훅 호출 라인 제거
+- `table-fixed` 제거, `<colgroup>` 블록 삭제
+- th 인라인 고정폭 복원(순번 w-12, 결과유형 w-24, DB종류 w-28, 행수 w-16, 실행시각 w-40)
+- 각 th에서 `relative` + `<ColResizeHandle .../>` 제거
+- SQL내용 td: `overflow-hidden` → `max-w-xs`
+
+---
+
 ## HIST-20260512-004
 
 - **날짜**: 2026-05-12

@@ -1,3 +1,50 @@
+## HIST-20260704-002
+
+- **날짜**: 2026-07-04
+- **수정 범위**: 관리자 프론트엔드 / 테스트 케이스 관리
+- **수정 개요**: 액션 컬럼(Run/초기화 버튼) 잘림 수정 — 기본폭 100→170px, localStorage 키 `:v2` 갱신. 페이지네이션은 `page` state가 1-based라 리스크가 커 공통 `Pagination`(0-based) 컴포넌트로 교체하지 않고 기존 인라인 구현을 유지.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/test-cases/page.tsx` | 수정 | `useColumnResize` storageKey `tpmp:admin-test-cases:col-widths` → `:v2`, 액션 컬럼 기본폭 100→170. 페이지네이션(1-based `<<`/`<`/번호/`>`/`>>`)은 변경하지 않음 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/test-cases/page.tsx`
+- 변경 전: `useColumnResize('tpmp:admin-test-cases:col-widths', [112, 80, 100, 240, 72, 60, 72, 120, 100])`
+- 변경 후: `useColumnResize('tpmp:admin-test-cases:col-widths:v2', [112, 80, 100, 240, 72, 60, 72, 120, 170])`
+- 이유: 아이콘 "Run" 버튼 + 조건부 "초기화" 텍스트 링크가 100px 컬럼에서 잘림. 페이지네이션은 `page` state가 1-based(다른 표는 0-based)라 공통 컴포넌트로 그대로 바꾸면 회귀 위험이 커 이번 작업에서는 제외.
+
+### 복원 방법
+이 ID(HIST-20260704-002)만으로 복원 시: `useColumnResize` 호출을 `('tpmp:admin-test-cases:col-widths', [112, 80, 100, 240, 72, 60, 72, 120, 100])`로 되돌린다.
+
+## HIST-20260703-001
+
+- **날짜**: 2026-07-03
+- **수정 범위**: 관리자 프론트엔드 / 테스트 케이스 관리
+- **수정 개요**: 테이블 컬럼 드래그 리사이즈 적용 (배치2) — useColumnResize + ColResizeHandle 추가, 9컬럼 table-fixed 전환
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/test-cases/page.tsx` | 수정 | useColumnResize/ColResizeHandle import 추가, 훅 호출, overflow-x-auto→overflow-hidden, table-fixed, colgroup, th에 relative+핸들(0~7), 테스트케이스명 td overflow-hidden truncate |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/test-cases/page.tsx`
+- 변경 전: `<div className="overflow-x-auto">` + `<table className="w-full text-sm">`, th에 너비 클래스 없음, 리사이즈 기능 없음
+- 변경 후: `<div className="overflow-hidden">` + `<table className="w-full table-fixed text-sm">`, `<colgroup>`으로 9컬럼 너비 제어 `[112,80,100,240,72,60,72,120,100]`, th 0~7에 `relative` + `ColResizeHandle`, 테스트케이스명 td에 `overflow-hidden truncate`
+- 이유: 배치2 컬럼 드래그 리사이즈 적용 — storageKey `tpmp:admin-test-cases:col-widths`
+
+### 복원 방법
+이 ID(HIST-20260703-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다.
+- import 2줄 제거, useColumnResize 훅 호출 제거, `overflow-hidden`→`overflow-x-auto`, `table-fixed` 제거, colgroup 제거, th에서 `relative`+ColResizeHandle 제거, 테스트케이스명 td에서 `overflow-hidden truncate` 제거
+
+---
+
 ## HIST-20260503-006
 
 - **날짜**: 2026-05-03

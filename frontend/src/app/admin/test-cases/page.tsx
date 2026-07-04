@@ -2,6 +2,8 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { TableSkeleton } from '@/components/ui/Skeleton';
+import { useColumnResize } from '@/lib/useColumnResize';
+import { ColResizeHandle } from '@/components/ui/ColResizeHandle';
 
 type Priority = 'HIGH' | 'MEDIUM' | 'LOW';
 type TestStatus = 'PENDING' | 'PASS' | 'FAIL' | 'SKIP';
@@ -518,6 +520,13 @@ export default function AdminTestCasesPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<10 | 20 | 50>(10);
 
+  // 액션 컬럼(Run/초기화 버튼) 클리핑 방지 위해 100→170 확대 + localStorage 키 v2 갱신
+  // (페이지네이션은 1-based page state라 공통 Pagination 컴포넌트로 교체하지 않음)
+  const { widths, startResize } = useColumnResize(
+    'tpmp:admin-test-cases:col-widths:v2',
+    [112, 80, 100, 240, 72, 60, 72, 120, 170],
+  );
+
   useEffect(() => {
     setResults(loadResults());
     setLoading(false);
@@ -723,18 +732,19 @@ export default function AdminTestCasesPage() {
         {filtered.length === 0 ? (
           <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">조건에 맞는 테스트 케이스가 없습니다.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-hidden">
+            <table className="w-full table-fixed text-sm">
+              <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-900/50 text-left text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  <th className="px-4 py-3 font-semibold whitespace-nowrap">ID</th>
-                  <th className="px-4 py-3 font-semibold whitespace-nowrap">카테고리</th>
-                  <th className="px-4 py-3 font-semibold whitespace-nowrap">화면</th>
-                  <th className="px-4 py-3 font-semibold">테스트 케이스명</th>
-                  <th className="px-4 py-3 font-semibold whitespace-nowrap">우선순위</th>
-                  <th className="px-4 py-3 font-semibold whitespace-nowrap">유형</th>
-                  <th className="px-4 py-3 font-semibold whitespace-nowrap">상태</th>
-                  <th className="px-4 py-3 font-semibold whitespace-nowrap">실행일시</th>
+                  <th className="px-4 py-3 font-semibold whitespace-nowrap relative">ID<ColResizeHandle onMouseDown={(e) => startResize(0, e)} /></th>
+                  <th className="px-4 py-3 font-semibold whitespace-nowrap relative">카테고리<ColResizeHandle onMouseDown={(e) => startResize(1, e)} /></th>
+                  <th className="px-4 py-3 font-semibold whitespace-nowrap relative">화면<ColResizeHandle onMouseDown={(e) => startResize(2, e)} /></th>
+                  <th className="px-4 py-3 font-semibold relative">테스트 케이스명<ColResizeHandle onMouseDown={(e) => startResize(3, e)} /></th>
+                  <th className="px-4 py-3 font-semibold whitespace-nowrap relative">우선순위<ColResizeHandle onMouseDown={(e) => startResize(4, e)} /></th>
+                  <th className="px-4 py-3 font-semibold whitespace-nowrap relative">유형<ColResizeHandle onMouseDown={(e) => startResize(5, e)} /></th>
+                  <th className="px-4 py-3 font-semibold whitespace-nowrap relative">상태<ColResizeHandle onMouseDown={(e) => startResize(6, e)} /></th>
+                  <th className="px-4 py-3 font-semibold whitespace-nowrap relative">실행일시<ColResizeHandle onMouseDown={(e) => startResize(7, e)} /></th>
                   <th className="px-4 py-3 font-semibold whitespace-nowrap text-center">액션</th>
                 </tr>
               </thead>
@@ -751,7 +761,7 @@ export default function AdminTestCasesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap text-xs">{tc.screen}</td>
-                      <td className="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">{tc.testName}</td>
+                      <td className="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium overflow-hidden truncate">{tc.testName}</td>
                       <td className="px-4 py-3"><PriorityBadge priority={tc.priority} /></td>
                       <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">{TYPE_CONFIG[tc.testType].label}</td>
                       <td className="px-4 py-3"><StatusBadge status={status} /></td>
