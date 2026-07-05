@@ -1,3 +1,31 @@
+## HIST-20260705-001
+
+- **날짜**: 2026-07-05
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 플레이 — 풀이 스크래치패드 1차 릴리스
+- **수정 개요**: 퀴즈 풀이 화면 우하단에 FAB로 여는 풀이 스크래치패드(자유 메모 · CODE 트레이싱 · 안전 계산기)를 추가. localStorage에만 저장하며 BE/DB 변경·임의 코드 실행 없음. 시험 응시 화면(`UserExamination_Modified.md` HIST-20260705-001)과 신규 파일 공용.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/safeMathCalc.ts` | 추가(신규, 공용) | `evaluateExpression(expr)` — 화이트리스트 정규식 + 자체 재귀하강 파서로 사칙연산 평가. eval/Function 미사용, 항상 `{value}` 또는 `{error}` 반환(throw 없음) |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 추가(신규, 공용) | FAB(연필 아이콘) → 데스크톱은 우측 비모달 드로어, 모바일은 기존 답안 Bottom Sheet 컨벤션 재사용. 자유 메모/코드 트레이싱(CODE 유형 한정)/계산기 3탭, storageKey 단위 500ms 디바운스 localStorage 저장 |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정(순수 추가) | `ScratchPadPanel` import 및 quiz phase 렌더 최상단에 `storageKey={tpmp_scratchpad:quiz:${categoryId}:${q.id}}` `isCodeQuestion={isCode}`로 1회 마운트. 기존 채점·세션 로직 변경 없음 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `ScratchPadPanel`, `evaluateExpression` 행 추가(중복 기록 아님, 시험 응시 히스토리와 동일 항목) |
+
+### 수정 상세
+
+#### `frontend/src/lib/safeMathCalc.ts` / `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 상세는 `docs/history/front/usr/UserExamination_Modified.md`의 HIST-20260705-001 참조(두 화면 공용 신규 파일)
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `ScratchPadPanel` 미사용
+- 변경 후: import 추가 + `if (!q) return null;` 이후 quiz phase 반환 JSX 최상단에 `<ScratchPadPanel storageKey={\`tpmp_scratchpad:quiz:${categoryId}:${q.id}\`} isCodeQuestion={isCode} />` 1회 마운트
+- 이유: 카테고리+문항ID 조합으로 문항별 독립된 스크래치패드 데이터를 유지
+
+### 복원 방법
+이 ID(HIST-20260705-001)만으로 복원 시: `frontend/src/app/user/quiz/[categoryId]/page.tsx`에서 `ScratchPadPanel` import 문과 `<ScratchPadPanel .../>` 마운트 라인을 제거한다. 신규 파일(`safeMathCalc.ts`, `ScratchPadPanel.tsx`) 자체 삭제 및 `CLAUDE.md` 표 항목 제거는 `UserExamination_Modified.md`의 HIST-20260705-001 복원 방법을 따른다(양쪽에서 동시에 사용 중이므로 시험 화면도 함께 되돌리지 않는 한 파일을 삭제하지 말 것).
+
 ## HIST-20260622-001
 
 - **날짜**: 2026-06-22

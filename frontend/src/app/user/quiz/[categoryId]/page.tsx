@@ -11,6 +11,7 @@ import { ConceptNoteModal } from '@/components/ui/ConceptNoteModal';
 import { ExamResultDisplay } from '@/components/ui/ExamResultDisplay';
 import { CodeBlock } from '@/components/ui/CodeBlock';
 import { CodeAnswerInput } from '@/components/ui/CodeAnswerInput';
+import { ScratchPadPanel } from '@/components/ui/ScratchPadPanel';
 import { stripHtml } from '@/lib/html';
 import type { ConceptNote, ExamResultData, QuestionResult, QuestionType } from '@/types';
 
@@ -355,6 +356,8 @@ function QuizPlayContent() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
+      {/* 풀이 스크래치패드 — 자유 메모 / 코드 트레이싱 / 계산기, localStorage 영속 */}
+      <ScratchPadPanel storageKey={`tpmp_scratchpad:quiz:${categoryId}:${q.id}`} isCodeQuestion={isCode} />
       {/* 헤더: 카테고리 + 진행상태 + 종료 버튼 */}
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-3">

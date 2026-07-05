@@ -1,3 +1,38 @@
+## HIST-20260705-001
+
+- **날짜**: 2026-07-05
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 — 풀이 스크래치패드 1차 릴리스
+- **수정 개요**: 시험 응시 화면 우하단에 FAB로 여는 풀이 스크래치패드(자유 메모 · CODE 트레이싱 · 안전 계산기)를 추가. localStorage에만 저장하며 BE/DB 변경·임의 코드 실행 없음.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/safeMathCalc.ts` | 추가(신규) | `evaluateExpression(expr)` — 화이트리스트 정규식 + 자체 재귀하강 파서로 사칙연산 평가. eval/Function 미사용, 항상 `{value}` 또는 `{error}` 반환(throw 없음) |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 추가(신규) | FAB(연필 아이콘) → 데스크톱은 우측 비모달 드로어, 모바일은 기존 답안 Bottom Sheet 컨벤션 재사용. 자유 메모/코드 트레이싱(CODE 유형 한정)/계산기 3탭, storageKey 단위 500ms 디바운스 localStorage 저장 |
+| `frontend/src/app/exam/[id]/page.tsx` | 수정(순수 추가) | `ScratchPadPanel` import 및 문항 렌더 블록에 `storageKey={tpmp_scratchpad:exam:${examId}:${q.id}}` `isCodeQuestion={isCode}`로 1회 마운트. 기존 상태·타이머·제출·답안지 로직 변경 없음 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `ScratchPadPanel`, `evaluateExpression` 행 추가 |
+
+### 수정 상세
+
+#### `frontend/src/lib/safeMathCalc.ts`
+- 변경 전: 파일 없음(신규)
+- 변경 후: `ALLOWED_PATTERN`(숫자/공백/`+ - * / % ( )`)으로 1차 검증 → 토크나이저 → 재귀하강 `Parser`(expression→term→unary→power→primary)로 계산. 0으로 나누기·괄호 불일치·허용 외 문자는 내부 `ScratchCalcError`로 던져지고 `evaluateExpression` 내부 try/catch에서 `{error}`로 변환되어 외부로는 절대 throw되지 않음
+- 이유: 임의 코드 실행(eval/Function) 없이 안전하게 계산기 기능 제공
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: 파일 없음(신규)
+- 변경 후: `{ note, trace, calcHistory }` 상태를 storageKey 기준 debounce(500ms) 저장. storageKey 변경 시 이전 키의 pending 저장을 flush한 뒤 새 키 데이터를 로드(패널 open 상태는 유지). lg 이상은 `fixed right-0 top-14 w-80 h-[calc(100vh-3.5rem)]` 비모달 드로어(z-40), lg 미만은 `bg-black/50` 딤 + `rounded-t-2xl` + `max-h-[80vh]` Bottom Sheet(z-50, 딤 클릭/X/ESC로 닫힘)
+- 이유: 시험/퀴즈 두 화면에서 공용으로 재사용하기 위해 컴포넌트로 분리
+
+#### `frontend/src/app/exam/[id]/page.tsx`
+- 변경 전: `ScratchPadPanel` 미사용
+- 변경 후: import 추가 + 개념노트 모달 블록 뒤에 `<ScratchPadPanel storageKey={\`tpmp_scratchpad:exam:${examId}:${q.id}\`} isCodeQuestion={isCode} />` 1회 마운트
+- 이유: 문항별로 독립된 스크래치패드 데이터를 유지하기 위해 시험ID+문항ID 조합을 storageKey로 사용
+
+### 복원 방법
+이 ID(HIST-20260705-001)만으로 복원 시: `frontend/src/lib/safeMathCalc.ts`, `frontend/src/components/ui/ScratchPadPanel.tsx` 파일을 삭제하고, `frontend/src/app/exam/[id]/page.tsx`에서 `ScratchPadPanel` import 문과 `<ScratchPadPanel .../>` 마운트 라인을 제거하며, `CLAUDE.md` Shared Utilities 표에서 두 행을 제거한다.
+
 ## HIST-20260630-001
 
 - **날짜**: 2026-06-30

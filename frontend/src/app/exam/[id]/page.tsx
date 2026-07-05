@@ -11,6 +11,7 @@ import { ExamResultDisplay } from '@/components/ui/ExamResultDisplay';
 import { ConceptNoteModal } from '@/components/ui/ConceptNoteModal';
 import { CodeBlock } from '@/components/ui/CodeBlock';
 import { CodeAnswerInput } from '@/components/ui/CodeAnswerInput';
+import { ScratchPadPanel } from '@/components/ui/ScratchPadPanel';
 import { stripHtml } from '@/lib/html';
 
 const CIRCLED = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
@@ -554,6 +555,9 @@ export default function ExamTakingPage() {
           }
         />
       )}
+
+      {/* 풀이 스크래치패드 — 자유 메모 / 코드 트레이싱 / 계산기, localStorage 영속 */}
+      <ScratchPadPanel storageKey={`tpmp_scratchpad:exam:${examId}:${q.id}`} isCodeQuestion={isCode} />
 
       {/* 헤더 */}
       <header className="fixed top-0 inset-x-0 z-40 h-14 bg-white border-b border-gray-200 shadow-sm">

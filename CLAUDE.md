@@ -144,6 +144,8 @@ docker-compose.yml
 | `<AlertModal open message title confirmLabel onClose />` | `src/components/ui/AlertModal.tsx` | 범용 알림 팝업(확인 버튼, ESC·오버레이 클릭으로 닫힘) |
 | `useColumnResize(storageKey, defaultWidths)` | `src/lib/useColumnResize.ts` | 테이블 컬럼 드래그 리사이즈 훅 — widths 배열 + startResize 핸들러 반환, localStorage 영속 |
 | `<Pagination page totalPages onChange className />` | `src/components/ui/Pagination.tsx` | 관리자 목록 표 공용 페이지네이션(0-based) — 첫/마지막 고정 + 현재 ±2 윈도우 + 생략부호(…), 화살표·번호 버튼 다크모드 대응 |
+| `<ScratchPadPanel storageKey isCodeQuestion className />` | `src/components/ui/ScratchPadPanel.tsx` | 풀이 화면 FAB+드로어/바텀시트 스크래치패드(자유메모·CODE 트레이싱·안전 계산기), localStorage 영속 |
+| `evaluateExpression(expr)` | `src/lib/safeMathCalc.ts` | 안전한 사칙연산 수식 평가(eval/Function 미사용) |
 
 새 유틸 함수는 `src/lib/`에, 새 UI 컴포넌트는 `src/components/ui/`에 추가하고 위 표를 즉시 갱신한다.
 
