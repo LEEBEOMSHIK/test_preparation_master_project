@@ -1,3 +1,37 @@
+## HIST-20260706-001
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 — 풀이 스크래치패드 코드 트레이싱 탭 구조화 위젯 개편
+- **수정 개요**: 코드 트레이싱 탭을 monospace 자유 메모 단일 필드에서 "자유 메모 + 구조화 트레이스 블록(변수 워치 표·1D 배열 그리드·2D 배열 그리드·반복 스텝 표)" 조합으로 확장. 실행/eval 전혀 없음, 값은 전부 사용자가 직접 입력하는 프론트 전용 편집 위젯이며 localStorage에만 저장(BE/DB 변경 없음). 퀴즈 화면(`DailyQuiz_Modified.md` HIST-20260706-001)과 공용 컴포넌트.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/TraceBlocks.tsx` | 추가(신규, 공용) | `TraceBlock` 판별 유니온 타입(`vars`/`array1d`/`array2d`/`iter`) 정의, 블록 생성 팩토리, `sanitizeTraceBlocks(raw)`(로드 시 항목 단위 안전 파싱), `<TraceBlockEditor blocks onChange />`(블록 추가 툴바 + 4종 블록 렌더링·삭제·순서이동·라벨 편집) |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(순수 확장) | `ScratchPadData`에 `traceBlocks: TraceBlock[]` 필드 추가(EMPTY_DATA도 함께 확장), `loadData`가 `sanitizeTraceBlocks`로 구버전(필드 없음) 데이터를 `[]`로 안전 보정, 코드 트레이싱 탭 렌더를 "자유 트레이싱 메모(기존 textarea 축소 유지)" + "구조화 트레이스 블록(`TraceBlockEditor`)" 조합으로 교체 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `TraceBlockEditor`/`sanitizeTraceBlocks`/`TraceBlock` 행 추가, `ScratchPadPanel` 설명에 구조화 트레이싱 반영 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/TraceBlocks.tsx`
+- 변경 전: 파일 없음(신규)
+- 변경 후: `VarsBlock{rows:{name,value}[]}` / `Array1DBlock{name,cells:string[],cursor:number|null}` / `Array2DBlock{name,grid:string[][]}` / `IterBlock{columns:string[],rows:string[][]}` 4종 판별 유니온. id는 `crypto.randomUUID?.() ?? 폴백`. `sanitizeTraceBlocks`는 배열이 아니면 `[]`, 각 항목은 타입별 필드 검증을 통과한 것만 채택(손상 항목은 개별 drop, 전체를 버리지 않음)
+- 이유: 코드 실행 없이 변수·배열·반복 상태를 손으로 기록할 수 있는 구조화 위젯 제공. `any` 미사용, 타입가드로 안전 파싱
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: `ScratchPadData = { note, trace, calcHistory }`, 코드 트레이싱 탭은 `data.trace` monospace textarea 1개만 렌더
+- 변경 후: `ScratchPadData = { note, trace, calcHistory, traceBlocks }`. `loadData`가 구버전 저장분(`traceBlocks` 키 없음)도 `sanitizeTraceBlocks(undefined)` → `[]`로 안전 처리. storageKey(=문항) 전환 시 기존 로직 그대로 `traceBlocks`도 함께 로드/저장(별도 분기 추가 없음). 코드 트레이싱 탭 JSX는 자유 메모(h-32 축소, 라벨 추가) 아래에 `<TraceBlockEditor>` 배치
+- 이유: 기존 자유 트레이싱 메모·storageKey·디바운스 저장 흐름을 그대로 재사용하면서 구조화 블록만 추가 필드로 확장(하위호환, storageKey 불변)
+
+#### `CLAUDE.md`
+- 변경 전: Shared Utilities 표에 `TraceBlocks` 관련 행 없음
+- 변경 후: `TraceBlockEditor`/`sanitizeTraceBlocks`/`TraceBlock` 행 추가, `ScratchPadPanel` 설명에 "코드 트레이싱 탭은 자유 메모 + 구조화 트레이스 블록(TraceBlocks) 함께 제공" 문구 추가
+- 이유: 신규 공용 컴포넌트 위치·용도를 문서에 즉시 반영
+
+### 복원 방법
+이 ID(HIST-20260706-001)만으로 복원 시: `frontend/src/components/ui/TraceBlocks.tsx` 파일을 삭제하고, `frontend/src/components/ui/ScratchPadPanel.tsx`에서 `TraceBlockEditor`/`sanitizeTraceBlocks`/`TraceBlock` import를 제거하고 `ScratchPadData`에서 `traceBlocks` 필드를 제거(EMPTY_DATA·loadData도 원복)하며 코드 트레이싱 탭 JSX를 기존 단일 textarea로 되돌린다. `CLAUDE.md` Shared Utilities 표에서 `TraceBlocks` 관련 행을 제거하고 `ScratchPadPanel` 설명 문구를 원복한다. 단, 퀴즈 화면(`DailyQuiz_Modified.md` HIST-20260706-001)도 동일 공용 파일을 사용 중이므로 함께 되돌리지 않는 한 파일 자체를 삭제하지 말 것.
+
 ## HIST-20260705-001
 
 - **날짜**: 2026-07-05

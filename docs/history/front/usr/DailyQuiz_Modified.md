@@ -1,3 +1,25 @@
+## HIST-20260706-001
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 플레이 — 풀이 스크래치패드 코드 트레이싱 탭 구조화 위젯 개편
+- **수정 개요**: 코드 트레이싱 탭을 monospace 자유 메모 단일 필드에서 "자유 메모 + 구조화 트레이스 블록(변수 워치 표·1D 배열 그리드·2D 배열 그리드·반복 스텝 표)" 조합으로 확장. 실행/eval 전혀 없음, 값은 전부 사용자가 직접 입력하는 프론트 전용 편집 위젯이며 localStorage에만 저장(BE/DB 변경 없음). 상세는 시험 응시 화면(`UserExamination_Modified.md` HIST-20260706-001) 참조 — 신규 파일은 두 화면 공용.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/TraceBlocks.tsx` | 추가(신규, 공용) | `TraceBlock` 판별 유니온 타입 정의 + `<TraceBlockEditor />` — 상세는 `UserExamination_Modified.md` HIST-20260706-001 참조 |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(순수 확장, 공용) | `ScratchPadData.traceBlocks` 필드 추가, 코드 트레이싱 탭에 `TraceBlockEditor` 렌더 추가 — 상세는 동일 참조 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `TraceBlockEditor`/`sanitizeTraceBlocks`/`TraceBlock` 행 추가(중복 기록 아님, 시험 응시 히스토리와 동일 항목) |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/TraceBlocks.tsx` / `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 상세는 `docs/history/front/usr/UserExamination_Modified.md`의 HIST-20260706-001 참조(두 화면 공용 신규/수정 파일, `frontend/src/app/user/quiz/[categoryId]/page.tsx` 자체는 변경 없음 — `ScratchPadPanel`을 그대로 재사용)
+
+### 복원 방법
+이 ID(HIST-20260706-001)는 별도 복원 작업이 없다(퀴즈 화면 자체 코드는 변경되지 않음). 신규/수정 파일(`TraceBlocks.tsx`, `ScratchPadPanel.tsx`, `CLAUDE.md`)의 복원은 `UserExamination_Modified.md`의 HIST-20260706-001 복원 방법을 따르되, 양쪽 화면이 공용으로 사용 중이므로 시험 응시 화면도 함께 되돌리지 않는 한 파일을 삭제하지 말 것.
+
 ## HIST-20260705-001
 
 - **날짜**: 2026-07-05
