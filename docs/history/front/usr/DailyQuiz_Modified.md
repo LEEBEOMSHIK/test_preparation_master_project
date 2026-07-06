@@ -1,3 +1,47 @@
+## HIST-20260707-002
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 사용자 프론트엔드 / 풀이 스크래치패드 — 데스크톱 드로어 position:fixed 무력화 버그 수정
+- **수정 개요**: ScratchPadPanel 데스크톱 드로어 position:fixed 무력화 버그 수정 — className에서 `relative` 토큰 제거(fixed와 relative 동시 지정 시 relative가 우선 적용되어 드로어가 우측 고정이 아닌 좌측 in-flow로 렌더되던 문제, 브라우저 검증으로 발견). 데일리 퀴즈(`user/quiz/[categoryId]`)도 이 스크래치패드를 공용으로 쓰므로 함께 반영된다. 상세 변경 내역은 [front/usr/UserExamination_Modified.md HIST-20260707-002] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(공용) | 데스크톱 드로어 className에서 `relative` 토큰 제거 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: 데스크톱 드로어 className에 `fixed`와 `relative`가 동시에 적용되어 있어, 브라우저 검증 결과 실제 computed position이 `relative`로 덮이며 드로어가 페이지 좌측 in-flow 요소로 렌더됨.
+- 변경 후: className에서 `relative` 토큰 제거, `fixed`만 남김. 자세한 before/after는 [front/usr/UserExamination_Modified.md HIST-20260707-002] 참조.
+- 이유: `fixed`+`relative` 동시 지정으로 인한 position 무력화 버그 수정.
+
+### 복원 방법
+이 ID(HIST-20260707-002)만으로 복원 시 [front/usr/UserExamination_Modified.md HIST-20260707-002]의 "수정 상세"를 그대로 적용해 `ScratchPadPanel.tsx`를 원복한다(className 끝에 `relative` 재추가).
+
+## HIST-20260707-001
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 사용자 프론트엔드 / 풀이 스크래치패드 — 데스크톱 드로어 폭 리사이즈 + z-index 수정
+- **수정 개요**: 시험·퀴즈 풀이 화면 공용 `ScratchPadPanel.tsx`의 데스크톱(lg↑) 우측 드로어에 왼쪽 가장자리 드래그 리사이즈를 추가해 고정 `w-80`(320px)을 300~720px(뷰포트의 90% 상한) 범위에서 자유롭게 넓힐 수 있게 했다. 최종 폭은 `localStorage`(`tpmp:scratchpad:panel-width`)에 저장되어 다음 오픈 시에도 유지된다. 동시에 드로어의 `z-40`이 레이아웃 헤더의 로그아웃/네비 드롭다운(동일 `z-40`)을 DOM 순서상 덮어 클릭이 막히던 버그를 `z-30`으로 낮춰 해결했다. 데일리 퀴즈(`user/quiz/[categoryId]`)에서도 이 스크래치패드가 공용으로 쓰이므로 함께 반영된다. 상세 변경 내역은 [front/usr/UserExamination_Modified.md HIST-20260707-001] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(공용) | 데스크톱 드로어 폭 드래그 리사이즈(localStorage 영속) 추가 + 드로어 `z-40`→`z-30` 수정 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: 데스크톱 드로어가 `w-80` 고정 폭(리사이즈 불가)이었고, `z-40`으로 인해 레이아웃 헤더의 로그아웃/네비 드롭다운이 가려 클릭되지 않았음.
+- 변경 후: `panelWidth` state(localStorage 키 `tpmp:scratchpad:panel-width`, 기본 320px, 300~720px clamp)와 왼쪽 가장자리 드래그 리사이즈 핸들(`handleResizeMouseDown`/`Move`/`Up`)을 추가하고, 드로어 `z-40`을 `z-30`으로 낮춤. 자세한 코드 스니펫은 [front/usr/UserExamination_Modified.md HIST-20260707-001] 참조.
+- 이유: 좁은 고정 폭 개선 + 헤더 드롭다운 클릭 불가 버그 수정.
+
+### 복원 방법
+이 ID(HIST-20260707-001)만으로 복원 시 [front/usr/UserExamination_Modified.md HIST-20260707-001]의 "수정 상세"를 그대로 적용해 `ScratchPadPanel.tsx`를 원복한다(리사이즈 관련 코드 전체 제거 + 드로어 `z-40`·`w-80` 복원).
+
 ## HIST-20260706-009
 
 - **날짜**: 2026-07-06

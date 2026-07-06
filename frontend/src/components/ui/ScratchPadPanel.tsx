@@ -42,7 +42,48 @@ const EMPTY_DATA: ScratchPadData = { note: '', trace: '', calcHistory: [], pageR
 const SAVE_DEBOUNCE_MS = 500;
 const MAX_CALC_HISTORY = 5;
 
+const PANEL_WIDTH_STORAGE_KEY = 'tpmp:scratchpad:panel-width';
+const DEFAULT_PANEL_WIDTH = 320;
+const MIN_PANEL_WIDTH = 300;
+
 type TabKey = 'note' | 'trace' | 'pagereplace' | 'calc';
+
+/** 드로어 폭을 [MIN_PANEL_WIDTH, max] 범위로 clamp */
+function clampPanelWidth(width: number, max: number): number {
+  return Math.min(Math.max(width, MIN_PANEL_WIDTH), max);
+}
+
+/** 리사이즈 가능한 최대 폭 — 뷰포트 폭의 90% 또는 720px 중 작은 값 */
+function computeMaxPanelWidth(): number {
+  if (typeof window === 'undefined') return 720;
+  return Math.min(720, window.innerWidth * 0.9);
+}
+
+/**
+ * localStorage에서 데스크톱 드로어 폭 복원 — 파싱 실패/미존재/SSR 접근 오류 시 기본값으로 폴백.
+ * 복원 즉시 현재 뷰포트 기준 범위로 clamp해 비정상적으로 넓은/좁은 값이 남지 않게 한다.
+ */
+function loadPanelWidth(): number {
+  if (typeof window === 'undefined') return DEFAULT_PANEL_WIDTH;
+  try {
+    const raw = localStorage.getItem(PANEL_WIDTH_STORAGE_KEY);
+    if (!raw) return DEFAULT_PANEL_WIDTH;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return DEFAULT_PANEL_WIDTH;
+    return clampPanelWidth(parsed, computeMaxPanelWidth());
+  } catch {
+    return DEFAULT_PANEL_WIDTH;
+  }
+}
+
+/** 드로어 폭을 localStorage에 저장 — 접근 오류(시크릿모드 용량 제한 등)는 무시 */
+function savePanelWidth(width: number): void {
+  try {
+    localStorage.setItem(PANEL_WIDTH_STORAGE_KEY, String(Math.round(width)));
+  } catch {
+    // 저장 실패 — 무시
+  }
+}
 
 /**
  * localStorage에서 스크래치패드 데이터 로드 — 파싱/접근 오류 시 빈 데이터로 폴백.
@@ -106,6 +147,11 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
   const [tab, setTab] = useState<TabKey>('note');
   const [data, setData] = useState<ScratchPadData>(() => loadData(storageKey));
 
+  // 데스크톱 드로어 폭(px) — localStorage에 영속, 왼쪽 핸들 드래그로 리사이즈
+  const [panelWidth, setPanelWidth] = useState<number>(() => loadPanelWidth());
+  // 드래그 진행 중 시작 X좌표/시작 폭/최대 폭 — mousemove/mouseup 리스너에서 참조(리렌더와 무관)
+  const resizeRef = useRef<{ startX: number; startWidth: number; max: number } | null>(null);
+
   // 계산기 입력/결과 — 저장 대상 아님(계산 기록만 calcHistory에 누적)
   const [calcInput, setCalcInput] = useState('');
   const [calcResult, setCalcResult] = useState<EvalResult | null>(null);
@@ -158,6 +204,47 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [open]);
+
+  // 드로어 폭 리사이즈 — 드래그 중 폭 갱신(왼쪽으로 끌수록 폭 증가)
+  const handleResizeMouseMove = useCallback((e: MouseEvent) => {
+    const state = resizeRef.current;
+    if (!state) return;
+    const next = clampPanelWidth(state.startWidth + (state.startX - e.clientX), state.max);
+    setPanelWidth(next);
+  }, []);
+
+  // 드래그 종료 — 리스너 해제 + body 커서/선택 원복 + 최종 폭 저장
+  const handleResizeMouseUp = useCallback(() => {
+    document.removeEventListener('mousemove', handleResizeMouseMove);
+    document.removeEventListener('mouseup', handleResizeMouseUp);
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+    resizeRef.current = null;
+    setPanelWidth(prev => {
+      savePanelWidth(prev);
+      return prev;
+    });
+  }, [handleResizeMouseMove]);
+
+  // 리사이즈 핸들 mousedown — 시작 좌표/폭/최대치 기록 후 document에 드래그 리스너 등록
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    resizeRef.current = { startX: e.clientX, startWidth: panelWidth, max: computeMaxPanelWidth() };
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    document.addEventListener('mousemove', handleResizeMouseMove);
+    document.addEventListener('mouseup', handleResizeMouseUp);
+  }, [panelWidth, handleResizeMouseMove, handleResizeMouseUp]);
+
+  // 언마운트 시 드래그 도중이었다면 리스너/body 스타일 잔류 없이 정리(누수 방지)
+  useEffect(() => {
+    return () => {
+      document.removeEventListener('mousemove', handleResizeMouseMove);
+      document.removeEventListener('mouseup', handleResizeMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [handleResizeMouseMove, handleResizeMouseUp]);
 
   const scheduleSave = useCallback((key: string, next: ScratchPadData) => {
     pendingRef.current = { key, data: next };
@@ -379,8 +466,18 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
 
       {open && (
         <>
-          {/* 데스크톱: 우측 비모달 슬라이드 드로어 (딤 배경 없음) */}
-          <div className="hidden lg:flex fixed right-0 top-14 w-80 h-[calc(100vh-3.5rem)] z-40 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-xl flex-col">
+          {/* 데스크톱: 우측 비모달 슬라이드 드로어 (딤 배경 없음)
+              z-30: 레이아웃 헤더(z-40)의 로그아웃/네비 드롭다운이 드로어에 가리지 않도록 헤더보다 낮게 유지 */}
+          <div
+            className="hidden lg:flex fixed right-0 top-14 h-[calc(100vh-3.5rem)] z-30 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-xl flex-col"
+            style={{ width: panelWidth }}
+          >
+            {/* 리사이즈 핸들 — 왼쪽 가장자리를 좌우로 드래그해 드로어 폭 조절(localStorage 영속) */}
+            <div
+              onMouseDown={handleResizeMouseDown}
+              className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-indigo-400 dark:hover:bg-indigo-500 transition-colors z-10"
+              aria-hidden="true"
+            />
             {panelContent}
           </div>
 

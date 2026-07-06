@@ -1,3 +1,54 @@
+## HIST-20260707-002
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 사용자 프론트엔드 / 풀이 스크래치패드 — 데스크톱 드로어 position:fixed 무력화 버그 수정
+- **수정 개요**: HIST-20260707-001에서 리사이즈 기능 추가 시 데스크톱 드로어 div에 남겨둔 `relative` 클래스가 `fixed`와 동시에 적용되어, 브라우저 검증 결과 실제 computed position이 `relative`로 덮이며 드로어가 우측 고정이 아니라 페이지 좌측 in-flow 요소로 렌더되는 버그가 확인되었다(`getBoundingClientRect left:24, position:relative`). className에서 `relative` 토큰만 제거해 `fixed`가 정상 적용되도록 수정했다. `position: fixed`는 이미 내부 리사이즈 핸들(`absolute left-0 top-0 h-full w-1.5 ...`)의 containing block 역할을 하므로 `relative`는 애초에 불필요했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(공용) | 데스크톱 드로어 className에서 `relative` 토큰 제거 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: `className="hidden lg:flex fixed right-0 top-14 h-[calc(100vh-3.5rem)] z-30 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-xl flex-col relative"`
+- 변경 후: `className="hidden lg:flex fixed right-0 top-14 h-[calc(100vh-3.5rem)] z-30 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-xl flex-col"`
+- 이유: `fixed`와 `relative`가 동시에 지정되어 `relative`가 우선 적용되며 드로어가 우측 고정(fixed)이 아닌 좌측 in-flow 요소로 렌더되는 버그를 브라우저 검증(computed position: relative, left: 24)으로 발견해 수정.
+
+### 복원 방법
+이 ID(HIST-20260707-002)만으로 복원 시, 데스크톱 드로어 div의 className 끝에 `relative`를 다시 추가한다(`... shadow-xl flex-col relative`).
+
+## HIST-20260707-001
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 사용자 프론트엔드 / 풀이 스크래치패드 — 데스크톱 드로어 폭 리사이즈 + z-index 수정
+- **수정 개요**: 시험·퀴즈 풀이 화면 공용 `ScratchPadPanel.tsx`의 데스크톱(lg↑) 우측 드로어에 왼쪽 가장자리 드래그 리사이즈를 추가해 고정 `w-80`(320px)을 300~720px(뷰포트의 90% 상한) 범위에서 자유롭게 넓힐 수 있게 했다. 최종 폭은 `localStorage`(`tpmp:scratchpad:panel-width`)에 저장되어 다음 오픈 시에도 유지된다. 동시에 드로어의 `z-40`이 레이아웃 헤더의 로그아웃/네비 드롭다운(동일 `z-40`)을 DOM 순서상 덮어 클릭이 막히던 버그를 `z-30`으로 낮춰 해결했다. 이 컴포넌트는 시험 응시(`exam/[id]`)·데일리 퀴즈(`user/quiz/[categoryId]`) 등 CODE/일반 문항 풀이 화면 전반에서 공용으로 쓰이므로 한 번의 수정으로 두 화면 모두 반영된다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(공용) | 데스크톱 드로어 폭 드래그 리사이즈(localStorage 영속) 추가 + 드로어 `z-40`→`z-30` 수정 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전:
+  - 데스크톱 드로어가 `w-80`(고정 320px)이었고 리사이즈 불가능했음.
+  - 드로어 `className`에 `z-40`이 적용되어 있어, 레이아웃 헤더(`UserLayoutShell`, 동일 `z-40`)의 로그아웃/네비 드롭다운이 드로어에 가려 클릭되지 않는 문제가 있었음.
+- 변경 후:
+  - `PANEL_WIDTH_STORAGE_KEY`(`tpmp:scratchpad:panel-width`)·`DEFAULT_PANEL_WIDTH`(320)·`MIN_PANEL_WIDTH`(300) 상수와 `clampPanelWidth`·`computeMaxPanelWidth`(`Math.min(720, window.innerWidth * 0.9)`)·`loadPanelWidth`(SSR/파싱 오류 시 기본값 폴백)·`savePanelWidth` 헬퍼 추가.
+  - `panelWidth` state(초기값 `loadPanelWidth()`)와 드래그 시작 좌표/폭/최대치를 담는 `resizeRef` 추가.
+  - `handleResizeMouseMove`(`newWidth = clamp(startWidth + (startX - e.clientX), MIN, max)`, 왼쪽으로 끌수록 폭 증가) · `handleResizeMouseUp`(리스너 해제 + body `userSelect`/`cursor` 원복 + `savePanelWidth` 저장) · `handleResizeMouseDown`(시작 좌표/폭/최대치 기록 + body 스타일 적용 + document 리스너 등록) 3개 핸들러 추가.
+  - 언마운트 시 드래그 도중이었어도 리스너·body 스타일이 남지 않도록 정리하는 `useEffect` cleanup 추가.
+  - 드로어 div에 `relative` 추가 + `w-80` 제거하고 `style={{ width: panelWidth }}` 적용, `z-40` → `z-30` 변경. 드로어 왼쪽 가장자리에 `absolute left-0 top-0 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-indigo-400 dark:hover:bg-indigo-500` 리사이즈 핸들 div(`onMouseDown={handleResizeMouseDown}`) 추가.
+- 이유: (1) 320px 고정 폭이 코드 트레이싱·페이지 부재 도구 등 넓은 콘텐츠를 다루기엔 좁다는 사용성 개선 요청. (2) 드로어와 헤더의 z-index 동률로 인해 로그아웃 드롭다운이 눌리지 않는 버그 수정.
+
+### 복원 방법
+이 ID(HIST-20260707-001)만으로 복원 시, `ScratchPadPanel.tsx`에서 `PANEL_WIDTH_STORAGE_KEY`/`DEFAULT_PANEL_WIDTH`/`MIN_PANEL_WIDTH`/`clampPanelWidth`/`computeMaxPanelWidth`/`loadPanelWidth`/`savePanelWidth`와 `panelWidth` state·`resizeRef`·`handleResizeMouseMove`/`handleResizeMouseUp`/`handleResizeMouseDown`·관련 cleanup `useEffect`를 모두 제거하고, 데스크톱 드로어 div를 `className="hidden lg:flex fixed right-0 top-14 w-80 h-[calc(100vh-3.5rem)] z-40 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-xl flex-col"`(style 없음, 리사이즈 핸들 div 제거)로 되돌린다.
+
 ## HIST-20260706-008
 
 - **날짜**: 2026-07-06
