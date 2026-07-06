@@ -62,6 +62,33 @@ function VarRow({
   );
 }
 
+/**
+ * [확장3] 이름 없이(`=` 없이) 수식만 적은 줄이 계산된 경우의 표시 행. VarRow와 달리 이름 칩이
+ * 없고 수식 자체를 연한 색으로, 결과를 굵게 보여준다.
+ */
+function ExprRow({
+  expr,
+  value,
+  typeLabel,
+  typeSource,
+}: {
+  expr: string;
+  value: string;
+  typeLabel: string;
+  typeSource: TypeSource;
+}) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm font-mono">
+      <span title="이름 없는 수식" className="text-gray-500 dark:text-gray-400 break-all">
+        {expr}
+      </span>
+      <span className="text-gray-300 dark:text-gray-600">=</span>
+      <span className="text-gray-800 dark:text-gray-100 font-semibold break-all">{value}</span>
+      <TypeBadge typeLabel={typeLabel} typeSource={typeSource} />
+    </div>
+  );
+}
+
 function Array1DRow({
   name,
   cells,
@@ -208,6 +235,10 @@ export function TracePreview({ lines }: TracePreviewProps) {
             );
           case 'text':
             return <FreeTextRow key={idx} text={line.text} />;
+          case 'expr':
+            return (
+              <ExprRow key={idx} expr={line.expr} value={line.value} typeLabel={line.typeLabel} typeSource={line.typeSource} />
+            );
           default:
             return null;
         }

@@ -1,3 +1,38 @@
+## HIST-20260706-006
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 — 풀이 스크래치패드 코드 트레이싱 프리뷰에서 `=` 없이 수식만 적은 줄(이름 없는 수식)도 자동 계산
+- **수정 개요**: 기존 `parseTraceLines`는 `이름 = 값` 대입 표기만 계산 대상으로 삼아 `av / len`처럼 이름 없이 수식만 적은 줄은 자유 텍스트로 남았다. `classifyLine`이 `ASSIGN_PATTERN`에 매칭되지 않는 줄을 만나면, (1) `FORMULA_CHAR_PATTERN`(숫자·식별자·사칙연산자·괄호·공백 화이트리스트) 통과 여부와 (2) 사칙연산자(`+ - * / % **`)를 최소 1개 포함하는지를 함께 확인해 수식 후보(`ExprCandidateInfo`)로 1차 분류하도록 확장했다. 연산자 포함 조건은 `note`·`av` 같은 단어 하나/단일 식별자, `이건 메모` 같은 한글 문장이 수식으로 오인되지 않도록 하는 핵심 가드다. 수식 후보는 named 변수 픽스포인트(리터럴 선수집 + 순서 무관 다중 패스)가 모두 끝난 뒤 최종 `resolvedEnv`로 `tryEvaluateFormula`를 통해 단 한 번만 평가한다 — 참조 식별자가 하나라도 최종 env에 없으면 계산하지 않고 원본 줄 그대로 텍스트로 폴백한다. 계산에 성공하면 새 `ExprLine`(`kind: 'expr'`)으로 렌더되며, 이름이 없으므로 env에 등록되지 않아 다른 줄의 계산에 영향을 주지 않는다. `TracePreview`에 이름 칩 없이 `수식(연한색) = 결과(굵게) + 타입 배지`만 표시하는 `ExprRow`를 추가했다. 계산은 전량 기존 `safeMathCalc.evaluateExpression`(eval/Function 미사용)에 위임하며 새 실행 경로를 추가하지 않았다. 퀴즈 화면(`DailyQuiz_Modified.md` HIST-20260706-006)과 공용 컴포넌트.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/traceNotation.ts` | 수정 | `ExprLine` 타입 추가(`TraceLine` 유니온에 합류), `ExprCandidateInfo`/`HAS_OPERATOR_PATTERN` 추가, `classifyLine`이 `=` 없는 줄 중 수식 후보를 `exprCandidate`로 분류하도록 확장, `parseTraceLines` 최종 매핑에서 named 변수 픽스포인트 종료 후 `exprCandidate`를 1회 평가해 `ExprLine` 또는 `TextLine`으로 확정 |
+| `frontend/src/components/ui/TracePreview.tsx` | 수정 | `ExprRow` 컴포넌트 추가(이름 칩 없이 수식=결과+타입배지), `switch(line.kind)`에 `'expr'` 케이스 추가 |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정 | 코드 트레이싱 안내 문구에 `av / len`(이름 없이 수식만 적어도 자동 계산) 예시 추가 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표의 `parseTraceLines`·`TracePreview` 행 설명에 이름 없는 수식 계산 반영 |
+
+### 수정 상세
+
+#### `frontend/src/lib/traceNotation.ts`
+- 변경 전: `ClassifiedLine`은 `Array1DLine | Array2DLine | TextLine | ScalarAssignInfo`만 존재. `classifyLine`은 `ASSIGN_PATTERN`(`=` 필수)에 매칭되지 않으면 무조건 `{ kind: 'text', text: rawLine }`으로 폴백. `TraceLine` 유니온에 `expr` 종류 없음
+- 변경 후: `TraceLine`에 `ExprLine`(`kind:'expr'`, `expr`/`value`/`typeLabel`/`typeSource`) 추가. `classifyLine`이 `ASSIGN_PATTERN` 불일치 시 `FORMULA_CHAR_PATTERN.test(line) && HAS_OPERATOR_PATTERN.test(line)`(연산자 `[+\-*/%]` 최소 1개)를 만족하면 `{ kind: 'exprCandidate', expr: line, raw: rawLine }`로 분류, 아니면 기존처럼 text. `parseTraceLines` 최종 `classified.map`에서 `exprCandidate`를 named 변수 픽스포인트 완료 후의 `resolvedEnv`로 `tryEvaluateFormula(c.expr, resolvedEnv)` 1회 평가 — 성공 시 `ExprLine` 반환(env에는 등록 안 함), 실패 시 `{ kind: 'text', text: c.raw }`로 폴백
+- 이유: 사용자가 이름을 붙이지 않고 즉석에서 수식만 입력해도(`av / len`) 계산 결과를 바로 보고 싶어함. 연산자 필수 조건이 없으면 자유 메모(`note`, `이건 메모`)나 단일 변수명(`av`)이 수식으로 오인되어 사라질 위험이 있어 엄격히 가드
+
+#### `frontend/src/components/ui/TracePreview.tsx`
+- 변경 전: `switch(line.kind)`가 `var`/`array1d`/`array2d`/`text`만 처리
+- 변경 후: `ExprRow({ expr, value, typeLabel, typeSource })` 추가(이름 칩 없이 `수식(연한색 텍스트) = 결과(굵게)` + `TypeBadge`), `switch`에 `case 'expr'` 추가
+- 이유: 이름 없는 계산 결과를 기존 변수 행과 시각적으로 구분(이름 칩 없음)하면서도 동일한 카드 스타일로 표시
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: 안내 문구가 `avg = sum / len`(정의 순서 무관 숫자 변수 참조·리터럴 수식 자동 계산, 예: `10 / 4`)까지만 안내
+- 변경 후: `av / len`(이름 없이 수식만 적어도 자동 계산, 예: `10 / 4`) 예시 추가
+- 이유: 새로 지원되는 표기법을 사용자에게 안내
+
+### 복원 방법
+이 ID(HIST-20260706-006)만으로 복원 시: `traceNotation.ts`에서 `ExprLine`을 `TraceLine` 유니온에서 제거하고, `ExprCandidateInfo`/`HAS_OPERATOR_PATTERN`을 삭제하며, `classifyLine`의 `ASSIGN_PATTERN` 불일치 분기를 `return { kind: 'text', text: rawLine };`로만 되돌린다. `parseTraceLines` 최종 매핑에서 `exprCandidate` 분기를 제거한다. `TracePreview.tsx`에서 `ExprRow`와 `case 'expr'`를 제거한다. `ScratchPadPanel.tsx` 안내 문구에서 `av / len` 예시 문구를 제거한다. `CLAUDE.md`는 `parseTraceLines`·`TracePreview` 행을 이 변경 전 문구로 되돌린다. 퀴즈 화면(`DailyQuiz_Modified.md` HIST-20260706-006)도 동일 공용 파일을 사용 중이므로 함께 되돌리지 않는 한 파일 자체를 삭제하지 말 것.
+
 ## HIST-20260706-005
 
 - **날짜**: 2026-07-06

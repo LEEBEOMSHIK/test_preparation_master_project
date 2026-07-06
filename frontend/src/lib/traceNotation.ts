@@ -37,6 +37,14 @@
  *   때까지 반복한다(반복 횟수는 라인 수로 상한). 자기참조/순환·미정의 참조는 끝내 미해결로
  *   남아 문자열 var로 폴백한다.
  *
+ *   [확장3] `이름 =` 대입이 아예 없이 수식만 적은 줄(예: `av / len`)도 계산한다. 조건: (a) rhs와
+ *   동일한 화이트리스트(숫자/식별자/사칙연산자/괄호/공백)만으로 구성되고, (b) 사칙연산자를
+ *   최소 1개 포함해야 한다(단어 하나·단일 식별자·자유 문장이 수식으로 오인되지 않도록 하는
+ *   핵심 가드). 두 조건을 만족하면 named 변수 픽스포인트가 모두 끝난 뒤 최종 env로 한 번만
+ *   평가한다(참조 식별자가 하나라도 최종 env에 없으면 계산하지 않음). 계산에 성공하면
+ *   이름 없는 `ExprLine`으로 렌더되고, 이름이 없으므로 env에는 등록되지 않는다(다른 줄에
+ *   영향을 주지 않음). 실패하면 원본 줄을 그대로 자유 텍스트로 폴백한다.
+ *
  *   두 경우 모두 치환 대상 식별자가 하나라도 환경에 없거나(미정의) 계산기가 오류를 반환하면
  *   계산을 시도하지 않고 기존처럼 문자열 var로 폴백한다. 계산 성공 시 결과값은 이후 패스의
  *   다른 수식에서 재참조할 수 있도록 환경에 등록된다(`avg = sum/len` → `total = avg*2`,
@@ -82,8 +90,22 @@ export interface TextLine {
   text: string;
 }
 
+/**
+ * 이름 없이(`=` 없이) 수식만 적은 줄이 계산된 경우의 결과 라인(예: `av / len` → 0.33333).
+ * VarLine과 달리 이름이 없으므로 env(변수 환경)에 등록되지 않고, 다른 줄에서 참조할 수 없다.
+ */
+export interface ExprLine {
+  kind: 'expr';
+  /** 계산에 사용된 원본 수식 문자열(화면 표시용) */
+  expr: string;
+  /** 계산 결과(표시용 포맷 문자열) */
+  value: string;
+  typeLabel: string;
+  typeSource: TypeSource;
+}
+
 /** 트레이스 한 줄의 파싱 결과 판별 유니온 */
-export type TraceLine = VarLine | Array1DLine | Array2DLine | TextLine;
+export type TraceLine = VarLine | Array1DLine | Array2DLine | TextLine | ExprLine;
 
 // 그룹: 1=이름, 2=명시 타입(선택, `name:` 바로 뒤만 매칭), 3=rhs(= 이후 전체, 값 내부 콜론은 안전)
 const ASSIGN_PATTERN = /^([A-Za-z_]\w*)\s*(?::\s*([^=]+?))?\s*=\s*(.+)$/;
@@ -262,8 +284,24 @@ interface ScalarAssignInfo {
   typeSource: TypeSource;
 }
 
-/** classifyLine의 반환 유니온 — 배열/텍스트는 이미 확정, 스칼라 대입만 후속(픽스포인트) 처리 대상 */
-type ClassifiedLine = Array1DLine | Array2DLine | TextLine | ScalarAssignInfo;
+/**
+ * [확장3] `=` 없이 수식만 적은 줄의 1차 분류 결과. 이름이 없어 env 등록 대상이 아니므로
+ * named 변수 픽스포인트가 모두 끝난 뒤 최종 env로 1회만 평가한다(scalarAssign과 달리
+ * 이 자체가 다른 줄의 계산에 영향을 주지 않는다). raw는 계산 실패 시 텍스트 폴백용 원본 줄.
+ */
+interface ExprCandidateInfo {
+  kind: 'exprCandidate';
+  expr: string;
+  raw: string;
+}
+
+/** classifyLine의 반환 유니온 — 배열/텍스트는 이미 확정, 스칼라 대입·수식 후보만 후속 처리 대상 */
+type ClassifiedLine = Array1DLine | Array2DLine | TextLine | ScalarAssignInfo | ExprCandidateInfo;
+
+// [확장3] 이름 없는 수식 후보 판별에 쓰는 "연산자 최소 1개 포함" 가드 — 단어 하나(note)·단일
+// 식별자(av)·자유 문장이 수식으로 오인되지 않도록 하는 핵심 조건. FORMULA_CHAR_PATTERN(숫자/
+// 식별자/연산자/괄호/공백 화이트리스트) 통과 + 이 조건을 모두 만족해야 수식 후보로 분류한다.
+const HAS_OPERATOR_PATTERN = /[+\-*/%]/;
 
 /**
  * 한 줄을 env(숫자 변수 환경)와 무관하게 1차 분류한다. 배열/텍스트는 이 시점에 바로 확정하고,
@@ -274,7 +312,15 @@ function classifyLine(rawLine: string): ClassifiedLine {
   try {
     const line = rawLine.trim();
     const match = ASSIGN_PATTERN.exec(line);
-    if (!match) return { kind: 'text', text: rawLine };
+    if (!match) {
+      // [확장3] `=` 없는 줄 — 화이트리스트 문자만 + 연산자 최소 1개를 만족하면 수식 후보로 분류.
+      // 실제 계산 가능 여부(식별자가 최종 env에 있는지, 날짜형 가드 등)는 tryEvaluateFormula가
+      // named 변수 픽스포인트 종료 후 최종 패스에서 판정한다.
+      if (FORMULA_CHAR_PATTERN.test(line) && HAS_OPERATOR_PATTERN.test(line)) {
+        return { kind: 'exprCandidate', expr: line, raw: rawLine };
+      }
+      return { kind: 'text', text: rawLine };
+    }
 
     const name = match[1];
     const explicitType = match[2]?.trim() || undefined;
@@ -373,7 +419,17 @@ export function parseTraceLines(text: string): TraceLine[] {
 
   // 최종 렌더 — 원래 줄 순서 그대로, 각 라인은 자신의 값(리터럴/계산/폴백)만 반영
   return classified.map((c, i): TraceLine => {
-    if (c.kind !== 'scalarAssign') return c;
+    if (c.kind === 'array1d' || c.kind === 'array2d' || c.kind === 'text') return c;
+
+    if (c.kind === 'exprCandidate') {
+      // [확장3] named 변수 픽스포인트가 모두 끝난 최종 resolvedEnv로 1회만 평가. 이름이 없으므로
+      // 계산에 성공해도 env에는 등록하지 않는다(다른 줄의 계산에 영향 없음).
+      const computed = tryEvaluateFormula(c.expr, resolvedEnv);
+      if (computed !== null) {
+        return { kind: 'expr', expr: c.expr, value: computed.formatted, typeLabel: 'number', typeSource: 'inferred' };
+      }
+      return { kind: 'text', text: c.raw };
+    }
 
     if (isNumericLiteral(c.rhs)) {
       return { kind: 'var', name: c.name, value: c.rhs, typeLabel: c.explicitType ?? 'number', typeSource: c.typeSource };

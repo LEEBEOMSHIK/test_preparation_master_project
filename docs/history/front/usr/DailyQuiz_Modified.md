@@ -1,3 +1,24 @@
+## HIST-20260706-006
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 플레이 — 풀이 스크래치패드 코드 트레이싱 프리뷰에서 `=` 없이 수식만 적은 줄(이름 없는 수식)도 자동 계산
+- **수정 개요**: 공용 파서(`traceNotation.ts`)가 `av / len`처럼 `이름 =` 대입 없이 수식만 적은 줄도, 사칙연산자 최소 1개 포함 + 화이트리스트 통과 + 참조 식별자가 named 변수 픽스포인트 종료 후 최종 env에 전부 존재하는 조건에서 자동 계산해 이름 없는 `ExprLine`(`TracePreview`의 `ExprRow`)으로 표시하도록 확장됨. 상세는 시험 응시 화면(`UserExamination_Modified.md` HIST-20260706-006) 참조 — 신규 로직은 두 화면 공용이며 퀴즈 화면(`frontend/src/app/user/quiz/[categoryId]/page.tsx`) 자체 코드는 변경 없음.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/traceNotation.ts` | 수정(공용) | `ExprLine`/`ExprCandidateInfo`/`HAS_OPERATOR_PATTERN` 추가, 이름 없는 수식 후보 분류 및 최종 픽스포인트 이후 1회 평가 로직 추가 — 상세는 `UserExamination_Modified.md` HIST-20260706-006 참조 |
+| `frontend/src/components/ui/TracePreview.tsx` | 수정(공용) | `ExprRow` 컴포넌트 및 `case 'expr'` 추가 — 상세는 동일 참조 |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(공용) | 안내 문구에 `av / len` 예시 추가 — 상세는 동일 참조 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표 갱신(중복 기록 아님, 시험 응시 히스토리와 동일 항목) |
+
+### 수정 상세
+공용 파일(`traceNotation.ts`, `TracePreview.tsx`, `ScratchPadPanel.tsx`)의 변경 전/후 상세는 `UserExamination_Modified.md`의 HIST-20260706-006 항목을 참조. 이 화면 자체 코드(`frontend/src/app/user/quiz/[categoryId]/page.tsx`)는 변경되지 않았다.
+
+### 복원 방법
+이 ID(HIST-20260706-006)만으로 복원 시: 공용 파일 복원은 `UserExamination_Modified.md` HIST-20260706-006의 "복원 방법"을 따른다(동일 파일을 사용하므로 시험 응시 화면과 함께 되돌려야 함). 이 화면 자체는 변경된 파일이 없어 추가 조치 불필요.
+
 ## HIST-20260706-005
 
 - **날짜**: 2026-07-06

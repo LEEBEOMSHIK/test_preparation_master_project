@@ -249,7 +249,8 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
                 <span className="font-mono">arr = [1, 2, 3]</span> ·{' '}
                 <span className="font-mono">grid = [[1,2],[3,4]]</span> ·{' '}
                 <span className="font-mono">x: long = 3</span>(타입 명시) ·{' '}
-                <span className="font-mono">avg = sum / len</span>(정의 순서 무관 숫자 변수 참조·리터럴 수식 자동 계산, 예: <span className="font-mono">10 / 4</span>)
+                <span className="font-mono">avg = sum / len</span>(정의 순서 무관 숫자 변수 참조·리터럴 수식 자동 계산) ·{' '}
+                <span className="font-mono">av / len</span>(이름 없이 수식만 적어도 자동 계산, 예: <span className="font-mono">10 / 4</span>)
               </p>
               <textarea
                 value={data.trace}
