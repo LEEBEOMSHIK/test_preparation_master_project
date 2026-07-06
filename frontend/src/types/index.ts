@@ -64,7 +64,33 @@ export interface AuthTokens {
 // Exam
 // ──────────────────────────────────────────
 export type QuestionMode = 'RANDOM' | 'SEQUENTIAL';
-export type QuestionType = 'MULTIPLE_CHOICE' | 'SHORT_ANSWER' | 'OX' | 'CODE';
+export type QuestionType = 'MULTIPLE_CHOICE' | 'SHORT_ANSWER' | 'OX' | 'CODE' | 'SCHEDULING';
+
+// ──────────────────────────────────────────
+// Scheduling (CPU 스케줄링 구조화 문항 — SCHEDULING 유형 전용)
+// ──────────────────────────────────────────
+export type SchedulingAlgorithm =
+  | 'FCFS'
+  | 'SJF'
+  | 'SRTF'
+  | 'PRIORITY_NON_PREEMPTIVE'
+  | 'PRIORITY_PREEMPTIVE'
+  | 'RR';
+
+export interface SchedulingProcessRow {
+  pid: string;
+  arrivalTime: number;
+  burstTime: number;
+  /** PRIORITY 계열 알고리즘에서만 사용 */
+  priority?: number;
+}
+
+export interface SchedulingData {
+  algorithm: SchedulingAlgorithm;
+  /** RR에서만 사용 */
+  timeQuantum?: number;
+  processes: SchedulingProcessRow[];
+}
 
 export interface ExamSummary {
   id: number;
@@ -125,6 +151,8 @@ export interface QuestionSummary {
   aiDomains?: string[];
   aiDifficulty?: string;
   aiSummary?: string;
+  /** CPU 스케줄링 구조화 데이터 (SCHEDULING 유형 전용) */
+  schedulingData?: SchedulingData;
   createdAt: string;
   updatedAt?: string;
 }

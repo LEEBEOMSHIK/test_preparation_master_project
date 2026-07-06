@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import type { ApiResponse, ExaminationSubmitResult, ExamQuestion, ExamSummary, PageResponse, QuestionSummary, QuestionType } from '@/types';
+import type { ApiResponse, ExaminationSubmitResult, ExamQuestion, ExamSummary, PageResponse, QuestionSummary, QuestionType, SchedulingData } from '@/types';
 
 export const examService = {
   // Admin
@@ -81,6 +81,7 @@ export const examService = {
     aiDomains?: string[];
     aiDifficulty?: string;
     aiSummary?: string;
+    schedulingData?: SchedulingData;
   }>) =>
     apiClient.post<ApiResponse<{ created: number }>>('/admin/questions/bulk', { questions }),
 
@@ -104,6 +105,7 @@ export const examService = {
     aiDomains?: string[];
     aiDifficulty?: string;
     aiSummary?: string;
+    schedulingData?: SchedulingData;
   }) =>
     apiClient.put<ApiResponse<QuestionSummary>>(`/admin/questions/${id}`, data),
 };

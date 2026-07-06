@@ -71,6 +71,7 @@ export const TABLE_COMMENTS: TableComment[] = [
       code: '코드 본문',
       language: '코드 언어',
       explanation: '해설',
+      scheduling_data: 'CPU 스케줄링 구조화 데이터 (JSONB, SCHEDULING 유형 전용)',
       create_dt: '생성 일시',
       create_uno: 'FK → users.id (생성자)',
       modified_dt: '수정 일시',

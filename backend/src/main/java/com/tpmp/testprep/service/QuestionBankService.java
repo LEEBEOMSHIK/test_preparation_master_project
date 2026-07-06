@@ -8,6 +8,7 @@ import com.tpmp.testprep.entity.Attachment;
 import com.tpmp.testprep.entity.DomainSlave;
 import com.tpmp.testprep.entity.QuestionBank;
 import com.tpmp.testprep.entity.User;
+import com.tpmp.testprep.entity.support.SchedulingData;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.DomainSlaveRepository;
@@ -46,6 +47,7 @@ public class QuestionBankService {
     /** 문항 단건 등록 */
     @Transactional
     public QuestionBankResponse createQuestion(QuestionBankRequest request, String adminEmail) {
+        validateSchedulingData(request);
         Long adminId = resolveAdminId(adminEmail);
         DomainSlave category = resolveCategory(request.categoryId());
         DomainSlave examType = resolveCategory(request.examTypeId());
@@ -66,6 +68,7 @@ public class QuestionBankService {
                 .aiDomains(request.aiDomains())
                 .aiDifficulty(request.aiDifficulty())
                 .aiSummary(request.aiSummary())
+                .schedulingData(request.schedulingData())
                 .createdByUno(adminId)
                 .build();
         return QuestionBankResponse.from(questionBankRepository.save(qb));
@@ -74,6 +77,7 @@ public class QuestionBankService {
     /** 문항 일괄 등록 */
     @Transactional
     public int createQuestionsBulk(QuestionBankBulkRequest bulkRequest, String adminEmail) {
+        bulkRequest.questions().forEach(this::validateSchedulingData);
         Long adminId = resolveAdminId(adminEmail);
         List<QuestionBank> entities = bulkRequest.questions().stream()
                 .map(req -> QuestionBank.builder()
@@ -93,6 +97,7 @@ public class QuestionBankService {
                         .aiDomains(req.aiDomains())
                         .aiDifficulty(req.aiDifficulty())
                         .aiSummary(req.aiSummary())
+                        .schedulingData(req.schedulingData())
                         .createdByUno(adminId)
                         .build())
                 .toList();
@@ -103,6 +108,7 @@ public class QuestionBankService {
     /** 문항 수정 */
     @Transactional
     public QuestionBankResponse updateQuestion(Long id, QuestionBankRequest request, String adminEmail) {
+        validateSchedulingData(request);
         Long adminId = resolveAdminId(adminEmail);
         DomainSlave category = resolveCategory(request.categoryId());
         DomainSlave examType = resolveCategory(request.examTypeId());
@@ -115,6 +121,7 @@ public class QuestionBankService {
                   request.explanation(),
                   request.aiKeywords(), request.aiDomains(),
                   request.aiDifficulty(), request.aiSummary(),
+                  request.schedulingData(),
                   adminId);
         return QuestionBankResponse.from(qb);
     }
@@ -167,5 +174,35 @@ public class QuestionBankService {
         if (categoryId == null) return null;
         return domainSlaveRepository.findById(categoryId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
+    }
+
+    /**
+     * SCHEDULING 유형 문항의 스케줄링 데이터 정합성 검증.
+     * <ul>
+     *   <li>questionType == SCHEDULING 인데 schedulingData 가 없으면 오류</li>
+     *   <li>RR 알고리즘인데 timeQuantum 이 없거나 0 이하이면 오류</li>
+     *   <li>PRIORITY 계열 알고리즘인데 프로세스 중 priority 가 비어있는 행이 있으면 오류</li>
+     * </ul>
+     * 등록(단건/일괄) · 수정 3개 경로 모두에서 호출한다.
+     */
+    private void validateSchedulingData(QuestionBankRequest request) {
+        if (request.questionType() != QuestionBank.QuestionType.SCHEDULING) {
+            return;
+        }
+        SchedulingData data = request.schedulingData();
+        if (data == null) {
+            throw new BusinessException(ErrorCode.SCHEDULING_DATA_INVALID);
+        }
+        if (data.algorithm() == SchedulingData.SchedulingAlgorithm.RR
+                && (data.timeQuantum() == null || data.timeQuantum() <= 0)) {
+            throw new BusinessException(ErrorCode.SCHEDULING_DATA_INVALID);
+        }
+        boolean isPriorityAlgorithm =
+                data.algorithm() == SchedulingData.SchedulingAlgorithm.PRIORITY_NON_PREEMPTIVE
+                || data.algorithm() == SchedulingData.SchedulingAlgorithm.PRIORITY_PREEMPTIVE;
+        if (isPriorityAlgorithm
+                && data.processes().stream().anyMatch(p -> p.priority() == null)) {
+            throw new BusinessException(ErrorCode.SCHEDULING_DATA_INVALID);
+        }
     }
 }

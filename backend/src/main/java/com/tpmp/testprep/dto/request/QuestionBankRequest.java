@@ -1,6 +1,8 @@
 package com.tpmp.testprep.dto.request;
 
 import com.tpmp.testprep.entity.QuestionBank;
+import com.tpmp.testprep.entity.support.SchedulingData;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -58,5 +60,9 @@ public record QuestionBankRequest(
         String aiDifficulty,
 
         /** AI 분석 — 요약 (선택) */
-        String aiSummary
+        String aiSummary,
+
+        /** CPU 스케줄링 구조화 데이터 (SCHEDULING 유형에서만 사용, 선택) */
+        @Valid
+        SchedulingData schedulingData
 ) {}

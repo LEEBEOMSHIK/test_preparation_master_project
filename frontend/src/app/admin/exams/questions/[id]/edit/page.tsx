@@ -10,16 +10,19 @@ import type { QuestionType, DomainMaster, DomainSlave } from '@/types';
 import { CodeEditor } from '@/components/ui/CodeEditor';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { QuestionAnalysisPanel } from '@/components/ui/QuestionAnalysisPanel';
+import { SchedulingProblemEditor } from '@/components/ui/SchedulingProblemEditor';
+import { emptySchedulingDraft, fromSchedulingData, toSchedulingDataPayload, type SchedulingDataDraft } from '@/lib/scheduling';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { stripHtml } from '@/lib/html';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const QUESTION_TYPES: { value: QuestionType; label: string; desc: string }[] = [
-  { value: 'MULTIPLE_CHOICE', label: '객관식', desc: '보기 중 정답 선택' },
-  { value: 'SHORT_ANSWER',    label: '주관식', desc: '직접 답 작성' },
-  { value: 'OX',              label: 'O/X',   desc: '참/거짓 판별' },
-  { value: 'CODE',            label: '코드',  desc: '프로그래밍 문제' },
+  { value: 'MULTIPLE_CHOICE', label: '객관식',   desc: '보기 중 정답 선택' },
+  { value: 'SHORT_ANSWER',    label: '주관식',   desc: '직접 답 작성' },
+  { value: 'OX',              label: 'O/X',     desc: '참/거짓 판별' },
+  { value: 'CODE',            label: '코드',    desc: '프로그래밍 문제' },
+  { value: 'SCHEDULING',      label: '스케줄링', desc: 'CPU 스케줄링 문제' },
 ];
 
 const LANGUAGES: { value: string; label: string }[] = [
@@ -57,6 +60,8 @@ interface FormState {
   examTypeId:   number | null;
   /** AI 분석 결과 (미분석 시 null) */
   aiAnalysis:   QuestionAnalysis | null;
+  /** CPU 스케줄링 구조화 데이터 (SCHEDULING 유형에서만 사용) */
+  schedulingData: SchedulingDataDraft;
 }
 
 const defaultForm = (): FormState => ({
@@ -73,6 +78,7 @@ const defaultForm = (): FormState => ({
   categoryId:   null,
   examTypeId:   null,
   aiAnalysis:   null,
+  schedulingData: emptySchedulingDraft(),
 });
 
 // ── Page ───────────────────────────────────────────────────────────────────────
@@ -126,13 +132,14 @@ export default function AdminQuestionEditPage() {
                 summary:    q.aiSummary ?? '',
               }
             : null,
+          schedulingData: fromSchedulingData(q.schedulingData),
         });
       })
       .catch(() => setError('문항 정보를 불러오지 못했습니다.'))
       .finally(() => setFetching(false));
   }, [id]);
 
-  const update = (field: keyof FormState, value: string | string[] | number | null | QuestionAnalysis) =>
+  const update = (field: keyof FormState, value: string | string[] | number | null | QuestionAnalysis | SchedulingDataDraft) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
   /** AI 분석 완료 콜백 — state 갱신 + DB 즉시 저장(silent 실패) */
@@ -174,6 +181,7 @@ export default function AdminQuestionEditPage() {
         code:         form.code   || undefined,
         language:     form.language || undefined,
         explanation:  form.explanation || undefined,
+        schedulingData: isScheduling ? toSchedulingDataPayload(form.schedulingData) : undefined,
         aiKeywords:   form.aiAnalysis?.keywords,
         aiDomains:    form.aiAnalysis?.domains,
         aiDifficulty: form.aiAnalysis?.difficulty,
@@ -188,6 +196,7 @@ export default function AdminQuestionEditPage() {
   };
 
   const isCode = form.questionType === 'CODE';
+  const isScheduling = form.questionType === 'SCHEDULING';
 
   const editExamTypeName   = examTypeSlaves.find((s) => s.id === form.examTypeId)?.name ?? '';
   const editCategoryName   = questionTypeSlaves.find((s) => s.id === form.categoryId)?.name ?? '';
@@ -302,6 +311,8 @@ export default function AdminQuestionEditPage() {
                     form.questionType === t.value
                       ? t.value === 'CODE'
                         ? 'border-violet-500 bg-violet-50 text-violet-700'
+                        : t.value === 'SCHEDULING'
+                        ? 'border-teal-500 bg-teal-50 text-teal-700'
                         : 'border-indigo-500 bg-indigo-50 text-indigo-700'
                       : 'border-gray-200 text-gray-500 hover:border-gray-300',
                   ].join(' ')}
@@ -423,6 +434,27 @@ export default function AdminQuestionEditPage() {
               initialResult={form.aiAnalysis ?? undefined}
               onAnalyzed={handleAnalyzed}
             />
+          )}
+
+          {/* ── SCHEDULING ── */}
+          {isScheduling && (
+            <div className="space-y-3">
+              <SchedulingProblemEditor
+                value={form.schedulingData}
+                onChange={(next) => update('schedulingData', next)}
+              />
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">정답 (선택)</label>
+                <input
+                  type="text"
+                  value={form.answer}
+                  onChange={(e) => update('answer', e.target.value)}
+                  maxLength={2000}
+                  placeholder="예: P1,P3 또는 평균 대기시간 값 등 모범 답안을 입력하세요."
+                  className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 transition"
+                />
+              </div>
+            </div>
           )}
 
           {/* ── MULTIPLE_CHOICE ── */}

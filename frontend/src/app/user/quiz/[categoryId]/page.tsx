@@ -10,6 +10,7 @@ import { QuizCardSkeleton } from '@/components/ui/Skeleton';
 import { ConceptNoteModal } from '@/components/ui/ConceptNoteModal';
 import { ExamResultDisplay } from '@/components/ui/ExamResultDisplay';
 import { CodeBlock } from '@/components/ui/CodeBlock';
+import { SchedulingProblemTable } from '@/components/ui/SchedulingProblemTable';
 import { CodeAnswerInput } from '@/components/ui/CodeAnswerInput';
 import { ScratchPadPanel } from '@/components/ui/ScratchPadPanel';
 import { stripHtml } from '@/lib/html';
@@ -418,6 +419,10 @@ function QuizPlayContent() {
 
         {q.code && (
           <CodeBlock code={q.code} language={q.language} />
+        )}
+
+        {q.schedulingData && (
+          <SchedulingProblemTable data={q.schedulingData} />
         )}
 
         {/* 선택지 */}

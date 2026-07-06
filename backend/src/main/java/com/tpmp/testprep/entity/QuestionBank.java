@@ -1,5 +1,6 @@
 package com.tpmp.testprep.entity;
 
+import com.tpmp.testprep.entity.support.SchedulingData;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -93,6 +94,11 @@ public class QuestionBank extends BaseEntity {
     @Column(name = "ai_summary", columnDefinition = "TEXT")
     private String aiSummary;
 
+    /** CPU 스케줄링 구조화 문항 데이터 (SCHEDULING 유형에서만 사용) */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "scheduling_data", columnDefinition = "jsonb")
+    private SchedulingData schedulingData;
+
     @Builder
     public QuestionBank(String title, Integer examYear, Integer examRound,
                         String content, QuestionType questionType,
@@ -102,6 +108,7 @@ public class QuestionBank extends BaseEntity {
                         String explanation,
                         List<String> aiKeywords, List<String> aiDomains,
                         String aiDifficulty, String aiSummary,
+                        SchedulingData schedulingData,
                         Long createdByUno) {
         this.title = title;
         this.examYear = examYear;
@@ -119,6 +126,7 @@ public class QuestionBank extends BaseEntity {
         this.aiDomains = aiDomains;
         this.aiDifficulty = aiDifficulty;
         this.aiSummary = aiSummary;
+        this.schedulingData = schedulingData;
         initAudit(createdByUno);
     }
 
@@ -130,6 +138,7 @@ public class QuestionBank extends BaseEntity {
                        String explanation,
                        List<String> aiKeywords, List<String> aiDomains,
                        String aiDifficulty, String aiSummary,
+                       SchedulingData schedulingData,
                        Long modifiedByUno) {
         this.title = title;
         this.examYear = examYear;
@@ -147,6 +156,7 @@ public class QuestionBank extends BaseEntity {
         this.aiDomains = aiDomains;
         this.aiDifficulty = aiDifficulty;
         this.aiSummary = aiSummary;
+        this.schedulingData = schedulingData;
         updateAudit(modifiedByUno);
     }
 
@@ -165,6 +175,6 @@ public class QuestionBank extends BaseEntity {
     }
 
     public enum QuestionType {
-        MULTIPLE_CHOICE, SHORT_ANSWER, OX, CODE
+        MULTIPLE_CHOICE, SHORT_ANSWER, OX, CODE, SCHEDULING
     }
 }

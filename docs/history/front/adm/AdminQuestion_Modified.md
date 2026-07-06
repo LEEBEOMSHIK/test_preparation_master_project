@@ -1,4 +1,44 @@
-﻿## HIST-20260704-007
+﻿## HIST-20260706-001
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리 — CPU 스케줄링 구조화 문항(SCHEDULING 유형) 등록/조회
+- **수정 개요**: 문항 등록·수정 화면에 "스케줄링" 유형 추가. 알고리즘 6종(FCFS/SJF/SRTF/PRIORITY_NON_PREEMPTIVE/PRIORITY_PREEMPTIVE/RR) 선택 + 타임퀀텀(RR) + 프로세스 행(PID/도착/실행/우선순위) 입력 전용 공용 에디터/표 컴포넌트 신규 작성. 문항 상세 모달·목록·시험지 문항 목록의 Record<QuestionType,…> 완전성 갱신(SCHEDULING 키 추가). 자동 계산·채점 없음(정답 수동 입력, 텍스트 필드).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `QuestionType`에 `'SCHEDULING'` 추가; `SchedulingAlgorithm`/`SchedulingProcessRow`/`SchedulingData` 타입 신규; `QuestionSummary.schedulingData?` 추가 |
+| `frontend/src/lib/scheduling.ts` | 추가 | 등록/수정 폼 공용 헬퍼 — `SchedulingProcessDraft`/`SchedulingDataDraft`, `emptySchedulingDraft()`, `toSchedulingDataPayload()`, `fromSchedulingData()`, `SCHEDULING_ALGORITHMS`, `isPriorityAlgorithm()` |
+| `frontend/src/components/ui/SchedulingProblemTable.tsx` | 추가 | 스케줄링 문제 표시용 표 — 알고리즘·타임퀀텀 배지 + 프로세스 표(PRIORITY 계열만 우선순위 컬럼), 라이트 테마 전용 |
+| `frontend/src/components/ui/SchedulingProblemEditor.tsx` | 추가 | 스케줄링 문제 등록/수정용 에디터 — 알고리즘 select·타임퀀텀 입력·프로세스 행 추가/삭제 |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | `QUESTION_TYPES`에 SCHEDULING 항목 추가; `QuestionDraft.schedulingData` 필드 추가(emptyDraft/파싱 helper 모두 반영); `ManualQuestionCard`에 SCHEDULING 가드 렌더 블록(에디터+정답 입력) 추가; handleSubmit payload에 schedulingData 매핑 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | `FormState.schedulingData` 추가(defaultForm/로드 시 fromSchedulingData 반영); SCHEDULING 렌더 블록 추가; 제출 payload에 schedulingData 매핑 |
+| `frontend/src/components/ui/QuestionDetailModal.tsx` | 수정 | `QuestionDetailItem.schedulingData?` 추가; `TYPE_LABEL`/`TYPE_COLOR`에 SCHEDULING 키(teal) 추가; CodeBlock 아래에 `<SchedulingProblemTable>` 렌더 |
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | `TYPE_LABEL`/`TYPE_COLOR`에 SCHEDULING 키 추가 (컴파일 완전성, 선택 UI 변경 없음) |
+| `frontend/src/app/user/bookmarks/page.tsx` | 수정 | `TYPE_LABEL`/`TYPE_COLOR`에 SCHEDULING 키 추가 |
+| `frontend/src/app/admin/exams/papers/new/page.tsx` | 수정 | `TYPE_LABEL`/`TYPE_COLOR`에 SCHEDULING 키 추가 |
+| `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` | 수정 | `TYPE_LABEL`/`TYPE_COLOR`에 SCHEDULING 키 추가 |
+| `frontend/src/services/examService.ts` | 수정 | `adminCreateQuestionsBulk`/`adminUpdateQuestion` 인라인 타입에 `schedulingData?: SchedulingData` 추가 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `SchedulingProblemTable`/`SchedulingProblemEditor`/`scheduling.ts` 행 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/new/page.tsx`, `[id]/edit/page.tsx`
+- 변경 전: `QUESTION_TYPES` 4종(MULTIPLE_CHOICE/SHORT_ANSWER/OX/CODE), draft/form에 schedulingData 없음
+- 변경 후: SCHEDULING 5번째 유형 추가(teal 색상), draft/form에 `schedulingData: SchedulingDataDraft` 추가, 유형 선택 시 `<SchedulingProblemEditor>` + 정답(선택, 단일 input) 렌더, 제출 시 `toSchedulingDataPayload()`로 변환하여 payload에 포함
+
+### 복원 방법
+이 ID(HIST-20260706-001)만으로 복원 시:
+- `types/index.ts`: SCHEDULING 관련 타입 전부 제거
+- `lib/scheduling.ts`: 파일 삭제
+- `components/ui/SchedulingProblemTable.tsx`, `SchedulingProblemEditor.tsx`: 파일 삭제
+- `admin/exams/questions/new/page.tsx`, `[id]/edit/page.tsx`: SCHEDULING 관련 코드 블록 제거(QUESTION_TYPES 4종으로 복원)
+- `QuestionDetailModal.tsx`: schedulingData 필드·TYPE_LABEL/TYPE_COLOR SCHEDULING 키·렌더 블록 제거
+- 나머지 TYPE_LABEL/TYPE_COLOR 4개 파일: SCHEDULING 키 제거
+- `examService.ts`: schedulingData 인라인 타입 제거
+
+## HIST-20260704-007
 
 - **날짜**: 2026-07-04
 - **수정 범위**: 관리자 프론트엔드 / 문항 관리

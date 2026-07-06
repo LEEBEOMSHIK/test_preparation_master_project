@@ -148,6 +148,28 @@ class AnswerGraderTest {
     }
 
     // -----------------------------------------------------------------------
+    // SCHEDULING — SHORT_ANSWER와 동일한 콤마 다중값 비교 라우팅
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("SCHEDULING: 순서가 달라도 원소가 같으면 정답 (SHORT_ANSWER와 동일 라우팅)")
+    void scheduling_reversedOrder_correct() {
+        assertThat(AnswerGrader.isCorrect("SCHEDULING", "P1, P3", "P3, P1")).isTrue();
+    }
+
+    @Test
+    @DisplayName("SCHEDULING: 원소 개수가 다르면 오답")
+    void scheduling_differentSize_incorrect() {
+        assertThat(AnswerGrader.isCorrect("SCHEDULING", "P1", "P1, P2")).isFalse();
+    }
+
+    @Test
+    @DisplayName("SCHEDULING: 단일 정답 불일치")
+    void scheduling_singleToken_incorrect() {
+        assertThat(AnswerGrader.isCorrect("SCHEDULING", "17", "20")).isFalse();
+    }
+
+    // -----------------------------------------------------------------------
     // MULTIPLE_CHOICE
     // -----------------------------------------------------------------------
 

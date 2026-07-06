@@ -1,3 +1,27 @@
+## HIST-20260706-001
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 퀴즈 플레이 — CPU 스케줄링 구조화 문항(SCHEDULING 유형) 표시
+- **수정 개요**: 퀴즈 문항이 SCHEDULING 유형인 경우 CodeBlock 아래에 공용 `<SchedulingProblemTable>`을 렌더링해 알고리즘·프로세스 목록(도착/실행/우선순위)을 표로 표시한다. 답안 입력은 기존 "주관식(단답형)" 텍스트 input 분기를 그대로 재사용(SHORT_ANSWER와 동일한 콤마 다중값 채점 라우팅은 백엔드 AnswerGrader에서 처리).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/quizService.ts` | 수정 | `QuizQuestion`에 `schedulingData?: SchedulingData` 필드 추가 |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | `{q.code && <CodeBlock .../>}` 아래에 `{q.schedulingData && <SchedulingProblemTable data={q.schedulingData} />}` 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: 문제 카드에서 `q.code`가 있으면 `<CodeBlock>`만 렌더
+- 변경 후: `<CodeBlock>` 아래에 `q.schedulingData`가 있으면 `<SchedulingProblemTable data={q.schedulingData} />` 추가 렌더. 답안 입력 영역은 `!isMultipleChoice && !isOX` 기존 분기를 그대로 통과(SCHEDULING도 일반 텍스트 input로 처리)하므로 별도 분기 추가 없음.
+
+### 복원 방법
+이 ID(HIST-20260706-001)만으로 복원 시:
+- `quizService.ts`: `QuizQuestion.schedulingData` 필드 제거
+- `quiz/[categoryId]/page.tsx`: `<SchedulingProblemTable>` 렌더 블록 및 import 제거
+
 ## HIST-20260630-001
 
 - **날짜**: 2026-06-30

@@ -153,13 +153,14 @@ question_bank
 ─────────────────────────────────────────────────────────
 id             BIGINT          PK, AUTO_INCREMENT
 content        TEXT            NOT NULL  — 문항 내용
-question_type  VARCHAR(30)     NOT NULL  — MULTIPLE_CHOICE|SHORT_ANSWER|OX|CODE
+question_type  VARCHAR(30)     NOT NULL  — MULTIPLE_CHOICE|SHORT_ANSWER|OX|CODE|SCHEDULING
 category_id    BIGINT          NULLABLE  — FK → domain_slave.id (문제 유형)
 options        JSONB           NULLABLE  — 객관식 보기 목록
 answer         TEXT            NULLABLE  — 정답
 code           TEXT            NULLABLE  — 코드 문항의 코드 본문
 language       VARCHAR(50)     NULLABLE  — 코드 언어 (javascript, python ...)
 explanation    TEXT            NULLABLE  — 해설
+scheduling_data JSONB          NULLABLE  — CPU 스케줄링 구조화 데이터 (SCHEDULING 유형, {algorithm,timeQuantum?,processes[]})
 ─────────────────────────────────────────────────────────
 create_dt      TIMESTAMP       NOT NULL  — 생성 일시
 create_uno     BIGINT          NOT NULL  — 생성자 (users.id)
@@ -241,6 +242,7 @@ created_at     TIMESTAMP    NOT NULL
 | 컬럼 | 설명 |
 |------|------|
 | `category_id` | FK → domain_slave.id (문제 유형) |
+| `scheduling_data` | CPU 스케줄링 구조화 데이터 (JSONB, SCHEDULING 유형 전용, nullable) |
 | `create_uno` | FK → users.id (생성자) |
 | `modified_uno` | FK → users.id (수정자) |
 | `del_yn` | 삭제 여부 (Y/N) |

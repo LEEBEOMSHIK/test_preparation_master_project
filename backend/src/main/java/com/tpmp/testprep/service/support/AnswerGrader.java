@@ -9,6 +9,8 @@ import java.util.stream.Collectors;
  *
  * <p>SHORT_ANSWER 에서 정답·사용자 답안 모두 콤마로 구분된 복수 정답을 지원한다.
  * 콤마 분리 후 토큰을 trim·소문자화하여 Set 비교하므로 순서와 공백 차이는 무시된다.
+ * SCHEDULING 유형도 정답을 관리자가 수동으로 입력하며(자동 계산 없음) SHORT_ANSWER와
+ * 동일하게 콤마 다중값 비교로 채점한다.
  *
  * <p>CODE 유형은 콤마가 코드 문법의 일부일 수 있으므로 절대 분리하지 않고
  * 통문자열 비교한다. 단, 줄 끝 trailing 공백·CRLF 차이·앞뒤 빈 줄은 정규화하여
@@ -32,7 +34,8 @@ public final class AnswerGrader {
         if (correctAnswer == null || userAnswer == null) {
             return false;
         }
-        if ("SHORT_ANSWER".equals(questionType)) {
+        // SHORT_ANSWER, SCHEDULING — 콤마 다중 정답 Set 비교 (SCHEDULING은 자동 계산 없이 수동 정답을 동일 방식으로 채점)
+        if ("SHORT_ANSWER".equals(questionType) || "SCHEDULING".equals(questionType)) {
             return multiSetMatch(correctAnswer, userAnswer);
         }
         if ("CODE".equals(questionType)) {

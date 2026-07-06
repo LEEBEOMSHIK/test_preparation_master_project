@@ -1,6 +1,7 @@
 package com.tpmp.testprep.dto.response;
 
 import com.tpmp.testprep.entity.QuestionBank;
+import com.tpmp.testprep.entity.support.SchedulingData;
 
 import java.util.List;
 
@@ -13,7 +14,9 @@ public record QuizQuestionView(
         String code,
         String language,
         Integer examYear,
-        Integer examRound) {
+        Integer examRound,
+        // 스케줄링 구조화 데이터 — 정답(answer)은 계속 미노출, 문제 표시용 구조만 전달
+        SchedulingData schedulingData) {
 
     public static QuizQuestionView from(QuestionBank qb) {
         return new QuizQuestionView(
@@ -25,6 +28,7 @@ public record QuizQuestionView(
                 qb.getCode(),
                 qb.getLanguage(),
                 qb.getExamYear(),
-                qb.getExamRound());
+                qb.getExamRound(),
+                qb.getSchedulingData());
     }
 }

@@ -1,3 +1,58 @@
+## HIST-20260706-001
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 관리자 백엔드 / 문항(QuestionBank) — CPU 스케줄링 구조화 문항(SCHEDULING 유형) 신설
+- **수정 개요**: 새 `QuestionType.SCHEDULING` 추가. 스케줄링 데이터(알고리즘·타임퀀텀·프로세스 목록)를 JSONB 컬럼 `scheduling_data` 하나에 구조화 저장(entity/support/SchedulingData.java 신규 record). 등록(단건/일괄)·수정 3개 경로 모두 schedulingData 반영 + RR/PRIORITY 계열 필수값 검증(SCHEDULING_DATA_INVALID). 채점은 SHORT_ANSWER와 동일한 콤마 다중값 비교로 라우팅(AnswerGrader). 자동 스케줄링 계산·채점은 하지 않음(정답 수동 입력).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/entity/support/SchedulingData.java` | 추가 | `SchedulingAlgorithm`(FCFS/SJF/SRTF/PRIORITY_NON_PREEMPTIVE/PRIORITY_PREEMPTIVE/RR) enum + `ProcessRow`(pid,arrivalTime,burstTime,priority?) record + `SchedulingData`(algorithm,timeQuantum?,processes) record, Bean Validation 포함 |
+| `docs/db-migration/20260706_01_question_bank_scheduling_data.sql` | 추가 | `question_bank.scheduling_data JSONB` 컬럼 추가 DDL (dev는 ddl-auto=update 자동 반영, 운영 수동 적용 필요) |
+| `backend/src/main/java/com/tpmp/testprep/entity/QuestionBank.java` | 수정 | `QuestionType`에 `SCHEDULING` 추가; `schedulingData` 필드(@JdbcTypeCode JSONB, 기존 options 패턴과 동일) 추가; @Builder·update()에 schedulingData 파라미터 추가 |
+| `backend/src/main/java/com/tpmp/testprep/exception/ErrorCode.java` | 수정 | `SCHEDULING_DATA_INVALID(BAD_REQUEST)` 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/request/QuestionBankRequest.java` | 수정 | `@Valid SchedulingData schedulingData`(선택) 필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionBankResponse.java` | 수정 | `schedulingData` 필드 추가 + from() 매핑 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuizQuestionView.java` | 수정 | `schedulingData` 필드 추가 + from() 매핑 (정답은 계속 미노출) |
+| `backend/src/main/java/com/tpmp/testprep/service/QuestionBankService.java` | 수정 | createQuestion/createQuestionsBulk/updateQuestion 3곳 모두 schedulingData 전달; private `validateSchedulingData(request)` 신규 — SCHEDULING 유형일 때만 schedulingData null 체크, RR은 timeQuantum>0, PRIORITY 계열은 모든 행 priority 필수 검증 |
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | `"SHORT_ANSWER".equals(questionType)` 분기에 `\|\| "SCHEDULING".equals(questionType)` 추가 — multiSetMatch로 동일 라우팅 |
+| `docs/db-guidelines.md` | 수정 | question_bank ERD·컬럼 코멘트에 `scheduling_data JSONB nullable` 추가 |
+| `frontend/src/data/tableComments.ts` | 수정 | question_bank.scheduling_data 코멘트 추가 |
+
+### 수정 상세
+
+#### `QuestionBank.java`
+- 변경 전: `enum QuestionType { MULTIPLE_CHOICE, SHORT_ANSWER, OX, CODE }`; schedulingData 필드 없음
+- 변경 후: `enum QuestionType { MULTIPLE_CHOICE, SHORT_ANSWER, OX, CODE, SCHEDULING }`; `@JdbcTypeCode(SqlTypes.JSON) @Column(name="scheduling_data", columnDefinition="jsonb") private SchedulingData schedulingData;` 추가, @Builder·update() 마지막 도메인 파라미터로 추가
+
+#### `QuestionBankService.java`
+- 변경 전: create/createBulk/update 3곳 builder·update 호출에 schedulingData 없음; 검증 로직 없음
+- 변경 후: 3곳 모두 `.schedulingData(request.schedulingData())` / `qb.update(..., request.schedulingData(), adminId)` 전달; 각 메서드 진입 시 `validateSchedulingData(request)`(bulk는 `.forEach`) 호출
+
+#### `AnswerGrader.java`
+- 변경 전: `if ("SHORT_ANSWER".equals(questionType)) return multiSetMatch(...)`
+- 변경 후: `if ("SHORT_ANSWER".equals(questionType) || "SCHEDULING".equals(questionType)) return multiSetMatch(...)` — SHORT_ANSWER 기존 동작 영향 없음
+
+### 마이그레이션 SQL 경로
+`docs/db-migration/20260706_01_question_bank_scheduling_data.sql`
+
+롤백:
+```sql
+ALTER TABLE question_bank DROP COLUMN scheduling_data;
+```
+
+### 복원 방법
+이 ID(HIST-20260706-001)만으로 복원 시:
+- DB: 롤백 SQL 실행(scheduling_data 컬럼 DROP)
+- `entity/support/SchedulingData.java`: 파일 삭제
+- `QuestionBank.java`: QuestionType에서 SCHEDULING 제거, schedulingData 필드·builder/update 파라미터 제거
+- `ErrorCode.java`: SCHEDULING_DATA_INVALID 제거
+- `QuestionBankRequest.java`/`QuestionBankResponse.java`/`QuizQuestionView.java`: schedulingData 필드·매핑 제거
+- `QuestionBankService.java`: schedulingData 전달·validateSchedulingData() 제거
+- `AnswerGrader.java`: `|| "SCHEDULING".equals(questionType)` 제거
+- `docs/db-guidelines.md`/`frontend/src/data/tableComments.ts`: scheduling_data 코멘트 제거
+
 ## HIST-20260701-001
 
 - **날짜**: 2026-07-01

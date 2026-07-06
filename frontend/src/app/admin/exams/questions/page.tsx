@@ -19,6 +19,7 @@ const TYPE_LABEL: Record<QuestionType, string> = {
   SHORT_ANSWER: '주관식',
   OX: 'O/X',
   CODE: '코드',
+  SCHEDULING: '스케줄링',
 };
 
 const TYPE_COLOR: Record<QuestionType, string> = {
@@ -26,6 +27,7 @@ const TYPE_COLOR: Record<QuestionType, string> = {
   SHORT_ANSWER:    'bg-green-50 text-green-600',
   OX:              'bg-amber-50 text-amber-600',
   CODE:            'bg-violet-50 text-violet-600',
+  SCHEDULING:      'bg-teal-50 text-teal-600',
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;

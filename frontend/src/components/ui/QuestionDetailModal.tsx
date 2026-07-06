@@ -4,7 +4,8 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { RichContent } from '@/components/ui/RichContent';
 import { CodeBlock } from '@/components/ui/CodeBlock';
-import type { QuestionType } from '@/types';
+import { SchedulingProblemTable } from '@/components/ui/SchedulingProblemTable';
+import type { QuestionType, SchedulingData } from '@/types';
 
 export interface QuestionDetailItem {
   id: number;
@@ -20,6 +21,7 @@ export interface QuestionDetailItem {
   explanation?: string;
   code?: string;
   language?: string;
+  schedulingData?: SchedulingData;
 }
 
 interface Props {
@@ -34,12 +36,14 @@ const TYPE_LABEL: Record<QuestionType, string> = {
   SHORT_ANSWER:    '주관식',
   OX:              'O/X',
   CODE:            '코드',
+  SCHEDULING:      '스케줄링',
 };
 const TYPE_COLOR: Record<QuestionType, string> = {
   MULTIPLE_CHOICE: 'bg-blue-50 text-blue-600',
   SHORT_ANSWER:    'bg-green-50 text-green-600',
   OX:              'bg-amber-50 text-amber-600',
   CODE:            'bg-violet-50 text-violet-600',
+  SCHEDULING:      'bg-teal-50 text-teal-600',
 };
 
 export function QuestionDetailModal({ question, onClose, hideEditLink = false }: Props) {
@@ -118,6 +122,14 @@ export function QuestionDetailModal({ question, onClose, hideEditLink = false }:
               language={question.language}
               size="xs"
             />
+          )}
+
+          {/* 스케줄링 구조화 데이터 */}
+          {question.schedulingData && (
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1.5">스케줄링 문제 구조</p>
+              <SchedulingProblemTable data={question.schedulingData} />
+            </div>
           )}
 
           {/* 선택지 */}
