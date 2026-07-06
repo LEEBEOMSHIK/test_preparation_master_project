@@ -1,3 +1,89 @@
+## HIST-20260706-003
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 — 풀이 스크래치패드 코드 트레이싱 프리뷰에 타입 배지(자동추론 + 표기법 오버라이드) 추가
+- **수정 개요**: HIST-20260706-002에서 도입한 `name = value` 표기법에 `name: type = value` 형태의 선택적 타입 명시 문법을 추가하고, 타입을 생략하면 값에서 자동 추론(`number`/`boolean`/`null`/`undefined`/`string`, 배열은 `number[]`/`string[]`/`number[][]`/`string[][]`/`array`)한다. 프리뷰(`TracePreview`)에는 이름 옆에 타입 배지를 렌더해 explicit(명시)과 inferred(자동추론)를 시각적으로 구분한다. 값 내부의 콜론(`t = 12:30`, `url = http://x`)은 타입으로 오인되지 않도록 정규식을 이름 뒤 콜론만 매칭하게 설계·검증함. 코드 실행/eval/Function/JSON.parse 여전히 미사용. 퀴즈 화면(`DailyQuiz_Modified.md` HIST-20260706-003)과 공용 컴포넌트.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/traceNotation.ts` | 수정 | `ASSIGN_PATTERN`을 명시 타입 캡처 그룹 포함 형태로 교체, `TypeSource`('explicit'/'inferred') 타입 추가, `VarLine`/`Array1DLine`/`Array2DLine`에 `typeLabel`/`typeSource` 필드 추가, `inferScalarType`/`inferArray1DType`/`inferArray2DType` 자동 추론 함수 신규 작성 |
+| `frontend/src/components/ui/TracePreview.tsx` | 수정 | `TypeBadge` 서브 컴포넌트 신규 추가(explicit=채운 배경, inferred=점선 테두리+이탤릭), `VarRow`/`Array1DRow`/`Array2DGrid`가 `typeLabel`/`typeSource` prop을 받아 배지 렌더. `FreeTextRow`(text)는 배지 없음 |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정 | 코드 트레이싱 탭 안내 문구·textarea placeholder에 `x: long = 3` 타입 명시 예시 추가 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표의 `parseTraceLines`/`TracePreview` 행 설명에 타입 배지 지원 내용 반영 |
+
+### 수정 상세
+
+#### `frontend/src/lib/traceNotation.ts`
+- 변경 전: `const ASSIGN_PATTERN = /^([A-Za-z_]\w*)\s*=\s*(.+)$/;`(name, rhs 2그룹만 캡처). `VarLine`/`Array1DLine`/`Array2DLine`에 타입 관련 필드 없음. `parseSingleLine`은 `{kind:'var', name, value: rhs}` 등 타입 정보 없이 반환
+- 변경 후: `const ASSIGN_PATTERN = /^([A-Za-z_]\w*)\s*(?::\s*([^=]+?))?\s*=\s*(.+)$/;`(name, 선택적 명시타입, rhs 3그룹). `export type TypeSource = 'explicit' | 'inferred';` 추가. 세 인터페이스에 `typeLabel: string; typeSource: TypeSource;` 필드 추가(`TextLine`은 변경 없음). `isNumericLiteral(value)`(정수 `/^-?\d+$/` 또는 실수 `/^-?\d*\.\d+$/`), `inferScalarType(value)`(숫자→`number`, `true`/`false`→`boolean`, `null`→`null`, `undefined`→`undefined`, 그 외→`string`), `inferArray1DType(cells)`(전체 숫자→`number[]`, 아니면 `string[]`, 빈 배열→`array`), `inferArray2DType(grid)`(모든 셀 기준 동일 로직, `number[][]`/`string[][]`/`array`) 신규 함수 추가. `parseSingleLine`은 `match[2]?.trim() || undefined`로 명시 타입을 추출해 있으면 `typeSource:'explicit'`로 그대로 사용하고, 없으면 추론 함수 결과로 `typeSource:'inferred'` 채움. 파일 상단 JSDoc에 `name: type = value` 표기법 설명과 "값 내부 콜론은 안전하다"는 설명 추가
+- 이유: 사용자가 트레이싱 중 변수의 자료형(`long`, `char`, `Node` 등 언어 불문 자유 문자열)을 함께 기록하고 싶어했고, 타입을 매번 명시하지 않아도 값으로부터 자동 추론되면 입력 부담이 줄어듦. `name:` 바로 뒤 콜론만 캡처하도록 정규식을 설계해 `t = 12:30`, `url = http://x`처럼 값 안에 콜론이 있는 경우 타입으로 오인되지 않게 함(임시 스크립트로 케이스 검증 완료)
+
+#### `frontend/src/components/ui/TracePreview.tsx`
+- 변경 전: `VarRow({name, value})`, `Array1DRow({name, cells})`, `Array2DGrid({name, grid})`가 타입 배지 없이 이름만 강조 렌더
+- 변경 후: `TypeBadge({typeLabel, typeSource})` 신규 — explicit은 `bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200` 채운 배지, inferred는 `border border-dashed border-gray-300 dark:border-gray-600 italic text-gray-400 dark:text-gray-500` 점선 배지, `title`에 "명시 타입"/"자동 추론" 문구로 마우스오버 구분. 세 Row 컴포넌트가 `typeLabel`/`typeSource` prop을 받아 이름 옆에 `<TypeBadge>` 렌더. `TracePreview`의 switch에서 `line.typeLabel`/`line.typeSource`를 각 Row로 전달
+- 이유: explicit(사용자 확신)과 inferred(파서 추측)를 한눈에 구분해 추론 오류를 사용자가 즉시 알아챌 수 있게 함
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: 안내 문구가 `i = 3` · `arr = [1, 2, 3]` · `grid = [[1,2],[3,4]]` 3개 예시만 나열, placeholder도 타입 명시 예시 없음
+- 변경 후: 안내 문구에 `x: long = 3`(타입 명시) 예시 추가, textarea placeholder 첫 줄 다음에 `x: long = 3\n` 추가
+- 이유: 새 표기법의 존재를 사용자가 바로 발견할 수 있게 안내
+
+#### `CLAUDE.md`
+- 변경 전: `parseTraceLines`/`TracePreview` 행 설명에 타입 배지 관련 언급 없음
+- 변경 후: `parseTraceLines` 행에 `name: type = value` 표기법과 "값 기반 타입 자동추론 + `: type` 명시 오버라이드(typeLabel/typeSource)" 문구 추가, `TracePreview` 행에 "+ 타입 배지(explicit/inferred 시각 구분)" 문구 추가
+- 이유: 공용 유틸리티 표 최신화
+
+### 복원 방법
+이 ID(HIST-20260706-003)만으로 복원 시: `traceNotation.ts`의 `ASSIGN_PATTERN`을 `/^([A-Za-z_]\w*)\s*=\s*(.+)$/`로 되돌리고 `TypeSource`/`typeLabel`/`typeSource` 필드 및 `inferScalarType`/`inferArray1DType`/`inferArray2DType` 함수를 제거하며 `parseSingleLine`을 타입 필드 없이 `{kind, name, value|cells|grid}`만 반환하도록 되돌린다. `TracePreview.tsx`에서 `TypeBadge` 컴포넌트와 각 Row의 `typeLabel`/`typeSource` prop·렌더를 제거한다. `ScratchPadPanel.tsx`의 안내 문구·placeholder에서 `x: long = 3` 예시를 제거한다. `CLAUDE.md`는 두 행을 위 "변경 전" 문구로 되돌린다. 퀴즈 화면(`DailyQuiz_Modified.md` HIST-20260706-003)도 동일 공용 파일을 사용 중이므로 함께 되돌리지 않는 한 파일 자체를 삭제하지 말 것.
+
+## HIST-20260706-002
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 — 풀이 스크래치패드 코드 트레이싱 탭 "타이핑→자동 렌더"로 교체
+- **수정 개요**: 직전 HIST-20260706-001에서 도입한 클릭식 블록 위젯(변수 워치 표·1D/2D 배열 그리드·반복 스텝 표, `TraceBlocks.tsx`의 `TraceBlockEditor`)을 제거하고, textarea에 `이름 = 값` 표기법으로 타이핑하면 실시간으로 변수/1D 배열/2D 배열/자유 텍스트를 자동 렌더하는 방식으로 전면 교체. 행·열을 손으로 관리해야 하는 부담과 변수=값 가시성 저하 피드백에 따른 개선. 코드 실행/eval/Function/JSON.parse(실행성 파싱) 전혀 사용하지 않음. 기존 로컬 저장분(`traceBlocks`)은 최초 로드 시 표기법 텍스트로 1회 이관되어 데이터 손실 없음. 퀴즈 화면(`DailyQuiz_Modified.md` HIST-20260706-002)과 공용 컴포넌트.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/traceNotation.ts` | 추가(신규, 공용) | `parseTraceLines(text)`(표기법 순수 파서, `TraceLine` 판별 유니온 반환) + 레거시 이관용 `sanitizeLegacyTraceBlocks(raw)`·`legacyTraceBlocksToNotation(blocks)`. eval/Function/JSON.parse 미사용, 실패 시 항상 `{kind:'text'}`로 폴백(throw 없음) |
+| `frontend/src/components/ui/TracePreview.tsx` | 추가(신규, 공용) | `<TracePreview lines />` — `TraceLine[]`을 변수 행(칩)·1D 배열(인덱스 라벨 박스)·2D 배열(행/열 인덱스 헤더 격자)·자유 텍스트(흐린 텍스트)로 렌더하는 읽기 전용 프리뷰. 클릭 편집 UI 없음 |
+| `frontend/src/components/ui/TraceBlocks.tsx` | 삭제 | 클릭식 블록 에디터(`TraceBlockEditor`, `createVarsBlock` 등 팩토리, `BlockContainer`/`VarsBlockBody`/`Array1DBlockBody`/`Array2DBlockBody`/`IterBlockBody`) 전체 제거. 미사용 export 잔재 없음 |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정 | `ScratchPadData.traceBlocks`를 `@deprecated` 주석과 함께 `unknown` 타입으로 축소(더 이상 생성·저장 안 함, 구 payload 안전 파싱만 담당). `loadData`가 구버전 `traceBlocks`를 만나면 `sanitizeLegacyTraceBlocks`+`legacyTraceBlocksToNotation`으로 표기법 텍스트를 생성해 `trace` 끝에 합친 뒤 반환(이후 저장 시 `traceBlocks` 필드 자체가 빠짐). `useMemo(() => parseTraceLines(data.trace), [data.trace])`로 프리뷰용 `traceLines` 계산. 코드 트레이싱 탭 JSX를 "표기법 textarea + `<TracePreview>` 자동 렌더" 2단 구성으로 교체(구조화 블록 에디터 렌더 제거) |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에서 `TraceBlockEditor`/`sanitizeTraceBlocks`/`TraceBlock`(TraceBlocks.tsx) 행을 `parseTraceLines`/`TraceLine`(traceNotation.ts)·`TracePreview`(TracePreview.tsx) 행으로 교체, `ScratchPadPanel` 설명 문구를 "타이핑→자동 렌더 표기법 방식"으로 갱신 |
+
+### 수정 상세
+
+#### `frontend/src/lib/traceNotation.ts`
+- 변경 전: 파일 없음(신규)
+- 변경 후: `TraceLine = VarLine | Array1DLine | Array2DLine | TextLine` 판별 유니온. `parseTraceLines(text)`는 줄 단위로 `^([A-Za-z_]\w*)\s*=\s*(.+)$` 매칭 → rhs가 `[`로 시작하면 자체 관용 브래킷 파서(`findMatchingBracketEnd`/`splitTopLevel`/`parseBracketGroup`)로 중첩 깊이를 추적해 최상위 콤마 기준 분리(원소는 표시용 문자열 그대로, 코드 실행 없음). 원소가 모두 `[`로 시작하면 2D, 아니면 1D. 괄호 불일치 등 파싱 실패·매칭 안 되는 줄은 예외 없이 `{kind:'text'}`로 폴백. 빈 줄은 `parseTraceLines`에서 필터링. 레거시 이관용 `sanitizeLegacyTraceBlocks`(구 `vars`/`array1d`/`array2d`/`iter` 블록 항목 단위 안전 파싱)·`legacyTraceBlocksToNotation`(vars→`name = value` 줄들, array1d→`name = [a, b, c]`, array2d→`name = [[...],[...]]`, iter→`# ` 접두 주석 줄들로 직렬화)도 포함
+- 이유: 클릭식 위젯의 행·열 관리 부담을 없애고 타이핑만으로 즉시 시각화되게 하면서, 코드 실행 없이 순수 문자열 파싱만으로 안전하게 구현
+
+#### `frontend/src/components/ui/TracePreview.tsx`
+- 변경 전: 파일 없음(신규)
+- 변경 후: `<TracePreview lines={TraceLine[]} />` — `var`는 이름(인디고 강조)=값 칩 행, `array1d`는 인덱스 라벨이 붙은 가로 박스 행(overflow-x-auto), `array2d`는 행/열 인덱스 헤더가 붙은 테이블 격자, `text`는 흐린 색 `whitespace-pre-wrap` 자유 텍스트. `lines`가 비어있으면 표기법 안내 문구 표시
+- 이유: 파싱 결과를 순수 렌더만 담당하는 컴포넌트로 분리해 `ScratchPadPanel`의 책임을 가볍게 유지
+
+#### `frontend/src/components/ui/TraceBlocks.tsx`
+- 변경 전: `TraceBlock` 판별 유니온(`vars`/`array1d`/`array2d`/`iter`) + 블록 생성 팩토리 + `sanitizeTraceBlocks` + `<TraceBlockEditor>`(툴바로 블록 추가, 각 블록별 입력 폼 렌더링·행/열 추가삭제·순서이동·라벨 편집)
+- 변경 후: 파일 삭제. 레거시 파싱 로직은 `traceNotation.ts`의 `sanitizeLegacyTraceBlocks`로 이관(마이그레이션 전용, 편집 UI 없음)
+- 이유: 클릭식 블록 편집 UI 전면 폐지에 따라 더 이상 필요하지 않음. 미사용 export 잔재 방지를 위해 재작성 대신 삭제 선택
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: `ScratchPadData.traceBlocks: TraceBlock[]`(필수 필드), 코드 트레이싱 탭이 "자유 트레이싱 메모(h-32 textarea)" + "구조화 트레이스 블록(`TraceBlockEditor`, 클릭식 추가/편집)" 2단 구성
+- 변경 후: `ScratchPadData.traceBlocks?: unknown`(`@deprecated`, optional). `loadData`에서 `sanitizeLegacyTraceBlocks(p.traceBlocks)` 결과가 있으면 `legacyTraceBlocksToNotation`으로 텍스트화해 `trace`에 합치고, 반환 객체는 `traceBlocks` 필드 자체를 포함하지 않음(다음 저장부터 자동으로 빠짐). 코드 트레이싱 탭은 "표기법 안내 문구 + h-40 textarea" + "자동 렌더 프리뷰(`<TracePreview lines={traceLines} />`)" 2단 구성으로 교체. `useMemo`로 `data.trace` 변경 시에만 재파싱
+- 이유: 클릭식 편집 부담을 없애면서 기존 로컬 저장 데이터(변수·배열·반복 스텝)를 표기법 텍스트로 무손실 이관하고, storageKey·디바운스 저장·탭 전환·ESC 닫기 등 기존 흐름은 그대로 유지
+
+#### `CLAUDE.md`
+- 변경 전: Shared Utilities 표에 `TraceBlockEditor`/`sanitizeTraceBlocks`/`TraceBlock`(TraceBlocks.tsx) 행 존재
+- 변경 후: 해당 행을 `parseTraceLines`/`TraceLine`(traceNotation.ts), `TracePreview`(TracePreview.tsx) 2행으로 교체, `ScratchPadPanel` 설명을 "타이핑→자동 렌더 표기법 방식(traceNotation)"으로 갱신
+- 이유: 신규/삭제된 공용 유틸·컴포넌트 위치를 문서에 즉시 반영
+
+### 복원 방법
+이 ID(HIST-20260706-002)만으로 복원 시: `frontend/src/lib/traceNotation.ts`·`frontend/src/components/ui/TracePreview.tsx`를 삭제하고, HIST-20260706-001의 "복원 방법"대로 `frontend/src/components/ui/TraceBlocks.tsx`를 재생성(HIST-20260706-001 수정 상세의 "변경 후" 내용 적용)한 뒤 `ScratchPadPanel.tsx`를 다시 `TraceBlockEditor`/`sanitizeTraceBlocks`/`TraceBlock` import 및 `ScratchPadData.traceBlocks: TraceBlock[]` 필수 필드, 코드 트레이싱 탭의 "자유 트레이싱 메모 + `TraceBlockEditor`" 2단 구성으로 되돌린다. `CLAUDE.md` Shared Utilities 표도 HIST-20260706-001 시점 행으로 되돌린다. 단, 퀴즈 화면(`DailyQuiz_Modified.md` HIST-20260706-002)도 동일 공용 파일을 사용 중이므로 함께 되돌리지 않는 한 파일 자체를 삭제하지 말 것.
+
 ## HIST-20260706-001
 
 - **날짜**: 2026-07-06

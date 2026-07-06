@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { evaluateExpression, type EvalResult } from '@/lib/safeMathCalc';
-import { TraceBlockEditor, sanitizeTraceBlocks, type TraceBlock } from '@/components/ui/TraceBlocks';
+import { parseTraceLines, sanitizeLegacyTraceBlocks, legacyTraceBlocksToNotation } from '@/lib/traceNotation';
+import { TracePreview } from '@/components/ui/TracePreview';
 
 interface ScratchPadPanelProps {
   /** localStorage 저장 키 (문항 단위로 유일해야 함, 예: tpmp_scratchpad:exam:1:23) */
@@ -16,17 +17,26 @@ interface ScratchPadData {
   note: string;
   trace: string;
   calcHistory: string[];
-  /** 구조화 트레이스 블록(변수 워치·1D/2D 배열·반복 스텝 표). 구버전 저장분에는 없을 수 있어 로드 시 항상 배열로 보정 */
-  traceBlocks: TraceBlock[];
+  /**
+   * @deprecated HIST-20260706-001에서 도입된 클릭식 블록 위젯(변수 워치·1D/2D 배열·반복 스텝 표)의
+   * 저장 필드. HIST-20260706-002부터 "타이핑→자동 렌더" 표기법(trace 텍스트 파싱)으로 대체되어
+   * 더 이상 생성·저장하지 않는다. loadData가 구버전 저장분을 만나면 표기법 텍스트로 1회 이관 후
+   * 폐기하므로, 이 필드는 구 payload 안전 파싱(하위호환) 용도로만 타입에 남긴다.
+   */
+  traceBlocks?: unknown;
 }
 
-const EMPTY_DATA: ScratchPadData = { note: '', trace: '', calcHistory: [], traceBlocks: [] };
+const EMPTY_DATA: ScratchPadData = { note: '', trace: '', calcHistory: [] };
 const SAVE_DEBOUNCE_MS = 500;
 const MAX_CALC_HISTORY = 5;
 
 type TabKey = 'note' | 'trace' | 'calc';
 
-/** localStorage에서 스크래치패드 데이터 로드 — 파싱/접근 오류 시 빈 데이터로 폴백 */
+/**
+ * localStorage에서 스크래치패드 데이터 로드 — 파싱/접근 오류 시 빈 데이터로 폴백.
+ * 구버전(HIST-20260706-001) traceBlocks가 남아있으면 표기법 텍스트로 1회 변환해
+ * trace 끝에 합치고, 이후로는 traceBlocks 필드를 저장하지 않는다(데이터 손실 없는 이관).
+ */
 function loadData(key: string): ScratchPadData {
   if (typeof window === 'undefined') return EMPTY_DATA;
   try {
@@ -34,17 +44,23 @@ function loadData(key: string): ScratchPadData {
     if (!raw) return EMPTY_DATA;
     const parsed: unknown = JSON.parse(raw);
     if (
-      parsed !== null &&
-      typeof parsed === 'object' &&
-      typeof (parsed as ScratchPadData).note === 'string' &&
-      typeof (parsed as ScratchPadData).trace === 'string' &&
-      Array.isArray((parsed as ScratchPadData).calcHistory)
+      parsed === null ||
+      typeof parsed !== 'object' ||
+      typeof (parsed as ScratchPadData).note !== 'string' ||
+      typeof (parsed as ScratchPadData).trace !== 'string' ||
+      !Array.isArray((parsed as ScratchPadData).calcHistory)
     ) {
-      const p = parsed as ScratchPadData & { traceBlocks?: unknown };
-      // traceBlocks 키가 없는 구버전 저장분(HIST-20260706-001 이전)도 안전하게 []로 보정
-      return { ...p, traceBlocks: sanitizeTraceBlocks(p.traceBlocks) };
+      return EMPTY_DATA;
     }
-    return EMPTY_DATA;
+
+    const p = parsed as ScratchPadData;
+    const legacyBlocks = sanitizeLegacyTraceBlocks(p.traceBlocks);
+    if (legacyBlocks.length === 0) {
+      return { note: p.note, trace: p.trace, calcHistory: p.calcHistory };
+    }
+    const migratedText = legacyTraceBlocksToNotation(legacyBlocks);
+    const mergedTrace = [p.trace, migratedText].filter(s => s.trim().length > 0).join('\n');
+    return { note: p.note, trace: mergedTrace, calcHistory: p.calcHistory };
   } catch {
     return EMPTY_DATA;
   }
@@ -63,8 +79,9 @@ function saveData(key: string, data: ScratchPadData): void {
  * 풀이 스크래치패드 — 시험/퀴즈 풀이 화면 우하단 FAB로 여는 보조 메모 패널.
  * 자유 메모 · (CODE 문항 한정) 코드 트레이싱 · 안전 계산기 3탭으로 구성되며
  * storageKey 단위로 localStorage에 자동 저장(디바운스)된다. BE/DB 연동 없음.
- * 코드 트레이싱 탭은 자유 텍스트 메모 + 구조화 트레이스 블록(TraceBlocks.tsx의
- * 변수 워치·1D/2D 배열·반복 스텝 표)을 함께 제공하며, 코드 실행/eval은 하지 않는다.
+ * 코드 트레이싱 탭은 "타이핑→자동 렌더" 방식이다. textarea에 `이름 = 값` 표기법으로
+ * 한 줄씩 입력하면 @/lib/traceNotation의 순수 파서가 변수/1D 배열/2D 배열/자유
+ * 텍스트로 실시간 분류하고, TracePreview가 이를 시각화한다. 코드 실행/eval은 하지 않는다.
  *
  * 데스크톱(lg↑): 우측 비모달 슬라이드 드로어
  * 모바일(lg 미만): 기존 답안 Bottom Sheet 컨벤션 재사용(딤 배경 + rounded-t-2xl)
@@ -77,6 +94,9 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
   // 계산기 입력/결과 — 저장 대상 아님(계산 기록만 calcHistory에 누적)
   const [calcInput, setCalcInput] = useState('');
   const [calcResult, setCalcResult] = useState<EvalResult | null>(null);
+
+  // 코드 트레이싱 프리뷰 — trace 텍스트가 바뀔 때만 재파싱(순수 함수, 실행/eval 없음)
+  const traceLines = useMemo(() => parseTraceLines(data.trace), [data.trace]);
 
   // 디바운스 저장 타이머 + 미저장(pending) 데이터 — storageKey 전환 시 flush용
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -221,27 +241,33 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
         )}
 
         {tab === 'trace' && isCodeQuestion && (
-          <div className="flex flex-col gap-4">
-            {/* 자유 트레이싱 메모 — 기존 필드 그대로 유지(하위호환) */}
+          <div className="flex flex-col gap-3">
+            {/* 표기법 입력 — 타이핑만으로 아래 프리뷰가 자동 렌더됨(코드 실행/eval 없음) */}
             <div className="flex flex-col gap-1">
-              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500">자유 트레이싱 메모</p>
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500">
+                한 줄에 하나씩 입력하세요 — <span className="font-mono">i = 3</span> ·{' '}
+                <span className="font-mono">arr = [1, 2, 3]</span> ·{' '}
+                <span className="font-mono">grid = [[1,2],[3,4]]</span> ·{' '}
+                <span className="font-mono">x: long = 3</span>(타입 명시)
+              </p>
               <textarea
                 value={data.trace}
                 onChange={e => updateData(prev => ({ ...prev, trace: e.target.value }))}
                 onKeyDown={handleTraceKeyDown}
-                placeholder="변수 값 변화, 실행 흐름 등을 자유롭게 트레이싱하세요... (Tab: 들여쓰기)"
+                placeholder={
+                  'i = 3\nx: long = 3\narr = [1, 2, 3]\ngrid = [[1, 2], [3, 4]]\n표기법이 아니어도 자유 메모로 그대로 남습니다.'
+                }
                 spellCheck={false}
-                className="w-full h-32 resize-y rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm font-mono p-3 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full h-40 resize-y rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm font-mono p-3 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
             </div>
 
-            {/* 구조화 트레이스 블록 — 변수 워치/1D·2D 배열/반복 스텝 표. 실행/eval 없이 값은 전부 수동 입력 */}
+            {/* 자동 렌더 프리뷰 — trace 텍스트를 파싱해 변수/배열을 실시간 시각화(클릭 편집 없음) */}
             <div className="flex flex-col gap-1">
-              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500">구조화 트레이스 블록</p>
-              <TraceBlockEditor
-                blocks={data.traceBlocks}
-                onChange={next => updateData(prev => ({ ...prev, traceBlocks: next }))}
-              />
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500">자동 렌더 프리뷰</p>
+              <div className="rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40 p-2.5">
+                <TracePreview lines={traceLines} />
+              </div>
             </div>
           </div>
         )}

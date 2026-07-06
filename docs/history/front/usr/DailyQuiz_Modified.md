@@ -1,3 +1,50 @@
+## HIST-20260706-003
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 플레이 — 풀이 스크래치패드 코드 트레이싱 프리뷰에 타입 배지(자동추론 + 표기법 오버라이드) 추가
+- **수정 개요**: `name: type = value` 타입 명시 표기법 + 값 기반 자동 타입 추론(`number`/`boolean`/`null`/`undefined`/`string`, 배열은 `number[]`/`string[]`/`number[][]`/`string[][]`/`array`)을 지원하고, 프리뷰에 explicit/inferred 구분 타입 배지를 추가. 실행/eval 전혀 없음. 상세는 시험 응시 화면(`UserExamination_Modified.md` HIST-20260706-003) 참조 — 신규 로직/컴포넌트는 두 화면 공용이며 퀴즈 화면(`frontend/src/app/user/quiz/[categoryId]/page.tsx`) 자체 코드는 변경 없음.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/traceNotation.ts` | 수정(공용) | 명시 타입 캡처 정규식, `TypeSource`, `typeLabel`/`typeSource` 필드, 자동 추론 함수 3종 추가 — 상세는 `UserExamination_Modified.md` HIST-20260706-003 참조 |
+| `frontend/src/components/ui/TracePreview.tsx` | 수정(공용) | `TypeBadge` 컴포넌트 추가, 각 Row에 타입 배지 렌더 — 상세는 동일 참조 |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(공용) | 안내 문구·placeholder에 `x: long = 3` 예시 추가 — 상세는 동일 참조 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표 갱신(중복 기록 아님, 시험 응시 히스토리와 동일 항목) |
+
+### 수정 상세
+
+#### `frontend/src/lib/traceNotation.ts` / `frontend/src/components/ui/TracePreview.tsx` / `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 상세는 `docs/history/front/usr/UserExamination_Modified.md`의 HIST-20260706-003 참조(두 화면 공용 수정 파일, `frontend/src/app/user/quiz/[categoryId]/page.tsx` 자체는 변경 없음 — `ScratchPadPanel`을 그대로 재사용)
+
+### 복원 방법
+이 ID(HIST-20260706-003)는 별도 복원 작업이 없다(퀴즈 화면 자체 코드는 변경되지 않음). 공용 수정 파일의 복원은 `UserExamination_Modified.md`의 HIST-20260706-003 복원 방법을 따르되, 양쪽 화면이 공용으로 사용 중이므로 시험 응시 화면도 함께 되돌리지 않는 한 파일을 삭제하지 말 것.
+
+## HIST-20260706-002
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 플레이 — 풀이 스크래치패드 코드 트레이싱 탭 "타이핑→자동 렌더"로 교체
+- **수정 개요**: 클릭식 블록 위젯(`TraceBlocks.tsx`의 `TraceBlockEditor`)을 제거하고 표기법 타이핑→자동 렌더 프리뷰(`TracePreview`)로 교체. 실행/eval 전혀 없음, 기존 로컬 저장분은 표기법 텍스트로 1회 이관되어 손실 없음. 상세는 시험 응시 화면(`UserExamination_Modified.md` HIST-20260706-002) 참조 — 신규/삭제 파일은 두 화면 공용이며 퀴즈 화면(`frontend/src/app/user/quiz/[categoryId]/page.tsx`) 자체 코드는 변경 없음.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/traceNotation.ts` | 추가(신규, 공용) | 표기법 순수 파서 `parseTraceLines`/`TraceLine` + 레거시 이관 함수 — 상세는 `UserExamination_Modified.md` HIST-20260706-002 참조 |
+| `frontend/src/components/ui/TracePreview.tsx` | 추가(신규, 공용) | `<TracePreview lines />` 읽기 전용 프리뷰 — 상세는 동일 참조 |
+| `frontend/src/components/ui/TraceBlocks.tsx` | 삭제(공용) | 클릭식 블록 에디터 전체 제거 — 상세는 동일 참조 |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(공용) | 코드 트레이싱 탭을 표기법 textarea + 자동 렌더 프리뷰 2단 구성으로 교체, `traceBlocks`는 레거시 이관 전용으로 축소 — 상세는 동일 참조 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표 갱신(중복 기록 아님, 시험 응시 히스토리와 동일 항목) |
+
+### 수정 상세
+
+#### `frontend/src/lib/traceNotation.ts` / `frontend/src/components/ui/TracePreview.tsx` / `frontend/src/components/ui/TraceBlocks.tsx` / `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 상세는 `docs/history/front/usr/UserExamination_Modified.md`의 HIST-20260706-002 참조(두 화면 공용 신규/삭제/수정 파일, `frontend/src/app/user/quiz/[categoryId]/page.tsx` 자체는 변경 없음 — `ScratchPadPanel`을 그대로 재사용)
+
+### 복원 방법
+이 ID(HIST-20260706-002)는 별도 복원 작업이 없다(퀴즈 화면 자체 코드는 변경되지 않음). 신규/삭제/수정 파일의 복원은 `UserExamination_Modified.md`의 HIST-20260706-002 복원 방법을 따르되, 양쪽 화면이 공용으로 사용 중이므로 시험 응시 화면도 함께 되돌리지 않는 한 파일을 삭제하지 말 것.
+
 ## HIST-20260706-001
 
 - **날짜**: 2026-07-06
