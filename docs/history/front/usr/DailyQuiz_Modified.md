@@ -1,3 +1,32 @@
+## HIST-20260707-003
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 사용자 프론트엔드 / 풀이 스크래치패드 — 이진트리 시각화 "트리" 탭 신규 추가
+- **수정 개요**: 풀이 화면 공용 `ScratchPadPanel.tsx`에 레벨오더 배열 표기(`[1, 2, 3, null, 4, 5]`)를 SVG 이진트리로 자동 렌더하는 "트리" 탭을 신규 추가(`BinaryTreeTool.tsx`, LeetCode 표준 BFS 역직렬화 + in-order 좌표 배치, 순수 시각화·채점 없음, 노드 200개 상한). 데일리 퀴즈(`user/quiz/[categoryId]`)도 이 스크래치패드를 공용으로 쓰므로 함께 반영된다. 상세 변경 내역은 [front/usr/UserExamination_Modified.md HIST-20260707-003] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/BinaryTreeTool.tsx` | 추가 | 레벨오더 배열 표기 → 이진트리 SVG 시각화 컴포넌트 |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(공용) | `ScratchPadData.treeInput` 추가, `TabKey`에 `'tree'` 추가, 탭 목록·렌더 분기에 "트리" 탭 편입 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `BinaryTreeTool` 행 추가 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/BinaryTreeTool.tsx`
+- 변경 전: 파일 없음(신규)
+- 변경 후: `parseLevelOrderTree`(BFS 큐 역직렬화, throw 없음, 노드 200개 초과 시 에러) + `computeLayout`(in-order x·깊이 y) + `BinaryTreeTool` 컴포넌트(입력란 + SVG 렌더)
+- 이유: 상세 내역은 [front/usr/UserExamination_Modified.md HIST-20260707-003] 참조
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: `treeInput` 필드·`'tree'` 탭 없음
+- 변경 후: `treeInput` 필드 추가, `loadData` 하위호환 폴백, tabs 배열·렌더 분기에 트리 탭 편입
+- 이유: 상세 내역은 [front/usr/UserExamination_Modified.md HIST-20260707-003] 참조
+
+### 복원 방법
+이 ID(HIST-20260707-003)만으로 복원 시, [front/usr/UserExamination_Modified.md HIST-20260707-003]의 복원 방법과 동일하게 `BinaryTreeTool.tsx`를 삭제하고 `ScratchPadPanel.tsx`의 트리 탭 관련 변경(필드·TabKey·tabs·렌더 분기·import)을 되돌린다.
+
 ## HIST-20260707-002
 
 - **날짜**: 2026-07-07

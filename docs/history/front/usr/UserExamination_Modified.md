@@ -1,3 +1,37 @@
+## HIST-20260707-003
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 사용자 프론트엔드 / 풀이 스크래치패드 — 이진트리 시각화 "트리" 탭 신규 추가
+- **수정 개요**: 풀이 화면 공용 `ScratchPadPanel.tsx`(시험 응시 `exam/[id]` · 데일리 퀴즈 `user/quiz/[categoryId]` 공용)에 자유메모/코드 트레이싱/페이지 부재와 동일하게 항상 노출되는 "트리" 탭을 신규 추가했다. 신규 컴포넌트 `BinaryTreeTool.tsx`는 레벨오더 배열 표기(예: `[1, 2, 3, null, 4, 5]`)를 입력받아 LeetCode 표준 BFS 큐 역직렬화 규칙으로 이진트리를 복원하고, in-order 순회로 x 좌표(순차 증가)·깊이로 y 좌표를 배정해 SVG로 자동 렌더한다. 순수 시각화 도구로 채점·코드 실행이 없으며 eval/Function/dangerouslySetInnerHTML을 사용하지 않는다. 노드 수는 200개로 상한을 두어 과도한 렌더를 방지하고, 빈 입력·파싱 불가 시에는 throw 없이 힌트/에러 텍스트만 표시한다. `ScratchPadData`에 `treeInput: string` 필드를 추가했고, 구버전 저장분(필드 없음)은 `loadData`의 문자열 타입가드에서 빈 문자열로 폴백해 하위호환을 유지한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/BinaryTreeTool.tsx` | 추가 | 레벨오더 배열 표기 → 이진트리 SVG 시각화 컴포넌트(`parseLevelOrderTree`, `computeLayout`, `MAX_TREE_NODES=200`) |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(공용) | `ScratchPadData`에 `treeInput` 필드 추가, `TabKey`에 `'tree'` 추가, 탭 목록·렌더 분기에 "트리" 탭 편입, `loadData`에 문자열 타입가드 하위호환 처리 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `BinaryTreeTool` 행 추가, `ScratchPadPanel` 설명에 트리 탭 반영 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/BinaryTreeTool.tsx`
+- 변경 전: 파일 없음(신규)
+- 변경 후: `TreeNode` 타입, `parseLevelOrderTree(input)`(토큰화→BFS 큐 역직렬화, 대괄호/공백/콤마 혼용 허용, `null` 대소문자 무관, 노드 200개 초과 시 에러 메시지 반환, throw 없음), `computeLayout(root)`(in-order x·깊이 y 좌표 계산, 노드/간선 좌표 산출), `BinaryTreeTool({ value, onChange })` 컴포넌트(입력란 + SVG 렌더, 다크모드 대응, 빈/에러 시 힌트 텍스트)
+- 이유: 트리 구조 문제를 손으로 그리지 않고 레벨오더 배열만 입력하면 즉시 시각화해 풀이를 돕기 위함(순수 시각화, 채점 없음)
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: `ScratchPadData`에 `treeInput` 없음, `TabKey = 'note' | 'trace' | 'pagereplace' | 'calc'`, tabs 배열에 트리 탭 없음, 렌더 분기에 `tab === 'tree'` 없음, `loadData` 반환값에 `treeInput` 미포함
+- 변경 후: `ScratchPadData.treeInput: string` 추가(+주석), `EMPTY_DATA.treeInput = ''`, `TabKey`에 `'tree'` 추가, `loadData`에서 `typeof p.treeInput === 'string' ? p.treeInput : ''`로 하위호환 처리 후 두 반환 경로 모두에 포함, tabs 배열에 `{ key: 'tree', label: '트리' }`를 페이지 부재와 계산기 사이에 항상 노출로 추가, 본문 렌더에 `<BinaryTreeTool value={data.treeInput} onChange={...} />` 분기 추가, 컴포넌트 상단 JSDoc을 4탭→5탭으로 갱신
+- 이유: 신규 트리 탭을 기존 debounce 저장·storageKey 전환 flush 경로에 자연스럽게 편입시키기 위함(다른 탭과 동일한 데이터 오너십 패턴 재사용)
+
+#### `CLAUDE.md`
+- 변경 전: Shared Utilities 표에 `BinaryTreeTool` 행 없음, `ScratchPadPanel` 설명에 트리 탭 언급 없음
+- 변경 후: `BinaryTreeTool` 행 추가(`parseLevelOrderTree`, `MAX_TREE_NODES` 포함), `ScratchPadPanel` 설명에 "트리 시각화" 반영
+- 이유: 신규 공용 컴포넌트 위치·역할을 즉시 문서화해 중복 구현 방지
+
+### 복원 방법
+이 ID(HIST-20260707-003)만으로 복원 시: `frontend/src/components/ui/BinaryTreeTool.tsx`를 삭제하고, `ScratchPadPanel.tsx`에서 `treeInput` 필드·`'tree'` TabKey·tabs 배열의 트리 항목·렌더 분기(`tab === 'tree'`)·import문을 모두 제거하며, `CLAUDE.md`의 `BinaryTreeTool` 행과 `ScratchPadPanel` 설명 중 트리 언급을 되돌린다.
+
 ## HIST-20260707-002
 
 - **날짜**: 2026-07-07

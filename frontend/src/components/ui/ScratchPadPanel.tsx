@@ -10,6 +10,7 @@ import {
   isPageReplacementData,
   type PageReplacementData,
 } from '@/components/ui/PageReplacementTool';
+import { BinaryTreeTool } from '@/components/ui/BinaryTreeTool';
 
 interface ScratchPadPanelProps {
   /** localStorage 저장 키 (문항 단위로 유일해야 함, 예: tpmp_scratchpad:exam:1:23) */
@@ -30,6 +31,12 @@ interface ScratchPadData {
    */
   pageReplacement: PageReplacementData;
   /**
+   * 이진트리 시각화 도구(BinaryTreeTool)의 레벨오더 배열 표기 입력 원본 문자열.
+   * HIST-20260707-003에서 추가. 구버전 저장분에는 필드 자체가 없을 수 있어 loadData가
+   * 문자열 타입가드로 검증 후 없거나 손상된 경우 빈 문자열로 폴백한다.
+   */
+  treeInput: string;
+  /**
    * @deprecated HIST-20260706-001에서 도입된 클릭식 블록 위젯(변수 워치·1D/2D 배열·반복 스텝 표)의
    * 저장 필드. HIST-20260706-002부터 "타이핑→자동 렌더" 표기법(trace 텍스트 파싱)으로 대체되어
    * 더 이상 생성·저장하지 않는다. loadData가 구버전 저장분을 만나면 표기법 텍스트로 1회 이관 후
@@ -38,7 +45,13 @@ interface ScratchPadData {
   traceBlocks?: unknown;
 }
 
-const EMPTY_DATA: ScratchPadData = { note: '', trace: '', calcHistory: [], pageReplacement: EMPTY_PAGE_REPLACEMENT_DATA };
+const EMPTY_DATA: ScratchPadData = {
+  note: '',
+  trace: '',
+  calcHistory: [],
+  pageReplacement: EMPTY_PAGE_REPLACEMENT_DATA,
+  treeInput: '',
+};
 const SAVE_DEBOUNCE_MS = 500;
 const MAX_CALC_HISTORY = 5;
 
@@ -46,7 +59,7 @@ const PANEL_WIDTH_STORAGE_KEY = 'tpmp:scratchpad:panel-width';
 const DEFAULT_PANEL_WIDTH = 320;
 const MIN_PANEL_WIDTH = 300;
 
-type TabKey = 'note' | 'trace' | 'pagereplace' | 'calc';
+type TabKey = 'note' | 'trace' | 'pagereplace' | 'tree' | 'calc';
 
 /** 드로어 폭을 [MIN_PANEL_WIDTH, max] 범위로 clamp */
 function clampPanelWidth(width: number, max: number): number {
@@ -108,14 +121,15 @@ function loadData(key: string): ScratchPadData {
 
     const p = parsed as ScratchPadData;
     const pageReplacement = isPageReplacementData(p.pageReplacement) ? p.pageReplacement : EMPTY_PAGE_REPLACEMENT_DATA;
+    const treeInput = typeof p.treeInput === 'string' ? p.treeInput : '';
 
     const legacyBlocks = sanitizeLegacyTraceBlocks(p.traceBlocks);
     if (legacyBlocks.length === 0) {
-      return { note: p.note, trace: p.trace, calcHistory: p.calcHistory, pageReplacement };
+      return { note: p.note, trace: p.trace, calcHistory: p.calcHistory, pageReplacement, treeInput };
     }
     const migratedText = legacyTraceBlocksToNotation(legacyBlocks);
     const mergedTrace = [p.trace, migratedText].filter(s => s.trim().length > 0).join('\n');
-    return { note: p.note, trace: mergedTrace, calcHistory: p.calcHistory, pageReplacement };
+    return { note: p.note, trace: mergedTrace, calcHistory: p.calcHistory, pageReplacement, treeInput };
   } catch {
     return EMPTY_DATA;
   }
@@ -132,9 +146,11 @@ function saveData(key: string, data: ScratchPadData): void {
 
 /**
  * 풀이 스크래치패드 — 시험/퀴즈 풀이 화면 우하단 FAB로 여는 보조 메모 패널.
- * 자유 메모 · (CODE 문항 한정) 코드 트레이싱 · 페이지 부재(페이지 교체) 풀이 도구 · 안전 계산기
- * 4탭으로 구성되며 storageKey 단위로 localStorage에 자동 저장(디바운스)된다. BE/DB 연동 없음.
+ * 자유 메모 · (CODE 문항 한정) 코드 트레이싱 · 페이지 부재(페이지 교체) 풀이 도구 · 트리 시각화 · 안전 계산기
+ * 5탭으로 구성되며 storageKey 단위로 localStorage에 자동 저장(디바운스)된다. BE/DB 연동 없음.
  * 페이지 부재 탭은 참조열/프레임 수로 표 골격만 생성하고 알고리즘 자동 계산은 하지 않는다(순수 입력 보조).
+ * 트리 탭은 레벨오더 배열 표기(`[1, 2, 3, null, 4, 5]`)를 입력하면 BinaryTreeTool이 LeetCode
+ * 표준 규칙으로 역직렬화 후 SVG로 자동 렌더한다(순수 시각화, 채점/코드실행 없음).
  * 코드 트레이싱 탭은 "타이핑→자동 렌더" 방식이다. textarea에 `이름 = 값` 표기법으로
  * 한 줄씩 입력하면 @/lib/traceNotation의 순수 파서가 변수/1D 배열/2D 배열/자유
  * 텍스트로 실시간 분류하고, TracePreview가 이를 시각화한다. 코드 실행/eval은 하지 않는다.
@@ -294,6 +310,7 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
     { key: 'note', label: '자유 메모' },
     ...(isCodeQuestion ? [{ key: 'trace' as TabKey, label: '코드 트레이싱' }] : []),
     { key: 'pagereplace', label: '페이지 부재' },
+    { key: 'tree', label: '트리' },
     { key: 'calc', label: '계산기' },
   ];
 
@@ -381,6 +398,13 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
           <PageReplacementTool
             value={data.pageReplacement}
             onChange={next => updateData(prev => ({ ...prev, pageReplacement: next }))}
+          />
+        )}
+
+        {tab === 'tree' && (
+          <BinaryTreeTool
+            value={data.treeInput}
+            onChange={next => updateData(prev => ({ ...prev, treeInput: next }))}
           />
         )}
 
