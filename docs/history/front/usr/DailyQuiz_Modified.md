@@ -1,3 +1,46 @@
+## HIST-20260706-005
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 플레이 — 풀이 스크래치패드 코드 트레이싱 프리뷰 변수 참조 수식 계산을 두 방향으로 확장(리터럴 수식 계산, 순서 무관 변수 참조)
+- **수정 개요**: 공용 파서(`traceNotation.ts`)가 리터럴 수식(`av = 10 / 4` → 2.5, 날짜·전화번호·버전형 압축 나열은 가드로 계산 제외)과 순서 무관 변수 참조(`avg = av/len` 앞에 `av`, `len`이 나중에 정의돼도 계산)를 픽스포인트 다중 패스로 지원하도록 확장됨. 상세는 시험 응시 화면(`UserExamination_Modified.md` HIST-20260706-005) 참조 — 신규 로직은 두 화면 공용이며 퀴즈 화면(`frontend/src/app/user/quiz/[categoryId]/page.tsx`) 자체 코드는 변경 없음.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/traceNotation.ts` | 수정(공용) | `classifyLine` 기반 픽스포인트 다중 패스 해석 도입, `tryEvaluateFormula`가 식별자 0개 리터럴 수식도 처리(날짜/버전/전화번호 가드 포함) — 상세는 `UserExamination_Modified.md` HIST-20260706-005 참조 |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(공용) | 안내 문구를 "정의 순서 무관·리터럴 수식 자동 계산"으로 갱신 — 상세는 동일 참조 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표 갱신(중복 기록 아님, 시험 응시 히스토리와 동일 항목) |
+
+### 수정 상세
+공용 파일(`traceNotation.ts`, `ScratchPadPanel.tsx`)의 변경 전/후 상세는 `UserExamination_Modified.md`의 HIST-20260706-005 항목을 참조. 이 화면 자체 코드(`frontend/src/app/user/quiz/[categoryId]/page.tsx`)는 변경되지 않았다.
+
+### 복원 방법
+이 ID(HIST-20260706-005)만으로 복원 시: 공용 파일 복원은 `UserExamination_Modified.md` HIST-20260706-005의 "복원 방법"을 따른다(동일 파일을 사용하므로 시험 응시 화면과 함께 되돌려야 함). 이 화면 자체는 변경된 파일이 없어 추가 조치 불필요.
+
+## HIST-20260706-004
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 플레이 — 풀이 스크래치패드 코드 트레이싱 프리뷰에 변수 참조 수식 자동 계산 추가
+- **수정 개요**: 위→아래 순회하며 누적되는 숫자 변수 환경(Map)을 이용해 `avg = sum / len`처럼 이미 정의된 숫자 변수를 참조하는 사칙연산 수식을 기존 안전 계산기(`evaluateExpression`, eval/Function 미사용)로 자동 계산하고, 결과를 환경에 등록해 다음 줄에서 재참조 가능. 미정의 참조·계산 오류·비수식은 기존과 동일하게 문자열로 안전 폴백(회귀 없음). 상세는 시험 응시 화면(`UserExamination_Modified.md` HIST-20260706-004) 참조 — 신규 로직/컴포넌트는 두 화면 공용이며 퀴즈 화면(`frontend/src/app/user/quiz/[categoryId]/page.tsx`) 자체 코드는 변경 없음.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/traceNotation.ts` | 수정(공용) | `VarLine.sourceExpr` 필드, `tryEvaluateFormula`/`formatComputedNumber` 등 수식 자동 계산 로직 추가 — 상세는 `UserExamination_Modified.md` HIST-20260706-004 참조 |
+| `frontend/src/components/ui/TracePreview.tsx` | 수정(공용) | `VarRow`가 계산된 라인을 `이름 = 수식 = 결과`로 렌더 — 상세는 동일 참조 |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(공용) | 안내 문구·placeholder에 `avg = sum / len` 예시 추가 — 상세는 동일 참조 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표 갱신(중복 기록 아님, 시험 응시 히스토리와 동일 항목) |
+
+### 수정 상세
+
+#### `frontend/src/lib/traceNotation.ts` / `frontend/src/components/ui/TracePreview.tsx` / `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 상세는 `docs/history/front/usr/UserExamination_Modified.md`의 HIST-20260706-004 참조(두 화면 공용 수정 파일, `frontend/src/app/user/quiz/[categoryId]/page.tsx` 자체는 변경 없음 — `ScratchPadPanel`을 그대로 재사용)
+
+### 복원 방법
+이 ID(HIST-20260706-004)는 별도 복원 작업이 없다(퀴즈 화면 자체 코드는 변경되지 않음). 공용 수정 파일의 복원은 `UserExamination_Modified.md`의 HIST-20260706-004 복원 방법을 따르되, 양쪽 화면이 공용으로 사용 중이므로 시험 응시 화면도 함께 되돌리지 않는 한 파일을 삭제하지 말 것.
+
 ## HIST-20260706-003
 
 - **날짜**: 2026-07-06

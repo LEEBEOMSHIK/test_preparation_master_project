@@ -248,14 +248,15 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
                 한 줄에 하나씩 입력하세요 — <span className="font-mono">i = 3</span> ·{' '}
                 <span className="font-mono">arr = [1, 2, 3]</span> ·{' '}
                 <span className="font-mono">grid = [[1,2],[3,4]]</span> ·{' '}
-                <span className="font-mono">x: long = 3</span>(타입 명시)
+                <span className="font-mono">x: long = 3</span>(타입 명시) ·{' '}
+                <span className="font-mono">avg = sum / len</span>(정의 순서 무관 숫자 변수 참조·리터럴 수식 자동 계산, 예: <span className="font-mono">10 / 4</span>)
               </p>
               <textarea
                 value={data.trace}
                 onChange={e => updateData(prev => ({ ...prev, trace: e.target.value }))}
                 onKeyDown={handleTraceKeyDown}
                 placeholder={
-                  'i = 3\nx: long = 3\narr = [1, 2, 3]\ngrid = [[1, 2], [3, 4]]\n표기법이 아니어도 자유 메모로 그대로 남습니다.'
+                  'i = 3\nx: long = 3\nsum = 10\nlen = 4\navg = sum / len\narr = [1, 2, 3]\ngrid = [[1, 2], [3, 4]]\n표기법이 아니어도 자유 메모로 그대로 남습니다.'
                 }
                 spellCheck={false}
                 className="w-full h-40 resize-y rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm font-mono p-3 focus:outline-none focus:ring-2 focus:ring-indigo-400"

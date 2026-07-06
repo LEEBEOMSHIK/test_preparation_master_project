@@ -146,8 +146,8 @@ docker-compose.yml
 | `<Pagination page totalPages onChange className />` | `src/components/ui/Pagination.tsx` | 관리자 목록 표 공용 페이지네이션(0-based) — 첫/마지막 고정 + 현재 ±2 윈도우 + 생략부호(…), 화살표·번호 버튼 다크모드 대응 |
 | `<ScratchPadPanel storageKey isCodeQuestion className />` | `src/components/ui/ScratchPadPanel.tsx` | 풀이 화면 FAB+드로어/바텀시트 스크래치패드(자유메모·CODE 트레이싱·안전 계산기), localStorage 영속. 코드 트레이싱 탭은 "타이핑→자동 렌더" 표기법 방식(traceNotation) |
 | `evaluateExpression(expr)` | `src/lib/safeMathCalc.ts` | 안전한 사칙연산 수식 평가(eval/Function 미사용) |
-| `parseTraceLines(text)`, `type TraceLine` | `src/lib/traceNotation.ts` | 코드 트레이싱 표기법(`name = value`/`name: type = value`/`name = [a,b]`/`name = [[1,2],[3,4]]`) 순수 파서 — eval/Function/JSON.parse 미사용, 실패 시 text로 안전 폴백. 값 기반 타입 자동추론 + `: type` 명시 오버라이드(typeLabel/typeSource). 레거시 traceBlocks 이관용 `sanitizeLegacyTraceBlocks`·`legacyTraceBlocksToNotation`도 포함 |
-| `<TracePreview lines />` | `src/components/ui/TracePreview.tsx` | traceNotation 파싱 결과(변수 행·1D 배열·2D 배열·자유 텍스트)를 실시간 렌더 + 타입 배지(explicit/inferred 시각 구분)를 보여주는 읽기 전용 프리뷰 |
+| `parseTraceLines(text)`, `type TraceLine` | `src/lib/traceNotation.ts` | 코드 트레이싱 표기법(`name = value`/`name: type = value`/`name = [a,b]`/`name = [[1,2],[3,4]]`) 순수 파서 — eval/Function/JSON.parse 미사용, 실패 시 text로 안전 폴백. 값 기반 타입 자동추론 + `: type` 명시 오버라이드(typeLabel/typeSource). **변수 참조 사칙연산 자동 계산**(`evaluateExpression` 재사용)을 픽스포인트 다중 패스로 지원 — (1) 식별자 없는 순수 리터럴 수식도 계산(`av = 10 / 4` → 2.5, 단 날짜·버전·전화번호형 압축 나열(`2024-01-01` 등)은 가드로 제외), (2) 변수 정의가 참조보다 아래 줄에 있어도(순서 무관) 계산. 같은 이름 재대입 시 텍스트상 마지막 리터럴이 최종값. 미정의 참조·순환·계산 오류는 문자열로 안전 폴백, 결과는 `VarLine.sourceExpr`+`value`. 레거시 traceBlocks 이관용 `sanitizeLegacyTraceBlocks`·`legacyTraceBlocksToNotation`도 포함 |
+| `<TracePreview lines />` | `src/components/ui/TracePreview.tsx` | traceNotation 파싱 결과(변수 행·1D 배열·2D 배열·자유 텍스트)를 실시간 렌더 + 타입 배지(explicit/inferred 시각 구분) + 자동 계산된 변수는 `이름 = 수식 = 결과` 형태로 원본 수식도 함께 표시하는 읽기 전용 프리뷰 |
 
 새 유틸 함수는 `src/lib/`에, 새 UI 컴포넌트는 `src/components/ui/`에 추가하고 위 표를 즉시 갱신한다.
 

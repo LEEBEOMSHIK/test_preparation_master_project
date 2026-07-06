@@ -33,18 +33,31 @@ function VarRow({
   value,
   typeLabel,
   typeSource,
+  sourceExpr,
 }: {
   name: string;
   value: string;
   typeLabel: string;
   typeSource: TypeSource;
+  /** 안전 계산기로 자동 계산된 경우에만 존재하는 원본 수식(계산 전 rhs) */
+  sourceExpr?: string;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm font-mono">
+    <div className="flex items-center gap-2 flex-wrap rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm font-mono">
       <span className="font-semibold text-indigo-600 dark:text-indigo-300">{name}</span>
       <TypeBadge typeLabel={typeLabel} typeSource={typeSource} />
       <span className="text-gray-300 dark:text-gray-600">=</span>
-      <span className="text-gray-800 dark:text-gray-100 break-all">{value}</span>
+      {sourceExpr !== undefined ? (
+        <>
+          <span title="자동 계산된 원본 수식" className="text-gray-500 dark:text-gray-400 break-all">
+            {sourceExpr}
+          </span>
+          <span className="text-gray-300 dark:text-gray-600">=</span>
+          <span className="text-gray-800 dark:text-gray-100 font-semibold break-all">{value}</span>
+        </>
+      ) : (
+        <span className="text-gray-800 dark:text-gray-100 break-all">{value}</span>
+      )}
     </div>
   );
 }
@@ -170,6 +183,7 @@ export function TracePreview({ lines }: TracePreviewProps) {
                 value={line.value}
                 typeLabel={line.typeLabel}
                 typeSource={line.typeSource}
+                sourceExpr={line.sourceExpr}
               />
             );
           case 'array1d':

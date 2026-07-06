@@ -1,3 +1,72 @@
+## HIST-20260706-005
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 — 풀이 스크래치패드 코드 트레이싱 프리뷰 변수 참조 수식 계산을 두 방향으로 확장(리터럴 수식 계산, 순서 무관 변수 참조)
+- **수정 개요**: 기존 `parseTraceLines`는 위→아래 단일 패스로만 계산해 (1) `av = 10 / 4`처럼 식별자가 하나도 없는 순수 리터럴 수식은 계산하지 않았고 (2) 참조하는 변수가 아래 줄에 정의돼 있으면(순서 무관) 계산하지 못했다. 이번 변경으로 `classifyLine`(env 비의존 1차 분류: 배열/텍스트는 즉시 확정, 스칼라 대입은 이름/rhs/타입만 보존)과 픽스포인트 다중 패스 해석으로 재구성했다. 1차로 모든 `이름 = <숫자 리터럴>` 정의를 env에 먼저 채우고(같은 이름이 여러 번이면 텍스트상 마지막 정의가 최종값 — 재대입 시 이전처럼 마지막 값 사용), 2차 이후 패스마다 리터럴이 아닌 수식 후보 라인 중 참조 식별자가 전부 env에 있는 라인을 계산해 env에 추가하는 것을 더 해결되는 라인이 없을 때까지 반복(반복 상한은 라인 수+1로 순환 참조 무한루프 방지). `tryEvaluateFormula`는 식별자가 없으면 즉시 리터럴 수식으로 계산을 시도하되, 날짜(`2024-01-01`)·전화번호(`010-1234-5678`)·버전(`1.2.3`)처럼 공백 없이 숫자와 `-`/`.`만 압축 나열된 형태(`^\d+([-.]\d+)+$`)는 뺄셈으로 오계산되지 않도록 가드로 제외해 문자열로 폴백한다(공백 있는 뺄셈 `10 - 3`이나 `/`를 쓴 `16/9`는 가드에 안 걸리고 정상 계산). 계산·저장 로직은 전량 기존 `safeMathCalc.evaluateExpression`(eval/Function 미사용)에 위임하며 새 실행 경로를 추가하지 않았다. 퀴즈 화면(`DailyQuiz_Modified.md` HIST-20260706-005)과 공용 컴포넌트.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/traceNotation.ts` | 수정 | `classifyLine`(신규, env 비의존 1차 분류) 추가로 기존 `parseSingleLine` 대체, `ScalarAssignInfo`/`ClassifiedLine`/`FormulaEvalSuccess` 타입 추가, `DATE_LIKE_GUARD_PATTERN` 상수 추가, `tryEvaluateFormula`가 식별자 0개(순수 리터럴 수식)도 처리하도록 확장(가드 적용), `parseTraceLines`를 리터럴 선(先)수집 + 수식 픽스포인트 다중 패스 해석으로 재작성(순서 무관 지원) |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정 | 코드 트레이싱 탭 안내 문구를 "정의 순서 무관 숫자 변수 참조·리터럴 수식 자동 계산" 예시(`10 / 4`)로 갱신 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표의 `parseTraceLines` 행 설명에 리터럴 수식 계산·순서 무관 변수 참조·날짜형 가드 반영 |
+
+### 수정 상세
+
+#### `frontend/src/lib/traceNotation.ts`
+- 변경 전: `parseSingleLine(rawLine, env: Map<string, number>)`이 위→아래 단일 패스로 호출되며, 스칼라 rhs가 "이미 알려진(env에 있는) 숫자 변수를 최소 1개 참조"하는 경우에만 `tryEvaluateFormula`로 계산 시도. 식별자가 0개인 순수 리터럴 수식(`10/4`)이나 아래 줄에 정의된 변수를 참조하는 수식은 계산 없이 문자열로 폴백
+- 변경 후: `classifyLine(rawLine)`이 env 없이 각 줄을 1차 분류(배열/텍스트는 확정, 스칼라 대입은 `{name, rhs, explicitType, typeSource}`만 보존). `parseTraceLines`가 (1) 모든 스칼라 대입 중 숫자 리터럴만 먼저 `literalEnv`에 수집(동일 이름은 텍스트상 마지막 정의로 덮어씀, `literalLastIndex`로 위치 기록) (2) 리터럴이 아닌 수식 후보 라인만 골라 픽스포인트 루프(`while(changed && pass < maxPasses)`)로 반복 해석 — 매 패스마다 미해결 라인 중 `tryEvaluateFormula(rhs, resolvedEnv)`가 성공하면 `computedValues`에 기록하고, 같은 이름의 리터럴 정의가 이 수식 라인보다 텍스트상 뒤에 있지 않은 경우에만 `resolvedEnv`에 반영(리터럴 마지막 정의 우선 규칙 보호) (3) 더 이상 새로 해결되는 라인이 없으면 종료, 원래 줄 순서대로 최종 `TraceLine[]` 조립. `tryEvaluateFormula`는 식별자가 0개면 `DATE_LIKE_GUARD_PATTERN`(`/^\d+([-.]\d+)+$/`) 통과 시에만 그대로 `evaluateExpression`에 위임하고, 식별자가 있으면 기존과 동일하게 전부 env에 있는지 확인 후 치환·계산
+- 이유: 사용자가 리터럴 수식(`av = 10 / 4`)이나 변수 정의 순서에 상관없이(`avg = av/len` 앞에 `av`, `len`이 나중에 나와도) 자동 계산 결과를 보고 싶어함. 날짜·전화번호·버전 같은 값이 하이픈/점을 사칙연산자로 오인해 잘못 계산되는 것을 막기 위해 압축 나열 패턴 가드를 별도로 도입
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: 안내 문구가 `avg = sum / len`(앞서 정의한 숫자 변수 참조 시 자동 계산)으로 순서 종속성을 전제로 안내
+- 변경 후: `avg = sum / len`(정의 순서 무관 숫자 변수 참조·리터럴 수식 자동 계산, 예: `10 / 4`)로 갱신
+- 이유: 확장된 동작(순서 무관, 리터럴 수식)을 안내 문구에 정확히 반영
+
+### 복원 방법
+이 ID(HIST-20260706-005)만으로 복원 시: `traceNotation.ts`에서 `classifyLine`/`ScalarAssignInfo`/`ClassifiedLine`/`FormulaEvalSuccess`/`DATE_LIKE_GUARD_PATTERN`을 제거하고 `parseSingleLine(rawLine, env)`(위→아래 단일 패스, `tryEvaluateFormula`는 식별자 1개 이상 참조 시에만 계산 시도)로 되돌리며 `parseTraceLines`를 `const env = new Map(); .map(line => parseSingleLine(line, env))` 형태로 되돌린다. `ScratchPadPanel.tsx`의 안내 문구를 `avg = sum / len`(앞서 정의한 숫자 변수 참조 시 자동 계산)으로 되돌린다. `CLAUDE.md`는 `parseTraceLines` 행을 위 "변경 전" 문구로 되돌린다. 퀴즈 화면(`DailyQuiz_Modified.md` HIST-20260706-005)도 동일 공용 파일을 사용 중이므로 함께 되돌리지 않는 한 파일 자체를 삭제하지 말 것.
+
+## HIST-20260706-004
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 — 풀이 스크래치패드 코드 트레이싱 프리뷰에 변수 참조 수식 자동 계산 추가
+- **수정 개요**: `parseTraceLines`가 위→아래 순회하며 스칼라 숫자 변수를 `Map<string, number>` 환경에 누적하고, 리터럴이 아닌 rhs가 숫자/식별자/사칙연산자(`+ - * / % **`)/괄호/공백만으로 구성되며 최소 1개의 이미 알려진 숫자 변수를 참조하면 식별자를 숫자로 치환한 뒤 기존 `safeMathCalc.evaluateExpression`(안전 화이트리스트 계산기, eval/Function 미사용)로 계산한다. 계산 성공 시 결과를 `VarLine.sourceExpr`(원본 수식)+`value`(결과)로 노출하고 환경에도 등록해 다음 줄에서 재참조 가능(`avg = sum/len` → `total = avg*2`). 식별자 미정의·계산기 오류(0으로 나눔 등)·비수식(콜론 포함 등)이면 새 계산을 시도하지 않고 기존과 동일하게 문자열 var로 폴백해 회귀 없음. 프리뷰(`TracePreview`)는 계산된 라인을 `이름 = 수식 = 결과` 형태로 렌더. 퀴즈 화면(`DailyQuiz_Modified.md` HIST-20260706-004)과 공용 컴포넌트.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/traceNotation.ts` | 수정 | `VarLine`에 `sourceExpr?: string` 필드 추가, `FORMULA_CHAR_PATTERN`/`IDENTIFIER_PATTERN`/`formatComputedNumber`/`tryEvaluateFormula` 신규 함수 추가, `parseSingleLine`이 `env: Map<string, number>`를 받아 리터럴 숫자 등록 → 수식 계산 시도 → 실패 시 문자열 폴백 순서로 처리, `parseTraceLines`가 env를 생성해 순회 중 전달 |
+| `frontend/src/components/ui/TracePreview.tsx` | 수정 | `VarRow`에 `sourceExpr?` prop 추가 — 존재하면 `이름 = 수식 = 결과`로 렌더(결과는 굵게), 없으면 기존과 동일 |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정 | 코드 트레이싱 탭 안내 문구·textarea placeholder에 `avg = sum / len`(변수 참조 자동 계산) 예시 추가 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표의 `parseTraceLines`/`TracePreview` 행 설명에 변수 참조 사칙연산 자동 계산 내용 반영 |
+
+### 수정 상세
+
+#### `frontend/src/lib/traceNotation.ts`
+- 변경 전: `VarLine`에 `sourceExpr` 없음. `parseSingleLine(rawLine: string)`은 env 없이 스칼라 rhs를 항상 `{kind:'var', value: rhs, typeLabel: explicitType ?? inferScalarType(rhs)}`로만 반환(계산 없음). `parseTraceLines`는 `.map(parseSingleLine)`
+- 변경 후: `VarLine`에 `sourceExpr?: string` 추가(계산 성공한 원본 수식 문자열). 스칼라 rhs 처리 순서를 (1) `isNumericLiteral(rhs)`면 `env.set(name, Number(rhs))` 후 기존과 동일한 리터럴 반환 (2) 아니면 `tryEvaluateFormula(rhs, env)` 시도 — 성공 시 `env.set(name, computed.value)` 후 `{value: computed.formatted, typeLabel: explicitType ?? 'number', sourceExpr: rhs}` 반환 (3) 실패 시 기존과 동일한 문자열 폴백으로 재구성. `tryEvaluateFormula`는 `FORMULA_CHAR_PATTERN`(`/^[A-Za-z0-9_.+\-*/%().\s]+$/`)으로 1차 필터 후 `IDENTIFIER_PATTERN`(`/[A-Za-z_]\w*/g`)으로 식별자를 추출해 전부 env에 있는지 확인, 하나라도 없으면 null. 전부 있으면 식별자를 `env.get(id)` 숫자 문자열로 치환해 `evaluateExpression`(기존 `safeMathCalc.ts`, 수정 없음)에 위임하고 error/비유한값이면 null. `formatComputedNumber`는 정수면 그대로, 실수면 `toPrecision(6)` 반올림 후 `Number()`→`String()`으로 말미 0 제거. `parseTraceLines`는 `const env = new Map<string, number>()`를 만들어 `.map(line => parseSingleLine(line, env))`로 순서대로 전달(배열 순회 순서 보장 이용)
+- 이유: 사용자가 트레이싱 중 `avg = sum / len`처럼 이미 입력한 숫자 변수로 파생값을 자동 계산해 보고 싶어함. eval/new Function을 새로 도입하지 않기 위해 식별자 치환 후 기존 안전 계산기(`evaluateExpression`)에 전량 위임하는 방식을 택함 — 계산 로직 자체는 한 곳(safeMathCalc.ts)에만 존재
+
+#### `frontend/src/components/ui/TracePreview.tsx`
+- 변경 전: `VarRow({name, value, typeLabel, typeSource})`가 `이름 [배지] = 값` 한 줄만 렌더
+- 변경 후: `VarRow`에 `sourceExpr?: string` prop 추가. `sourceExpr`가 있으면 `이름 [배지] = 수식(연한 색) = 결과(굵게)` 형태로 렌더, 없으면 기존과 동일. `TracePreview`의 `case 'var'`에서 `sourceExpr={line.sourceExpr}` 전달
+- 이유: 계산된 값만 보여주면 어떤 수식에서 유도됐는지 알 수 없어 원본 수식과 결과를 함께 노출
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: 안내 문구·placeholder에 변수 참조 수식 예시 없음(`i = 3`, `x: long = 3`, `arr = [...]`, `grid = [[...]]`만 존재)
+- 변경 후: 안내 문구에 `avg = sum / len`(앞서 정의한 숫자 변수 참조 시 자동 계산) 추가, placeholder에 `sum = 10\nlen = 4\navg = sum / len` 예시 줄 추가
+- 이유: 새 기능의 존재를 사용자가 바로 발견할 수 있게 안내
+
+#### `CLAUDE.md`
+- 변경 전: `parseTraceLines`/`TracePreview` 행 설명에 수식 자동 계산 관련 언급 없음
+- 변경 후: `parseTraceLines` 행에 "위→아래 순회 중 숫자 변수 환경(Map)을 누적해 변수 참조 사칙연산 자동 계산을 지원(evaluateExpression 재사용, 미정의 참조·계산 오류는 문자열로 안전 폴백)" 문구 추가, `TracePreview` 행에 "자동 계산된 변수는 이름 = 수식 = 결과 형태로 원본 수식도 함께 표시" 문구 추가
+- 이유: 공용 유틸리티 표 최신화
+
+### 복원 방법
+이 ID(HIST-20260706-004)만으로 복원 시: `traceNotation.ts`에서 `VarLine.sourceExpr` 필드, `FORMULA_CHAR_PATTERN`/`IDENTIFIER_PATTERN`/`formatComputedNumber`/`tryEvaluateFormula` 함수를 제거하고 `parseSingleLine`을 `env` 매개변수 없이 스칼라 rhs를 항상 `inferScalarType` 기반 문자열 var로 반환하도록 되돌리며 `parseTraceLines`를 `.map(parseSingleLine)`(env 생성 없이)로 되돌린다. `TracePreview.tsx`에서 `VarRow`의 `sourceExpr` prop과 조건부 렌더를 제거해 `이름 = 값` 단일 렌더로 되돌린다. `ScratchPadPanel.tsx`의 안내 문구·placeholder에서 `avg = sum / len` 예시를 제거한다. `CLAUDE.md`는 두 행을 위 "변경 전" 문구로 되돌린다. 퀴즈 화면(`DailyQuiz_Modified.md` HIST-20260706-004)도 동일 공용 파일을 사용 중이므로 함께 되돌리지 않는 한 파일 자체를 삭제하지 말 것.
+
 ## HIST-20260706-003
 
 - **날짜**: 2026-07-06
