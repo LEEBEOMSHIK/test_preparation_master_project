@@ -5,3 +5,14 @@
 -- 롤백: ALTER TABLE question_bank DROP COLUMN scheduling_data;
 ALTER TABLE question_bank
   ADD COLUMN IF NOT EXISTS scheduling_data JSONB;
+
+-- question_type CHECK 제약에 SCHEDULING 값 허용 추가.
+-- Hibernate ddl-auto=update는 enum 컬럼의 기존 CHECK 제약을 자동 갱신하지 않으므로,
+-- SCHEDULING 유형 저장 시 기존 제약(MULTIPLE_CHOICE/SHORT_ANSWER/OX/CODE만 허용) 위반으로
+-- DataIntegrityViolationException(400)이 발생한다. 제약을 재생성해 SCHEDULING을 포함시킨다.
+-- 롤백: 제약을 이전 4개 값(SCHEDULING 제외)으로 재생성.
+ALTER TABLE question_bank
+  DROP CONSTRAINT IF EXISTS question_bank_question_type_check;
+ALTER TABLE question_bank
+  ADD CONSTRAINT question_bank_question_type_check
+  CHECK (question_type::text = ANY (ARRAY['MULTIPLE_CHOICE','SHORT_ANSWER','OX','CODE','SCHEDULING']::text[]));

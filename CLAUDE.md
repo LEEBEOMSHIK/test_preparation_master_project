@@ -130,7 +130,7 @@ docker-compose.yml
 | `stripHtml(html)` | `src/lib/html.ts` | HTML → 순수 텍스트 |
 | `useIsDarkMode()` | `src/lib/useIsDarkMode.ts` | 현재 다크모드 여부(html `dark` 클래스 기준, MutationObserver 반응) |
 | `<RichContent html className />` | `src/components/ui/RichContent.tsx` | 에디터 HTML 렌더링 |
-| `<RichTextEditor value onChange />` | `src/components/ui/RichTextEditor.tsx` | react-quill 에디터 |
+| `<RichTextEditor value onChange />` | `src/components/ui/RichTextEditor.tsx` | react-quill 에디터 (툴바 이미지 버튼·붙여넣기·드래그드롭 모두 서버 업로드 후 URL 삽입, base64 인라인 금지) |
 | `<QuestionDetailModal question onClose />` | `src/components/ui/QuestionDetailModal.tsx` | 문항 상세 모달 |
 | `<ConceptNoteModal defaultTitle existingNote link onClose onSaved />` | `src/components/ui/ConceptNoteModal.tsx` | 문항별 개념노트 작성/수정 모달 (시험=questionId·퀴즈=questionBankId 공용) |
 | `<PermissionDeniedModal />` | `src/components/ui/PermissionDeniedModal.tsx` | 권한 없음 팝업 |

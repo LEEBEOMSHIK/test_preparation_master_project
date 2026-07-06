@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useMemo, useEffect, useState } from 'react';
+import React, { useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import 'react-quill/dist/quill.snow.css';
 import { examService } from '@/services/examService';
 
@@ -34,22 +34,125 @@ export function RichTextEditor({ value, onChange, placeholder = '내용을 입�
     import('react-quill').then((mod) => setRQ(() => mod.default));
   }, []);
 
+  // 이미지 파일을 서버에 업로드하고 성공 시 지정 인덱스에 URL로 삽입하는 공용 헬퍼.
+  // 툴바 버튼(handleImageChange)·붙여넣기(paste)·드래그드롭(drop)이 모두 이 헬퍼를 공유해
+  // base64 인라인 없이 항상 짧은 URL만 content에 남도록 한다.
+  // 성공 여부를 반환해 여러 장 연속 삽입 시 인덱스 증가 여부를 판단할 수 있게 한다.
+  const uploadAndInsertImage = useCallback(async (file: File, index: number): Promise<boolean> => {
+    if (!file.type.startsWith('image/')) return false;
+    const quill = editorRef.current;
+    if (!quill) return false;
+
+    try {
+      const res = await examService.adminUploadQuestionImage(file);
+      const url = res.data.data?.url ?? '';
+      if (!url) { alert('이미지를 업로드하지 못했습니다.'); return false; }
+
+      quill.focus();
+      quill.insertEmbed(index, 'image', url);
+      quill.setSelection(index + 1, 0, 'user');
+      return true;
+    } catch {
+      alert('이미지 업로드에 실패했습니다.');
+      return false;
+    }
+  }, []);
+
   // RQ 로드 후 마운트 완료까지 150ms 간격으로 폴링 → editorRef에 Quill 인스턴스 저장
+  // 인스턴스 확보 시점에 paste·drop 리스너를 함께 붙여, 클립보드/드래그드롭으로 들어오는
+  // 이미지 파일도 base64 인라인 대신 서버 업로드 후 URL로 삽입되도록 한다.
   useEffect(() => {
     if (!RQ) return;
     let cancelled = false;
+    let detachClipboardHandlers: (() => void) | null = null;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const attachClipboardHandlers = (quill: any) => {
+      // quill.root(에디터 contenteditable)에는 Quill 자체 clipboard 리스너도 등록돼 있는데,
+      // 같은 타겟 요소에서는 capture/bubble 구분 없이 "등록 순서대로" 실행된다.
+      // root에 버블 단계로 붙이면 Quill이 먼저 base64를 삽입해버려 preventDefault가 늦는다.
+      // → root의 상위 요소(.ql-container)에 **capture 단계**로 붙여 Quill보다 선점한다.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const captureTarget: HTMLElement = quill.container ?? quill.root.parentElement ?? quill.root;
+
+      // 여러 이미지를 순서대로 업로드·삽입 (성공한 만큼만 인덱스 증가)
+      const insertFilesSequentially = async (files: File[], startIndex: number) => {
+        let idx = startIndex;
+        for (const file of files) {
+          const inserted = await uploadAndInsertImage(file, idx);
+          if (inserted) idx += 1;
+        }
+      };
+
+      const currentIndex = () => {
+        const sel = quill.getSelection();
+        return sel ? sel.index : Math.max(0, (quill.getLength() ?? 1) - 1);
+      };
+
+      const onPaste = (e: ClipboardEvent) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        const imageFiles: File[] = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (item.kind === 'file' && item.type.startsWith('image/')) {
+            const f = item.getAsFile();
+            if (f) imageFiles.push(f);
+          }
+        }
+        // 이미지가 없으면(텍스트 등) 아무것도 하지 않고 Quill 기본 붙여넣기 동작을 그대로 둔다.
+        if (imageFiles.length === 0) return;
+
+        // 이미지가 있을 때만 Quill·브라우저 기본 처리를 모두 차단
+        // (capture 단계라 아직 root에 도달하기 전 — stopPropagation으로 Quill 리스너 자체를 막는다)
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        void insertFilesSequentially(imageFiles, currentIndex());
+      };
+
+      const onDrop = (e: DragEvent) => {
+        const files = e.dataTransfer?.files;
+        if (!files || files.length === 0) return;
+
+        const imageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
+        if (imageFiles.length === 0) return; // 이미지가 아니면 기본 동작 유지
+
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        void insertFilesSequentially(imageFiles, currentIndex());
+      };
+
+      captureTarget.addEventListener('paste', onPaste, true);
+      captureTarget.addEventListener('drop', onDrop, true);
+      detachClipboardHandlers = () => {
+        captureTarget.removeEventListener('paste', onPaste, true);
+        captureTarget.removeEventListener('drop', onDrop, true);
+      };
+    };
+
     const poll = () => {
       if (cancelled || editorRef.current) return;
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const q = quillRef.current?.getEditor?.() ?? (quillRef.current as any)?.editor;
-        if (q?.insertEmbed) { editorRef.current = q; return; }
+        if (q?.insertEmbed) {
+          editorRef.current = q;
+          attachClipboardHandlers(q);
+          return;
+        }
       } catch { /* 아직 준비 안 됨 */ }
       setTimeout(poll, 150);
     };
     poll();
-    return () => { cancelled = true; editorRef.current = null; };
-  }, [RQ]);
+    return () => {
+      cancelled = true;
+      editorRef.current = null;
+      detachClipboardHandlers?.();
+    };
+  }, [RQ, uploadAndInsertImage]);
 
   // modules는 최초 1회만 생성 (재생성 시 Quill이 툴바를 재초기화)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -116,21 +219,7 @@ export function RichTextEditor({ value, onChange, placeholder = '내용을 입�
     e.target.value = ''; // 같은 파일 재선택 허용
     if (!file) return;
 
-    const quill = editorRef.current;
-    if (!quill) return;
-
-    try {
-      const res = await examService.adminUploadQuestionImage(file);
-      const url = res.data.data?.url ?? '';
-      if (!url) { alert('이미지를 업로드하지 못했습니다.'); return; }
-
-      const idx = savedIdx.current;
-      quill.focus();
-      quill.insertEmbed(idx, 'image', url);
-      quill.setSelection(idx + 1, 0, 'user');
-    } catch {
-      alert('이미지 업로드에 실패했습니다.');
-    }
+    await uploadAndInsertImage(file, savedIdx.current);
   };
 
   return (

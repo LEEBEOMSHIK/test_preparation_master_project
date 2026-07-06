@@ -31,6 +31,10 @@ public class GlobalExceptionHandler {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(", "));
+        // 검증 실패 사유를 로그로 남긴다(어느 필드가 왜 400인지 진단 가능하도록)
+        log.warn("Validation failed: {}", e.getBindingResult().getFieldErrors().stream()
+                .map(fe -> fe.getField() + "=" + fe.getDefaultMessage())
+                .collect(Collectors.joining(", ")));
         return ResponseEntity.badRequest()
                 .body(ApiResponse.fail(ErrorCode.INVALID_INPUT.name(), message));
     }

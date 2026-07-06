@@ -1,3 +1,22 @@
+## HIST-20260706-002
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 관리자 백엔드 / 문항(QuestionBank) — SCHEDULING 저장 400 수정(CHECK 제약) + 검증 실패 로그
+- **수정 개요**: SCHEDULING 유형 문항 저장 시 `question_bank.question_type` 컬럼의 기존 CHECK 제약(MULTIPLE_CHOICE/SHORT_ANSWER/OX/CODE만 허용)이 새 값 SCHEDULING을 막아 `DataIntegrityViolationException`(400)이 발생하던 문제 수정. Hibernate ddl-auto=update가 enum 컬럼의 기존 CHECK 제약을 자동 갱신하지 않는 것이 원인. 마이그레이션 SQL에 제약 재생성(SCHEDULING 포함)을 추가하고 dev DB에 즉시 적용. 아울러 `GlobalExceptionHandler.handleValidationException`이 검증 실패 사유(필드=메시지)를 로그로 남기도록 보강(향후 400 원인 진단 용이).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `docs/db-migration/20260706_01_question_bank_scheduling_data.sql` | 수정 | `question_bank_question_type_check` 제약을 DROP 후 SCHEDULING 포함 5개 값으로 재생성하는 DDL 추가(재실행 안전, `IF EXISTS`). 운영 배포 시 필수 적용 |
+| `backend/src/main/java/com/tpmp/testprep/exception/GlobalExceptionHandler.java` | 수정 | `handleValidationException`에 `log.warn("Validation failed: 필드=메시지")` 추가 |
+
+### 되돌림 방법
+
+이 ID(HIST-20260706-002)로 복원 시: 마이그레이션 SQL에서 CHECK 제약 재생성 블록 제거(제약을 이전 4개 값으로 되돌리려면 별도 SQL 필요), GlobalExceptionHandler의 log.warn 라인 제거.
+
+---
+
 ## HIST-20260706-001
 
 - **날짜**: 2026-07-06

@@ -1,4 +1,51 @@
-﻿## HIST-20260706-001
+﻿## HIST-20260706-003
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정 — RichTextEditor paste/drop 캡처 보강 (HIST-20260706-002 후속)
+- **수정 개요**: HIST-20260706-002에서 `quill.root`에 버블 단계로 붙인 paste/drop 리스너가 실기기 테스트에서 스크린샷 붙여넣기 시 여전히 base64를 본문에 삽입해 400 에러(`content` 5000자 초과)를 재현시킴. 원인은 Quill 자체 clipboard 리스너도 같은 `quill.root`(타겟 요소)에 등록돼 있어, 동일 타겟에서는 capture/bubble 구분 없이 "등록 순서대로" 실행되기 때문에 Quill이 먼저 base64를 삽입해버림. 리스너 부착 대상을 `quill.root`의 상위 요소(`quill.container`, 즉 `.ql-container`)로 옮기고 **capture 단계**(`addEventListener(..., true)`)로 등록해 Quill보다 먼저 가로채도록 수정. 이미지가 있을 때만 `preventDefault`+`stopPropagation`+`stopImmediatePropagation`으로 Quill·브라우저 기본 처리를 모두 차단(텍스트 등 비이미지는 그대로 통과).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/RichTextEditor.tsx` | 수정 | paste/drop 리스너 부착 대상을 `quill.root` → `quill.container ?? quill.root.parentElement ?? quill.root`로 변경; 등록을 버블(기본)에서 **capture 단계**(`true`)로 변경; 이미지 있을 때 `stopPropagation`/`stopImmediatePropagation` 추가 호출; cleanup의 `removeEventListener`도 동일 대상+capture(`true`)로 일치시킴 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/RichTextEditor.tsx`
+- 변경 전(HIST-20260706-002 상태): `const root: HTMLElement = quill.root;` 에 `root.addEventListener('paste', onPaste)` / `root.addEventListener('drop', onDrop)` (capture 옵션 없음 = 버블 단계, quill.root 자체가 타겟). 이미지 있을 때 `e.preventDefault()`만 호출. cleanup은 `root.removeEventListener('paste', onPaste)` / `('drop', onDrop)`.
+- 변경 후: `const captureTarget: HTMLElement = quill.container ?? quill.root.parentElement ?? quill.root;` 로 상위 요소를 구해 `captureTarget.addEventListener('paste', onPaste, true)` / `captureTarget.addEventListener('drop', onDrop, true)`로 capture 단계 등록. `onPaste`/`onDrop`에서 이미지가 있을 때 `e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();` 순으로 호출해 이벤트가 `quill.root`(타겟)에 도달하기 전에 완전히 차단. 이미지가 없으면 아무 것도 호출하지 않아(early return) 텍스트 등 기본 붙여넣기/드롭 동작은 그대로 유지. cleanup도 `captureTarget.removeEventListener('paste', onPaste, true)` / `('drop', onDrop, true)`로 동일 대상·capture 플래그를 맞춰 리스너 누수 방지. 인덱스 계산(`currentIndex`)·순차 업로드(`insertFilesSequentially`)·`uploadAndInsertImage` 헬퍼는 변경 없음.
+- 이유: DOM에서 동일 요소(target)에 등록된 리스너는 capture/bubble 옵션과 무관하게 등록 순서대로 실행된다. Quill이 `quill.root`에 자체 clipboard 리스너를 먼저 등록해두므로, 같은 요소에 버블로 추가한 리스너는 Quill보다 항상 늦게 실행되어 base64 삽입을 막지 못했다. 이벤트 캡처링은 상위→하위로 진행되므로 상위 요소(`.ql-container`)에 capture 단계로 등록하면 이벤트가 `quill.root`에 도달하기 전에 선점할 수 있다.
+
+### 복원 방법
+이 ID(HIST-20260706-003)만으로 복원 시:
+- `RichTextEditor.tsx`: `captureTarget`을 다시 `quill.root`(단순 `root` 변수)로, `addEventListener`/`removeEventListener` 호출에서 capture 인자(`true`)를 제거해 HIST-20260706-002 상태로 되돌리고, `onPaste`/`onDrop`의 `stopPropagation()`/`stopImmediatePropagation()` 호출을 제거한다(위 "변경 전" 참고).
+
+## HIST-20260706-002
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정 — RichTextEditor 이미지 붙여넣기·드래그드롭
+- **수정 개요**: 툴바 이미지 버튼은 서버 업로드 후 URL 삽입(정상)이지만, 클립보드 붙여넣기·드래그드롭 이미지는 Quill 기본 동작으로 base64 data URI가 본문에 인라인되어 `content` 5000자 제한(400 에러)을 유발하던 문제 수정. 업로드+삽입 로직을 공용 헬퍼로 추출하고, 붙여넣기(paste)·드래그드롭(drop) 네이티브 이벤트에서 이미지 파일을 가로채 같은 헬퍼로 업로드 후 URL만 삽입하도록 변경. 텍스트 등 비이미지 붙여넣기는 Quill 기본 동작 그대로 유지.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/RichTextEditor.tsx` | 수정 | 업로드+삽입 공용 헬퍼 `uploadAndInsertImage` 추출(useCallback, 성공 여부 반환); 원시 Quill 인스턴스(`editorRef`) 확보 시점에 `quill.root`에 `paste`/`drop` 네이티브 리스너 부착; 이미지 파일 포함 시 `preventDefault` 후 헬퍼로 순차 업로드·삽입, 비이미지는 기본 동작 유지; 언마운트/재폴링 시 리스너 해제 |
+| `CLAUDE.md` | 수정 | (필요 시) RichTextEditor 설명에 붙여넣기/드래그드롭 업로드 처리 반영 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/RichTextEditor.tsx`
+- 변경 전: `handleImageChange`(툴바 파일 선택)만 `examService.adminUploadQuestionImage` → URL → `quill.insertEmbed` 수행. paste/drop 이벤트에는 아무 처리가 없어 Quill 기본 동작(base64 인라인)이 그대로 적용됨.
+- 변경 후: `uploadAndInsertImage(file, index)` 헬퍼(useCallback) 신설 — 업로드/URL 검증/insertEmbed/setSelection/실패 alert를 한 곳에 모음, 성공 시 `true` 반환. `handleImageChange`는 이 헬퍼 호출로 단순화. editorRef 폴링 useEffect에서 인스턴스 확보 시 `attachClipboardHandlers(quill)` 호출 — `quill.root`에 `paste`/`drop` 리스너 등록. `paste`: `clipboardData.items` 중 `kind==='file' && type.startsWith('image/')`인 항목만 모아 있으면 `preventDefault` 후 현재 커서 위치부터 순차 업로드·삽입, 없으면 그대로 반환(텍스트 붙여넣기 기본 동작 유지). `drop`: `dataTransfer.files` 중 이미지 타입만 필터링해 있으면 `preventDefault` 후 동일하게 순차 삽입. 여러 장 처리 시 업로드 성공한 만큼만 삽입 인덱스를 증가시킴. cleanup에서 `removeEventListener`로 리스너 해제(중복 등록·메모리 누수 방지).
+- 이유: 서버 `@Size(max=5000)` 제약 때문에 base64 인라인 이미지가 본문에 섞이면 손쉽게 5000자를 초과해 문항 등록/수정이 400으로 실패. 모든 이미지 삽입 경로를 URL 방식으로 통일해 문제를 근본 차단.
+
+### 복원 방법
+이 ID(HIST-20260706-002)만으로 복원 시:
+- `RichTextEditor.tsx`: `uploadAndInsertImage` 헬퍼·`attachClipboardHandlers`(paste/drop 리스너) 블록 제거, `handleImageChange`를 원래의 인라인 업로드 로직으로 복원(위 "변경 전" 참고).
+
+## HIST-20260706-001
 
 - **날짜**: 2026-07-06
 - **수정 범위**: 관리자 프론트엔드 / 문항 관리 — CPU 스케줄링 구조화 문항(SCHEDULING 유형) 등록/조회
