@@ -1,3 +1,23 @@
+## HIST-20260706-007
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 플레이 — 풀이 스크래치패드에 "페이지 부재(페이지 교체)" 풀이 도구 탭 신설(항상 노출, 채점·자동계산 없음)
+- **수정 개요**: 공용 컴포넌트(`ScratchPadPanel.tsx`)에 신규 `PageReplacementTool.tsx`(참조열/프레임 수로 표 골격만 생성, FIFO/LRU/Optimal 자동 계산·채점 없음, 부재 토글은 사용자 직접 입력 집계)가 계산기처럼 항상 노출되는 탭으로 추가됨. 상세는 시험 응시 화면(`UserExamination_Modified.md` HIST-20260706-007) 참조 — 신규 로직은 두 화면 공용이며 퀴즈 화면(`frontend/src/app/user/quiz/[categoryId]/page.tsx`) 자체 코드는 변경 없음.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/PageReplacementTool.tsx` | 추가(공용) | 페이지 부재 풀이 도구 컴포넌트 신설 — 상세는 `UserExamination_Modified.md` HIST-20260706-007 참조 |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(공용) | `ScratchPadData`에 `pageReplacement` 필드 추가, 탭 배열/렌더 분기 확장 — 상세는 동일 참조 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표 갱신(중복 기록 아님, 시험 응시 히스토리와 동일 항목) |
+
+### 수정 상세
+공용 파일(`PageReplacementTool.tsx` 신규, `ScratchPadPanel.tsx` 수정)의 상세는 `UserExamination_Modified.md`의 HIST-20260706-007 항목을 참조. 이 화면 자체 코드(`frontend/src/app/user/quiz/[categoryId]/page.tsx`)는 변경되지 않았다.
+
+### 복원 방법
+이 ID(HIST-20260706-007)만으로 복원 시: 공용 파일 복원은 `UserExamination_Modified.md` HIST-20260706-007의 "복원 방법"을 따른다(동일 파일을 사용하므로 시험 응시 화면과 함께 되돌려야 함). 이 화면 자체는 변경된 파일이 없어 추가 조치 불필요.
+
 ## HIST-20260706-006
 
 - **날짜**: 2026-07-06

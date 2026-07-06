@@ -1,3 +1,37 @@
+## HIST-20260706-007
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 — 풀이 스크래치패드에 "페이지 부재(페이지 교체)" 풀이 도구 탭 신설(항상 노출, 채점·자동계산 없음)
+- **수정 개요**: 신규 컴포넌트 `PageReplacementTool.tsx`를 추가해 계산기처럼 항상 노출되는 4번째 탭 "페이지 부재"를 `ScratchPadPanel`에 편입했다. 사용자가 참조열(공백/콤마 혼용 구분, 예 `7 0 1 2 0 3 0 4`)과 프레임 수(1~8, `clampFrameCount`로 안전 정규화)를 입력하면 열=스텝(참조 페이지 헤더 표시)·행=프레임 1..N + "부재(F)" 토글 행으로 표 골격만 자동 생성된다. 각 프레임 셀은 짧은 텍스트를 직접 입력하는 모노스페이스 input이고, 부재 행은 스텝별 클릭 토글(불리언)이다. FIFO/LRU/Optimal 등 알고리즘 자동 계산·정답 채점은 전혀 하지 않으며, 사용자가 토글한 부재 개수만 실시간 집계해 "부재 횟수: N / 스텝수"로 보여준다(이는 채점이 아니라 본인 입력의 단순 카운트). 참조열/프레임 수를 바꾸면 `resizeGrid` 헬퍼가 기존 `cells`/`faults`를 유효 인덱스 범위 내에서 최대한 보존하며 안전하게 리사이즈한다(초과분은 잘라내고 부족분은 빈 값/false로 확장, 어떤 입력에도 throw 없음). "그리드 초기화" 버튼은 참조열/프레임 수는 유지한 채 `cells`/`faults`만 클리어한다(문제 설정을 다시 입력하지 않고 재도전 가능하도록). 표는 참조열이 길어질 수 있어 `overflow-x-auto`로 가로 스크롤 반응형 처리했고 다크모드(`dark:`)를 전 요소에 적용했다. `ScratchPadData`에 `pageReplacement: PageReplacementData` 필드를 추가했고, `loadData`가 `isPageReplacementData` 타입가드로 검증해 없거나 손상된 구버전 저장분은 `EMPTY_PAGE_REPLACEMENT_DATA`로 안전 폴백한다(storageKey 불변, 필드 추가만이라 기존 자유메모·트레이싱·계산기 저장분과 호환). 저장은 기존 `updateData`/디바운스(500ms)/storageKey 전환 flush 경로에 그대로 편입되며 새 저장 경로를 추가하지 않았다. eval/Function/dangerouslySetInnerHTML 미사용. 퀴즈 화면(`DailyQuiz_Modified.md` HIST-20260706-007)과 공용 컴포넌트.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/PageReplacementTool.tsx` | 추가 | 페이지 부재 풀이 도구 컴포넌트(`PageReplacementData` 타입, `parseRefTokens`, `isPageReplacementData`, `resizeGrid` 내부 헬퍼, `PageReplacementTool` 컴포넌트) |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정 | `ScratchPadData`에 `pageReplacement: PageReplacementData` 필드 추가, `EMPTY_DATA`/`loadData`에 폴백 반영, `TabKey`에 `'pagereplace'` 추가, 탭 배열에 "페이지 부재" 탭(항상 노출) 추가, 본문에 `<PageReplacementTool value={data.pageReplacement} onChange=... />` 렌더 분기 추가 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `PageReplacementTool` 행 추가, `ScratchPadPanel` 설명에 페이지 부재 탭 반영 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/PageReplacementTool.tsx` (신규)
+- 변경 전: 파일 없음
+- 변경 후: `PageReplacementData` 타입(`refString`/`frameCount`/`cells: string[][]`/`faults: boolean[]`), `EMPTY_PAGE_REPLACEMENT_DATA` 상수, `parseRefTokens`(공백/콤마 혼용 파싱), `clampFrameCount`(1~8 정규화, NaN/음수/소수 안전 처리), `resizeGrid`(차원 변경 시 기존 값 보존 리사이즈, throw 없음), `isPageReplacementData` 타입가드, `PageReplacementTool` 컴포넌트(참조열/프레임 수 입력 + 표 골격 + 부재 토글 행 + 부재 카운트 + 초기화 버튼) 신설
+- 이유: 채점 없는 순수 손입력 보조 표를 별도 컴포넌트로 분리해 `ScratchPadPanel`의 책임을 유지(코드 트레이싱이 `TracePreview`/`traceNotation.ts`로 분리된 기존 패턴과 동일)
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: `ScratchPadData`는 `note`/`trace`/`calcHistory`/`traceBlocks?`만 보유. `TabKey`는 `'note' | 'trace' | 'calc'`. 탭 배열은 자유메모·(조건부)코드트레이싱·계산기 3개
+- 변경 후: `ScratchPadData`에 `pageReplacement: PageReplacementData` 추가. `EMPTY_DATA`에 `pageReplacement: EMPTY_PAGE_REPLACEMENT_DATA` 포함. `loadData`가 `isPageReplacementData(p.pageReplacement)`로 검증해 유효하면 그대로, 아니면 `EMPTY_PAGE_REPLACEMENT_DATA`로 폴백 후 반환 객체에 포함(기존 note/trace/calcHistory 반환 로직은 변경 없음). `TabKey`에 `'pagereplace'` 추가, 탭 배열에 `{ key: 'pagereplace', label: '페이지 부재' }`를 계산기처럼 항상 노출로 추가(코드트레이싱과 계산기 사이). 본문에 `tab === 'pagereplace'` 분기로 `<PageReplacementTool value={data.pageReplacement} onChange={next => updateData(prev => ({ ...prev, pageReplacement: next }))} />` 렌더 추가
+- 이유: 요구사항대로 "계산기처럼 항상 노출되는 탭"으로 페이지 부재 도구를 편입하되, 상태 소유·저장(debounce/flush)은 기존 패널 인프라를 그대로 재사용
+
+#### `CLAUDE.md`
+- 변경 전: Shared Utilities 표에 `PageReplacementTool` 행 없음, `ScratchPadPanel` 설명에 "자유메모·CODE 트레이싱·안전 계산기"만 언급
+- 변경 후: `PageReplacementTool` 행 추가, `ScratchPadPanel` 설명에 "페이지 부재 풀이 도구" 반영
+- 이유: 신규 공용 컴포넌트를 팀 컨벤션 문서에 즉시 반영
+
+### 복원 방법
+이 ID(HIST-20260706-007)만으로 복원 시: `frontend/src/components/ui/PageReplacementTool.tsx` 파일을 삭제한다. `ScratchPadPanel.tsx`에서 `PageReplacementTool`/`EMPTY_PAGE_REPLACEMENT_DATA`/`isPageReplacementData`/`PageReplacementData` import를 제거하고, `ScratchPadData`에서 `pageReplacement` 필드를 제거하고, `EMPTY_DATA`를 `{ note: '', trace: '', calcHistory: [] }`로 되돌리고, `loadData`의 `pageReplacement` 관련 라인을 제거해 반환문을 이전 형태(`{ note: p.note, trace: ..., calcHistory: p.calcHistory }`)로 되돌리고, `TabKey`에서 `'pagereplace'`를 제거하고, 탭 배열에서 페이지 부재 탭 항목을 제거하고, 본문에서 `tab === 'pagereplace'` 렌더 분기를 제거한다. `CLAUDE.md`는 `PageReplacementTool` 행을 삭제하고 `ScratchPadPanel` 설명 문구를 이 변경 전으로 되돌린다. 퀴즈 화면(`DailyQuiz_Modified.md` HIST-20260706-007)도 동일 공용 파일을 사용하므로 함께 되돌리지 않는 한 그 파일 자체는 삭제하지 말 것.
+
 ## HIST-20260706-006
 
 - **날짜**: 2026-07-06

@@ -4,6 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { evaluateExpression, type EvalResult } from '@/lib/safeMathCalc';
 import { parseTraceLines, sanitizeLegacyTraceBlocks, legacyTraceBlocksToNotation } from '@/lib/traceNotation';
 import { TracePreview } from '@/components/ui/TracePreview';
+import {
+  PageReplacementTool,
+  EMPTY_PAGE_REPLACEMENT_DATA,
+  isPageReplacementData,
+  type PageReplacementData,
+} from '@/components/ui/PageReplacementTool';
 
 interface ScratchPadPanelProps {
   /** localStorage 저장 키 (문항 단위로 유일해야 함, 예: tpmp_scratchpad:exam:1:23) */
@@ -18,6 +24,12 @@ interface ScratchPadData {
   trace: string;
   calcHistory: string[];
   /**
+   * 페이지 부재(페이지 교체) 풀이 도구 데이터. HIST-20260706-007에서 추가되었으며, 이전 저장분에는
+   * 필드 자체가 없을 수 있어 loadData가 타입가드(isPageReplacementData)로 검증 후 없거나 손상된
+   * 경우 EMPTY_PAGE_REPLACEMENT_DATA로 폴백한다.
+   */
+  pageReplacement: PageReplacementData;
+  /**
    * @deprecated HIST-20260706-001에서 도입된 클릭식 블록 위젯(변수 워치·1D/2D 배열·반복 스텝 표)의
    * 저장 필드. HIST-20260706-002부터 "타이핑→자동 렌더" 표기법(trace 텍스트 파싱)으로 대체되어
    * 더 이상 생성·저장하지 않는다. loadData가 구버전 저장분을 만나면 표기법 텍스트로 1회 이관 후
@@ -26,11 +38,11 @@ interface ScratchPadData {
   traceBlocks?: unknown;
 }
 
-const EMPTY_DATA: ScratchPadData = { note: '', trace: '', calcHistory: [] };
+const EMPTY_DATA: ScratchPadData = { note: '', trace: '', calcHistory: [], pageReplacement: EMPTY_PAGE_REPLACEMENT_DATA };
 const SAVE_DEBOUNCE_MS = 500;
 const MAX_CALC_HISTORY = 5;
 
-type TabKey = 'note' | 'trace' | 'calc';
+type TabKey = 'note' | 'trace' | 'pagereplace' | 'calc';
 
 /**
  * localStorage에서 스크래치패드 데이터 로드 — 파싱/접근 오류 시 빈 데이터로 폴백.
@@ -54,13 +66,15 @@ function loadData(key: string): ScratchPadData {
     }
 
     const p = parsed as ScratchPadData;
+    const pageReplacement = isPageReplacementData(p.pageReplacement) ? p.pageReplacement : EMPTY_PAGE_REPLACEMENT_DATA;
+
     const legacyBlocks = sanitizeLegacyTraceBlocks(p.traceBlocks);
     if (legacyBlocks.length === 0) {
-      return { note: p.note, trace: p.trace, calcHistory: p.calcHistory };
+      return { note: p.note, trace: p.trace, calcHistory: p.calcHistory, pageReplacement };
     }
     const migratedText = legacyTraceBlocksToNotation(legacyBlocks);
     const mergedTrace = [p.trace, migratedText].filter(s => s.trim().length > 0).join('\n');
-    return { note: p.note, trace: mergedTrace, calcHistory: p.calcHistory };
+    return { note: p.note, trace: mergedTrace, calcHistory: p.calcHistory, pageReplacement };
   } catch {
     return EMPTY_DATA;
   }
@@ -77,8 +91,9 @@ function saveData(key: string, data: ScratchPadData): void {
 
 /**
  * 풀이 스크래치패드 — 시험/퀴즈 풀이 화면 우하단 FAB로 여는 보조 메모 패널.
- * 자유 메모 · (CODE 문항 한정) 코드 트레이싱 · 안전 계산기 3탭으로 구성되며
- * storageKey 단위로 localStorage에 자동 저장(디바운스)된다. BE/DB 연동 없음.
+ * 자유 메모 · (CODE 문항 한정) 코드 트레이싱 · 페이지 부재(페이지 교체) 풀이 도구 · 안전 계산기
+ * 4탭으로 구성되며 storageKey 단위로 localStorage에 자동 저장(디바운스)된다. BE/DB 연동 없음.
+ * 페이지 부재 탭은 참조열/프레임 수로 표 골격만 생성하고 알고리즘 자동 계산은 하지 않는다(순수 입력 보조).
  * 코드 트레이싱 탭은 "타이핑→자동 렌더" 방식이다. textarea에 `이름 = 값` 표기법으로
  * 한 줄씩 입력하면 @/lib/traceNotation의 순수 파서가 변수/1D 배열/2D 배열/자유
  * 텍스트로 실시간 분류하고, TracePreview가 이를 시각화한다. 코드 실행/eval은 하지 않는다.
@@ -191,6 +206,7 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'note', label: '자유 메모' },
     ...(isCodeQuestion ? [{ key: 'trace' as TabKey, label: '코드 트레이싱' }] : []),
+    { key: 'pagereplace', label: '페이지 부재' },
     { key: 'calc', label: '계산기' },
   ];
 
@@ -272,6 +288,13 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
               </div>
             </div>
           </div>
+        )}
+
+        {tab === 'pagereplace' && (
+          <PageReplacementTool
+            value={data.pageReplacement}
+            onChange={next => updateData(prev => ({ ...prev, pageReplacement: next }))}
+          />
         )}
 
         {tab === 'calc' && (
