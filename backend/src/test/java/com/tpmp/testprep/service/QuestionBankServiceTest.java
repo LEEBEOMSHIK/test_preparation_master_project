@@ -61,10 +61,20 @@ class QuestionBankServiceTest {
 
     private QuestionBankRequest requestOf(QuestionBank.QuestionType type, SchedulingData schedulingData) {
         return new QuestionBankRequest(
-                "제목", null, null, "문항 내용", type, 10L, 20L,
+                "제목", null, null, "문항 내용", null, type, 10L, 20L,
                 null, "정답", null, null, null,
                 null, null, null, null,
                 schedulingData
+        );
+    }
+
+    /** 발문(instruction)·문항 내용(content) 필수 규칙 검증 전용 헬퍼 — SHORT_ANSWER 유형, schedulingData 없음 */
+    private QuestionBankRequest bodyRequestOf(String content, String instruction) {
+        return new QuestionBankRequest(
+                "제목", null, null, content, instruction, QuestionBank.QuestionType.SHORT_ANSWER, 10L, 20L,
+                null, "정답", null, null, null,
+                null, null, null, null,
+                null
         );
     }
 
@@ -162,6 +172,42 @@ class QuestionBankServiceTest {
     @DisplayName("SHORT_ANSWER: schedulingData가 없어도 예외 없이 정상 저장 (회귀 확인)")
     void nonScheduling_withoutSchedulingData_savesSuccessfully() {
         QuestionBankRequest req = requestOf(QuestionBank.QuestionType.SHORT_ANSWER, null);
+
+        service.createQuestion(req, ADMIN_EMAIL);
+
+        verify(questionBankRepository).save(any(QuestionBank.class));
+    }
+
+    // ── 발문(instruction)·문항 내용(content) 필수 규칙 검증 ─────────────────────
+
+    @Test
+    @DisplayName("발문·내용: content가 blank이고 instruction이 있으면 정상 저장 (CODE·스케줄링처럼 내용 없이 발문만 등록 가능)")
+    void content_blank_withInstruction_savesSuccessfully() {
+        QuestionBankRequest req = bodyRequestOf("", "다음 설명을 보고 알맞은 용어를 작성하시오.");
+
+        service.createQuestion(req, ADMIN_EMAIL);
+
+        ArgumentCaptor<QuestionBank> captor = ArgumentCaptor.forClass(QuestionBank.class);
+        verify(questionBankRepository).save(captor.capture());
+        // 엔티티 저장 시 DB NOT NULL 제약 때문에 null 대신 빈 문자열로 coalesce된다.
+        assertThat(captor.getValue().getContent()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("발문·내용: 둘 다 blank이면 QUESTION_BODY_REQUIRED 예외")
+    void content_and_instruction_bothBlank_throws() {
+        QuestionBankRequest req = bodyRequestOf("  ", null);
+
+        assertThatThrownBy(() -> service.createQuestion(req, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.QUESTION_BODY_REQUIRED));
+    }
+
+    @Test
+    @DisplayName("발문·내용: content가 있고 instruction이 blank이면 정상 저장 (기존 회귀 확인)")
+    void content_present_withBlankInstruction_savesSuccessfully() {
+        QuestionBankRequest req = bodyRequestOf("문항 내용입니다.", "");
 
         service.createQuestion(req, ADMIN_EMAIL);
 

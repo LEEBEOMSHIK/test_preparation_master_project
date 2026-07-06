@@ -3,7 +3,6 @@ package com.tpmp.testprep.dto.request;
 import com.tpmp.testprep.entity.QuestionBank;
 import com.tpmp.testprep.entity.support.SchedulingData;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -22,9 +21,14 @@ public record QuestionBankRequest(
 
         Integer examRound,
 
-        @NotBlank(message = "문항 내용은 필수입니다.")
+        /** 문항 내용 — 발문(instruction)과 합쳐 "둘 중 하나는 필수" 규칙 적용(서비스단 검증). 단독 @NotBlank는 제거. */
         @Size(max = 5000, message = "문항 내용은 5000자를 초과할 수 없습니다.")
         String content,
+
+        /** 발문(지시문) — 문항 내용과 분리 저장, 모든 유형 공용. content와 마찬가지로 단독 필수는 아니며
+         *  "발문 또는 내용 중 하나는 필수" 규칙을 서비스단(QuestionBankService#validateBody)에서 검증한다. */
+        @Size(max = 1000, message = "발문은 1000자를 초과할 수 없습니다.")
+        String instruction,
 
         @NotNull(message = "문항 유형은 필수입니다.")
         QuestionBank.QuestionType questionType,

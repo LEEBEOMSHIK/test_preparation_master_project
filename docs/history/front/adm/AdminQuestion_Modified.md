@@ -1,4 +1,78 @@
-﻿## HIST-20260706-003
+﻿## HIST-20260707-001
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정 — 발문·내용 "둘 중 하나 필수" 규칙 통일
+- **수정 개요**: 문항 등록(`new`)·수정(`[id]/edit`) 화면에서 "문항 내용" 라벨의 필수(`*`) 표시를 제거하고 "(선택 — 발문과 내용 중 하나는 필수)"로 변경했다. 제출 시 각 문항에 대해 발문(trim)과 문항 내용(stripHtml 후 trim) 중 **적어도 하나가 비어있지 않은지** 검증하며, 둘 다 비면 "발문 또는 문항 내용 중 하나는 입력하세요." 에러로 제출을 막는다. 등록 화면은 여러 문항 카드를 다루므로 "작성된 문항" 판정 필터(`manualFilled`/`manualFilledCount`)도 기존 `content` 단독 기준에서 `content 또는 instruction` 기준으로 변경해, 발문만 채운 카드도 정상적으로 등록 대상에 포함되도록 했다. 백엔드 반영은 [back/adm/QuestionBank_Modified.md HIST-20260707-001] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | 문항 내용 라벨 `*` 제거 → "(선택 — 발문과 내용 중 하나는 필수)", `manualFilled`/`manualFilledCount` 필터를 `stripHtml(q.content) \|\| q.instruction.trim()` 기준으로 변경, `handleSubmit` 문항별 검증 루프에 "발문 또는 내용 중 하나 필수" 체크 추가 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | 문항 내용 라벨 `*` 제거 → "(선택 — 발문과 내용 중 하나는 필수)", `handleSubmit`의 `!stripHtml(form.content)` 단독 검증을 `!stripHtml(form.content) && !form.instruction.trim()` 조건으로 교체 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/new/page.tsx`
+- 변경 전: 문항 내용 라벨에 `<span className="text-red-400">*</span>`로 필수 표시. `manualFilled = manualQuestions.filter((q) => stripHtml(q.content) && (...))` — content가 없으면 발문만 있어도 미작성 문항으로 간주되어 제출에서 제외됨. 문항별 검증 루프에 발문·내용 관련 체크 없음.
+- 변경 후: 라벨을 `<span className="text-gray-300 font-normal">(선택 — 발문과 내용 중 하나는 필수)</span>`로 교체. `manualFilled`/`manualFilledCount` 필터 조건을 `(stripHtml(q.content) || q.instruction.trim()) && (...)`로 변경. 문항별 검증 루프 마지막에 `if (!stripHtml(q.content) && !q.instruction.trim()) { setError(...); return; }` 추가(필터 조건상 이론적으로는 항상 통과하지만, 안전망으로 명시).
+- 이유: CODE·스케줄링처럼 발문만으로 문항을 구성하는 케이스를 등록 대상에서 누락시키지 않기 위함.
+
+#### `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx`
+- 변경 전: 문항 내용 라벨에 `*` 필수 표시. `handleSubmit`에서 `if (!stripHtml(form.content)) { setError('문항 내용을 입력하세요.'); return; }`로 내용 단독 필수.
+- 변경 후: 라벨을 "(선택 — 발문과 내용 중 하나는 필수)"로 교체. 검증을 `if (!stripHtml(form.content) && !form.instruction.trim()) { setError('발문 또는 문항 내용 중 하나는 입력하세요.'); return; }`로 교체.
+- 이유: 발문만 있는 기존/신규 문항을 수정 화면에서도 저장할 수 있도록 함.
+
+### 복원 방법
+이 ID(HIST-20260707-001)만으로 복원 시: 두 파일의 문항 내용 라벨을 `<span className="text-red-400">*</span>`로 되돌린다. `new/page.tsx`의 `manualFilled`/`manualFilledCount` 필터에서 `|| q.instruction.trim()` 조건과 문항별 검증 루프의 발문·내용 체크를 제거한다. `[id]/edit/page.tsx`의 `handleSubmit` 검증을 `if (!stripHtml(form.content)) { setError('문항 내용을 입력하세요.'); return; }`로 되돌린다.
+
+## HIST-20260706-004
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정 — 발문(지시문) 입력 필드 신설
+- **수정 개요**: 문항 등록(`new`)·수정(`[id]/edit`) 폼과 문항 상세 모달(`QuestionDetailModal`)에 "발문 (지시문)" 필드를 추가했다. 문항 내용(RichTextEditor) 바로 위에 2행 textarea(선택 입력)로 배치했으며, 모든 문항 유형 공용이다. 제출 payload에는 `instruction: 값.trim() || undefined`로 전달되고, 수정 화면은 로드 시 `q.instruction ?? ''`로 프리필된다. 상세 모달은 발문이 있을 때만 문항 내용 위에 강조 표시한다. 백엔드 반영은 [back/adm/QuestionBank_Modified.md HIST-20260706-003] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | `QuestionDraft`에 `instruction: string` 추가(기본 `''`), 문항 내용 위에 발문 textarea 배치, 클립보드/파일 가져오기 드래프트 생성부에도 `instruction: ''` 추가, 제출 payload에 `instruction` 반영 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | `FormState`에 `instruction: string` 추가(기본 `''`), 로드 시 `q.instruction ?? ''` 프리필, 문항 내용 위에 발문 textarea 배치, 제출 payload에 `instruction` 반영 |
+| `frontend/src/components/ui/QuestionDetailModal.tsx` | 수정 | `QuestionDetailItem`에 `instruction?: string` 추가, 문항 내용 블록 위에 발문이 있을 때만 강조 표시(`font-semibold`) |
+| `frontend/src/types/index.ts` | 수정 | `QuestionSummary`에 `instruction?: string` 추가 |
+| `frontend/src/services/examService.ts` | 수정 | `adminCreateQuestionsBulk`/`adminUpdateQuestion` 인라인 payload 타입에 `instruction?: string` 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/new/page.tsx`
+- 변경 전: `QuestionDraft`/`emptyDraft()`/`parseTextToQuestions()`/`simulateFileParse()`에 `instruction` 필드 없음. 문항 내용(RichTextEditor) 바로 위에 발문 입력 없음. 제출 payload(`adminCreateQuestionsBulk` 호출부)에 `instruction` 없음.
+- 변경 후: `QuestionDraft`에 `instruction: string` 필드 추가, `emptyDraft()`에 `instruction: ''` 기본값, 클립보드/파일 파싱 드래프트 생성 객체 2곳에도 `instruction: ''` 추가. `ManualQuestionCard`의 "문항 내용" 블록 바로 위에 "발문 (지시문)" 라벨 + 2행 textarea(placeholder: "예: 다음 설명을 보고 알맞은 용어를 작성하시오. (선택)")를 배치해 `onChange('instruction', e.target.value)`로 갱신. `handleSubmit`의 `adminCreateQuestionsBulk` 매핑에 `instruction: q.instruction.trim() || undefined` 추가.
+- 이유: 문항 등록 시 발문을 본문과 분리해 입력할 수 있도록 함.
+
+#### `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx`
+- 변경 전: `FormState`/`defaultForm()`에 `instruction` 없음. 문항 로드 시 프리필 없음. 문항 내용 위에 발문 입력 없음. `adminUpdateQuestion` payload에 `instruction` 없음.
+- 변경 후: `FormState`에 `instruction: string` 추가, `defaultForm()`에 `instruction: ''`. 기존 문항 로드 `useEffect`에서 `instruction: q.instruction ?? ''`로 프리필. "문항 내용" 블록 위에 동일한 발문 textarea 배치(`update('instruction', e.target.value)`). `handleSubmit`의 `adminUpdateQuestion` 호출 payload에 `instruction: form.instruction.trim() || undefined` 추가.
+- 이유: 문항 수정 시 기존 발문을 불러와 편집할 수 있도록 함.
+
+#### `frontend/src/components/ui/QuestionDetailModal.tsx`
+- 변경 전: `QuestionDetailItem`에 `instruction` 없음, 본문 렌더에 발문 블록 없음.
+- 변경 후: `QuestionDetailItem`에 `instruction?: string` 추가. "문항 내용" 블록 위에 `question.instruction`이 있을 때만 "발문" 레이블 + `font-semibold text-gray-900 whitespace-pre-wrap` 텍스트로 강조 표시.
+- 이유: 관리자 목록·시험지 편집 화면 등에서 문항 상세를 볼 때 발문과 본문을 시각적으로 구분하기 위함(이 컴포넌트는 다크 클래스 없이 라이트 전용으로 작성된 기존 컨벤션을 그대로 따름).
+
+#### `frontend/src/types/index.ts`
+- 변경 전: `QuestionSummary`에 `instruction` 없음.
+- 변경 후: `content` 다음에 `instruction?: string` 추가.
+- 이유: 백엔드 `QuestionBankResponse.instruction`을 프론트 타입에 반영.
+
+#### `frontend/src/services/examService.ts`
+- 변경 전: `adminCreateQuestionsBulk`/`adminUpdateQuestion` 인라인 payload 타입에 `instruction` 없음.
+- 변경 후: 두 함수 모두 `content` 다음에 `instruction?: string` 추가.
+- 이유: 등록/수정 API 요청 타입을 백엔드 `QuestionBankRequest.instruction`과 일치시킴.
+
+### 복원 방법
+이 ID(HIST-20260706-004)만으로 복원 시: `new/page.tsx`·`[id]/edit/page.tsx`에서 `instruction` 필드·textarea·payload 반영분을 제거, `QuestionDetailModal.tsx`에서 발문 표시 블록과 `instruction?` 필드를 제거, `types/index.ts`의 `QuestionSummary.instruction?`을 제거, `examService.ts`의 두 인라인 타입에서 `instruction?: string`을 제거한다.
+
+## HIST-20260706-003
 
 - **날짜**: 2026-07-06
 - **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정 — RichTextEditor paste/drop 캡처 보강 (HIST-20260706-002 후속)

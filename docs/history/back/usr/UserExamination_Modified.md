@@ -1,3 +1,28 @@
+## HIST-20260706-001
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 백엔드 / 시험 채점 (SHORT_ANSWER·SCHEDULING 채점 완화)
+- **수정 개요**: `AnswerGrader`의 SHORT_ANSWER·SCHEDULING 토큰 정규화 강화(슬래시 구분자 추가·공백 축약·말미 괄호 부연 제거) 및 정확 일치 실패 시 구분자·괄호·공백을 모두 제거한 느슨 폴백 비교 추가. 시험 제출 채점(`UserExaminationService.submitExam`)이 이 헬퍼를 통해 동일 적용됨. 퀴즈 채점도 공용이며 상세는 [back/usr/UserQuiz_Modified.md HIST-20260706-001] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | tokenize 정규화 강화(슬래시 구분자·공백 축약·괄호 제거) + 느슨 폴백(`looseEqualsIgnoringPunctuation`) 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 수정 | 괄호 부연·슬래시 구분·느슨 폴백·오탐 방지 테스트 8건 추가 |
+
+### 수정 상세
+
+#### `service/support/AnswerGrader.java`
+- `UserExaminationService.submitExam`은 `AnswerGrader.isCorrect(...)`를 호출하므로 헬퍼 정규화 강화만으로 시험 채점에도 자동 반영됨(시험 서비스 코드 변경 없음)
+- 정규화 상세는 [back/usr/UserQuiz_Modified.md HIST-20260706-001] 동일 내용 참조
+- 이유: 정답의 괄호 부연 설명·구분자 유무 차이로 발생하는 오채점 해소
+
+### 복원 방법
+이 ID(HIST-20260706-001)만으로 복원 시: `AnswerGrader.java`의 `tokenize`를 콤마 단일 분리 + trim + 소문자화만 남기고, `normalizeToken`·`looseEqualsIgnoringPunctuation`·`normalizeLoose` 제거, `isCorrect`의 SHORT_ANSWER·SCHEDULING 분기 폴백 호출 제거(시험 채점 복원과 동일), 테스트 추가 케이스 8건 삭제.
+
+---
+
 ## HIST-20260629-002
 
 - **날짜**: 2026-06-29

@@ -25,6 +25,7 @@ public enum ErrorCode {
     EXAM_HISTORY_NOT_FOUND(HttpStatus.NOT_FOUND, "시험 응시 이력을 찾을 수 없습니다."),
     QUOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "명언을 찾을 수 없습니다."),
     SCHEDULING_DATA_INVALID(HttpStatus.BAD_REQUEST, "스케줄링 문제 데이터가 올바르지 않습니다. (알고리즘·프로세스 항목을 확인하세요)"),
+    QUESTION_BODY_REQUIRED(HttpStatus.BAD_REQUEST, "발문 또는 문항 내용 중 하나는 입력해야 합니다."),
 
     // ConceptNote
     CONCEPT_NOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "개념 요약을 찾을 수 없습니다."),

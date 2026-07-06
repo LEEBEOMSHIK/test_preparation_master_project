@@ -5,6 +5,8 @@ export interface QuizQuestion {
   id: number;
   title?: string;
   content: string;
+  /** 발문(지시문) — 문항 내용 위에 강조 표시용 (선택) */
+  instruction?: string;
   questionType: string;
   options?: string[];
   code?: string;

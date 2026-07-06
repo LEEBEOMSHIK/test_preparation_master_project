@@ -69,6 +69,8 @@ export const examService = {
     examYear?: number;
     examRound?: number;
     content: string;
+    /** 발문(지시문) — 문항 내용과 분리 저장 (선택) */
+    instruction?: string;
     questionType: QuestionType;
     categoryId?: number;
     examTypeId?: number;
@@ -93,6 +95,8 @@ export const examService = {
     examYear?: number;
     examRound?: number;
     content: string;
+    /** 발문(지시문) — 문항 내용과 분리 저장 (선택) */
+    instruction?: string;
     questionType: QuestionType;
     categoryId?: number;
     examTypeId?: number;

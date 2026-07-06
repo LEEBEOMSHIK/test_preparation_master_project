@@ -274,25 +274,25 @@ function QuizPlayContent() {
       <div className="max-w-lg mx-auto py-10 space-y-6">
         <div className={[
           'rounded-2xl border p-8 text-center shadow-sm',
-          roundScore >= 80 ? 'bg-green-50 border-green-200'
-          : roundScore >= 50 ? 'bg-yellow-50 border-yellow-200'
-          : 'bg-red-50 border-red-200',
+          roundScore >= 80 ? 'bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800'
+          : roundScore >= 50 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/30 dark:border-yellow-800'
+          : 'bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800',
         ].join(' ')}>
           <div className={[
             'w-16 h-16 rounded-full mx-auto flex items-center justify-center text-2xl font-bold mb-4',
-            roundScore >= 80 ? 'bg-green-100 text-green-700'
-            : roundScore >= 50 ? 'bg-yellow-100 text-yellow-700'
-            : 'bg-red-100 text-red-700',
+            roundScore >= 80 ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+            : roundScore >= 50 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300'
+            : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300',
           ].join(' ')}>
             {roundScore}
           </div>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">
             라운드 {roundNum} 완료
           </p>
-          <p className="text-lg font-bold text-gray-800 mb-1">
-            {questions.length}문제 중 <span className="text-indigo-600">{correctCount}문제</span> 정답
+          <p className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-1">
+            {questions.length}문제 중 <span className="text-indigo-600 dark:text-indigo-400">{correctCount}문제</span> 정답
           </p>
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
             세션 누계: {sessionAnswered}문제 풀이 · {sessionCorrect}문제 정답
           </p>
         </div>
@@ -415,7 +415,22 @@ function QuizPlayContent() {
           </div>
         )}
 
-        <RichContent html={q.content} className="text-gray-800 font-medium text-base pr-24" />
+        {/* 발문(지시문) — 문항 내용 위에 강조 표시 */}
+        {q.instruction && (
+          <p className="text-gray-900 dark:text-gray-100 font-semibold text-base leading-snug whitespace-pre-wrap pr-24">
+            {q.instruction}
+          </p>
+        )}
+
+        <RichContent
+          html={q.content}
+          className={[
+            'text-base pr-24',
+            q.instruction
+              ? 'text-gray-700 dark:text-gray-300 font-normal'
+              : 'text-gray-800 font-medium',
+          ].join(' ')}
+        />
 
         {q.code && (
           <CodeBlock code={q.code} language={q.language} />
@@ -518,16 +533,18 @@ function QuizPlayContent() {
         {answerState?.submitted && (
           <div className={[
             'rounded-xl p-4 text-sm',
-            answerState.result?.correct ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200',
+            answerState.result?.correct
+              ? 'bg-green-50 border border-green-200 dark:bg-green-900/30 dark:border-green-800'
+              : 'bg-red-50 border border-red-200 dark:bg-red-900/30 dark:border-red-800',
           ].join(' ')}>
-            <p className={`font-semibold mb-1 ${answerState.result?.correct ? 'text-green-700' : 'text-red-700'}`}>
+            <p className={`font-semibold mb-1 ${answerState.result?.correct ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
               {answerState.result?.correct ? '정답입니다!' : '오답입니다.'}
             </p>
             {!answerState.result?.correct && (
-              <p className="text-gray-700">정답: <span className="font-medium">{answerState.result?.answer}</span></p>
+              <p className="text-gray-700 dark:text-gray-200">정답: <span className="font-medium">{answerState.result?.answer}</span></p>
             )}
             {answerState.result?.explanation && (
-              <p className="text-gray-600 mt-1">{answerState.result.explanation}</p>
+              <p className="text-gray-600 dark:text-gray-300 mt-1">{answerState.result.explanation}</p>
             )}
 
             {/* 개념노트 + 북마크 토글 버튼 */}

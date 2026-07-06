@@ -12,6 +12,8 @@ public record QuestionBankResponse(
         Integer examYear,
         Integer examRound,
         String content,
+        /** 발문(지시문) — 문항 내용과 분리 저장 (선택, 없으면 null) */
+        String instruction,
         String questionType,
         Long categoryId,
         String categoryName,
@@ -37,6 +39,7 @@ public record QuestionBankResponse(
                 qb.getExamYear(),
                 qb.getExamRound(),
                 qb.getContent(),
+                qb.getInstruction(),
                 qb.getQuestionType().name(),
                 qb.getCategory() != null ? qb.getCategory().getId() : null,
                 qb.getCategory() != null ? qb.getCategory().getName() : null,

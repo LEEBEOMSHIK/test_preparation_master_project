@@ -1,3 +1,65 @@
+## HIST-20260706-009
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 플레이 — 발문(지시문) 강조 표시
+- **수정 개요**: 문제 카드에서 발문(예: "다음 설명을 보고 알맞은 용어를 작성하시오.")이 있는 문항은 문항 내용(RichContent) 위에 굵은 글씨로 발문을 먼저 보여주고, 그 아래 본문(content)은 보조 톤(`text-gray-700 dark:text-gray-300`)으로 낮춰 발문=강조·본문=설명의 시각적 위계를 만들었다. 발문이 없는 문항은 기존과 동일하게 렌더링된다. 이번 파일(`page.tsx`)의 이전 미커밋 변경(채점완화+다크모드 보정)은 건드리지 않고 발문 관련 부분만 추가했다. 백엔드/타입 반영은 [back/adm/QuestionBank_Modified.md HIST-20260706-003], [front/adm/AdminQuestion_Modified.md HIST-20260706-004] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | 문제 카드에서 `RichContent` 렌더 위에 `q.instruction` 강조 문단 추가, `RichContent`의 className을 발문 유무에 따라 조건부(발문 있으면 보조 톤, 없으면 기존 강조 톤)로 변경 |
+| `frontend/src/services/quizService.ts` | 수정 | `QuizQuestion` 인터페이스에 `instruction?: string` 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `<RichContent html={q.content} className="text-gray-800 font-medium text-base pr-24" />` — 발문 개념 없이 본문만 강조 톤으로 렌더.
+- 변경 후: `RichContent` 위에 `{q.instruction && <p className="text-gray-900 dark:text-gray-100 font-semibold text-base leading-snug whitespace-pre-wrap pr-24">{q.instruction}</p>}` 추가. `RichContent`의 className을 `q.instruction`이 있으면 `'text-gray-700 dark:text-gray-300 font-normal'`(보조 톤), 없으면 기존 `'text-gray-800 font-medium'`(강조 톤)로 분기(공통 `'text-base pr-24'`는 유지).
+- 이유: 발문(지시문)과 본문(설명)을 시각적으로 명확히 구분하기 위함 — 발문이 있을 때는 발문이 1차 강조 요소가 되고 본문은 보조 설명으로 내려간다. 다크모드 대비를 위해 `dark:` variant를 포함했다.
+
+#### `frontend/src/services/quizService.ts`
+- 변경 전: `QuizQuestion`에 `instruction` 필드 없음.
+- 변경 후: `content` 다음에 `instruction?: string` 추가.
+- 이유: 백엔드 `QuizQuestionView.instruction`을 프론트 타입에 반영해 퀴즈 화면에서 사용.
+
+### 복원 방법
+이 ID(HIST-20260706-009)만으로 복원 시: `page.tsx`에서 발문 강조 `<p>` 블록을 제거하고 `RichContent`의 className을 `"text-gray-800 font-medium text-base pr-24"` 고정값으로 되돌리며, `quizService.ts`의 `QuizQuestion.instruction?` 필드를 제거한다.
+
+## HIST-20260706-008
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 플레이 — 다크모드 가시성 보정 (`dark:` 클래스 부재 지점 보완)
+- **수정 개요**: 퀴즈 플레이 화면(`page.tsx`)의 라운드 완료 결과 카드(점수 배지·정답 개수·세션 누계 텍스트)와 문항별 결과 피드백 박스(정답/오답 배경·레이블·정답값·해설)에 `dark:` variant를 추가해 다크모드에서도 배경·텍스트 대비가 확보되도록 보정했다. 라이트 모드 스타일·마크업 구조는 변경 없음. 공용 컴포넌트 `ExamResultDisplay.tsx`(결과 화면 아코디언·집계 카드 등 전반)와 `CodeAnswerInput.tsx`(CODE 유형 입력창)도 함께 다크모드 보정되었으며, 두 컴포넌트는 시험 응시 화면(`exam/[id]`, `user/exam-history`)과 공용이라 상세는 [front/usr/UserExamination_Modified.md HIST-20260706-008] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | 라운드 완료 카드·결과 피드백 박스에 `dark:` 클래스 추가 |
+| `frontend/src/components/ui/ExamResultDisplay.tsx` | 수정(공용) | 아코디언·집계 카드·필터탭·객관식/코드/단답 답안 표시·해설 박스 전반에 `dark:` 클래스 추가 — 상세는 `UserExamination_Modified.md` HIST-20260706-008 참조 |
+| `frontend/src/components/ui/CodeAnswerInput.tsx` | 수정(공용) | textarea 배경·글자색·테두리·placeholder에 `dark:` 클래스 추가 — 상세는 동일 참조 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: 라운드 완료 카드(`bg-green-50/yellow-50/red-50`, `text-green-700` 등)와 결과 피드백 박스(`bg-green-50 border-green-200`, `text-green-700`/`text-red-700`, `text-gray-700`/`text-gray-600` 등)에 `dark:` 클래스 전무 — 다크모드에서 밝은 배경 위 밝은 글자로 가독성 저하.
+- 변경 후: 배경은 `dark:bg-{color}-900/30`, 배지 배경은 `dark:bg-{color}-900/50`, 텍스트는 `dark:text-{color}-300`, 보조 회색 텍스트는 `dark:text-gray-300/400/500` 계열로 보정.
+- 이유: 다크모드에서 결과 피드백을 확실히 읽을 수 있도록.
+
+#### `frontend/src/components/ui/ExamResultDisplay.tsx`
+- 변경 전: 전체 컴포넌트(배경·카드·아코디언·객관식 선택지·CODE/단답 답안·해설 박스)에 `dark:` 클래스 전무.
+- 변경 후: 페이지 배경(`dark:bg-gray-900`), 카드/박스(`dark:bg-gray-800`, `dark:border-gray-700`), 필터 탭 비활성 상태, 정답/오답 배지·선택지·내 답/정답 텍스트(`dark:text-green-300`/`dark:text-red-300` 등), 해설 박스, 하단 sticky 액션 바까지 `dark:` 계열 보정.
+- 이유: 시험 응시(`exam/[id]`)·퀴즈·시험 이력 조회 3개 화면에서 공용으로 쓰이는 컴포넌트라 한 곳만 고쳐도 전체 반영됨.
+
+#### `frontend/src/components/ui/CodeAnswerInput.tsx`
+- 변경 전: textarea에 배경·글자색 미지정(브라우저 기본값 사용) + 테두리 `border-gray-300` 고정 → 다크모드에서 밝은 배경에 입력 텍스트가 잘 안 보이는 문제.
+- 변경 후: `dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:placeholder-gray-500 dark:disabled:bg-gray-900`, 안내 문구 `dark:text-gray-500` 추가. CodeBlock(정답/코드 표시, Darcula 다크 고정)은 변경하지 않음 — 이번 보정은 입력 컴포넌트 한정.
+- 이유: CODE 유형 문항 풀이 시 다크모드에서 입력 텍스트 가독성 확보.
+
+### 복원 방법
+이 ID(HIST-20260706-008)만으로 복원 시: 위 3개 파일에서 이번에 추가된 `dark:` 클래스 문자열만 제거(라이트 모드 클래스는 그대로 유지). 공용 파일(`ExamResultDisplay.tsx`, `CodeAnswerInput.tsx`) 복원 시 `UserExamination_Modified.md` HIST-20260706-008과 함께 되돌려야 한다.
+
 ## HIST-20260706-007
 
 - **날짜**: 2026-07-06

@@ -63,10 +63,12 @@ export function CodeAnswerInput({
   };
 
   const baseClass = [
-    'w-full border border-gray-300 rounded-xl px-4 py-3 text-sm font-mono',
+    'w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-3 text-sm font-mono',
+    'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+    'placeholder-gray-400 dark:placeholder-gray-500',
     'focus:outline-none focus:ring-2 focus:ring-indigo-400',
     'resize-y',
-    'disabled:bg-gray-50 disabled:cursor-not-allowed',
+    'disabled:bg-gray-50 dark:disabled:bg-gray-900 disabled:cursor-not-allowed',
     className,
   ]
     .filter(Boolean)
@@ -74,7 +76,7 @@ export function CodeAnswerInput({
 
   return (
     <div className="space-y-1">
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-400 dark:text-gray-500">
         코드 답안 입력 (Tab: 들여쓰기
         {onCtrlEnter && ' · Ctrl+Enter: 제출'}
         )

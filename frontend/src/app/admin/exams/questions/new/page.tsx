@@ -49,6 +49,8 @@ interface QuestionDraft {
   title:        string;
   examYear:     string;
   examRound:    string;
+  /** 발문(지시문) — 문항 내용과 분리 저장, 모든 유형 공용(선택) */
+  instruction:  string;
   content:      string;
   questionType: QuestionType;
   options:      string[];
@@ -78,6 +80,7 @@ const emptyDraft = (): QuestionDraft => ({
   title:        '',
   examYear:     '',
   examRound:    '',
+  instruction:  '',
   content:      '',
   questionType: 'MULTIPLE_CHOICE',
   options:      ['', '', '', ''],
@@ -99,7 +102,7 @@ function parseTextToQuestions(text: string): ImportedDraft[] {
     const content = current.join(' ').trim();
     if (content.length > 3) {
       drafts.push({
-        localId: uid(), title: '', examYear: '', examRound: '', content,
+        localId: uid(), title: '', examYear: '', examRound: '', instruction: '', content,
         questionType: 'SHORT_ANSWER', options: [], answer: '',
         code: '', language: 'other',
         categoryId: null,
@@ -141,7 +144,7 @@ async function simulateFileParse(file: File): Promise<ImportedDraft[]> {
       resolve(
         Array.from({ length: count }, (_, i) => ({
           localId: uid(),
-          title: '', examYear: '', examRound: '',
+          title: '', examYear: '', examRound: '', instruction: '',
           content: `[${file.name}에서 추출] 문항 ${i + 1} — 서버 파싱 후 내용이 채워집니다.`,
           questionType: 'MULTIPLE_CHOICE' as QuestionType,
           options: ['보기 1', '보기 2', '보기 3', '보기 4'],
@@ -332,11 +335,26 @@ function ManualQuestionCard({
           </select>
         </div>
 
-        {/* 문항 내용 (모든 유형 공통) */}
+        {/* 발문(지시문) — 모든 유형 공용, 선택 입력 */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">
+            발문 (지시문) <span className="text-gray-300 font-normal">(선택)</span>
+          </label>
+          <textarea
+            rows={2}
+            value={draft.instruction}
+            onChange={(e) => onChange('instruction', e.target.value)}
+            maxLength={1000}
+            placeholder="예: 다음 설명을 보고 알맞은 용어를 작성하시오. (선택)"
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition resize-none"
+          />
+        </div>
+
+        {/* 문항 내용 (모든 유형 공통) — 발문·내용 중 하나만 있으면 되므로 선택 입력 */}
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1.5">
             {isCode ? '문제 설명' : '문항 내용'}{' '}
-            <span className="text-red-400">*</span>
+            <span className="text-gray-300 font-normal">(선택 — 발문과 내용 중 하나는 필수)</span>
           </label>
           <RichTextEditor
             value={draft.content}
@@ -629,8 +647,9 @@ export default function AdminQuestionNewPage() {
 
   // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
+    // "발문 또는 내용 중 하나 필수" — 둘 다 있어야 필터에 포함되는 게 아니라, 둘 중 하나라도 있으면 "작성된 문항"으로 간주한다.
     const manualFilled = manualQuestions.filter((q) =>
-      stripHtml(q.content) && (q.questionType !== 'CODE' || q.code.trim()),
+      (stripHtml(q.content) || q.instruction.trim()) && (q.questionType !== 'CODE' || q.code.trim()),
     );
     const importedValid = importedQuestions.filter((q) => !q.excluded && q.content.trim());
 
@@ -642,6 +661,10 @@ export default function AdminQuestionNewPage() {
         if (!q.title.trim())   { setError(`문항 ${idx}: 문항 제목은 필수입니다.`); return; }
         if (!q.examTypeId)     { setError(`문항 ${idx}: 시험 유형은 필수입니다.`); return; }
         if (!q.categoryId)     { setError(`문항 ${idx}: 문항 유형은 필수입니다.`); return; }
+        if (!stripHtml(q.content) && !q.instruction.trim()) {
+          setError(`문항 ${idx}: 발문 또는 문항 내용 중 하나는 입력하세요.`);
+          return;
+        }
       }
     }
 
@@ -669,6 +692,7 @@ export default function AdminQuestionNewPage() {
           title:        q.title.trim() || undefined,
           examYear:     q.examYear ? Number(q.examYear) : undefined,
           examRound:    q.examRound ? Number(q.examRound) : undefined,
+          instruction:  q.instruction.trim() || undefined,
           content:      q.content.trim(),
           questionType: q.questionType,
           categoryId:   q.categoryId ?? undefined,
@@ -695,7 +719,7 @@ export default function AdminQuestionNewPage() {
 
   // ── Counts ───────────────────────────────────────────────────────────────────
   const manualFilledCount = manualQuestions.filter((q) =>
-    stripHtml(q.content) && (q.questionType !== 'CODE' || q.code.trim()) && q.title.trim() && q.examTypeId && q.categoryId,
+    (stripHtml(q.content) || q.instruction.trim()) && (q.questionType !== 'CODE' || q.code.trim()) && q.title.trim() && q.examTypeId && q.categoryId,
   ).length;
   const importedAppliedCount = importedQuestions.filter((q) => !q.excluded).length;
   const totalCount           = manualFilledCount + importedAppliedCount;

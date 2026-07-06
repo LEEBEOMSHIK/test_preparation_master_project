@@ -37,7 +37,14 @@ public class QuestionBank extends BaseEntity {
     @Column(name = "exam_round")
     private Integer examRound;
 
-    /** 문항 내용 (문제 본문) */
+    /** 발문(지시문) — "다음 설명을 보고 알맞은 용어를 작성하시오." 처럼 문제 풀이 방식을 안내하는 문구.
+     *  문항 내용(content, 문제 본문)과 분리 저장되며, 모든 문항 유형 공용(선택) 필드다. */
+    @Column(columnDefinition = "TEXT")
+    private String instruction;
+
+    /** 문항 내용 (문제 본문) — DB 컬럼은 NOT NULL이므로 null 입력 시 빈 문자열로 저장한다(coalesce).
+     *  발문(instruction)과 함께 "둘 중 하나는 필수" 규칙은 서비스단(QuestionBankService#validateBody)에서 검증하며,
+     *  이 필드 자체는 선택(nullable 입력 허용, 저장 시 빈 문자열 처리)이다. */
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
@@ -109,11 +116,12 @@ public class QuestionBank extends BaseEntity {
                         List<String> aiKeywords, List<String> aiDomains,
                         String aiDifficulty, String aiSummary,
                         SchedulingData schedulingData,
+                        String instruction,
                         Long createdByUno) {
         this.title = title;
         this.examYear = examYear;
         this.examRound = examRound;
-        this.content = content;
+        this.content = content == null ? "" : content;
         this.questionType = questionType;
         this.category = category;
         this.examType = examType;
@@ -127,6 +135,7 @@ public class QuestionBank extends BaseEntity {
         this.aiDifficulty = aiDifficulty;
         this.aiSummary = aiSummary;
         this.schedulingData = schedulingData;
+        this.instruction = instruction;
         initAudit(createdByUno);
     }
 
@@ -139,11 +148,12 @@ public class QuestionBank extends BaseEntity {
                        List<String> aiKeywords, List<String> aiDomains,
                        String aiDifficulty, String aiSummary,
                        SchedulingData schedulingData,
+                       String instruction,
                        Long modifiedByUno) {
         this.title = title;
         this.examYear = examYear;
         this.examRound = examRound;
-        this.content = content;
+        this.content = content == null ? "" : content;
         this.questionType = questionType;
         this.category = category;
         this.examType = examType;
@@ -157,6 +167,7 @@ public class QuestionBank extends BaseEntity {
         this.aiDifficulty = aiDifficulty;
         this.aiSummary = aiSummary;
         this.schedulingData = schedulingData;
+        this.instruction = instruction;
         updateAudit(modifiedByUno);
     }
 

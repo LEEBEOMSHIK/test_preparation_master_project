@@ -15,6 +15,8 @@ export interface QuestionDetailItem {
   categoryId?: number;
   categoryName?: string;
   content: string;
+  /** 발문(지시문) — 문항 내용 위에 강조 표시 (선택) */
+  instruction?: string;
   questionType: QuestionType;
   options?: string[];
   answer?: string;
@@ -109,6 +111,16 @@ export function QuestionDetailModal({ question, onClose, hideEditLink = false }:
 
         {/* 본문 */}
         <div className="overflow-y-auto px-5 py-4 space-y-4">
+          {/* 발문(지시문) — 문항 내용 위에 강조 표시 */}
+          {question.instruction && (
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1.5">발문</p>
+              <p className="text-sm font-semibold text-gray-900 whitespace-pre-wrap leading-snug">
+                {question.instruction}
+              </p>
+            </div>
+          )}
+
           {/* 문항 내용 */}
           <div>
             <p className="text-xs font-medium text-gray-400 mb-1.5">문항 내용</p>

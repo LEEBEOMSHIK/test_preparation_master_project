@@ -9,6 +9,8 @@ public record QuizQuestionView(
         Long id,
         String title,
         String content,
+        /** 발문(지시문) — 문항 내용 위에 강조 표시용 (선택, 없으면 null) */
+        String instruction,
         String questionType,
         List<String> options,
         String code,
@@ -23,6 +25,7 @@ public record QuizQuestionView(
                 qb.getId(),
                 qb.getTitle(),
                 qb.getContent(),
+                qb.getInstruction(),
                 qb.getQuestionType().name(),
                 qb.getOptions(),
                 qb.getCode(),

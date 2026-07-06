@@ -1,3 +1,31 @@
+## HIST-20260706-001
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 백엔드 / 퀴즈 채점 (SHORT_ANSWER·SCHEDULING 채점 완화)
+- **수정 개요**: `AnswerGrader`의 SHORT_ANSWER·SCHEDULING 토큰 정규화를 강화(구분자에 슬래시 추가, 내부 연속 공백 축약, 말미 괄호 부연 설명 제거)하고, 정확 일치(`multiSetMatch`)가 실패할 경우 구분자·괄호·공백을 모두 제거해 전체 문자열을 비교하는 느슨 폴백을 추가함. 퀴즈 채점(`UserQuizService.checkAnswer`)에 자동 반영됨(퀴즈 서비스 코드 변경 없음). 시험 제출 채점도 동일 헬퍼를 사용하므로 함께 적용됨 — 상세는 [back/usr/UserExamination_Modified.md HIST-20260706-001] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | tokenize 정규화 강화(슬래시 구분자·공백 축약·괄호 제거) + 느슨 폴백(`looseEqualsIgnoringPunctuation`) 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 수정 | 괄호 부연·슬래시 구분·느슨 폴백·오탐 방지 테스트 8건 추가(SHORT_ANSWER 6건, SCHEDULING 1건 등) |
+
+### 수정 상세
+
+#### `service/support/AnswerGrader.java`
+- 변경 전: `tokenize`는 콤마(`,`)만으로 분리 후 trim·소문자화만 수행. `multiSetMatch` 실패 시 바로 오답 처리.
+- 변경 후:
+  - `tokenize`: `split("[,/]")`로 콤마·슬래시 모두 구분자로 인식. 각 토큰은 trim → 소문자화 → 연속 공백 단일 공백 축약(`replaceAll("\\s+"," ")`) → 말미 괄호 부연 제거(`replaceAll("\\s*\\([^)]*\\)\\s*$","")`) → 재-trim 순으로 정규화(`normalizeToken`).
+  - `multiSetMatch` 실패 시 `looseEqualsIgnoringPunctuation` 폴백 실행: 양쪽 문자열을 소문자화 → 괄호 부연 전체 제거 → 공백·콤마·슬래시 전부 제거 후 동등 비교. 정규화 결과가 한쪽이라도 빈 문자열이면 폴백 미적용(오답 유지).
+  - MULTIPLE_CHOICE·OX·CODE 분기는 변경 없음.
+- 이유: 사용자가 정답의 괄호 부연 설명(예: `워터링 홀 (Watering Hole)`)을 빼고 입력하거나, 구분자 없이 답을 나열(예: `1. pwd 2. ls 3. cd 4. cp` vs 정답 `1. pwd / 2. ls / 3. cd / 4. cp`)해도 정답 처리되도록 채점을 완화. 기존 정확 일치·부분 입력 오답 케이스는 유지되도록 폴백은 정확 일치 실패 후에만 적용.
+
+### 복원 방법
+이 ID(HIST-20260706-001)만으로 복원 시: `AnswerGrader.java`의 `tokenize`를 콤마 단일 분리 + trim + 소문자화만 남기고, `normalizeToken`·`looseEqualsIgnoringPunctuation`·`normalizeLoose` 메서드 제거, `isCorrect`의 SHORT_ANSWER·SCHEDULING 분기에서 폴백 호출부 제거(`multiSetMatch` 결과만 반환). 테스트 추가 케이스 8건 삭제.
+
+---
+
 ## HIST-20260629-002
 
 - **날짜**: 2026-06-29

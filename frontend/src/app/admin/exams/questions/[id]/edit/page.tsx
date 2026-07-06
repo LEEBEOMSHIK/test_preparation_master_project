@@ -49,6 +49,8 @@ interface FormState {
   title:        string;
   examYear:     string;
   examRound:    string;
+  /** 발문(지시문) — 문항 내용과 분리 저장, 모든 유형 공용(선택) */
+  instruction:  string;
   content:      string;
   questionType: QuestionType;
   options:      string[];
@@ -68,6 +70,7 @@ const defaultForm = (): FormState => ({
   title:        '',
   examYear:     '',
   examRound:    '',
+  instruction:  '',
   content:      '',
   questionType: 'MULTIPLE_CHOICE',
   options:      ['', '', '', ''],
@@ -115,6 +118,7 @@ export default function AdminQuestionEditPage() {
           title:        q.title ?? '',
           examYear:     q.examYear != null ? String(q.examYear) : '',
           examRound:    q.examRound != null ? String(q.examRound) : '',
+          instruction:  q.instruction ?? '',
           content:      q.content,
           questionType: q.questionType,
           options:      q.options?.length ? q.options : ['', '', '', ''],
@@ -162,7 +166,10 @@ export default function AdminQuestionEditPage() {
     if (!form.title.trim())  { setError('문항 제목을 입력하세요.'); return; }
     if (!form.examTypeId)    { setError('시험 유형을 선택하세요.'); return; }
     if (!form.categoryId)    { setError('문항 유형을 선택하세요.'); return; }
-    if (!stripHtml(form.content)) { setError('문항 내용을 입력하세요.'); return; }
+    if (!stripHtml(form.content) && !form.instruction.trim()) {
+      setError('발문 또는 문항 내용 중 하나는 입력하세요.');
+      return;
+    }
     if (form.questionType === 'CODE' && !form.code.trim()) { setError('코드를 입력하세요.'); return; }
 
     setError('');
@@ -172,6 +179,7 @@ export default function AdminQuestionEditPage() {
         title:        form.title.trim() || undefined,
         examYear:     form.examYear ? Number(form.examYear) : undefined,
         examRound:    form.examRound ? Number(form.examRound) : undefined,
+        instruction:  form.instruction.trim() || undefined,
         content:      form.content.trim(),
         questionType: form.questionType,
         categoryId:   form.categoryId ?? undefined,
@@ -358,11 +366,26 @@ export default function AdminQuestionEditPage() {
             </select>
           </div>
 
-          {/* 문항 내용 */}
+          {/* 발문(지시문) — 모든 유형 공용, 선택 입력 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              발문 (지시문) <span className="text-gray-300 font-normal">(선택)</span>
+            </label>
+            <textarea
+              rows={2}
+              value={form.instruction}
+              onChange={(e) => update('instruction', e.target.value)}
+              maxLength={1000}
+              placeholder="예: 다음 설명을 보고 알맞은 용어를 작성하시오. (선택)"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition resize-none"
+            />
+          </div>
+
+          {/* 문항 내용 — 발문·내용 중 하나만 있으면 되므로 선택 입력 */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">
               {isCode ? '문제 설명' : '문항 내용'}{' '}
-              <span className="text-red-400">*</span>
+              <span className="text-gray-300 font-normal">(선택 — 발문과 내용 중 하나는 필수)</span>
             </label>
             <RichTextEditor
               value={form.content}

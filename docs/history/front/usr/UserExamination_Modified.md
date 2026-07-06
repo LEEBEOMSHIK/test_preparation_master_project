@@ -1,3 +1,39 @@
+## HIST-20260706-008
+
+- **날짜**: 2026-07-06
+- **수정 범위**: 사용자 프론트엔드 / 시험 결과·응시 — 다크모드 가시성 보정 (`dark:` 클래스 부재 지점 보완)
+- **수정 개요**: 시험 결과 공용 컴포넌트 `ExamResultDisplay.tsx`(집계 카드·필터 탭·아코디언 목록·객관식/CODE/단답 답안 표시·해설 박스·하단 sticky 액션 바 전반)와 CODE 유형 답안 입력 컴포넌트 `CodeAnswerInput.tsx`(textarea 배경·글자색·테두리·placeholder)에 `dark:` variant를 추가했다. 두 컴포넌트는 시험 제출 직후(`exam/[id]`), 시험 이력 재조회(`user/exam-history/[historyId]`), 데일리 퀴즈(`user/quiz/[categoryId]`) 화면에서 공용으로 쓰이므로 한 번의 수정으로 세 화면 모두 반영됨. 퀴즈 화면 자체(`page.tsx`)의 라운드 완료 카드·결과 피드백 박스 보정은 [front/usr/DailyQuiz_Modified.md HIST-20260706-008] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/ExamResultDisplay.tsx` | 수정(공용) | 페이지 배경·카드·필터탭·아코디언·정답/오답 배지·객관식 선택지·CODE/단답 내답·정답·해설 박스·sticky 액션 바에 `dark:` 클래스 추가 |
+| `frontend/src/components/ui/CodeAnswerInput.tsx` | 수정(공용) | textarea `dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:placeholder-gray-500 dark:disabled:bg-gray-900`, 안내 문구 `dark:text-gray-500` 추가 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/ExamResultDisplay.tsx`
+- 변경 전: 컴포넌트 전체에 `dark:` 클래스가 전혀 없어, `html.dark` 상태에서도 `bg-white`/`bg-gray-50` 등 라이트 배경이 고정 렌더되고 `text-gray-700`/`text-green-700`/`text-red-600` 등 텍스트 대비가 다크 배경과 충돌할 수 있었음.
+- 변경 후:
+  - 최상위 `min-h-screen bg-gray-50` → `dark:bg-gray-900`
+  - 집계 카드·아코디언 아이템·빈 상태 박스: `bg-white` → `dark:bg-gray-800`, `border-gray-200` → `dark:border-gray-700`
+  - 필터 탭 비활성 버튼: `dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600`
+  - 정답/오답 배지: `dark:bg-green-900/50 dark:text-green-300` / `dark:bg-red-900/50 dark:text-red-300`
+  - 문항 본문·해설 `RichContent`: `text-gray-800` → `dark:text-gray-200`, `text-gray-700` → `dark:text-gray-200`
+  - 객관식 선택지 3색(정답/내답/기본) 각각 `dark:bg-*-900/30 dark:border-*-700 dark:text-*-300` 계열 보정
+  - CODE·단답 내 답/정답 텍스트: `text-green-600/700` → `dark:text-green-300/400`, `text-red-500/600` → `dark:text-red-300/400`
+  - 하단 sticky 액션 바: `bg-gray-50/95` → `dark:bg-gray-900/95`, `다시 풀기` 버튼 `dark:bg-gray-800 dark:text-indigo-300 dark:border-indigo-700`
+- 이유: 시험 제출 직후·이력 조회·퀴즈 결과 3개 화면 공용 컴포넌트라 다크모드 대비 부재가 가장 넓게 영향을 미쳤음.
+
+#### `frontend/src/components/ui/CodeAnswerInput.tsx`
+- 변경 전: textarea에 배경·글자색이 지정되지 않아 브라우저 기본(라이트) 배경 위에 다크모드 전역 글자색이 겹쳐 보이거나 반대로 안 보이는 문제, 테두리도 `border-gray-300` 고정.
+- 변경 후: `dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:placeholder-gray-500 dark:disabled:bg-gray-900`, 상단 안내 문구 `text-gray-400` → `dark:text-gray-500`. CodeBlock(정답 표시용, Darcula 다크 고정)은 이번 변경 대상이 아님.
+- 이유: CODE 유형 문항을 다크모드에서 풀 때 입력한 코드 답안 텍스트가 보이지 않던 문제 해소.
+
+### 복원 방법
+이 ID(HIST-20260706-008)만으로 복원 시: 위 2개 파일에서 이번에 추가된 `dark:` 클래스 문자열만 제거(라이트 모드 클래스·마크업 구조는 그대로 유지). 두 파일은 `DailyQuiz_Modified.md` HIST-20260706-008과 공용이므로 함께 되돌린다.
+
 ## HIST-20260706-007
 
 - **날짜**: 2026-07-06

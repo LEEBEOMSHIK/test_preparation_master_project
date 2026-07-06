@@ -75,6 +75,54 @@ class AnswerGraderTest {
     }
 
     // -----------------------------------------------------------------------
+    // SHORT_ANSWER — 괄호 부연 설명 제거 (정규화 강화)
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 정답에 괄호 부연이 있어도 사용자가 본체만 입력하면 정답")
+    void shortAnswer_parenthesisInCorrect_userWithoutParenthesis_correct() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "워터링 홀 (Watering Hole)", "워터링 홀")).isTrue();
+    }
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 사용자 답안에 괄호 부연이 있어도 정답 본체와 일치하면 정답")
+    void shortAnswer_parenthesisInUser_correctWithoutParenthesis_correct() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "ㄹ", "ㄹ (스캐어웨어)")).isTrue();
+    }
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 슬래시 구분자도 콤마와 동일하게 다중 정답으로 인식")
+    void shortAnswer_slashSeparator_correct() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "pwd/ls", "ls, pwd")).isTrue();
+    }
+
+    // -----------------------------------------------------------------------
+    // SHORT_ANSWER — 느슨 폴백 (구분자 없이 나열)
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 느슨 폴백 — 정답은 슬래시 구분, 사용자는 공백만으로 나열해도 정답")
+    void shortAnswer_looseFallback_noSeparatorInUser_correct() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER",
+            "1. pwd / 2. ls / 3. cd / 4. cp",
+            "1. pwd 2. ls 3. cd 4. cp"
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 느슨 폴백 오탐 방지 — 완전히 다른 답은 여전히 오답")
+    void shortAnswer_looseFallback_differentAnswer_incorrect() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "a", "b")).isFalse();
+    }
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 느슨 폴백 오탐 방지 — 정답 중 일부만 입력하면 오답 유지")
+    void shortAnswer_looseFallback_partialInput_incorrect() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "사과, 배", "사과")).isFalse();
+    }
+
+    // -----------------------------------------------------------------------
     // CODE — 콤마 분리 금지, 통문자열 비교
     // -----------------------------------------------------------------------
 
@@ -161,6 +209,12 @@ class AnswerGraderTest {
     @DisplayName("SCHEDULING: 원소 개수가 다르면 오답")
     void scheduling_differentSize_incorrect() {
         assertThat(AnswerGrader.isCorrect("SCHEDULING", "P1", "P1, P2")).isFalse();
+    }
+
+    @Test
+    @DisplayName("SCHEDULING: 느슨 폴백 — 구분자 없이 나열해도 정답 (SHORT_ANSWER와 동일 라우팅)")
+    void scheduling_looseFallback_noSeparatorInUser_correct() {
+        assertThat(AnswerGrader.isCorrect("SCHEDULING", "1. pwd / 2. ls", "1. pwd 2. ls")).isTrue();
     }
 
     @Test

@@ -48,6 +48,7 @@ public class QuestionBankService {
     @Transactional
     public QuestionBankResponse createQuestion(QuestionBankRequest request, String adminEmail) {
         validateSchedulingData(request);
+        validateBody(request);
         Long adminId = resolveAdminId(adminEmail);
         DomainSlave category = resolveCategory(request.categoryId());
         DomainSlave examType = resolveCategory(request.examTypeId());
@@ -56,6 +57,7 @@ public class QuestionBankService {
                 .examYear(request.examYear())
                 .examRound(request.examRound())
                 .content(request.content())
+                .instruction(request.instruction())
                 .questionType(request.questionType())
                 .category(category)
                 .examType(examType)
@@ -78,6 +80,7 @@ public class QuestionBankService {
     @Transactional
     public int createQuestionsBulk(QuestionBankBulkRequest bulkRequest, String adminEmail) {
         bulkRequest.questions().forEach(this::validateSchedulingData);
+        bulkRequest.questions().forEach(this::validateBody);
         Long adminId = resolveAdminId(adminEmail);
         List<QuestionBank> entities = bulkRequest.questions().stream()
                 .map(req -> QuestionBank.builder()
@@ -85,6 +88,7 @@ public class QuestionBankService {
                         .examYear(req.examYear())
                         .examRound(req.examRound())
                         .content(req.content())
+                        .instruction(req.instruction())
                         .questionType(req.questionType())
                         .category(resolveCategory(req.categoryId()))
                         .examType(resolveCategory(req.examTypeId()))
@@ -109,6 +113,7 @@ public class QuestionBankService {
     @Transactional
     public QuestionBankResponse updateQuestion(Long id, QuestionBankRequest request, String adminEmail) {
         validateSchedulingData(request);
+        validateBody(request);
         Long adminId = resolveAdminId(adminEmail);
         DomainSlave category = resolveCategory(request.categoryId());
         DomainSlave examType = resolveCategory(request.examTypeId());
@@ -122,6 +127,7 @@ public class QuestionBankService {
                   request.aiKeywords(), request.aiDomains(),
                   request.aiDifficulty(), request.aiSummary(),
                   request.schedulingData(),
+                  request.instruction(),
                   adminId);
         return QuestionBankResponse.from(qb);
     }
@@ -203,6 +209,19 @@ public class QuestionBankService {
         if (isPriorityAlgorithm
                 && data.processes().stream().anyMatch(p -> p.priority() == null)) {
             throw new BusinessException(ErrorCode.SCHEDULING_DATA_INVALID);
+        }
+    }
+
+    /**
+     * 발문(instruction)·문항 내용(content) 필수 규칙 검증.
+     * 둘 다 선택 필드이지만, 적어도 하나는 값이 있어야 한다(둘 다 blank면 저장 거부).
+     * 등록(단건/일괄) · 수정 3개 경로 모두에서 호출한다.
+     */
+    private void validateBody(QuestionBankRequest request) {
+        boolean instructionBlank = request.instruction() == null || request.instruction().isBlank();
+        boolean contentBlank = request.content() == null || request.content().isBlank();
+        if (instructionBlank && contentBlank) {
+            throw new BusinessException(ErrorCode.QUESTION_BODY_REQUIRED);
         }
     }
 }
