@@ -14,6 +14,7 @@ import { SchedulingProblemTable } from '@/components/ui/SchedulingProblemTable';
 import { CodeAnswerInput } from '@/components/ui/CodeAnswerInput';
 import { ScratchPadPanel } from '@/components/ui/ScratchPadPanel';
 import { stripHtml } from '@/lib/html';
+import { hasOptions } from '@/lib/answer';
 import type { ConceptNote, ExamResultData, QuestionResult, QuestionType } from '@/types';
 
 type Phase = 'loading' | 'quiz' | 'continue' | 'result';
@@ -363,6 +364,8 @@ function QuizPlayContent() {
   const isMultipleChoice = q.questionType === 'MULTIPLE_CHOICE';
   const isOX = q.questionType === 'OX';
   const isCode = q.questionType === 'CODE';
+  // 보기가 있으면(유형 무관) 참고 표시 + 번호 직접 입력으로 채점. 단 MULTIPLE_CHOICE는 기존 클릭 선택 유지.
+  const optionsAvailable = hasOptions(q.options);
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
@@ -482,8 +485,8 @@ function QuizPlayContent() {
           </div>
         )}
 
-        {/* OX */}
-        {isOX && (
+        {/* OX — 보기가 있으면 아래 "참고표시 + 번호입력" UI로 대체 */}
+        {isOX && !optionsAvailable && (
           <div className="flex gap-3">
             {['O', 'X'].map(val => {
               const isSelected = answerState?.userAnswer === val;
@@ -510,10 +513,23 @@ function QuizPlayContent() {
           </div>
         )}
 
-        {/* 주관식 (단답형 · CODE) */}
-        {!isMultipleChoice && !isOX && (
+        {/* 주관식 (단답형 · CODE) 또는 보기 참고표시 + 번호 직접 입력 */}
+        {!isMultipleChoice && (!isOX || optionsAvailable) && (
           <div className="space-y-2">
-            {isCode ? (
+            {/* 보기 참고 표시 — 읽기 전용, 클릭 선택 아님 */}
+            {optionsAvailable && q.options && (
+              <div className="space-y-2 mb-1">
+                {q.options.map((opt, idx) => (
+                  <div
+                    key={idx}
+                    className="px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 dark:bg-gray-800 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300"
+                  >
+                    <span className="font-semibold mr-2">({idx + 1})</span>{opt}
+                  </div>
+                ))}
+              </div>
+            )}
+            {isCode && !optionsAvailable ? (
               <CodeAnswerInput
                 value={inputValue}
                 onChange={setInputValue}
@@ -526,7 +542,7 @@ function QuizPlayContent() {
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSubmitAnswer()}
-                placeholder="답을 입력하고 Enter 또는 정답확인 버튼을 누르세요"
+                placeholder={optionsAvailable ? '정답 보기 번호 입력' : '답을 입력하고 Enter 또는 정답확인 버튼을 누르세요'}
                 disabled={!!answerState?.submitted}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-50"
               />

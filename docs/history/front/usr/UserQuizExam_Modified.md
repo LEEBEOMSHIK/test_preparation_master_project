@@ -1,3 +1,37 @@
+## HIST-20260707-001
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 사용자 프론트엔드 / 퀴즈·시험 풀이 — 보기 참고 표시 + 정답 번호 직접 입력
+- **수정 개요**: 문항에 보기(options)가 있으면 유형과 무관하게 보기 목록을 참고용 읽기 전용(클릭 선택 아님)으로 표시하고, 사용자가 정답 보기 번호(1,2,3...)를 직접 타이핑해 제출하도록 데일리 퀴즈 풀이(`user/quiz/[categoryId]`)와 시험 응시(`exam/[id]`) 화면을 수정했다. 신규 공용 유틸 `hasOptions(options)`(`frontend/src/lib/answer.ts`, 상세는 [front/adm/AdminQuestion_Modified.md HIST-20260707-002] 참조)로 보기 존재 여부를 판정한다. 단 기존 MULTIPLE_CHOICE의 클릭 선택 UI는 그대로 유지되며(`isMultipleChoice`가 최우선), OX/SHORT_ANSWER/CODE 유형인데 보기가 있으면 OX 토글·CODE 코드에디터 대신 "보기 참고 표시 + 기존 주관식 텍스트 입력 재사용(placeholder '정답 보기 번호 입력')" UI로 전환된다. 제출은 입력값 그대로 기존 `checkAnswer`/`handleAnswer` 경로로 전송되어 백엔드 변경([back/usr/UserQuiz_Modified.md HIST-20260707-002], [back/usr/UserExamination_Modified.md HIST-20260707-001])과 맞물려 채점된다. 시험 응시 화면의 `answerLabel()` 원형숫자(①) 변환 조건도 `questionType === 'MULTIPLE_CHOICE' || hasOptions(q.options)`로 확장해 보기 기반 번호 답안도 원형숫자로 표시한다. 결과 표시 공용 컴포넌트 `ExamResultDisplay`도 `hasOptions(item.options)` 기준으로 보기 목록(번호+텍스트, 정오 하이라이트)을 참고 표시하도록 조건을 MULTIPLE_CHOICE 전용에서 유형 무관으로 확장(퀴즈·시험 결과 화면 공용이라 양쪽에 자연 반영).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | `optionsAvailable = hasOptions(q.options)` 도입, OX 블록을 `isOX && !optionsAvailable`로 게이팅, 주관식/CODE 입력 블록을 `!isMultipleChoice && (!isOX \|\| optionsAvailable)`로 확장하고 보기 있으면 상단에 읽기전용 참고 목록 렌더 + placeholder를 "정답 보기 번호 입력"으로 변경, CODE는 `optionsAvailable`이면 CodeAnswerInput 대신 일반 텍스트 입력 사용 |
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | `answerLabel()` 원형숫자 조건 확장, `optionsAvailable` 도입, OX 블록 게이팅, "단답형/코드 답안 입력" 블록을 동일 패턴으로 확장(보기 참고 목록 + placeholder 변경) |
+| `frontend/src/components/ui/ExamResultDisplay.tsx` | 수정 | 보기 목록 참고 표시 조건을 `item.questionType === 'MULTIPLE_CHOICE' && item.options`에서 `hasOptions(item.options) && item.options`로, "내 답/정답(객관식 외)" 블록 조건을 `item.questionType !== 'MULTIPLE_CHOICE'`에서 `!hasOptions(item.options)`로 변경 |
+
+### 수정 상세
+
+#### `app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `{!isMultipleChoice && !isOX && (...CodeAnswerInput 또는 일반 입력...)}`, `{isOX && (...O/X 토글...)}`
+- 변경 후: `{isOX && !optionsAvailable && (...)}`, `{!isMultipleChoice && (!isOX || optionsAvailable) && (<>{optionsAvailable && 읽기전용 보기 목록}{isCode && !optionsAvailable ? CodeAnswerInput : 일반입력(placeholder 분기)}</>)}`
+- 이유: 보기가 있으면 유형 무관 "참고표시+번호입력"으로 통일하되 기존 MULTIPLE_CHOICE 클릭 선택은 보존
+
+#### `app/exam/[id]/page.tsx`
+- 변경 전: `if (q.questionType === 'MULTIPLE_CHOICE') return circled(Number(userAnswer));`
+- 변경 후: `if (q.questionType === 'MULTIPLE_CHOICE' || hasOptions(q.options)) return circled(Number(userAnswer));`
+- 이유: 보기 기반 번호 답안도 답안 현황에서 원형숫자로 자연스럽게 표시
+
+#### `components/ui/ExamResultDisplay.tsx`
+- 변경 전: `{item.questionType === 'MULTIPLE_CHOICE' && item.options && (...)}` / `{item.questionType !== 'MULTIPLE_CHOICE' && (...)}`
+- 변경 후: `{hasOptions(item.options) && item.options && (...)}` / `{!hasOptions(item.options) && (...)}`
+- 이유: 퀴즈·시험 결과 화면 공용 컴포넌트이므로 보기 기반 번호입력 문항도 결과에서 보기 목록 참고 표시가 되도록 확장
+
+### 복원 방법
+이 ID(HIST-20260707-001)만으로 복원 시: `user/quiz/[categoryId]/page.tsx`와 `exam/[id]/page.tsx`에서 `optionsAvailable`/`hasOptions` 관련 조건을 제거하고 OX 블록을 `isOX`(게이팅 없음)로, 주관식/CODE 블록을 `!isMultipleChoice && !isOX`로 되돌리며 보기 참고 목록 렌더와 placeholder 분기를 제거한다. `exam/[id]/page.tsx`의 `answerLabel()` 조건을 `q.questionType === 'MULTIPLE_CHOICE'`로 되돌린다. `ExamResultDisplay.tsx`의 두 조건을 각각 `item.questionType === 'MULTIPLE_CHOICE' && item.options`, `item.questionType !== 'MULTIPLE_CHOICE'`로 되돌린다.
+
 ## HIST-20260615-001
 
 - **날짜**: 2026-06-15

@@ -1,4 +1,42 @@
-﻿## HIST-20260707-001
+﻿## HIST-20260707-002
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정 — 유형 무관 보기(options) 등록
+- **수정 개요**: 문항 등록(`new`)·수정(`[id]/edit`) 화면에서 "보기" 입력 블록을 `questionType === 'MULTIPLE_CHOICE'` 조건에서 분리해 유형과 무관하게 상시 노출되도록 변경했다("보기(선택 — 입력하면 유형과 무관하게 '보기 참고 후 번호 입력' 문제로 동작합니다)"). 보기가 없을 때는 "+ 보기 추가" 빈 상태 버튼, 있을 때는 번호 클릭(=정답 지정) + 각 행 개별 삭제 버튼을 제공하며, 전부 삭제하면 다시 빈 상태로 복귀한다. 유형 전환 시 보기를 강제로 초기화(MULTIPLE_CHOICE면 4칸/그 외 빈 배열)하던 로직을 제거해 유형을 바꿔도 입력한 보기가 보존된다(정답/언어 기본값 설정 로직은 유지). 신규 공용 유틸 `hasOptions(options)`(`frontend/src/lib/answer.ts`)가 true면 OX·SHORT_ANSWER·CODE의 기존 유형별 자유입력 정답 UI를 숨기고 보기 번호선택 UI만 노출한다. 제출 검증에 "MULTIPLE_CHOICE는 보기 2개 이상 필수", "보기를 사용하는 경우(공백 아닌 보기 1개 이상) 최소 2개 필요" 경고를 추가했다. 수정 화면의 payload 매핑도 기존 `MULTIPLE_CHOICE 전용` 조건을 제거해 유형 무관으로 `options`를 전송하도록 수정(등록 화면은 기존부터 유형 무관 매핑이라 변경 없음). 백엔드 채점 반영은 [back/usr/UserQuiz_Modified.md HIST-20260707-002], [back/usr/UserExamination_Modified.md HIST-20260707-001], 사용자 풀이 화면 반영은 [front/usr/UserQuizExam_Modified.md HIST-20260707-001] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/answer.ts` | 신규 | `hasOptions(options)` — 보기 존재 여부 판정 공용 유틸(trim 후 비어있지 않은 요소 1개 이상이면 true) |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | 유형 선택 onClick에서 options 강제 초기화 로직 제거, 보기 입력 블록을 유형 무관 상시 노출로 변경(번호선택+개별삭제+빈상태 "+ 보기 추가"), OX·SHORT_ANSWER 자유입력 UI를 `!hasOptions(draft.options)` 조건으로 게이팅, CODE "정답/예상출력"·SCHEDULING "정답(선택)" 필드도 동일 게이팅, 제출 검증에 보기 최소 2개 규칙 추가 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | `handleTypeChange`에서 options 강제 초기화 로직 제거, 문항 로드 시 options 기본값을 `['', '', '', '']`에서 `[]`로 변경(빈 상태 정상 동작), 보기 입력 블록 유형 무관화 + 개별 삭제, OX·SHORT_ANSWER·CODE·SCHEDULING 자유입력 UI `!hasOptions(form.options)` 게이팅, 제출 검증 추가, payload의 `options` 매핑을 `MULTIPLE_CHOICE` 전용 조건에서 유형 무관으로 변경 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `hasOptions(options)` 항목 추가 |
+
+### 수정 상세
+
+#### `frontend/src/lib/answer.ts` (신규)
+```ts
+export function hasOptions(options?: string[] | null): boolean {
+  if (!Array.isArray(options) || options.length === 0) return false;
+  return options.some((o) => typeof o === 'string' && o.trim() !== '');
+}
+```
+
+#### `app/admin/exams/questions/new/page.tsx`
+- 변경 전: 유형 버튼 onClick에서 `onChange('options', t.value === 'MULTIPLE_CHOICE' ? ['', '', '', ''] : [])` 강제 실행, "보기" 블록은 `draft.questionType === 'MULTIPLE_CHOICE'`일 때만 렌더
+- 변경 후: options 강제 초기화 라인 제거. "보기" 블록을 유형 조건 없이 항상 렌더(빈 배열이면 "+ 보기 추가", 있으면 번호선택+삭제 UI). OX/SHORT_ANSWER 정답 UI는 `draft.questionType === 'OX' && !hasOptions(draft.options)` 형태로 게이팅
+- 이유: 문항에 보기가 있으면 유형과 무관하게 "보기 참고 + 번호 입력" 방식으로 채점하는 신규 기능 지원
+
+#### `app/admin/exams/questions/[id]/edit/page.tsx`
+- 변경 전: `options: q.options?.length ? q.options : ['', '', '', '']`(로드 시), `options: form.questionType === 'MULTIPLE_CHOICE' ? form.options.filter(Boolean) : undefined`(제출 시)
+- 변경 후: `options: q.options?.length ? q.options : []`(로드 시), `options: form.options.length ? form.options.filter(Boolean) : undefined`(제출 시, 유형 무관)
+- 이유: 유형 무관 보기 등록/수정을 정상적으로 저장·복원하기 위함
+
+### 복원 방법
+이 ID(HIST-20260707-002)만으로 복원 시: `frontend/src/lib/answer.ts` 파일을 삭제한다. `new/page.tsx`의 유형 버튼 onClick에 options 강제 초기화 라인을 복원하고, "보기" 블록을 `draft.questionType === 'MULTIPLE_CHOICE'` 조건으로 되돌리며, OX·SHORT_ANSWER·CODE·SCHEDULING 섹션의 `!hasOptions(...)` 게이팅을 제거한다. `[id]/edit/page.tsx`의 `handleTypeChange`에 options 강제 초기화를 복원하고, 로드 시 기본값을 `['', '', '', '']`로, 제출 payload의 `options`를 `form.questionType === 'MULTIPLE_CHOICE' ? form.options.filter(Boolean) : undefined`로 되돌리며 동일하게 게이팅을 제거한다. `CLAUDE.md`에서 `hasOptions` 표 항목을 제거한다.
+
+## HIST-20260707-001
 
 - **날짜**: 2026-07-07
 - **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정 — 발문·내용 "둘 중 하나 필수" 규칙 통일

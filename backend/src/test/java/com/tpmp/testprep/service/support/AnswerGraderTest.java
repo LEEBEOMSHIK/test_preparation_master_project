@@ -3,6 +3,10 @@ package com.tpmp.testprep.service.support;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -253,5 +257,60 @@ class AnswerGraderTest {
     @DisplayName("OX: 불일치하면 오답")
     void ox_mismatch_incorrect() {
         assertThat(AnswerGrader.isCorrect("OX", "O", "X")).isFalse();
+    }
+
+    // -----------------------------------------------------------------------
+    // 4-인자 오버로드 — 보기(options) 존재 시 유형 무관 번호 비교
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("4-인자: SHORT_ANSWER + options 있음 — 번호(인덱스) 문자열 비교로 채점")
+    void withOptions_shortAnswer_indexCompare_correct() {
+        List<String> options = Arrays.asList("보기1", "보기2", "보기3");
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "2", "2", options)).isTrue();
+    }
+
+    @Test
+    @DisplayName("4-인자: SHORT_ANSWER + options 있음 — 번호 불일치는 오답 (콤마 다중정답 로직 미적용)")
+    void withOptions_shortAnswer_indexMismatch_incorrect() {
+        List<String> options = Arrays.asList("보기1", "보기2", "보기3");
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "2", "3", options)).isFalse();
+    }
+
+    @Test
+    @DisplayName("4-인자: CODE + options 있음 — 코드 정규화 비교가 아닌 번호 비교로 채점")
+    void withOptions_code_indexCompare_notCodeNormalization() {
+        List<String> options = Arrays.asList("def foo():\n    return 1", "def bar():\n    return 2");
+        // 코드 정규화 비교였다면 아래는 통과하지 않아야 하지만, options 존재 시 번호 비교이므로 정답 처리
+        assertThat(AnswerGrader.isCorrect("CODE", "1", "1", options)).isTrue();
+        assertThat(AnswerGrader.isCorrect("CODE", "1", "2", options)).isFalse();
+    }
+
+    @Test
+    @DisplayName("4-인자: OX + options 있음 — 유형 무관 핵심 케이스, 번호 비교로 채점")
+    void withOptions_ox_indexCompare_typeIgnored() {
+        List<String> options = Arrays.asList("참", "거짓");
+        assertThat(AnswerGrader.isCorrect("OX", "1", "1", options)).isTrue();
+        assertThat(AnswerGrader.isCorrect("OX", "1", "2", options)).isFalse();
+    }
+
+    @Test
+    @DisplayName("4-인자: options가 빈 배열이면 기존 3-인자와 동일 동작 (SHORT_ANSWER 다중정답 로직 적용)")
+    void withOptions_emptyList_fallsBackToLegacyBehavior() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "정답, test", "test, 정답", Collections.emptyList())).isTrue();
+    }
+
+    @Test
+    @DisplayName("4-인자: options가 전부 공백 문자열이면 기존 3-인자와 동일 동작")
+    void withOptions_blankOnlyList_fallsBackToLegacyBehavior() {
+        List<String> blankOptions = Arrays.asList("", "  ", null);
+        assertThat(AnswerGrader.isCorrect("OX", "O", "O", blankOptions)).isTrue();
+        assertThat(AnswerGrader.isCorrect("OX", "O", "X", blankOptions)).isFalse();
+    }
+
+    @Test
+    @DisplayName("4-인자: options가 null이면 기존 3-인자와 동일 동작")
+    void withOptions_nullList_fallsBackToLegacyBehavior() {
+        assertThat(AnswerGrader.isCorrect("MULTIPLE_CHOICE", "1", "1", null)).isTrue();
     }
 }

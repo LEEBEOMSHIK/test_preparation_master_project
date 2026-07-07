@@ -1,3 +1,84 @@
+## HIST-20260707-003
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 사용자 백엔드 / 퀴즈 테스트 — `UserQuizServiceTest` 선재 결함 수정 (테스트 코드만, 제품 코드 무변경)
+- **수정 개요**: 직전 커밋(e715088, 데일리 퀴즈 CODE 언어 필터)에서 유래한 `UserQuizServiceTest`의 선재 결함을 수정했다. 헬퍼 `capturedLanguage(...)`가 매 호출마다 `verify(questionBankRepository).findRandomByCategory(anyLong(), anyInt(), captor.capture())`로 **정확히 1회 호출**을 강제했는데, `language_all_caseInsensitive_normalizesToNull`(한 테스트 메서드 안에서 3회 호출)·`language_java_passesThrough`(2회 호출) 케이스는 누적 호출 수가 1을 초과해 `TooManyActualInvocations`로 실패했다. 이번 보기(options) 채점 기능과는 무관한 결함이며, 전체 테스트 실행 중 발견되어 사용자 승인 하에 즉시 수정했다. `verify(..., atLeastOnce())`로 완화하고 `ArgumentCaptor.getValue()`(누적 캡처의 마지막 값 = 가장 최근 호출의 language)를 그대로 반환하도록 해 4개 테스트 케이스를 모두 유지하면서 통과시켰다. 제품 코드(`UserQuizService`, `AnswerGrader` 등)는 전혀 변경하지 않았다. 백엔드 전체 테스트(80건) 재실행 결과 실패 0건 확인.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/test/java/com/tpmp/testprep/service/UserQuizServiceTest.java` | 수정 | `capturedLanguage(...)` 헬퍼의 `verify()`를 `verify(questionBankRepository, atLeastOnce())`로 완화, `import static org.mockito.Mockito.atLeastOnce;` 추가 |
+
+### 수정 상세
+
+#### `service/UserQuizServiceTest.java`
+- 변경 전:
+  ```java
+  private String capturedLanguage(Long categoryId, int limit, String language) {
+      service.getQuizQuestions(categoryId, limit, language);
+      ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+      verify(questionBankRepository).findRandomByCategory(anyLong(), anyInt(), captor.capture());
+      return captor.getValue();
+  }
+  ```
+- 변경 후:
+  ```java
+  private String capturedLanguage(Long categoryId, int limit, String language) {
+      service.getQuizQuestions(categoryId, limit, language);
+      ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+      verify(questionBankRepository, atLeastOnce()).findRandomByCategory(anyLong(), anyInt(), captor.capture());
+      return captor.getValue();
+  }
+  ```
+- 이유: 한 테스트 메서드 안에서 헬퍼를 여러 번 호출하는 케이스(`language_all_caseInsensitive_normalizesToNull`, `language_java_passesThrough`)가 누적 호출 검증(`atLeastOnce`) 없이는 `TooManyActualInvocations`로 실패하기 때문. `getValue()`는 누적 캡처 중 마지막 값을 반환하므로 각 호출 직후 검증하는 현재 구조에서 이번 호출의 language가 그대로 반환된다.
+
+### 복원 방법
+이 ID(HIST-20260707-003)만으로 복원 시 `UserQuizServiceTest.java`의 `capturedLanguage(...)` 헬퍼에서 `verify(questionBankRepository, atLeastOnce())`를 `verify(questionBankRepository)`로 되돌리고 `import static org.mockito.Mockito.atLeastOnce;`를 제거한다(단, 이 경우 `language_all_caseInsensitive_normalizesToNull`·`language_java_passesThrough` 테스트가 다시 실패하므로 권장하지 않음).
+
+## HIST-20260707-002
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 사용자 백엔드 / 퀴즈 채점 — 보기(options) 기반 번호 직접 입력 채점
+- **수정 개요**: 문항에 보기(options)가 있으면 유형(questionType)과 무관하게 사용자가 입력한 보기 번호 문자열을 정답과 비교해 채점하는 기능을 추가했다. `AnswerGrader`에 4-인자 오버로드 `isCorrect(questionType, correctAnswer, userAnswer, options)`를 신규 추가했고, `hasMeaningfulOptions(options)`(null/empty 아니고 trim 후 비어있지 않은 항목 1개 이상)로 보기 유무를 판정해 보기가 있으면 유형 무시하고 `correctAnswer`/`userAnswer` trim·대소문자 무시 비교(MULTIPLE_CHOICE와 동일 경로)로, 없으면 기존 3-인자 `isCorrect(questionType, correctAnswer, userAnswer)`로 위임한다. 기존 3-인자 메서드의 본문·시그니처는 변경하지 않아 회귀 없음. `UserQuizService.checkAnswer`가 이 4-인자 오버로드로 전환되어 `qb.getOptions()`를 함께 전달한다. 시험 채점(`UserExaminationService`) 쪽 반영은 [back/usr/UserExamination_Modified.md HIST-20260707-001] 참조, 관리자 등록 화면(유형 무관 보기 등록)은 [front/adm/AdminQuestion_Modified.md HIST-20260707-002], 사용자 풀이 화면(보기 참고표시+번호입력 UI) 반영은 [front/usr/UserQuizExam_Modified.md HIST-20260707-001] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | 4-인자 오버로드 `isCorrect(type, correct, user, options)` + private `hasMeaningfulOptions(options)` 헬퍼 추가, 클래스 Javadoc에 보기 우선 채점 규칙 명시. 기존 3-인자 메서드는 변경 없음 |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 수정 | 4-인자 오버로드 테스트 추가(SHORT_ANSWER/CODE/OX + options 있음 → 번호 비교, options 빈 배열·전부 공백·null → 기존 3-인자와 동일 동작) |
+| `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java` | 수정 | `checkAnswer`의 `AnswerGrader.isCorrect(...)` 호출을 4-인자로 변경, `qb.getOptions()` 전달 |
+
+### 수정 상세
+
+#### `service/support/AnswerGrader.java`
+- 변경 전: `isCorrect(String questionType, String correctAnswer, String userAnswer)` 3-인자만 존재
+- 변경 후: 3-인자 메서드는 그대로 유지하고, 아래 4-인자 오버로드를 추가
+  ```java
+  public static boolean isCorrect(String questionType, String correctAnswer, String userAnswer, List<String> options) {
+      if (hasMeaningfulOptions(options)) {
+          if (correctAnswer == null || userAnswer == null) return false;
+          return correctAnswer.trim().equalsIgnoreCase(userAnswer.trim());
+      }
+      return isCorrect(questionType, correctAnswer, userAnswer);
+  }
+
+  private static boolean hasMeaningfulOptions(List<String> options) {
+      if (options == null || options.isEmpty()) return false;
+      return options.stream().anyMatch(o -> o != null && !o.trim().isEmpty());
+  }
+  ```
+- 이유: 보기가 있는 문항은 유형과 무관하게 "보기 참고 + 번호 직접 입력" 방식으로 통일 채점하기 위함(TPMP 신규 기능 요구사항)
+
+#### `service/UserQuizService.java`
+- 변경 전: `AnswerGrader.isCorrect(qb.getQuestionType().name(), qb.getAnswer(), request.userAnswer())`
+- 변경 후: `AnswerGrader.isCorrect(qb.getQuestionType().name(), qb.getAnswer(), request.userAnswer(), qb.getOptions())`
+- 이유: 퀴즈 문항도 보기 유무에 따라 유형 무관 번호 채점을 적용하기 위함
+
+### 복원 방법
+이 ID(HIST-20260707-002)만으로 복원 시: `AnswerGrader.java`에서 4-인자 오버로드와 `hasMeaningfulOptions` 헬퍼를 제거하고 클래스 Javadoc의 보기 관련 문장을 되돌린다. `AnswerGraderTest.java`에서 4-인자 오버로드 테스트 블록을 제거한다. `UserQuizService.java`의 `checkAnswer` 호출을 3-인자 `AnswerGrader.isCorrect(qb.getQuestionType().name(), qb.getAnswer(), request.userAnswer())`로 되돌린다.
+
 ## HIST-20260707-001
 
 - **날짜**: 2026-07-07

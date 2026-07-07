@@ -13,6 +13,7 @@ import { CodeBlock } from '@/components/ui/CodeBlock';
 import { CodeAnswerInput } from '@/components/ui/CodeAnswerInput';
 import { ScratchPadPanel } from '@/components/ui/ScratchPadPanel';
 import { stripHtml } from '@/lib/html';
+import { hasOptions } from '@/lib/answer';
 
 const CIRCLED = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
 const circled = (n: number) => CIRCLED[n - 1] ?? `(${n})`;
@@ -20,7 +21,8 @@ const circled = (n: number) => CIRCLED[n - 1] ?? `(${n})`;
 // ── 답안 현황에 표시할 답안 텍스트 ───────────────────────────────────────────
 function answerLabel(q: Question, userAnswer: string | undefined): string {
   if (!userAnswer) return '';
-  if (q.questionType === 'MULTIPLE_CHOICE') return circled(Number(userAnswer));
+  // 보기가 있으면(유형 무관) 답이 번호이므로 원형숫자로 표시 — MULTIPLE_CHOICE는 기존 동작 유지
+  if (q.questionType === 'MULTIPLE_CHOICE' || hasOptions(q.options)) return circled(Number(userAnswer));
   if (q.questionType === 'OX') return userAnswer;
   // 단답형 / 코드: 더 넓게 보여줌
   if (userAnswer.length <= 12) return userAnswer;
@@ -482,6 +484,8 @@ export default function ExamTakingPage() {
   const isOX = q.questionType === 'OX';
   const isCode = q.questionType === 'CODE';
   const isFlagged = flagged.has(q.id);
+  // 보기가 있으면(유형 무관) 참고 표시 + 번호 직접 입력으로 채점. 단 MULTIPLE_CHOICE는 기존 클릭 선택 유지.
+  const optionsAvailable = hasOptions(q.options);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -686,8 +690,8 @@ export default function ExamTakingPage() {
                 </div>
               )}
 
-              {/* OX */}
-              {isOX && (
+              {/* OX — 보기가 있으면 아래 "참고표시 + 번호입력" UI로 대체 */}
+              {isOX && !optionsAvailable && (
                 <div className="flex gap-3">
                   {['O', 'X'].map(val => (
                     <button key={val} onClick={() => handleAnswer(q.id, val)}
@@ -703,23 +707,38 @@ export default function ExamTakingPage() {
                 </div>
               )}
 
-              {/* 단답형 / 코드 답안 입력 */}
-              {!isMultiple && !isOX && (
-                isCode ? (
-                  <CodeAnswerInput
-                    value={answers[q.id] ?? ''}
-                    onChange={v => handleAnswer(q.id, v)}
-                    placeholder="코드 답안을 입력하세요"
-                    rows={6}
-                  />
-                ) : (
-                  <input
-                    value={answers[q.id] ?? ''}
-                    onChange={e => handleAnswer(q.id, e.target.value)}
-                    placeholder="답을 입력하세요"
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  />
-                )
+              {/* 단답형 / 코드 답안 입력 또는 보기 참고표시 + 번호 직접 입력 */}
+              {!isMultiple && (!isOX || optionsAvailable) && (
+                <div className="space-y-2">
+                  {/* 보기 참고 표시 — 읽기 전용, 클릭 선택 아님 */}
+                  {optionsAvailable && q.options && (
+                    <div className="space-y-2">
+                      {q.options.map((opt, idx) => (
+                        <div
+                          key={idx}
+                          className="px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-700"
+                        >
+                          <span className="font-semibold mr-2">({idx + 1})</span>{opt}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {isCode && !optionsAvailable ? (
+                    <CodeAnswerInput
+                      value={answers[q.id] ?? ''}
+                      onChange={v => handleAnswer(q.id, v)}
+                      placeholder="코드 답안을 입력하세요"
+                      rows={6}
+                    />
+                  ) : (
+                    <input
+                      value={answers[q.id] ?? ''}
+                      onChange={e => handleAnswer(q.id, e.target.value)}
+                      placeholder={optionsAvailable ? '정답 보기 번호 입력' : '답을 입력하세요'}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    />
+                  )}
+                </div>
               )}
 
               {/* 이전 / 다음 */}

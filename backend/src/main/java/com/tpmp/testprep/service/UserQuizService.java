@@ -102,7 +102,7 @@ public class UserQuizService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
 
         boolean correct = AnswerGrader.isCorrect(
-                qb.getQuestionType().name(), qb.getAnswer(), request.userAnswer());
+                qb.getQuestionType().name(), qb.getAnswer(), request.userAnswer(), qb.getOptions());
 
         // 스칼라 값 먼저 추출 — readOnly tx 내에서 LAZY 접근 가능, recorder에는 id만 전달
         Long userId = userRepository.findByEmail(email)

@@ -14,6 +14,7 @@ import { SchedulingProblemEditor } from '@/components/ui/SchedulingProblemEditor
 import { emptySchedulingDraft, fromSchedulingData, toSchedulingDataPayload, type SchedulingDataDraft } from '@/lib/scheduling';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { stripHtml } from '@/lib/html';
+import { hasOptions } from '@/lib/answer';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -121,7 +122,7 @@ export default function AdminQuestionEditPage() {
           instruction:  q.instruction ?? '',
           content:      q.content,
           questionType: q.questionType,
-          options:      q.options?.length ? q.options : ['', '', '', ''],
+          options:      q.options?.length ? q.options : [],
           answer:       q.answer ?? (q.questionType === 'OX' ? 'O' : q.questionType === 'MULTIPLE_CHOICE' ? '1' : ''),
           code:         q.code ?? '',
           language:     q.language ?? 'javascript',
@@ -156,7 +157,6 @@ export default function AdminQuestionEditPage() {
     setForm((prev) => ({
       ...prev,
       questionType: type,
-      options:  type === 'MULTIPLE_CHOICE' ? (prev.options.length ? prev.options : ['', '', '', '']) : [],
       answer:   type === 'OX' ? 'O' : type === 'MULTIPLE_CHOICE' ? '1' : '',
       language: type === 'CODE' ? (prev.language || 'javascript') : prev.language,
     }));
@@ -171,6 +171,15 @@ export default function AdminQuestionEditPage() {
       return;
     }
     if (form.questionType === 'CODE' && !form.code.trim()) { setError('코드를 입력하세요.'); return; }
+    const filledOptionCount = form.options.filter((o) => o.trim() !== '').length;
+    if (form.questionType === 'MULTIPLE_CHOICE' && filledOptionCount < 2) {
+      setError('객관식은 보기를 2개 이상 입력하세요.');
+      return;
+    }
+    if (hasOptions(form.options) && filledOptionCount < 2) {
+      setError('보기를 사용하려면 2개 이상 입력하세요.');
+      return;
+    }
 
     setError('');
     setLoading(true);
@@ -184,7 +193,7 @@ export default function AdminQuestionEditPage() {
         questionType: form.questionType,
         categoryId:   form.categoryId ?? undefined,
         examTypeId:   form.examTypeId ?? undefined,
-        options:      form.questionType === 'MULTIPLE_CHOICE' ? form.options.filter(Boolean) : undefined,
+        options:      form.options.length ? form.options.filter(Boolean) : undefined,
         answer:       form.answer || undefined,
         code:         form.code   || undefined,
         language:     form.language || undefined,
@@ -430,16 +439,19 @@ export default function AdminQuestionEditPage() {
                   minRows={10}
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">정답 / 예상 출력</label>
-                <textarea
-                  rows={3}
-                  value={form.answer}
-                  onChange={(e) => update('answer', e.target.value)}
-                  placeholder="예상 출력값 또는 정답을 입력하세요."
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-400 transition resize-none bg-gray-50"
-                />
-              </div>
+              {/* 정답 / 예상 출력 — 보기가 있으면 번호 선택 UI로 대체되므로 숨김 */}
+              {!hasOptions(form.options) && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">정답 / 예상 출력</label>
+                  <textarea
+                    rows={3}
+                    value={form.answer}
+                    onChange={(e) => update('answer', e.target.value)}
+                    placeholder="예상 출력값 또는 정답을 입력하세요."
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-400 transition resize-none bg-gray-50"
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -466,65 +478,96 @@ export default function AdminQuestionEditPage() {
                 value={form.schedulingData}
                 onChange={(next) => update('schedulingData', next)}
               />
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">정답 (선택)</label>
-                <input
-                  type="text"
-                  value={form.answer}
-                  onChange={(e) => update('answer', e.target.value)}
-                  maxLength={2000}
-                  placeholder="예: P1,P3 또는 평균 대기시간 값 등 모범 답안을 입력하세요."
-                  className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 transition"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* ── MULTIPLE_CHOICE ── */}
-          {form.questionType === 'MULTIPLE_CHOICE' && (
-            <div className="space-y-2">
-              <label className="block text-xs font-medium text-gray-500">보기 (번호 클릭 = 정답 선택)</label>
-              {form.options.map((opt, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => update('answer', String(i + 1))}
-                    className={[
-                      'w-6 h-6 rounded-full text-xs font-bold shrink-0 transition border',
-                      form.answer === String(i + 1)
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-white text-gray-400 border-gray-200 hover:border-indigo-300',
-                    ].join(' ')}
-                  >
-                    {i + 1}
-                  </button>
+              {/* 정답 (선택) — 보기가 있으면 번호 선택 UI로 대체되므로 숨김 */}
+              {!hasOptions(form.options) && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">정답 (선택)</label>
                   <input
                     type="text"
-                    value={opt}
-                    onChange={(e) => {
-                      const next = [...form.options];
-                      next[i] = e.target.value;
-                      update('options', next);
-                    }}
-                    placeholder={`보기 ${i + 1}`}
-                    className="flex-1 px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                    value={form.answer}
+                    onChange={(e) => update('answer', e.target.value)}
+                    maxLength={2000}
+                    placeholder="예: P1,P3 또는 평균 대기시간 값 등 모범 답안을 입력하세요."
+                    className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 transition"
                   />
                 </div>
-              ))}
-              {form.options.length < 8 && (
-                <button
-                  type="button"
-                  onClick={() => update('options', [...form.options, ''])}
-                  className="text-xs text-indigo-500 hover:text-indigo-700 transition"
-                >
-                  + 보기 추가
-                </button>
               )}
             </div>
           )}
 
-          {/* ── OX ── */}
-          {form.questionType === 'OX' && (
+          {/* ── 보기 (선택) — 유형 무관 상시 노출. 입력하면 유형과 무관하게
+               '보기 참고 후 번호 입력' 문제로 동작한다. ── */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-gray-500">
+              보기 (선택 — 입력하면 유형과 무관하게 &apos;보기 참고 후 번호 입력&apos; 문제로 동작합니다)
+            </label>
+            {form.options.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => update('options', ['', ''])}
+                className="text-xs text-indigo-500 hover:text-indigo-700 transition"
+              >
+                + 보기 추가
+              </button>
+            ) : (
+              <>
+                {form.options.map((opt, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => update('answer', String(i + 1))}
+                      title="번호 클릭 = 정답 지정"
+                      className={[
+                        'w-6 h-6 rounded-full text-xs font-bold shrink-0 transition border',
+                        form.answer === String(i + 1)
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-white text-gray-400 border-gray-200 hover:border-indigo-300',
+                      ].join(' ')}
+                    >
+                      {i + 1}
+                    </button>
+                    <input
+                      type="text"
+                      value={opt}
+                      onChange={(e) => {
+                        const next = [...form.options];
+                        next[i] = e.target.value;
+                        update('options', next);
+                      }}
+                      placeholder={`보기 ${i + 1}`}
+                      className="flex-1 px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = form.options.filter((_, idx) => idx !== i);
+                        update('options', next);
+                        if (form.answer === String(i + 1)) update('answer', '');
+                      }}
+                      className="shrink-0 text-gray-300 hover:text-red-400 transition"
+                      aria-label={`보기 ${i + 1} 삭제`}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+                {form.options.length < 8 && (
+                  <button
+                    type="button"
+                    onClick={() => update('options', [...form.options, ''])}
+                    className="text-xs text-indigo-500 hover:text-indigo-700 transition"
+                  >
+                    + 보기 추가
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* ── OX — 보기가 있으면 위 번호 선택 UI로 대체 ── */}
+          {form.questionType === 'OX' && !hasOptions(form.options) && (
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1.5">정답</label>
               <div className="flex gap-3">
@@ -547,8 +590,8 @@ export default function AdminQuestionEditPage() {
             </div>
           )}
 
-          {/* ── SHORT_ANSWER ── */}
-          {form.questionType === 'SHORT_ANSWER' && (
+          {/* ── SHORT_ANSWER — 보기가 있으면 위 번호 선택 UI로 대체 ── */}
+          {form.questionType === 'SHORT_ANSWER' && !hasOptions(form.options) && (
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1.5">정답 (선택)</label>
               <input

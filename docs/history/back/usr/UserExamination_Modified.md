@@ -1,3 +1,35 @@
+## HIST-20260707-001
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 사용자 백엔드 / 시험 채점 — 보기(options) 기반 번호 직접 입력 채점
+- **수정 개요**: 문항에 보기(options)가 있으면 유형(questionType)과 무관하게 사용자가 입력한 보기 번호 문자열을 정답과 비교해 채점하는 기능을 시험 제출 채점에도 적용했다. `AnswerGrader`에 4-인자 오버로드 `isCorrect(questionType, correctAnswer, userAnswer, options)`를 신규 추가(상세는 [back/usr/UserQuiz_Modified.md HIST-20260707-002] 참조)했고, `UserExaminationService.submitExam` 내 채점 호출 2곳(점수 집계용 · 문항별 스냅샷 저장용)을 모두 4-인자로 전환해 `q.getOptions()`를 전달한다. 기존 3-인자 메서드는 변경 없어 회귀 없음. 관리자 등록 화면 반영은 [front/adm/AdminQuestion_Modified.md HIST-20260707-002], 사용자 풀이 화면(시험) 반영은 [front/usr/UserQuizExam_Modified.md HIST-20260707-001] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | 4-인자 오버로드 `isCorrect(type, correct, user, options)` 추가(상세는 UserQuiz_Modified.md 참조) |
+| `backend/src/main/java/com/tpmp/testprep/service/UserExaminationService.java` | 수정 | `submitExam`의 채점 호출 2곳을 4-인자로 변경, `q.getOptions()` 전달 |
+
+### 수정 상세
+
+#### `service/UserExaminationService.java`
+- 변경 전(점수 집계용):
+  ```java
+  boolean isCorrect = AnswerGrader.isCorrect(
+          q.getQuestionType().name(), q.getAnswer(), userAnswer);
+  ```
+- 변경 후:
+  ```java
+  boolean isCorrect = AnswerGrader.isCorrect(
+          q.getQuestionType().name(), q.getAnswer(), userAnswer, q.getOptions());
+  ```
+- 동일한 변경을 문항별 스냅샷(`ExamHistoryDetail`) 저장용 채점 호출에도 적용
+- 이유: 시험 문항도 보기 유무에 따라 유형 무관 번호 채점을 적용하기 위함
+
+### 복원 방법
+이 ID(HIST-20260707-001)만으로 복원 시: `UserExaminationService.java`의 `submitExam` 내 채점 호출 2곳을 모두 3-인자 `AnswerGrader.isCorrect(q.getQuestionType().name(), q.getAnswer(), userAnswer)`로 되돌린다. `AnswerGrader.java`의 4-인자 오버로드 제거는 [back/usr/UserQuiz_Modified.md HIST-20260707-002]의 복원 방법을 따른다(UserQuizService도 함께 되돌려야 함).
+
 ## HIST-20260706-001
 
 - **날짜**: 2026-07-06

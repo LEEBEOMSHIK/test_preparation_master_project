@@ -18,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,10 +44,16 @@ class UserQuizServiceTest {
                 .thenReturn(Collections.<QuestionBank>emptyList());
     }
 
+    /**
+     * 한 테스트 메서드 안에서 여러 번 호출될 수 있으므로(예: language_all_caseInsensitive_normalizesToNull),
+     * 정확히 1회 호출을 강제하는 verify() 대신 누적 호출을 허용하는 atLeastOnce()로 검증한다.
+     * ArgumentCaptor는 매칭된 모든 호출을 시간순으로 누적 캡처하므로 getValue()는 가장 최근(=이번) 호출의
+     * language 값을 반환한다.
+     */
     private String capturedLanguage(Long categoryId, int limit, String language) {
         service.getQuizQuestions(categoryId, limit, language);
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-        verify(questionBankRepository).findRandomByCategory(anyLong(), anyInt(), captor.capture());
+        verify(questionBankRepository, atLeastOnce()).findRandomByCategory(anyLong(), anyInt(), captor.capture());
         return captor.getValue();
     }
 

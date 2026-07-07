@@ -13,6 +13,7 @@ import { QuestionAnalysisPanel } from '@/components/ui/QuestionAnalysisPanel';
 import { SchedulingProblemEditor } from '@/components/ui/SchedulingProblemEditor';
 import { emptySchedulingDraft, toSchedulingDataPayload, type SchedulingDataDraft } from '@/lib/scheduling';
 import { stripHtml } from '@/lib/html';
+import { hasOptions } from '@/lib/answer';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -276,7 +277,6 @@ function ManualQuestionCard({
                 type="button"
                 onClick={() => {
                   onChange('questionType', t.value);
-                  onChange('options', t.value === 'MULTIPLE_CHOICE' ? ['', '', '', ''] : []);
                   onChange('answer', t.value === 'OX' ? 'O' : '');
                   if (t.value === 'CODE') onChange('language', 'javascript');
                 }}
@@ -403,20 +403,22 @@ function ManualQuestionCard({
               />
             </div>
 
-            {/* 정답 / 예상 출력 */}
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                정답 / 예상 출력
-              </label>
-              <textarea
-                rows={3}
-                value={draft.answer}
-                onChange={(e) => onChange('answer', e.target.value)}
-                maxLength={2000}
-                placeholder="예상 출력값 또는 정답을 입력하세요."
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-400 transition resize-none bg-gray-50"
-              />
-            </div>
+            {/* 정답 / 예상 출력 — 보기가 있으면 번호 선택 UI로 대체되므로 숨김 */}
+            {!hasOptions(draft.options) && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                  정답 / 예상 출력
+                </label>
+                <textarea
+                  rows={3}
+                  value={draft.answer}
+                  onChange={(e) => onChange('answer', e.target.value)}
+                  maxLength={2000}
+                  placeholder="예상 출력값 또는 정답을 입력하세요."
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-400 transition resize-none bg-gray-50"
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -443,66 +445,98 @@ function ManualQuestionCard({
               value={draft.schedulingData}
               onChange={(next) => onChange('schedulingData', next)}
             />
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">정답 (선택)</label>
-              <input
-                type="text"
-                value={draft.answer}
-                onChange={(e) => onChange('answer', e.target.value)}
-                maxLength={2000}
-                placeholder="예: P1,P3 또는 평균 대기시간 값 등 모범 답안을 입력하세요."
-                className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 transition"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* ── MULTIPLE_CHOICE 보기 ── */}
-        {draft.questionType === 'MULTIPLE_CHOICE' && (
-          <div className="space-y-2">
-            <label className="block text-xs font-medium text-gray-500">보기 (번호 클릭 = 정답 선택)</label>
-            {draft.options.map((opt, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => onChange('answer', String(i + 1))}
-                  className={[
-                    'w-6 h-6 rounded-full text-xs font-bold shrink-0 transition border',
-                    draft.answer === String(i + 1)
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-gray-400 border-gray-200 hover:border-indigo-300',
-                  ].join(' ')}
-                >
-                  {i + 1}
-                </button>
+            {/* 정답 (선택) — 보기가 있으면 번호 선택 UI로 대체되므로 숨김 */}
+            {!hasOptions(draft.options) && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">정답 (선택)</label>
                 <input
                   type="text"
-                  value={opt}
-                  onChange={(e) => {
-                    const next = [...draft.options];
-                    next[i] = e.target.value;
-                    onChange('options', next);
-                  }}
-                  maxLength={500}
-                  placeholder={`보기 ${i + 1}`}
-                  className="flex-1 px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                  value={draft.answer}
+                  onChange={(e) => onChange('answer', e.target.value)}
+                  maxLength={2000}
+                  placeholder="예: P1,P3 또는 평균 대기시간 값 등 모범 답안을 입력하세요."
+                  className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 transition"
                 />
               </div>
-            ))}
-            {draft.options.length < 8 && (
-              <button
-                type="button"
-                onClick={() => onChange('options', [...draft.options, ''])}
-                className="text-xs text-indigo-500 hover:text-indigo-700 transition"
-              >
-                + 보기 추가
-              </button>
             )}
           </div>
         )}
 
-        {/* ── OX 정답 ── */}
-        {draft.questionType === 'OX' && (
+        {/* ── 보기 (선택) — 유형 무관 상시 노출. 입력하면 유형과 무관하게
+             '보기 참고 후 번호 입력' 문제로 동작한다. ── */}
+        <div className="space-y-2">
+          <label className="block text-xs font-medium text-gray-500">
+            보기 (선택 — 입력하면 유형과 무관하게 &apos;보기 참고 후 번호 입력&apos; 문제로 동작합니다)
+          </label>
+          {draft.options.length === 0 ? (
+            <button
+              type="button"
+              onClick={() => onChange('options', ['', ''])}
+              className="text-xs text-indigo-500 hover:text-indigo-700 transition"
+            >
+              + 보기 추가
+            </button>
+          ) : (
+            <>
+              {draft.options.map((opt, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onChange('answer', String(i + 1))}
+                    title="번호 클릭 = 정답 지정"
+                    className={[
+                      'w-6 h-6 rounded-full text-xs font-bold shrink-0 transition border',
+                      draft.answer === String(i + 1)
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-white text-gray-400 border-gray-200 hover:border-indigo-300',
+                    ].join(' ')}
+                  >
+                    {i + 1}
+                  </button>
+                  <input
+                    type="text"
+                    value={opt}
+                    onChange={(e) => {
+                      const next = [...draft.options];
+                      next[i] = e.target.value;
+                      onChange('options', next);
+                    }}
+                    maxLength={500}
+                    placeholder={`보기 ${i + 1}`}
+                    className="flex-1 px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = draft.options.filter((_, idx) => idx !== i);
+                      onChange('options', next);
+                      // 삭제된 보기가 정답으로 지정되어 있었으면 정답 선택 해제
+                      if (draft.answer === String(i + 1)) onChange('answer', '');
+                    }}
+                    className="shrink-0 text-gray-300 hover:text-red-400 transition"
+                    aria-label={`보기 ${i + 1} 삭제`}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+              {draft.options.length < 8 && (
+                <button
+                  type="button"
+                  onClick={() => onChange('options', [...draft.options, ''])}
+                  className="text-xs text-indigo-500 hover:text-indigo-700 transition"
+                >
+                  + 보기 추가
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* ── OX 정답 — 보기가 있으면 위 번호 선택 UI로 대체 ── */}
+        {draft.questionType === 'OX' && !hasOptions(draft.options) && (
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">정답</label>
             <div className="flex gap-3">
@@ -525,8 +559,8 @@ function ManualQuestionCard({
           </div>
         )}
 
-        {/* ── SHORT_ANSWER 정답 ── */}
-        {draft.questionType === 'SHORT_ANSWER' && (
+        {/* ── SHORT_ANSWER 정답 — 보기가 있으면 위 번호 선택 UI로 대체 ── */}
+        {draft.questionType === 'SHORT_ANSWER' && !hasOptions(draft.options) && (
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">정답 (선택)</label>
             <input
@@ -663,6 +697,15 @@ export default function AdminQuestionNewPage() {
         if (!q.categoryId)     { setError(`문항 ${idx}: 문항 유형은 필수입니다.`); return; }
         if (!stripHtml(q.content) && !q.instruction.trim()) {
           setError(`문항 ${idx}: 발문 또는 문항 내용 중 하나는 입력하세요.`);
+          return;
+        }
+        const filledOptionCount = q.options.filter((o) => o.trim() !== '').length;
+        if (q.questionType === 'MULTIPLE_CHOICE' && filledOptionCount < 2) {
+          setError(`문항 ${idx}: 객관식은 보기를 2개 이상 입력하세요.`);
+          return;
+        }
+        if (hasOptions(q.options) && filledOptionCount < 2) {
+          setError(`문항 ${idx}: 보기를 사용하려면 2개 이상 입력하세요.`);
           return;
         }
       }

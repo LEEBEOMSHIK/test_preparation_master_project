@@ -123,7 +123,7 @@ public class UserExaminationService {
             String raw = answers.getOrDefault(q.getId(), "");
             String userAnswer = raw.isEmpty() ? null : raw;
             boolean isCorrect = AnswerGrader.isCorrect(
-                    q.getQuestionType().name(), q.getAnswer(), userAnswer);
+                    q.getQuestionType().name(), q.getAnswer(), userAnswer, q.getOptions());
             if (isCorrect) correct++;
             results.add(QuestionResultResponse.of(q, raw, isCorrect));
         }
@@ -146,7 +146,7 @@ public class UserExaminationService {
             String raw = answers.getOrDefault(q.getId(), "");
             String userAnswer = raw.isEmpty() ? null : raw;
             boolean isCorrect = AnswerGrader.isCorrect(
-                    q.getQuestionType().name(), q.getAnswer(), userAnswer);
+                    q.getQuestionType().name(), q.getAnswer(), userAnswer, q.getOptions());
 
             ExamHistoryDetail detail = ExamHistoryDetail.builder()
                     .questionId(q.getId())

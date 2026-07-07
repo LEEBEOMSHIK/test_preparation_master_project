@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { RichContent } from '@/components/ui/RichContent';
 import { CodeBlock } from '@/components/ui/CodeBlock';
 import { stripHtml } from '@/lib/html';
+import { hasOptions } from '@/lib/answer';
 import type { ExamResultData } from '@/types';
 
 interface Props {
@@ -183,8 +184,8 @@ export function ExamResultDisplay({
                       {/* 문항 본문 */}
                       <RichContent html={item.content} className="text-gray-800 dark:text-gray-200 text-sm" />
 
-                      {/* 객관식 선택지 */}
-                      {item.questionType === 'MULTIPLE_CHOICE' && item.options && (
+                      {/* 보기 목록(번호+텍스트) 참고 표시 — 유형 무관, 보기가 있으면 표시 (MULTIPLE_CHOICE 포함) */}
+                      {hasOptions(item.options) && item.options && (
                         <div className="space-y-1.5">
                           {item.options.map((opt, idx) => {
                             const val = String(idx + 1);
@@ -216,8 +217,8 @@ export function ExamResultDisplay({
                         </div>
                       )}
 
-                      {/* 내 답 / 정답 (객관식 외) */}
-                      {item.questionType !== 'MULTIPLE_CHOICE' && (
+                      {/* 내 답 / 정답 (보기 없는 유형만 — 보기가 있으면 위 참고 표시로 대체) */}
+                      {!hasOptions(item.options) && (
                         <div className="flex flex-col gap-2 text-sm">
                           {item.questionType === 'CODE' ? (
                             <>
