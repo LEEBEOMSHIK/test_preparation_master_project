@@ -1,3 +1,64 @@
+## HIST-20260707-001
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈 — CODE(프로그래밍 언어) 카테고리 언어 필터
+- **수정 개요**: 데일리 퀴즈에서 CODE 유형 문항 카테고리를 풀 때 Java/Python/C/전체 중 언어를 선택해 해당 언어 문항만 출제받을 수 있도록 `/api/user/quiz/questions`에 `language` 파라미터를 추가하고, `/api/user/quiz/categories` 응답에 카테고리별 `hasCodeQuestions` 플래그를 추가해 FE가 언어 선택 모달 노출 여부를 판단할 수 있게 했다. `language`가 null/공백/"ALL"(대소문자 무시)이면 기존과 동일하게 필터 없이 전체 반환(회귀 없음). 언어 필터는 반드시 `question_type = 'CODE'` 조건과 함께 걸어 CODE가 아닌 문항에 언어 값이 실려 있어도 섞이지 않도록 함.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/QuestionBankRepository.java` | 수정 | `findRandomByCategory`에 `language` 파라미터 추가(네이티브 쿼리 WHERE절 확장), `findDistinctCategoryIdsByQuestionType` 신규 메서드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java` | 수정 | `getQuizQuestions`에 `language` 파라미터 추가 + 정규화(null/공백/"ALL"→null), `getCategories`에서 QUESTION_TYPE 슬레이브에 `hasCodeQuestions` 플래그 부여 |
+| `backend/src/main/java/com/tpmp/testprep/controller/UserQuizController.java` | 수정 | `/questions`에 `@RequestParam(required=false) String language` 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/DomainSlaveResponse.java` | 수정 | `hasCodeQuestions` 필드 추가, `from(slave, hasCodeQuestions)` 오버로드 추가(기존 `from(slave)`는 하위 호환 위해 유지, 내부적으로 false 전달) |
+| `backend/src/test/java/com/tpmp/testprep/service/UserQuizServiceTest.java` | 추가 | `getQuizQuestions` language 정규화 단위 테스트(null/공백/"ALL" 대소문자/"java") |
+
+### 수정 상세
+
+#### `repository/QuestionBankRepository.java`
+- 변경 전:
+  ```java
+  @Query(value = "SELECT * FROM question_bank WHERE (category_id = :categoryId OR exam_type_id = :categoryId) AND del_yn = 'N' ORDER BY RANDOM() LIMIT :limit", nativeQuery = true)
+  List<QuestionBank> findRandomByCategory(@Param("categoryId") Long categoryId, @Param("limit") int limit);
+  ```
+- 변경 후:
+  ```java
+  @Query(value = "SELECT * FROM question_bank " +
+      "WHERE (category_id = :categoryId OR exam_type_id = :categoryId) " +
+      "AND del_yn = 'N' " +
+      "AND (:language IS NULL OR (question_type = 'CODE' AND LOWER(language) = LOWER(:language))) " +
+      "ORDER BY RANDOM() LIMIT :limit", nativeQuery = true)
+  List<QuestionBank> findRandomByCategory(@Param("categoryId") Long categoryId, @Param("limit") int limit, @Param("language") String language);
+  ```
+  신규: `findDistinctCategoryIdsByQuestionType(QuestionBank.QuestionType questionType)` — CODE 유형 문항이 존재하는 category ID 목록 조회(JPQL, `findDistinctCategoryIdsByExamTypeIds`와 동일 패턴)
+- 이유: `language`가 null이면 조건 전체가 TRUE가 되어 기존 동작과 100% 동일. CODE 조건을 명시적으로 함께 걸어, 관리자 등록 폼 버그로 CODE가 아닌 문항에 language 값이 남아 있어도 잘못 필터링되지 않도록 함.
+
+#### `service/UserQuizService.java`
+- 변경 전: `getQuizQuestions(Long categoryId, int limit)` — language 없음. `getCategories`는 QUESTION_TYPE 슬레이브를 `DomainSlaveResponse::from`으로 매핑(examTypeIds 필터가 있을 때만 별도 분기).
+- 변경 후: `getQuizQuestions(Long categoryId, int limit, String language)` — `normalizedLanguage = (language == null || language.isBlank() || "ALL".equalsIgnoreCase(language)) ? null : language.trim()` 정규화 후 리포지토리 호출. `getCategories`는 `findDistinctCategoryIdsByQuestionType(CODE)`로 codeCategoryIds Set을 조회해, QUESTION_TYPE 슬레이브 매핑 시 `DomainSlaveResponse.from(s, codeCategoryIds.contains(s.getId()))`로 `hasCodeQuestions` 부여. examTypeIds 필터 유무와 무관하게 항상 계산(필터 로직은 `finalAllowedIds == null || finalAllowedIds.contains(...)`로 단순화, 결과는 기존과 동일).
+- 이유: CODE 유형 문항이 실제로 있는 카테고리만 FE에서 언어 선택 모달을 띄우도록 서버가 명시적으로 알려줌.
+
+#### `controller/UserQuizController.java`
+- 변경 전: `getQuizQuestions(@RequestParam Long categoryId, @RequestParam(defaultValue="10") int limit)`
+- 변경 후: `@RequestParam(required = false) String language` 추가, 서비스에 그대로 전달
+- 이유: FE에서 선택한 언어를 전달받기 위함(미전달 시 기존과 동일)
+
+#### `dto/response/DomainSlaveResponse.java`
+- 변경 전: `record DomainSlaveResponse(Long id, Long masterId, String name, Integer displayOrder)`, `from(slave)` 단일 팩토리
+- 변경 후: `record DomainSlaveResponse(Long id, Long masterId, String name, Integer displayOrder, boolean hasCodeQuestions)`. `from(slave)`는 `from(slave, false)` 위임(기존 호출부 전부 무변경 동작 유지 — DomainService, ExamInfoService, DomainMasterResponse 등), `from(slave, boolean hasCodeQuestions)` 신규 오버로드 추가
+- 이유: 프로그래밍 언어 필터 모달 노출 여부를 FE에 전달. 다른 도메인(시험 유형 등)은 항상 false로 무영향.
+
+### 복원 방법
+이 ID(HIST-20260707-001)만으로 복원 시:
+1. `QuestionBankRepository.java`: `findRandomByCategory`를 `language` 파라미터 없는 원래 시그니처/쿼리로 복원, `findDistinctCategoryIdsByQuestionType` 삭제
+2. `UserQuizService.java`: `getQuizQuestions(Long categoryId, int limit)`로 복원(정규화 로직 제거), `getCategories`의 `codeCategoryIds` 계산 및 `hasCodeQuestions` 부여 로직 제거하고 원래의 `finalAllowedIds != null` 분기 형태로 복원
+3. `UserQuizController.java`: `/questions`에서 `language` 파라미터 제거
+4. `DomainSlaveResponse.java`: `hasCodeQuestions` 필드 제거, `from(slave, boolean)` 오버로드 삭제, `from(slave)`를 원래 5-arg 없는 형태로 복원
+5. `UserQuizServiceTest.java` 삭제
+
+---
+
 ## HIST-20260706-001
 
 - **날짜**: 2026-07-06

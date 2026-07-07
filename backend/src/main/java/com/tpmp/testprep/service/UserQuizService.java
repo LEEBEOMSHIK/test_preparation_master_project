@@ -59,24 +59,32 @@ public class UserQuizService {
         }
         final Set<Long> finalAllowedIds = allowedCategoryIds;
 
+        // CODE 유형 문항이 존재하는 문제 유형(category) ID — 프로그래밍 언어 필터 노출 여부 판단용
+        Set<Long> codeCategoryIds = new HashSet<>(
+                questionBankRepository.findDistinctCategoryIdsByQuestionType(QuestionBank.QuestionType.CODE));
+
         return allMasters.stream()
                 .map(m -> {
-                    if (finalAllowedIds != null && "QUESTION_TYPE".equals(m.getCode())) {
-                        List<DomainSlaveResponse> filtered = m.getSlaves().stream()
-                                .filter(s -> finalAllowedIds.contains(s.getId()))
-                                .map(DomainSlaveResponse::from)
+                    if ("QUESTION_TYPE".equals(m.getCode())) {
+                        List<DomainSlaveResponse> slaves = m.getSlaves().stream()
+                                .filter(s -> finalAllowedIds == null || finalAllowedIds.contains(s.getId()))
+                                .map(s -> DomainSlaveResponse.from(s, codeCategoryIds.contains(s.getId())))
                                 .toList();
-                        return new DomainMasterResponse(m.getId(), m.getCode(), m.getName(), filtered);
+                        return new DomainMasterResponse(m.getId(), m.getCode(), m.getName(), slaves);
                     }
                     return DomainMasterResponse.from(m);
                 })
                 .toList();
     }
 
-    /** 카테고리별 랜덤 퀴즈 문항 (최대 30개) */
-    public List<QuizQuestionView> getQuizQuestions(Long categoryId, int limit) {
+    /** 카테고리별 랜덤 퀴즈 문항 (최대 30개)
+     *  language: CODE 유형 문항만 대상으로 하는 언어 필터(java/python/c 등, 소문자 코드).
+     *  null·공백·"ALL"(대소문자 무시)이면 필터 없이 전체 반환(기존 동작과 동일). */
+    public List<QuizQuestionView> getQuizQuestions(Long categoryId, int limit, String language) {
+        String normalizedLanguage = (language == null || language.isBlank() || "ALL".equalsIgnoreCase(language))
+                ? null : language.trim();
         List<QuestionBank> questions =
-                questionBankRepository.findRandomByCategory(categoryId, Math.min(limit, 30));
+                questionBankRepository.findRandomByCategory(categoryId, Math.min(limit, 30), normalizedLanguage);
         return questions.stream().map(QuizQuestionView::from).toList();
     }
 

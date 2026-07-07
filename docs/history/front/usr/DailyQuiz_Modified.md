@@ -1,3 +1,56 @@
+## HIST-20260707-005
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 — CODE(프로그래밍 언어) 카테고리 언어 필터
+- **수정 개요**: 데일리 퀴즈 카테고리 목록에서 `hasCodeQuestions === true`인 카테고리(CODE 유형 문항이 있는 문제 유형)를 클릭하면 즉시 이동하지 않고 신규 `CodeLanguageModal`(Java/Python/C/전체)을 띄워 언어를 고른 뒤 `?language=` 쿼리와 함께 퀴즈 풀이 화면으로 이동한다. 풀이 화면은 이 쿼리를 읽어 `quizService.getQuestions`에 전달해 해당 언어 문항만 받아온다. `hasCodeQuestions`가 false/undefined인 카테고리는 기존과 동일하게 즉시 이동(회귀 없음).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `DomainSlave`에 `hasCodeQuestions?: boolean` 필드 추가 |
+| `frontend/src/services/quizService.ts` | 수정 | `getQuestions(categoryId, limit, language?)`로 확장 — language 있을 때만 쿼리 파라미터 전달 |
+| `frontend/src/components/ui/CodeLanguageModal.tsx` | 추가 | Java/Python/C/전체 언어 선택 모달(AlertModal 패턴 준용) |
+| `frontend/src/app/user/quiz/page.tsx` | 수정 | `handleSelect`에서 `hasCodeQuestions` 카테고리는 모달 오픈으로 분기, `handleSelectLanguage`로 언어 쿼리 포함 이동 |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | `language` 쿼리 파라미터를 읽어 `loadBatch`(최초 로딩·계속 풀기 공용)에 반영, 헤더에 선택 언어 뱃지 표시 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `CodeLanguageModal` 행 추가 |
+
+### 수정 상세
+
+#### `types/index.ts`
+- 변경 전: `DomainSlave { id, masterId, name, displayOrder? }`
+- 변경 후: `hasCodeQuestions?: boolean` 필드 추가
+- 이유: 백엔드 `DomainSlaveResponse.hasCodeQuestions`를 FE 타입에 반영
+
+#### `services/quizService.ts`
+- 변경 전: `getQuestions: (categoryId: number, limit = 10) => apiClient.get(..., { params: { categoryId, limit } })`
+- 변경 후: `getQuestions: (categoryId: number, limit = 10, language?: string) => apiClient.get(..., { params: { categoryId, limit, ...(language ? { language } : {}) } })`
+- 이유: language 미전달 시 기존 요청과 100% 동일한 쿼리스트링 유지(회귀 없음)
+
+#### `components/ui/CodeLanguageModal.tsx` (신규)
+- 변경 전: 파일 없음
+- 변경 후: `AlertModal.tsx`의 오버레이(`fixed inset-0 z-[9999] bg-black/50`)·ESC 닫기·다크모드 클래스 패턴을 그대로 따르는 모달. `CODE_LANGUAGES`(전체/Java/Python/C) 버튼 그리드, `onSelect(language?: string)` 콜백("전체"는 `undefined`)
+- 이유: 신규 공용 컴포넌트
+
+#### `app/user/quiz/page.tsx`
+- 변경 전: `handleSelect(slave)`가 무조건 `router.push(/user/quiz/${slave.id}?name=...)`로 즉시 이동
+- 변경 후: `slave.hasCodeQuestions`가 true면 `languageModalSlave` state에 저장해 `CodeLanguageModal`을 오픈하고 이동을 보류. 모달에서 언어 선택 시 `handleSelectLanguage`가 `URLSearchParams({ name })`에 `language`(있을 때만) 추가해 이동. 그 외 카테고리는 기존과 동일하게 즉시 이동.
+- 이유: CODE 카테고리에서만 언어 선택 단계를 추가하고 나머지는 회귀 없이 유지
+
+#### `app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `const categoryName = searchParams.get('name') ?? '퀴즈';` 이후 language 개념 없음. `loadBatch`는 `quizService.getQuestions(categoryId, 10)` 호출, `useEffect` deps `[categoryId]`.
+- 변경 후: `const language = searchParams.get('language') ?? undefined;` 추가. `loadBatch`가 `quizService.getQuestions(categoryId, 10, language)` 호출하도록 변경하고 `useCallback` deps에 `language` 추가, 최초 로딩 `useEffect` deps도 `[categoryId, language]`로 확장(계속 풀기(`handleContinue` → `loadBatch` 재호출)에도 동일 language가 자동 유지됨). 헤더에 `LANGUAGE_LABELS` 매핑 기반 언어 뱃지(`{language && <span>...</span>}`) 추가.
+- 이유: 선택한 언어를 풀이 화면·다음 배치 로딩까지 일관되게 유지
+
+### 복원 방법
+이 ID(HIST-20260707-005)만으로 복원 시:
+1. `types/index.ts`에서 `DomainSlave.hasCodeQuestions?` 필드 제거
+2. `quizService.ts`의 `getQuestions`를 `(categoryId: number, limit = 10)` 2-인자 형태로 복원
+3. `components/ui/CodeLanguageModal.tsx` 삭제
+4. `app/user/quiz/page.tsx`: `languageModalSlave` state·`handleSelectLanguage`·`CodeLanguageModal` 렌더 제거, `handleSelect`를 무조건 즉시 `router.push` 하는 원래 형태로 복원
+5. `app/user/quiz/[categoryId]/page.tsx`: `language` 변수·`LANGUAGE_LABELS`·헤더 뱃지 제거, `loadBatch` 호출을 `quizService.getQuestions(categoryId, 10)`로 복원, useEffect/useCallback deps에서 `language` 제거
+6. `CLAUDE.md`에서 `CodeLanguageModal` 행 제거
+
 ## HIST-20260707-004
 
 - **날짜**: 2026-07-07

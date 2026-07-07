@@ -167,6 +167,8 @@ export interface DomainSlave {
   masterId: number;
   name: string;
   displayOrder?: number;
+  /** CODE 유형 문항이 존재하는 카테고리 여부 — true면 데일리 퀴즈에서 프로그래밍 언어 선택 모달을 노출 */
+  hasCodeQuestions?: boolean;
 }
 
 export interface DomainMaster {

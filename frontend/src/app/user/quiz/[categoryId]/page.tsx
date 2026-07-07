@@ -18,6 +18,13 @@ import type { ConceptNote, ExamResultData, QuestionResult, QuestionType } from '
 
 type Phase = 'loading' | 'quiz' | 'continue' | 'result';
 
+/** 언어 코드(소문자) → 표시 라벨 — CodeLanguageModal의 CODE_LANGUAGES 라벨과 동일 컨벤션 */
+const LANGUAGE_LABELS: Record<string, string> = {
+  java: 'Java',
+  python: 'Python',
+  c: 'C',
+};
+
 interface AnswerState {
   userAnswer: string;
   submitted: boolean;
@@ -60,6 +67,8 @@ function QuizPlayContent() {
 
   const categoryId = Number(params.categoryId);
   const categoryName = searchParams.get('name') ?? '퀴즈';
+  // CODE(프로그래밍 언어) 카테고리에서 선택한 언어 필터 — 없으면 전체(필터 없음)
+  const language = searchParams.get('language') ?? undefined;
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -90,7 +99,7 @@ function QuizPlayContent() {
 
   const loadBatch = useCallback(() => {
     setPhase('loading');
-    quizService.getQuestions(categoryId, 10).then(res => {
+    quizService.getQuestions(categoryId, 10, language).then(res => {
       if (res.data.success && res.data.data && res.data.data.length > 0) {
         setQuestions(res.data.data);
         setAnswers({});
@@ -102,11 +111,11 @@ function QuizPlayContent() {
         router.push('/user/quiz');
       }
     });
-  }, [categoryId, router]);
+  }, [categoryId, language, router]);
 
   useEffect(() => {
     loadBatch();
-  }, [categoryId]);
+  }, [categoryId, language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 마운트 시 북마크 ID 목록 초기화 — 실패해도 퀴즈 진행 막지 않음
   useEffect(() => {
@@ -363,6 +372,11 @@ function QuizPlayContent() {
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-3">
           <span className="font-medium text-indigo-600">{categoryName}</span>
+          {language && (
+            <span className="text-xs font-medium text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">
+              {LANGUAGE_LABELS[language.toLowerCase()] ?? language}
+            </span>
+          )}
           {sessionAnswered > 0 && (
             <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">
               세션 {sessionAnswered}문제 · {sessionCorrect}정답

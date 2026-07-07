@@ -13,17 +13,30 @@ public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long
     /** 슬레이브 ID가 category 또는 examType으로 참조되는지 확인 */
     boolean existsByCategoryIdOrExamTypeId(Long categoryId, Long examTypeId);
 
-    /** 카테고리별 랜덤 문항 조회 (데일리 퀴즈용) */
+    /** 카테고리별 랜덤 문항 조회 (데일리 퀴즈용)
+     *  language가 null이면 조건을 무시(=전체) — CODE 유형이면서 language가 대소문자 무시 일치하는 문항만 필터링.
+     *  (관리자 등록 폼 버그로 CODE가 아닌 문항에도 language 값이 실릴 수 있어 question_type = 'CODE' 조건을 반드시 함께 건다) */
     @org.springframework.data.jpa.repository.Query(
-        value = "SELECT * FROM question_bank WHERE (category_id = :categoryId OR exam_type_id = :categoryId) AND del_yn = 'N' ORDER BY RANDOM() LIMIT :limit",
+        value = "SELECT * FROM question_bank " +
+            "WHERE (category_id = :categoryId OR exam_type_id = :categoryId) " +
+            "AND del_yn = 'N' " +
+            "AND (:language IS NULL OR (question_type = 'CODE' AND LOWER(language) = LOWER(:language))) " +
+            "ORDER BY RANDOM() LIMIT :limit",
         nativeQuery = true)
     java.util.List<QuestionBank> findRandomByCategory(
             @org.springframework.data.repository.query.Param("categoryId") Long categoryId,
-            @org.springframework.data.repository.query.Param("limit") int limit);
+            @org.springframework.data.repository.query.Param("limit") int limit,
+            @org.springframework.data.repository.query.Param("language") String language);
 
     /** 주어진 시험 유형 ID들에 문항이 존재하는 문제 유형(category) ID 목록 조회 */
     @org.springframework.data.jpa.repository.Query(
         "SELECT DISTINCT qb.category.id FROM QuestionBank qb WHERE qb.examType.id IN :examTypeIds AND qb.delYn = 'N' AND qb.category IS NOT NULL")
     java.util.List<Long> findDistinctCategoryIdsByExamTypeIds(
             @org.springframework.data.repository.query.Param("examTypeIds") java.util.List<Long> examTypeIds);
+
+    /** CODE 유형 문항이 존재하는 문제 유형(category) ID 목록 조회 — 프로그래밍 언어 필터 노출 대상 카테고리 판별용 */
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT DISTINCT qb.category.id FROM QuestionBank qb WHERE qb.questionType = :questionType AND qb.delYn = 'N' AND qb.category IS NOT NULL")
+    java.util.List<Long> findDistinctCategoryIdsByQuestionType(
+            @org.springframework.data.repository.query.Param("questionType") QuestionBank.QuestionType questionType);
 }

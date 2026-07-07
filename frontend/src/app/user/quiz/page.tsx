@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { quizService } from '@/services/quizService';
 import { useAuthStore } from '@/store/authStore';
 import { CardGridSkeleton } from '@/components/ui/Skeleton';
+import { CodeLanguageModal } from '@/components/ui/CodeLanguageModal';
 import type { DomainMaster, DomainSlave } from '@/types';
 
 export default function QuizCategoryPage() {
@@ -12,6 +13,8 @@ export default function QuizCategoryPage() {
   const { user } = useAuthStore();
   const [masters, setMasters] = useState<DomainMaster[]>([]);
   const [loading, setLoading] = useState(true);
+  // CODE(프로그래밍 언어) 카테고리 선택 시 언어 선택 모달 대상으로 대기 중인 슬레이브
+  const [languageModalSlave, setLanguageModalSlave] = useState<DomainSlave | null>(null);
 
   const interestedIds = user?.interestedExamSlaveIds ?? [];
   const examTypeIdsKey = interestedIds.join(',');
@@ -27,7 +30,21 @@ export default function QuizCategoryPage() {
   }, [examTypeIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelect = (slave: DomainSlave) => {
+    // CODE 유형(프로그래밍 언어) 문항이 있는 카테고리는 즉시 이동하지 않고 언어 선택 모달을 먼저 띄운다.
+    if (slave.hasCodeQuestions) {
+      setLanguageModalSlave(slave);
+      return;
+    }
     router.push(`/user/quiz/${slave.id}?name=${encodeURIComponent(slave.name)}`);
+  };
+
+  const handleSelectLanguage = (language?: string) => {
+    if (!languageModalSlave) return;
+    const slave = languageModalSlave;
+    setLanguageModalSlave(null);
+    const query = new URLSearchParams({ name: slave.name });
+    if (language) query.set('language', language);
+    router.push(`/user/quiz/${slave.id}?${query.toString()}`);
   };
 
   // EXAM_TYPE 마스터만 프론트에서 관심 유형 필터링 (QUESTION_TYPE은 백엔드에서 이미 필터됨)
@@ -89,6 +106,12 @@ export default function QuizCategoryPage() {
           </div>
         ))
       )}
+
+      <CodeLanguageModal
+        open={languageModalSlave !== null}
+        onClose={() => setLanguageModalSlave(null)}
+        onSelect={handleSelectLanguage}
+      />
     </div>
   );
 }
