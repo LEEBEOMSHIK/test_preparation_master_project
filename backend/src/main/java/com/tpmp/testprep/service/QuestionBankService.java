@@ -21,7 +21,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -52,10 +57,12 @@ public class QuestionBankService {
         Long adminId = resolveAdminId(adminEmail);
         DomainSlave category = resolveCategory(request.categoryId());
         DomainSlave examType = resolveCategory(request.examTypeId());
+        Integer questionNo = resolveQuestionNo(request, null);
         QuestionBank qb = QuestionBank.builder()
                 .title(request.title())
                 .examYear(request.examYear())
                 .examRound(request.examRound())
+                .questionNo(questionNo)
                 .content(request.content())
                 .instruction(request.instruction())
                 .questionType(request.questionType())
@@ -82,11 +89,16 @@ public class QuestionBankService {
         bulkRequest.questions().forEach(this::validateSchedulingData);
         bulkRequest.questions().forEach(this::validateBody);
         Long adminId = resolveAdminId(adminEmail);
-        List<QuestionBank> entities = bulkRequest.questions().stream()
-                .map(req -> QuestionBank.builder()
+        List<QuestionBankRequest> requests = bulkRequest.questions();
+        List<Integer> questionNos = resolveQuestionNosForBulk(requests);
+        List<QuestionBank> entities = new ArrayList<>();
+        for (int i = 0; i < requests.size(); i++) {
+            QuestionBankRequest req = requests.get(i);
+            entities.add(QuestionBank.builder()
                         .title(req.title())
                         .examYear(req.examYear())
                         .examRound(req.examRound())
+                        .questionNo(questionNos.get(i))
                         .content(req.content())
                         .instruction(req.instruction())
                         .questionType(req.questionType())
@@ -103,8 +115,8 @@ public class QuestionBankService {
                         .aiSummary(req.aiSummary())
                         .schedulingData(req.schedulingData())
                         .createdByUno(adminId)
-                        .build())
-                .toList();
+                        .build());
+        }
         questionBankRepository.saveAll(entities);
         return entities.size();
     }
@@ -118,7 +130,8 @@ public class QuestionBankService {
         DomainSlave category = resolveCategory(request.categoryId());
         DomainSlave examType = resolveCategory(request.examTypeId());
         QuestionBank qb = findActive(id);
-        qb.update(request.title(), request.examYear(), request.examRound(),
+        Integer questionNo = resolveQuestionNo(request, id);
+        qb.update(request.title(), request.examYear(), request.examRound(), questionNo,
                   request.content(), request.questionType(),
                   category, examType,
                   request.options(), request.answer(),
@@ -182,6 +195,95 @@ public class QuestionBankService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
     }
 
+    private Integer resolveQuestionNo(QuestionBankRequest request, Long excludeQuestionId) {
+        validateQuestionNoPositive(request.questionNo());
+        if (request.questionNo() != null) {
+            validateQuestionNoDuplicate(request, excludeQuestionId);
+            return request.questionNo();
+        }
+        if (!hasCompleteQuestionNoGroup(request)) {
+            return null;
+        }
+        QuestionNoGroup group = QuestionNoGroup.from(request);
+        Integer maxQuestionNo = questionBankRepository.findMaxQuestionNo(
+                group.examTypeId(), group.examYear(), group.examRound());
+        return (maxQuestionNo == null ? 0 : maxQuestionNo) + 1;
+    }
+
+    private List<Integer> resolveQuestionNosForBulk(List<QuestionBankRequest> requests) {
+        Map<QuestionNoGroup, Set<Integer>> usedNumbersByGroup = new HashMap<>();
+        Set<QuestionNoKey> explicitKeys = new HashSet<>();
+
+        for (QuestionBankRequest request : requests) {
+            validateQuestionNoPositive(request.questionNo());
+            if (request.questionNo() == null || !hasCompleteQuestionNoGroup(request)) {
+                continue;
+            }
+
+            QuestionNoGroup group = QuestionNoGroup.from(request);
+            QuestionNoKey key = new QuestionNoKey(group, request.questionNo());
+            if (!explicitKeys.add(key)) {
+                throw new BusinessException(ErrorCode.QUESTION_NO_DUPLICATE);
+            }
+            validateQuestionNoDuplicate(request, null);
+            usedNumbersByGroup.computeIfAbsent(group, unused -> new HashSet<>()).add(request.questionNo());
+        }
+
+        Map<QuestionNoGroup, Integer> nextAutoNumberByGroup = new HashMap<>();
+        List<Integer> resolved = new ArrayList<>();
+        for (QuestionBankRequest request : requests) {
+            if (request.questionNo() != null) {
+                resolved.add(request.questionNo());
+                continue;
+            }
+            if (!hasCompleteQuestionNoGroup(request)) {
+                resolved.add(null);
+                continue;
+            }
+
+            QuestionNoGroup group = QuestionNoGroup.from(request);
+            Set<Integer> usedNumbers = usedNumbersByGroup.computeIfAbsent(group, unused -> new HashSet<>());
+            int nextNumber = nextAutoNumberByGroup.computeIfAbsent(group, this::loadNextQuestionNo);
+            while (usedNumbers.contains(nextNumber)) {
+                nextNumber++;
+            }
+            resolved.add(nextNumber);
+            usedNumbers.add(nextNumber);
+            nextAutoNumberByGroup.put(group, nextNumber + 1);
+        }
+        return resolved;
+    }
+
+    private int loadNextQuestionNo(QuestionNoGroup group) {
+        Integer maxQuestionNo = questionBankRepository.findMaxQuestionNo(
+                group.examTypeId(), group.examYear(), group.examRound());
+        return (maxQuestionNo == null ? 0 : maxQuestionNo) + 1;
+    }
+
+    private void validateQuestionNoPositive(Integer questionNo) {
+        if (questionNo != null && questionNo <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+    }
+
+    private void validateQuestionNoDuplicate(QuestionBankRequest request, Long excludeQuestionId) {
+        if (!hasCompleteQuestionNoGroup(request) || request.questionNo() == null) {
+            return;
+        }
+        boolean exists = excludeQuestionId == null
+                ? questionBankRepository.existsActiveQuestionNo(
+                    request.examTypeId(), request.examYear(), request.examRound(), request.questionNo())
+                : questionBankRepository.existsActiveQuestionNoExcludingId(
+                    excludeQuestionId, request.examTypeId(), request.examYear(), request.examRound(), request.questionNo());
+        if (exists) {
+            throw new BusinessException(ErrorCode.QUESTION_NO_DUPLICATE);
+        }
+    }
+
+    private boolean hasCompleteQuestionNoGroup(QuestionBankRequest request) {
+        return request.examTypeId() != null && request.examYear() != null && request.examRound() != null;
+    }
+
     /**
      * SCHEDULING 유형 문항의 스케줄링 데이터 정합성 검증.
      * <ul>
@@ -224,4 +326,12 @@ public class QuestionBankService {
             throw new BusinessException(ErrorCode.QUESTION_BODY_REQUIRED);
         }
     }
+
+    private record QuestionNoGroup(Long examTypeId, Integer examYear, Integer examRound) {
+        private static QuestionNoGroup from(QuestionBankRequest request) {
+            return new QuestionNoGroup(request.examTypeId(), request.examYear(), request.examRound());
+        }
+    }
+
+    private record QuestionNoKey(QuestionNoGroup group, Integer questionNo) {}
 }

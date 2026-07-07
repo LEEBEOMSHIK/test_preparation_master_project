@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -61,7 +62,7 @@ class QuestionBankServiceTest {
 
     private QuestionBankRequest requestOf(QuestionBank.QuestionType type, SchedulingData schedulingData) {
         return new QuestionBankRequest(
-                "제목", null, null, "문항 내용", null, type, 10L, 20L,
+                "제목", null, null, null, "문항 내용", null, type, 10L, 20L,
                 null, "정답", null, null, null,
                 null, null, null, null,
                 schedulingData
@@ -71,7 +72,17 @@ class QuestionBankServiceTest {
     /** 발문(instruction)·문항 내용(content) 필수 규칙 검증 전용 헬퍼 — SHORT_ANSWER 유형, schedulingData 없음 */
     private QuestionBankRequest bodyRequestOf(String content, String instruction) {
         return new QuestionBankRequest(
-                "제목", null, null, content, instruction, QuestionBank.QuestionType.SHORT_ANSWER, 10L, 20L,
+                "제목", null, null, null, content, instruction, QuestionBank.QuestionType.SHORT_ANSWER, 10L, 20L,
+                null, "정답", null, null, null,
+                null, null, null, null,
+                null
+        );
+    }
+
+    private QuestionBankRequest questionNoRequest(Integer questionNo, Integer examYear, Integer examRound) {
+        return new QuestionBankRequest(
+                "제목", examYear, examRound, questionNo, "문항 내용", null,
+                QuestionBank.QuestionType.SHORT_ANSWER, 10L, 20L,
                 null, "정답", null, null, null,
                 null, null, null, null,
                 null
@@ -178,6 +189,105 @@ class QuestionBankServiceTest {
         verify(questionBankRepository).save(any(QuestionBank.class));
     }
 
+    // ── 문항번호 자동 부여 ───────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("문항번호: 명시 번호가 없고 시험 그룹이 완전하면 첫 번호를 자동 부여")
+    void createQuestion_withoutQuestionNoAndCompleteExamGroup_assignsFirstQuestionNo() {
+        QuestionBankRequest req = new QuestionBankRequest(
+                "제목", 2024, 1, null, "문항 내용", null, QuestionBank.QuestionType.SHORT_ANSWER, 10L, 20L,
+                null, "정답", null, null, null,
+                null, null, null, null,
+                null
+        );
+
+        service.createQuestion(req, ADMIN_EMAIL);
+
+        ArgumentCaptor<QuestionBank> captor = ArgumentCaptor.forClass(QuestionBank.class);
+        verify(questionBankRepository).save(captor.capture());
+        assertThat(readQuestionNo(captor.getValue())).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("문항번호: 관리자가 명시한 번호를 우선 저장")
+    void createQuestion_withExplicitQuestionNo_savesExplicitQuestionNo() {
+        QuestionBankRequest req = questionNoRequest(7, 2024, 1);
+
+        service.createQuestion(req, ADMIN_EMAIL);
+
+        ArgumentCaptor<QuestionBank> captor = ArgumentCaptor.forClass(QuestionBank.class);
+        verify(questionBankRepository).save(captor.capture());
+        assertThat(captor.getValue().getQuestionNo()).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("문항번호: 활성 문항의 동일 시험 그룹/번호가 있으면 등록 거부")
+    void createQuestion_withDuplicateQuestionNo_throws() {
+        QuestionBankRequest req = questionNoRequest(7, 2024, 1);
+        when(questionBankRepository.existsActiveQuestionNo(20L, 2024, 1, 7)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.createQuestion(req, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.QUESTION_NO_DUPLICATE));
+        verify(questionBankRepository, never()).save(any(QuestionBank.class));
+    }
+
+    @Test
+    @DisplayName("문항번호: 수정 시 자기 자신은 중복 검사에서 제외")
+    void updateQuestion_sameQuestionNoOnSameEntity_savesSuccessfully() {
+        QuestionBank existing = QuestionBank.builder()
+                .title("기존")
+                .examYear(2024)
+                .examRound(1)
+                .questionNo(7)
+                .content("기존 문항")
+                .questionType(QuestionBank.QuestionType.SHORT_ANSWER)
+                .category(categorySlave)
+                .examType(examTypeSlave)
+                .createdByUno(1L)
+                .build();
+        QuestionBankRequest req = questionNoRequest(7, 2024, 1);
+        when(questionBankRepository.findById(99L)).thenReturn(Optional.of(existing));
+        when(questionBankRepository.existsActiveQuestionNoExcludingId(99L, 20L, 2024, 1, 7)).thenReturn(false);
+
+        service.updateQuestion(99L, req, ADMIN_EMAIL);
+
+        assertThat(existing.getQuestionNo()).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("문항번호: 일괄 등록 자동 번호는 같은 그룹에서 max+1부터 순차 부여")
+    void createQuestionsBulk_withoutQuestionNo_assignsSequentialQuestionNos() {
+        QuestionBankRequest first = questionNoRequest(null, 2024, 1);
+        QuestionBankRequest second = questionNoRequest(null, 2024, 1);
+        when(questionBankRepository.findMaxQuestionNo(20L, 2024, 1)).thenReturn(3);
+
+        service.createQuestionsBulk(new com.tpmp.testprep.dto.request.QuestionBankBulkRequest(List.of(first, second)), ADMIN_EMAIL);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<QuestionBank>> captor = ArgumentCaptor.forClass(List.class);
+        verify(questionBankRepository).saveAll(captor.capture());
+        assertThat(captor.getValue())
+                .extracting(QuestionBank::getQuestionNo)
+                .containsExactly(4, 5);
+    }
+
+    @Test
+    @DisplayName("문항번호: 일괄 등록 요청 내부의 명시 번호 중복은 등록 거부")
+    void createQuestionsBulk_withDuplicateExplicitQuestionNoInRequest_throws() {
+        QuestionBankRequest first = questionNoRequest(7, 2024, 1);
+        QuestionBankRequest second = questionNoRequest(7, 2024, 1);
+
+        assertThatThrownBy(() -> service.createQuestionsBulk(
+                        new com.tpmp.testprep.dto.request.QuestionBankBulkRequest(List.of(first, second)),
+                        ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.QUESTION_NO_DUPLICATE));
+        verify(questionBankRepository, never()).saveAll(any());
+    }
+
     // ── 발문(instruction)·문항 내용(content) 필수 규칙 검증 ─────────────────────
 
     @Test
@@ -212,5 +322,13 @@ class QuestionBankServiceTest {
         service.createQuestion(req, ADMIN_EMAIL);
 
         verify(questionBankRepository).save(any(QuestionBank.class));
+    }
+
+    private Integer readQuestionNo(QuestionBank questionBank) {
+        try {
+            return (Integer) QuestionBank.class.getMethod("getQuestionNo").invoke(questionBank);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("QuestionBank.questionNo getter가 구현되어야 합니다.", e);
+        }
     }
 }

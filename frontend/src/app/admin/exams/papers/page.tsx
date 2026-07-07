@@ -63,11 +63,12 @@ export default function AdminExamPapersPage() {
 
   const filtered = useMemo(() => {
     const kw = appliedKeyword.trim().toLowerCase();
-    return allPapers.filter((p) => {
+    const base = allPapers.filter((p) => {
       if (kw && !p.title.toLowerCase().includes(kw)) return false;
       if (appliedModeFilter && p.questionMode !== appliedModeFilter) return false;
       return true;
     });
+    return [...base].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [allPapers, appliedKeyword, appliedModeFilter]);
 
   return (

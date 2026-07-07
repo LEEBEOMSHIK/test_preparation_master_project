@@ -1,3 +1,25 @@
+## HIST-20260707-001
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 관리자 백엔드 / 시험지 관리 — 목록 기본 최신순 정렬
+- **수정 개요**: `ExamService.getExams(Pageable)`에서 요청 Pageable에 sort가 없을 때 `createdAt DESC` 기본 정렬을 적용하도록 변경했다. 명시 sort가 포함된 요청은 기존 정렬을 그대로 유지한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/ExamService.java` | 수정 | sort 없는 Pageable을 `PageRequest.of(page, size, Sort.by(DESC, "createdAt"))`로 변환 후 조회 |
+
+### 수정 상세
+
+- 변경 전: 관리자 시험지 목록 API가 sort 없는 Pageable을 그대로 Repository에 전달해 DB 기본 순서에 의존했다.
+- 변경 후: sort가 없는 경우 최신 등록 시험지가 먼저 오도록 `createdAt DESC` 기본 정렬을 적용한다.
+- 이유: 관리자 시험지 관리 목록에서 최근 등록한 시험지를 우선 확인할 수 있게 하기 위함.
+
+### 복원 방법
+
+이 ID(HIST-20260707-001)만으로 복원 시: `ExamService.getExams`에서 `effectivePageable` 생성 로직을 제거하고 기존처럼 `examRepository.findAllByDelYn("N", pageable)`을 호출하도록 되돌린다.
+
 ## HIST-20260626-001
 
 - **날짜**: 2026-06-26

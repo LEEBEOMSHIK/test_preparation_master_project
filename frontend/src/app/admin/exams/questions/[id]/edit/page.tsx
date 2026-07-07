@@ -15,6 +15,7 @@ import { emptySchedulingDraft, fromSchedulingData, toSchedulingDataPayload, type
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { stripHtml } from '@/lib/html';
 import { hasOptions } from '@/lib/answer';
+import { isBlankOrPositiveIntegerText, toOptionalPositiveInteger } from '@/lib/questionNumber';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ interface FormState {
   title:        string;
   examYear:     string;
   examRound:    string;
+  questionNo:   string;
   /** 발문(지시문) — 문항 내용과 분리 저장, 모든 유형 공용(선택) */
   instruction:  string;
   content:      string;
@@ -71,6 +73,7 @@ const defaultForm = (): FormState => ({
   title:        '',
   examYear:     '',
   examRound:    '',
+  questionNo:   '',
   instruction:  '',
   content:      '',
   questionType: 'MULTIPLE_CHOICE',
@@ -119,6 +122,7 @@ export default function AdminQuestionEditPage() {
           title:        q.title ?? '',
           examYear:     q.examYear != null ? String(q.examYear) : '',
           examRound:    q.examRound != null ? String(q.examRound) : '',
+          questionNo:   q.questionNo != null ? String(q.questionNo) : '',
           instruction:  q.instruction ?? '',
           content:      q.content,
           questionType: q.questionType,
@@ -166,6 +170,10 @@ export default function AdminQuestionEditPage() {
     if (!form.title.trim())  { setError('문항 제목을 입력하세요.'); return; }
     if (!form.examTypeId)    { setError('시험 유형을 선택하세요.'); return; }
     if (!form.categoryId)    { setError('문항 유형을 선택하세요.'); return; }
+    if (!isBlankOrPositiveIntegerText(form.questionNo)) {
+      setError('문항번호는 1 이상이어야 합니다.');
+      return;
+    }
     if (!stripHtml(form.content) && !form.instruction.trim()) {
       setError('발문 또는 문항 내용 중 하나는 입력하세요.');
       return;
@@ -188,6 +196,7 @@ export default function AdminQuestionEditPage() {
         title:        form.title.trim() || undefined,
         examYear:     form.examYear ? Number(form.examYear) : undefined,
         examRound:    form.examRound ? Number(form.examRound) : undefined,
+        questionNo:   toOptionalPositiveInteger(form.questionNo),
         instruction:  form.instruction.trim() || undefined,
         content:      form.content.trim(),
         questionType: form.questionType,
@@ -220,6 +229,7 @@ export default function AdminQuestionEditPage() {
   const titleSuggestion    = [
     form.examYear  ? `${form.examYear}년`    : '',
     form.examRound ? `제${form.examRound}회` : '',
+    form.questionNo ? `${form.questionNo}번` : '',
     editExamTypeName,
     editCategoryName,
   ].filter(Boolean).join(' / ');
@@ -279,7 +289,7 @@ export default function AdminQuestionEditPage() {
             )}
           </div>
 
-          {/* 시험 연도 / 회차 */}
+          {/* 시험 연도 / 회차 / 문항번호 */}
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-500 mb-1.5">
@@ -310,6 +320,25 @@ export default function AdminQuestionEditPage() {
                   <option key={s.id} value={s.name}>제{s.name}회</option>
                 ))}
               </select>
+            </div>
+            <div className="w-28">
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                문항번호 <span className="text-gray-300 font-normal">(선택)</span>
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[1-9][0-9]*"
+                step={1}
+                value={form.questionNo}
+                onChange={(e) => {
+                  if (isBlankOrPositiveIntegerText(e.target.value)) {
+                    update('questionNo', e.target.value);
+                  }
+                }}
+                placeholder="자동"
+                className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              />
             </div>
           </div>
 

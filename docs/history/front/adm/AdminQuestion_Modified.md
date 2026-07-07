@@ -1,4 +1,85 @@
-﻿## HIST-20260707-002
+﻿## HIST-20260707-005
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정 — 문항번호 양의 정수 검증 및 TS 테스트 보정
+- **수정 개요**: 문항번호 입력이 `1.5`, `1e2`, `NaN`, 공백 같은 값을 payload로 보내지 않도록 `questionNumber` 공용 유틸을 추가하고 등록/수정 폼 입력을 `type="text" + inputMode="numeric" + pattern` 기반으로 보정했다. 기존 `questionSort.test.js`는 TypeScript strict 범위에 맞춰 `.test.ts`로 전환했고, 새 Jest 전역 타입 선언을 추가해 `@types/jest` 없이도 `tsc --noEmit`이 깨지지 않게 했다. `references/images/*`는 작업 전부터 있던 미추적 참고 파일이며 이번 작업 산출물이 아니다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/questionNumber.ts` | 추가 | 선택 양의 정수 문자열 검증 및 payload 숫자 변환 유틸 추가 |
+| `frontend/src/lib/questionNumber.test.ts` | 추가 | 빈 값/양의 정수 허용, 소수·지수표기·NaN·공백·0 거부 테스트 추가 |
+| `frontend/src/lib/questionSort.test.ts` | 추가 | 기존 JS 테스트를 TS 테스트로 전환 |
+| `frontend/src/lib/questionSort.test.js` | 삭제 | TypeScript strict 범위 정리를 위해 TS 테스트로 대체 |
+| `frontend/src/test/jest-globals.d.ts` | 추가 | Jest 전역 최소 타입 선언 추가(`@types/jest` 신규 설치 없음) |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | 문항번호 입력 제한과 payload 변환에 `questionNumber` 유틸 적용 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | 수정 폼 문항번호 입력 제한과 payload 변환에 `questionNumber` 유틸 적용 |
+| `AGENTS.md` | 수정 | Shared Utilities 표에 `questionNumber` 유틸 추가 |
+
+### 수정 상세
+
+- 변경 전: 문항번호 입력이 `type="number"`와 `Number(value)`에 의존해 브라우저별로 `1e2` 같은 값을 허용하거나 비정상 문자열이 payload로 변환될 여지가 있었다. 테스트도 JS 파일이라 TypeScript strict 범위에서 검증되지 않았다.
+- 변경 후: 상태에는 빈 문자열 또는 `/^[1-9]\d*$/`에 맞는 양의 정수 문자열만 반영하고, 제출 payload에는 `toOptionalPositiveInteger` 결과만 전달한다. Jest 테스트 파일은 TS로 전환했다.
+- 이유: 관리자 입력값을 백엔드 DTO/DB 제약과 같은 양의 정수 규칙으로 맞추고, 프론트 테스트도 타입 안정성 범위 안에 두기 위함.
+
+### 복원 방법
+
+이 ID(HIST-20260707-005)만으로 복원 시: `questionNumber.ts`, `questionNumber.test.ts`, `jest-globals.d.ts`를 삭제한다. `questionSort.test.ts`를 삭제하고 이전 `questionSort.test.js`를 복원한다. 등록/수정 화면에서 `questionNumber` import와 입력 제한/payload 변환을 제거하고 기존 `type="number"`, `Number(questionNo)` 방식으로 되돌린다. `AGENTS.md` Shared Utilities 표에서 `questionNumber` 항목을 삭제한다.
+
+## HIST-20260707-004
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 관리자 프론트엔드 / 문항 목록 — 출처순 정렬 유틸 분리 및 Jest 테스트
+- **수정 개요**: 문항 목록의 출처순 정렬 비교 로직을 `src/lib/questionSort.ts`로 분리하고, `next/jest` 설정과 Jest 테스트를 추가해 연도 내림차순·회차 오름차순·문항번호 오름차순·수정일 내림차순 fallback 규칙을 검증했다. 새 공용 유틸 추가에 따라 `AGENTS.md` Shared Utilities 표도 갱신했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/questionSort.ts` | 추가 | `compareQuestionSourceOrder(a, b)` 출처순 정렬 비교 함수 추가 |
+| `frontend/src/lib/questionSort.test.js` | 추가 | 출처순 정렬 우선순위와 null-last/fallback 동작 Jest 테스트 추가 |
+| `frontend/jest.config.js` | 추가 | `next/jest` 기반 Jest 설정 및 `@/` alias 매핑 추가 |
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | 페이지 내부 정렬 비교 함수를 제거하고 `compareQuestionSourceOrder` import 사용 |
+| `AGENTS.md` | 수정 | Shared Utilities 표에 `compareQuestionSourceOrder(a, b)` 추가 |
+
+### 수정 상세
+
+- 변경 전: 출처순 정렬 비교 함수가 문항 목록 페이지 내부에만 있어 단위 테스트로 직접 검증하기 어려웠다.
+- 변경 후: 정렬 규칙을 `src/lib/questionSort.ts` 순수 함수로 분리하고 Jest 테스트에서 직접 검증한다.
+- 이유: 프론트 새 정렬 로직의 회귀를 Jest로 확인하고, 새 유틸 위치를 프로젝트 가이드에 반영하기 위함.
+
+### 복원 방법
+
+이 ID(HIST-20260707-004)만으로 복원 시: `frontend/src/lib/questionSort.ts`, `frontend/src/lib/questionSort.test.js`, `frontend/jest.config.js`를 삭제한다. `questions/page.tsx`에 기존 내부 `compareNumberAsc`/`compareNumberDesc`/`compareSourceOrder` 함수를 복원하고 import를 제거한다. `AGENTS.md` Shared Utilities 표에서 `compareQuestionSourceOrder(a, b)` 항목을 삭제한다.
+
+## HIST-20260707-003
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정·목록 — 하이브리드 문항번호 입력·표시·정렬
+- **수정 개요**: 문항 등록/수정 폼에 선택 입력 `문항번호`를 추가하고, 빈 값은 payload에서 `undefined`로 보내 백엔드 자동부여가 동작하게 했다. 문항 목록 응답 타입과 API payload 타입에 `questionNo`를 추가했으며, 목록 메타데이터에 `YYYY년 제N회 M번` 형식으로 표시한다. 문항 목록 기본 정렬에 `출처순`을 추가해 `examYear DESC → examRound ASC → questionNo ASC → updatedAt DESC` 순서로 정렬하고, 기존 등록일/수정일 정렬 버튼은 유지했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `QuestionSummary.questionNo?: number` 추가 |
+| `frontend/src/services/examService.ts` | 수정 | 문항 일괄 등록·수정 payload 타입에 `questionNo?: number` 추가 |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | 드래프트 상태와 수동 입력 카드에 문항번호 입력 추가, 제출 시 빈 값은 `undefined` 전송 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | 수정 폼 로드/입력/제출에 문항번호 반영 |
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | 목록 출처 메타데이터에 문항번호 표시, `출처순` 정렬 추가 |
+
+### 수정 상세
+
+- 변경 전: 관리자 화면에서 원본 시험 문항번호를 입력·조회·표시할 수 없었고, 목록 정렬은 등록일/수정일 기준만 제공했다.
+- 변경 후: 등록/수정 화면의 시험 연도·회차 행에 문항번호 선택 입력을 배치했다. 목록은 문항번호가 있으면 출처 정보에 함께 표시하고, 기본 정렬은 출처 기준으로 동작한다.
+- 이유: 백엔드의 하이브리드 문항번호 기능을 관리자 워크플로우에서 실제로 사용할 수 있게 하기 위함.
+
+### 복원 방법
+
+이 ID(HIST-20260707-003)만으로 복원 시: `QuestionSummary`와 `examService` payload 타입에서 `questionNo`를 제거한다. `new/page.tsx`와 `[id]/edit/page.tsx`의 `questionNo` 상태, 입력 UI, 검증, payload 매핑, 제목 자동완성 반영을 제거한다. `questions/page.tsx`의 `sourceOrder` 정렬 타입/비교 함수/헤더 버튼과 문항번호 표시를 제거하고 기본 정렬을 기존 `updatedAt DESC`로 되돌린다.
+
+## HIST-20260707-002
 
 - **날짜**: 2026-07-07
 - **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정 — 유형 무관 보기(options) 등록

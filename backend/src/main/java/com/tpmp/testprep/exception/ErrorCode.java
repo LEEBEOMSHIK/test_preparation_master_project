@@ -26,6 +26,7 @@ public enum ErrorCode {
     QUOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "명언을 찾을 수 없습니다."),
     SCHEDULING_DATA_INVALID(HttpStatus.BAD_REQUEST, "스케줄링 문제 데이터가 올바르지 않습니다. (알고리즘·프로세스 항목을 확인하세요)"),
     QUESTION_BODY_REQUIRED(HttpStatus.BAD_REQUEST, "발문 또는 문항 내용 중 하나는 입력해야 합니다."),
+    QUESTION_NO_DUPLICATE(HttpStatus.CONFLICT, "동일한 시험 그룹에 이미 등록된 문항번호입니다."),
 
     // ConceptNote
     CONCEPT_NOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "개념 요약을 찾을 수 없습니다."),

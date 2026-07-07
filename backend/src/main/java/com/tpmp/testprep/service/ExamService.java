@@ -23,7 +23,9 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -63,7 +65,10 @@ public class ExamService {
     );
 
     public Page<ExamSummaryResponse> getExams(Pageable pageable) {
-        return examRepository.findAllByDelYn("N", pageable)
+        Pageable effectivePageable = pageable.getSort().isSorted()
+                ? pageable
+                : PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "createdAt"));
+        return examRepository.findAllByDelYn("N", effectivePageable)
                 .map(exam -> ExamSummaryResponse.from(exam, questionRepository.countByExamId(exam.getId())));
     }
 

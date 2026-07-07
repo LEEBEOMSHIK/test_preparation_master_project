@@ -1,3 +1,55 @@
+## HIST-20260707-003
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 관리자 백엔드 / 문항(QuestionBank) — 문항번호 DB 문서 보정
+- **수정 개요**: `question_bank.question_no` 마이그레이션 파일 상단에 목적/적용/롤백 주석을 추가하고, `docs/db-guidelines.md`의 `question_bank` ERD 및 주요 컬럼 설명에 `question_no`를 반영했다. 출처 그룹 컬럼 이해를 위해 `exam_year`, `exam_round`, `exam_type_id`, `instruction`도 ERD 요약에 함께 보강했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `docs/db-migration/20260707_01_question_bank_question_no.sql` | 수정 | 기존 마이그레이션 스타일에 맞춰 목적/적용/롤백 주석 추가 |
+| `docs/db-guidelines.md` | 수정 | `question_bank` ERD와 주요 컬럼 코멘트에 `question_no` 및 관련 그룹 컬럼 설명 추가 |
+
+### 수정 상세
+
+- 변경 전: 마이그레이션 파일에 SQL만 있고 목적/적용/롤백 안내가 없었으며, DB 가이드의 `question_bank` 설명에 `question_no`가 누락되어 있었다.
+- 변경 후: 운영 적용 전 확인할 수 있도록 주석을 추가하고, 문항번호 중복 기준이 되는 컬럼 설명을 문서화했다.
+- 이유: DB 변경 사항을 운영 적용·롤백·관리자 DB 조회 문서와 일관되게 유지하기 위함.
+
+### 복원 방법
+
+이 ID(HIST-20260707-003)만으로 복원 시: `20260707_01_question_bank_question_no.sql` 상단 주석을 제거하고, `docs/db-guidelines.md`의 `question_no` 및 함께 추가한 `question_bank` 컬럼 설명 행을 제거한다.
+
+## HIST-20260707-002
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 관리자 백엔드 / 문항(QuestionBank) — 하이브리드 문항번호 저장·중복 검증·자동 부여
+- **수정 개요**: `question_bank.question_no`에 대응하는 nullable `questionNo` 필드를 엔티티·요청 DTO·응답 DTO에 추가했다. 단건 등록·일괄 등록·수정에서 관리자가 입력한 문항번호를 우선 저장하고, 같은 `examTypeId + examYear + examRound + questionNo` 조합의 활성 문항이 있으면 `QUESTION_NO_DUPLICATE` 예외로 거부한다. 문항번호가 비어 있고 시험 그룹이 완전하면 같은 그룹의 `MAX(questionNo) + 1`을 자동 부여하며, 일괄 등록에서는 같은 요청 내 자동 번호를 순차 배정한다. DB 수동 적용용 마이그레이션 파일도 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/entity/QuestionBank.java` | 수정 | nullable `questionNo` 필드와 builder/update 매핑 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/request/QuestionBankRequest.java` | 수정 | `@Positive Integer questionNo` 요청 필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionBankResponse.java` | 수정 | `questionNo` 응답 필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/repository/QuestionBankRepository.java` | 수정 | 그룹별 최대 문항번호 조회, 활성 중복 조회, 수정 자기 제외 중복 조회 JPQL 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/QuestionBankService.java` | 수정 | 단건/수정/일괄 등록의 명시 번호 우선, 중복 검증, 자동 번호 부여 구현 |
+| `backend/src/main/java/com/tpmp/testprep/exception/ErrorCode.java` | 수정 | `QUESTION_NO_DUPLICATE` 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/QuestionBankServiceTest.java` | 수정 | RED 확인 후 자동부여·명시번호·중복·수정 자기 제외·일괄 순차 부여 테스트 추가 |
+| `docs/db-migration/20260707_01_question_bank_question_no.sql` | 추가 | `question_no` 컬럼, 양수 check, 활성·그룹완전·문항번호 non-null 부분 유니크 인덱스 |
+
+### 수정 상세
+
+- 변경 전: 문항은행에는 원본 시험지 문항번호 필드가 없어 `examYear`/`examRound`와 별개로 번호를 저장하거나 중복 검증할 수 없었다.
+- 변경 후: `QuestionBank.questionNo`를 독립 필드로 저장하고, `questions.seq`는 재사용하지 않는다. 명시 번호는 우선 저장, 비어 있으면 시험 그룹이 완전한 경우에만 자동 부여한다.
+- 이유: 시험지 내부 순서와 원본 시험 문항번호를 분리해 관리자 문항은행에서 출처 기준 정렬·중복 방지를 가능하게 하기 위함.
+
+### 복원 방법
+
+이 ID(HIST-20260707-002)만으로 복원 시: `QuestionBank`/`QuestionBankRequest`/`QuestionBankResponse`의 `questionNo` 필드와 매핑을 제거한다. `QuestionBankRepository`의 문항번호 조회 메서드 3개를 제거한다. `QuestionBankService`의 `resolveQuestionNo*`, `validateQuestionNo*`, `QuestionNoGroup`, `QuestionNoKey` 및 builder/update의 `questionNo` 전달을 제거한다. `ErrorCode.QUESTION_NO_DUPLICATE`를 제거하고, 테스트의 문항번호 관련 케이스를 삭제한다. 운영 DB에는 별도 역마이그레이션으로 인덱스/제약/컬럼을 제거한다.
+
 ## HIST-20260707-001
 
 - **날짜**: 2026-07-07

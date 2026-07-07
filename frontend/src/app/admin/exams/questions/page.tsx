@@ -11,6 +11,7 @@ import { QuestionDetailModal, type QuestionDetailItem } from '@/components/ui/Qu
 import { useColumnResize } from '@/lib/useColumnResize';
 import { ColResizeHandle } from '@/components/ui/ColResizeHandle';
 import { Pagination } from '@/components/ui/Pagination';
+import { compareQuestionSourceOrder } from '@/lib/questionSort';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -31,7 +32,7 @@ const TYPE_COLOR: Record<QuestionType, string> = {
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
-type SortField = 'createdAt' | 'updatedAt';
+type SortField = 'sourceOrder' | 'createdAt' | 'updatedAt';
 
 function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
   return (
@@ -74,7 +75,7 @@ export default function AdminQuestionsPage() {
   const [appliedDateTo,           setAppliedDateTo]           = useState('');
 
   // 정렬
-  const [sortField, setSortField] = useState<SortField>('updatedAt');
+  const [sortField, setSortField] = useState<SortField>('sourceOrder');
   const [sortDir,   setSortDir]   = useState<'asc' | 'desc'>('desc');
 
   // 페이지네이션
@@ -121,6 +122,12 @@ export default function AdminQuestionsPage() {
   };
 
   const handleSort = (field: SortField) => {
+    if (field === 'sourceOrder') {
+      setSortField('sourceOrder');
+      setSortDir('desc');
+      setPage(0);
+      return;
+    }
     if (sortField === field) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -182,6 +189,9 @@ export default function AdminQuestionsPage() {
     });
 
     return [...base].sort((a, b) => {
+      if (sortField === 'sourceOrder') {
+        return compareQuestionSourceOrder(a, b);
+      }
       const av = sortField === 'updatedAt' ? (a.updatedAt ?? a.createdAt) : a.createdAt;
       const bv = sortField === 'updatedAt' ? (b.updatedAt ?? b.createdAt) : b.createdAt;
       const diff = new Date(av).getTime() - new Date(bv).getTime();
@@ -382,7 +392,16 @@ export default function AdminQuestionsPage() {
                     <ColResizeHandle onMouseDown={(e) => startResize(0, e)} />
                   </th>
                   <th className="relative px-4 py-3">
-                    문항 제목 / 내용
+                    <div className="flex items-center gap-2">
+                      <span>문항 제목 / 내용</span>
+                      <button
+                        onClick={() => handleSort('sourceOrder')}
+                        className="inline-flex items-center text-xs text-gray-400 hover:text-gray-700 transition"
+                      >
+                        출처순
+                        <SortIcon active={sortField === 'sourceOrder'} dir="desc" />
+                      </button>
+                    </div>
                     <ColResizeHandle onMouseDown={(e) => startResize(1, e)} />
                   </th>
                   <th className="relative px-4 py-3 text-center whitespace-nowrap">
@@ -429,11 +448,13 @@ export default function AdminQuestionsPage() {
                         ) : (
                           <p className="truncate text-gray-500">{stripHtml(q.content)}</p>
                         )}
-                        {(q.examYear != null || q.examRound != null) ? (
+                        {(q.examYear != null || q.examRound != null || q.questionNo != null) ? (
                           <p className="text-xs text-slate-400 mt-0.5">
                             {q.examYear != null ? `${q.examYear}년` : ''}
                             {q.examYear != null && q.examRound != null ? ' ' : ''}
                             {q.examRound != null ? `제${q.examRound}회` : ''}
+                            {(q.examYear != null || q.examRound != null) && q.questionNo != null ? ' ' : ''}
+                            {q.questionNo != null ? `${q.questionNo}번` : ''}
                           </p>
                         ) : (
                           <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600 border border-amber-100">

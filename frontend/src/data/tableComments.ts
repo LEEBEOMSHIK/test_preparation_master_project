@@ -63,9 +63,15 @@ export const TABLE_COMMENTS: TableComment[] = [
     tableComment: '글로벌 문항 풀',
     columns: {
       id: 'PK',
+      title: '문항 제목(관리용)',
+      exam_year: '시험 연도',
+      exam_round: '시험 회차',
+      question_no: '원본 시험 문항번호',
+      instruction: '발문(지시문)',
       content: '문항 내용',
       question_type: '문제 유형',
       category_id: 'FK → domain_slave.id (문제 유형)',
+      exam_type_id: 'FK → domain_slave.id (시험 유형)',
       options: '객관식 보기 (JSONB)',
       answer: '정답',
       code: '코드 본문',
@@ -81,6 +87,7 @@ export const TABLE_COMMENTS: TableComment[] = [
     },
     fkRelations: [
       { column: 'category_id', foreignTable: 'domain_slave', foreignColumn: 'id', displayColumn: 'name' },
+      { column: 'exam_type_id', foreignTable: 'domain_slave', foreignColumn: 'id', displayColumn: 'name' },
       { column: 'create_uno', foreignTable: 'users', foreignColumn: 'id', displayColumn: 'name' },
       { column: 'modified_uno', foreignTable: 'users', foreignColumn: 'id', displayColumn: 'name' },
     ],

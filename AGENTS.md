@@ -150,6 +150,8 @@ docker-compose.yml
 | 함수/컴포넌트 | 위치 | 역할 |
 |-------------|------|------|
 | `stripHtml(html)` | `src/lib/html.ts` | HTML → 순수 텍스트 |
+| `isBlankOrPositiveIntegerText(value)` / `toOptionalPositiveInteger(value)` | `src/lib/questionNumber.ts` | 선택 양의 정수 입력 검증·payload 숫자 변환 |
+| `compareQuestionSourceOrder(a, b)` | `src/lib/questionSort.ts` | 문항관리 출처순 정렬(연도 DESC, 회차 ASC, 문항번호 ASC, 수정일 DESC) |
 | `<RichContent html className />` | `src/components/ui/RichContent.tsx` | 에디터 HTML 렌더링 |
 | `<RichTextEditor value onChange />` | `src/components/ui/RichTextEditor.tsx` | react-quill 에디터 |
 | `<QuestionDetailModal question onClose />` | `src/components/ui/QuestionDetailModal.tsx` | 문항 상세 모달 |

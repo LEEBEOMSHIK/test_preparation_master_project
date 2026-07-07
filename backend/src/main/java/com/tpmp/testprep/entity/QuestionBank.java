@@ -37,6 +37,10 @@ public class QuestionBank extends BaseEntity {
     @Column(name = "exam_round")
     private Integer examRound;
 
+    /** 원본 시험지의 문항번호 (선택, 예: 1) */
+    @Column(name = "question_no")
+    private Integer questionNo;
+
     /** 발문(지시문) — "다음 설명을 보고 알맞은 용어를 작성하시오." 처럼 문제 풀이 방식을 안내하는 문구.
      *  문항 내용(content, 문제 본문)과 분리 저장되며, 모든 문항 유형 공용(선택) 필드다. */
     @Column(columnDefinition = "TEXT")
@@ -107,7 +111,7 @@ public class QuestionBank extends BaseEntity {
     private SchedulingData schedulingData;
 
     @Builder
-    public QuestionBank(String title, Integer examYear, Integer examRound,
+    public QuestionBank(String title, Integer examYear, Integer examRound, Integer questionNo,
                         String content, QuestionType questionType,
                         DomainSlave category, DomainSlave examType,
                         List<String> options, String answer,
@@ -121,6 +125,7 @@ public class QuestionBank extends BaseEntity {
         this.title = title;
         this.examYear = examYear;
         this.examRound = examRound;
+        this.questionNo = questionNo;
         this.content = content == null ? "" : content;
         this.questionType = questionType;
         this.category = category;
@@ -139,7 +144,7 @@ public class QuestionBank extends BaseEntity {
         initAudit(createdByUno);
     }
 
-    public void update(String title, Integer examYear, Integer examRound,
+    public void update(String title, Integer examYear, Integer examRound, Integer questionNo,
                        String content, QuestionType questionType,
                        DomainSlave category, DomainSlave examType,
                        List<String> options, String answer,
@@ -153,6 +158,7 @@ public class QuestionBank extends BaseEntity {
         this.title = title;
         this.examYear = examYear;
         this.examRound = examRound;
+        this.questionNo = questionNo;
         this.content = content == null ? "" : content;
         this.questionType = questionType;
         this.category = category;

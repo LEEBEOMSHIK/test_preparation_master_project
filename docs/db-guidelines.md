@@ -152,9 +152,15 @@ repository.findAllByDelYn("N", pageable);
 question_bank
 ─────────────────────────────────────────────────────────
 id             BIGINT          PK, AUTO_INCREMENT
+title          VARCHAR(200)    NULLABLE  — 문항 제목(관리용)
+exam_year      INT             NULLABLE  — 시험 연도
+exam_round     INT             NULLABLE  — 시험 회차
+question_no    INT             NULLABLE  — 원본 시험 문항번호(양수, 그룹 완전 시 자동부여 가능)
+instruction    TEXT            NULLABLE  — 발문(지시문)
 content        TEXT            NOT NULL  — 문항 내용
 question_type  VARCHAR(30)     NOT NULL  — MULTIPLE_CHOICE|SHORT_ANSWER|OX|CODE|SCHEDULING
 category_id    BIGINT          NULLABLE  — FK → domain_slave.id (문제 유형)
+exam_type_id   BIGINT          NULLABLE  — FK → domain_slave.id (시험 유형)
 options        JSONB           NULLABLE  — 객관식 보기 목록
 answer         TEXT            NULLABLE  — 정답
 code           TEXT            NULLABLE  — 코드 문항의 코드 본문
@@ -242,6 +248,8 @@ created_at     TIMESTAMP    NOT NULL
 | 컬럼 | 설명 |
 |------|------|
 | `category_id` | FK → domain_slave.id (문제 유형) |
+| `exam_type_id` | FK → domain_slave.id (시험 유형) |
+| `question_no` | 원본 시험 문항번호. 활성 문항에서 `exam_type_id + exam_year + exam_round + question_no` 조합은 중복 불가 |
 | `scheduling_data` | CPU 스케줄링 구조화 데이터 (JSONB, SCHEDULING 유형 전용, nullable) |
 | `create_uno` | FK → users.id (생성자) |
 | `modified_uno` | FK → users.id (수정자) |

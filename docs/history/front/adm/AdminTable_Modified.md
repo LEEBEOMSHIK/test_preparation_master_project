@@ -1,3 +1,25 @@
+## HIST-20260707-001
+
+- **날짜**: 2026-07-07
+- **수정 범위**: 관리자 프론트엔드 / 테이블 관리 > DB 조회 — question_bank 문항번호 코멘트
+- **수정 개요**: 관리자 DB 조회 화면의 테이블 코멘트 소스(`tableComments.ts`)에 `question_bank.question_no` 설명을 추가했다. 문항번호 출처 그룹 이해를 위해 `title`, `exam_year`, `exam_round`, `instruction`, `exam_type_id` 설명과 `exam_type_id` FK 관계도 함께 보강했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/data/tableComments.ts` | 수정 | `question_bank` 컬럼 코멘트에 `question_no` 및 관련 출처 컬럼 설명 추가 |
+
+### 수정 상세
+
+- 변경 전: 관리자 DB 조회 화면의 `question_bank` 코멘트에 원본 시험 문항번호(`question_no`) 설명이 없었다.
+- 변경 후: `question_no: 원본 시험 문항번호`를 추가하고, 출처 그룹 관련 컬럼 설명을 보강했다.
+- 이유: DB 문서와 관리자 DB 조회 화면의 컬럼 설명을 동기화하기 위함.
+
+### 복원 방법
+
+이 ID(HIST-20260707-001)만으로 복원 시: `frontend/src/data/tableComments.ts`의 `question_bank` 컬럼 코멘트에서 `question_no` 및 함께 추가한 출처 컬럼 설명과 `exam_type_id` FK 관계를 제거한다.
+
 ## HIST-20260704-033
 
 - **날짜**: 2026-07-04

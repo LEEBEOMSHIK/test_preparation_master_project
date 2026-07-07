@@ -4,6 +4,7 @@ import com.tpmp.testprep.entity.QuestionBank;
 import com.tpmp.testprep.entity.support.SchedulingData;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
@@ -20,6 +21,9 @@ public record QuestionBankRequest(
         Integer examYear,
 
         Integer examRound,
+
+        @Positive(message = "문항번호는 1 이상이어야 합니다.")
+        Integer questionNo,
 
         /** 문항 내용 — 발문(instruction)과 합쳐 "둘 중 하나는 필수" 규칙 적용(서비스단 검증). 단독 @NotBlank는 제거. */
         @Size(max = 5000, message = "문항 내용은 5000자를 초과할 수 없습니다.")

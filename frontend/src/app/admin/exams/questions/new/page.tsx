@@ -14,6 +14,7 @@ import { SchedulingProblemEditor } from '@/components/ui/SchedulingProblemEditor
 import { emptySchedulingDraft, toSchedulingDataPayload, type SchedulingDataDraft } from '@/lib/scheduling';
 import { stripHtml } from '@/lib/html';
 import { hasOptions } from '@/lib/answer';
+import { isBlankOrPositiveIntegerText, toOptionalPositiveInteger } from '@/lib/questionNumber';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ interface QuestionDraft {
   title:        string;
   examYear:     string;
   examRound:    string;
+  questionNo:   string;
   /** 발문(지시문) — 문항 내용과 분리 저장, 모든 유형 공용(선택) */
   instruction:  string;
   content:      string;
@@ -81,6 +83,7 @@ const emptyDraft = (): QuestionDraft => ({
   title:        '',
   examYear:     '',
   examRound:    '',
+  questionNo:   '',
   instruction:  '',
   content:      '',
   questionType: 'MULTIPLE_CHOICE',
@@ -103,7 +106,7 @@ function parseTextToQuestions(text: string): ImportedDraft[] {
     const content = current.join(' ').trim();
     if (content.length > 3) {
       drafts.push({
-        localId: uid(), title: '', examYear: '', examRound: '', instruction: '', content,
+        localId: uid(), title: '', examYear: '', examRound: '', questionNo: '', instruction: '', content,
         questionType: 'SHORT_ANSWER', options: [], answer: '',
         code: '', language: 'other',
         categoryId: null,
@@ -145,7 +148,7 @@ async function simulateFileParse(file: File): Promise<ImportedDraft[]> {
       resolve(
         Array.from({ length: count }, (_, i) => ({
           localId: uid(),
-          title: '', examYear: '', examRound: '', instruction: '',
+          title: '', examYear: '', examRound: '', questionNo: '', instruction: '',
           content: `[${file.name}에서 추출] 문항 ${i + 1} — 서버 파싱 후 내용이 채워집니다.`,
           questionType: 'MULTIPLE_CHOICE' as QuestionType,
           options: ['보기 1', '보기 2', '보기 3', '보기 4'],
@@ -186,6 +189,7 @@ function ManualQuestionCard({
   const titleSuggestion = [
     draft.examYear  ? `${draft.examYear}년`    : '',
     draft.examRound ? `제${draft.examRound}회` : '',
+    draft.questionNo ? `${draft.questionNo}번` : '',
     examTypeName,
     categoryName,
   ].filter(Boolean).join(' / ');
@@ -233,7 +237,7 @@ function ManualQuestionCard({
           )}
         </div>
 
-        {/* 시험 연도 / 회차 */}
+        {/* 시험 연도 / 회차 / 문항번호 */}
         <div className="flex gap-3">
           <div className="flex-1">
             <label className="block text-xs font-medium text-gray-500 mb-1.5">
@@ -264,6 +268,25 @@ function ManualQuestionCard({
                 <option key={s.id} value={s.name}>제{s.name}회</option>
               ))}
             </select>
+          </div>
+          <div className="w-28">
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              문항번호 <span className="text-gray-300 font-normal">(선택)</span>
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[1-9][0-9]*"
+              step={1}
+              value={draft.questionNo}
+              onChange={(e) => {
+                if (isBlankOrPositiveIntegerText(e.target.value)) {
+                  onChange('questionNo', e.target.value);
+                }
+              }}
+              placeholder="자동"
+              className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+            />
           </div>
         </div>
 
@@ -695,6 +718,10 @@ export default function AdminQuestionNewPage() {
         if (!q.title.trim())   { setError(`문항 ${idx}: 문항 제목은 필수입니다.`); return; }
         if (!q.examTypeId)     { setError(`문항 ${idx}: 시험 유형은 필수입니다.`); return; }
         if (!q.categoryId)     { setError(`문항 ${idx}: 문항 유형은 필수입니다.`); return; }
+        if (!isBlankOrPositiveIntegerText(q.questionNo)) {
+          setError(`문항 ${idx}: 문항번호는 1 이상이어야 합니다.`);
+          return;
+        }
         if (!stripHtml(q.content) && !q.instruction.trim()) {
           setError(`문항 ${idx}: 발문 또는 문항 내용 중 하나는 입력하세요.`);
           return;
@@ -735,6 +762,7 @@ export default function AdminQuestionNewPage() {
           title:        q.title.trim() || undefined,
           examYear:     q.examYear ? Number(q.examYear) : undefined,
           examRound:    q.examRound ? Number(q.examRound) : undefined,
+          questionNo:   toOptionalPositiveInteger(q.questionNo),
           instruction:  q.instruction.trim() || undefined,
           content:      q.content.trim(),
           questionType: q.questionType,
