@@ -61,6 +61,42 @@ docker-compose.yml
 
 ---
 
+## Cost-Aware Exploration & Verification
+
+요청 비용을 줄이기 위해 **좁은 탐색 → 필요한 경우에만 확장 → 마지막에 검증** 순서로 진행한다.
+
+### `rg` 사용 설명
+
+`rg`는 ripgrep 명령어로, 프로젝트 파일에서 문자열·정규식을 빠르게 찾는 검색 도구다. 코드베이스 탐색의 기본 검색 도구로 사용하되, 출력이 곧 모델 컨텍스트 비용이 되므로 항상 범위와 제외 대상을 제한한다.
+
+권장 예시:
+
+```powershell
+rg "QuestionBank|questionNo" frontend/src/app/admin frontend/src/services backend/src/main/java
+rg --files frontend/src/app/admin backend/src/main/java
+```
+
+금지/주의:
+- 요청 화면·메뉴가 명시됐는데 `frontend backend docs` 전체를 먼저 검색하지 않는다.
+- `docs/history`, `backend/build`, `frontend/.next`, `*.tsbuildinfo`, `references`는 기본 탐색 범위에서 제외한다.
+- 큰 파일은 통째로 출력하지 말고 필요한 줄만 `Select-String`, `rg -n`, `Get-Content -TotalCount` 등으로 제한한다.
+
+### 탐색 범위 규칙
+
+1. 사용자가 화면·메뉴·파일·API를 명시한 경우, 해당 라우트/컴포넌트/서비스/Controller/Entity부터 탐색한다.
+2. 좁은 탐색으로 연결 파일을 찾은 뒤, 그 연결 경로를 따라 한 단계씩 확장한다.
+3. 전체 저장소 검색은 좁은 탐색이 실패했거나 공통 유틸·전역 정책 영향이 의심될 때만 수행하고, 그 이유를 작업 로그에 남긴다.
+4. 전체 검색이 필요하면 `.rgignore` 또는 `--glob` 제외 규칙을 적용한다.
+
+### 에이전트·검증 비용 규칙
+
+- 기본은 메인 에이전트가 직접 좁게 탐색하고 구현한다. subagent는 사용자가 명시했거나, 영향 범위가 불명확한 다중 레이어·고위험 변경일 때만 사용한다.
+- 5단계 풀 파이프라인은 신규 API/DB/보안/공통 유틸처럼 실패 비용이 큰 작업에 적용한다. 화면과 변경 지점이 명확한 소규모 작업은 단일 흐름으로 처리한다.
+- 검증 루프는 실패한 범위부터 재검증한다. 전체 빌드·전체 테스트는 마지막 확인 단계에서 1회 실행하는 것을 기본으로 한다.
+- 문서만 변경한 작업은 빌드·테스트를 실행하지 않고, 문서 내용과 링크만 확인한다.
+
+---
+
 ## Agent Pipeline — 5단계
 
 작업은 **분석 → 설계 → 구현 → 검증(정적) → 테스트(동적)** 5단계 파이프라인으로 진행한다.
@@ -75,11 +111,12 @@ docker-compose.yml
 | 테스트 | **webapp-tester** | 빌드·테스트·타입체크 실제 실행 | ✕ |
 
 **핵심 규칙**
-1. 탐색 범위가 3쿼리 이상이면 codebase-explorer로 위임한다.
-2. 수정 파일 3개↑ · 파일 간 의존관계 있음 · 설계 옵션 2개↑ → webapp-planner로 계획을 먼저 수립한다.
+1. 탐색 범위가 3쿼리 이상이면서 대상 화면·메뉴·파일이 불명확하면 codebase-explorer로 위임한다. 대상이 명확하면 먼저 직접 좁게 탐색한다.
+2. 수정 파일 3개↑ · 파일 간 의존관계 있음 · 설계 옵션 2개↑이고 영향 범위가 불명확하면 webapp-planner로 계획을 먼저 수립한다.
 3. 단순 파일 읽기(경로가 이미 알려진 경우)·신규 파일 1개 추가는 바로 구현한다.
 4. **webapp-developer만 코드를 수정한다.** 검증·테스트에서 받은 문제 항목은 webapp-developer가 재구현한다.
 5. AGENTS.md에 영향을 주는 변경(새 유틸·스켈레톤 추가 등) 시 webapp-developer가 이 파일을 즉시 업데이트한다.
+6. 비용 절감형 탐색·검증 규칙이 5단계 파이프라인보다 우선한다. 풀 파이프라인은 필요성이 확인된 경우에만 적용한다.
 
 **구현 시 준수 사항**
 - TypeScript strict · Tailwind · Controller-Service-Repository 3레이어 컨벤션 준수
@@ -111,6 +148,7 @@ docker-compose.yml
 | FE 테스트 | `cd frontend; npm test -- --watch=false` |
 
 > 빌드·테스트·타입체크 등 검증 성격 명령만 실행한다. 배포·DB파괴·`git push`는 실행하지 않는다.
+> 변경 범위에 맞는 최소 명령부터 실행하고, 전체 빌드·전체 테스트는 마지막 1회 확인을 기본으로 한다.
 
 ---
 

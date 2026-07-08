@@ -47,12 +47,26 @@ nginx/      → Reverse proxy 설정
 - **컨벤션 감사**: 코딩 규칙 준수 여부 확인
 
 ### 2. 탐색 우선순위
-1. `CLAUDE.md` 및 `docs/` 문서에서 관련 힌트 먼저 확인
-2. 디렉터리 구조 파악 후 핵심 파일 특정
-3. 파일 내용 분석 및 연관 파일 추적
-4. 패턴 일관성 검증
+1. 사용자가 화면·메뉴·파일·API를 명시했다면 해당 라우트/컴포넌트/서비스/Controller/Entity부터 좁게 탐색
+2. 좁은 탐색으로 연결 파일을 찾은 뒤, 그 연결 경로를 따라 한 단계씩 확장
+3. `CLAUDE.md` 및 관련 `docs/` 문서에서 필요한 힌트 확인
+4. 전체 저장소 검색은 좁은 탐색이 실패했거나 공통 유틸·전역 정책 영향이 의심될 때만 수행
+5. 패턴 일관성 검증
 
-### 3. 결과 보고 형식
+### 3. `rg`와 출력 제한
+`rg`는 ripgrep 검색 도구다. 빠르지만 출력이 많으면 모델 컨텍스트 비용이 커지므로, 항상 경로와 제외 대상을 제한한다.
+
+기본 제외 대상:
+- `docs/history/**`
+- `backend/build/**`
+- `frontend/.next/**`
+- `frontend/tsconfig.tsbuildinfo`, `*.tsbuildinfo`
+- `references/**`
+- `node_modules/**`
+
+큰 파일은 통째로 출력하지 말고 `Grep`, `Read` 범위 지정, `rg -n` 등으로 필요한 줄만 확인한다.
+
+### 4. 결과 보고 형식
 탐색 결과는 다음 구조로 보고하세요:
 
 **📍 발견 위치**
@@ -89,7 +103,7 @@ nginx/      → Reverse proxy 설정
 
 ### 수정 이력
 - 모든 코드 수정은 `docs/history/` 하위에 `{MenuName}_Modified.md` 형식으로 기록됨
-- 탐색 시 관련 히스토리 파일도 함께 확인하여 변경 맥락 파악
+- 기본 검색 범위에는 `docs/history/`를 포함하지 않음. 관련 메뉴·HIST ID가 확인된 경우에만 필요한 히스토리 파일을 직접 읽어 변경 맥락 파악
 
 ---
 
@@ -97,7 +111,7 @@ nginx/      → Reverse proxy 설정
 
 특정 기능/컴포넌트 탐색 시:
 - [ ] `docs/` 문서에서 관련 설명 확인
-- [ ] `docs/history/` 에서 수정 이력 확인
+- [ ] 관련 메뉴·HIST ID가 확인된 경우에만 `docs/history/`에서 수정 이력 확인
 - [ ] 프론트엔드 `services/` 레이어에서 API 정의 확인
 - [ ] 백엔드 Controller → Service → Repository 전체 흐름 추적
 - [ ] 공통 유틸리티 사용 여부 확인 (Skeleton, RichContent, stripHtml 등)

@@ -61,6 +61,42 @@ docker-compose.yml
 
 ---
 
+## Cost-Aware Exploration & Verification
+
+요청 비용을 줄이기 위해 **좁은 탐색 → 필요한 경우에만 확장 → 마지막에 검증** 순서로 진행한다.
+
+### `rg` 사용 설명
+
+`rg`는 ripgrep 명령어로, 프로젝트 파일에서 문자열·정규식을 빠르게 찾는 검색 도구다. 코드베이스 탐색의 기본 검색 도구로 사용하되, 출력이 곧 모델 컨텍스트 비용이 되므로 항상 범위와 제외 대상을 제한한다.
+
+권장 예시:
+
+```powershell
+rg "QuestionBank|questionNo" frontend/src/app/admin frontend/src/services backend/src/main/java
+rg --files frontend/src/app/admin backend/src/main/java
+```
+
+금지/주의:
+- 요청 화면·메뉴가 명시됐는데 `frontend backend docs` 전체를 먼저 검색하지 않는다.
+- `docs/history`, `backend/build`, `frontend/.next`, `*.tsbuildinfo`, `references`는 기본 탐색 범위에서 제외한다.
+- 큰 파일은 통째로 출력하지 말고 필요한 줄만 `Grep`, `Read` 범위 지정, `Select-String`, `rg -n` 등으로 제한한다.
+
+### 탐색 범위 규칙
+
+1. 사용자가 화면·메뉴·파일·API를 명시한 경우, 해당 라우트/컴포넌트/서비스/Controller/Entity부터 탐색한다.
+2. 좁은 탐색으로 연결 파일을 찾은 뒤, 그 연결 경로를 따라 한 단계씩 확장한다.
+3. 전체 저장소 검색은 좁은 탐색이 실패했거나 공통 유틸·전역 정책 영향이 의심될 때만 수행하고, 그 이유를 작업 로그에 남긴다.
+4. 전체 검색이 필요하면 `.rgignore` 또는 `--glob` 제외 규칙을 적용한다.
+
+### 에이전트·검증 비용 규칙
+
+- 기본은 메인 에이전트가 직접 좁게 탐색하고 구현한다. subagent는 사용자가 명시했거나, 영향 범위가 불명확한 다중 레이어·고위험 변경일 때만 사용한다.
+- 5단계 풀 파이프라인과 `/feature`는 신규 API/DB/보안/공통 유틸처럼 실패 비용이 큰 작업에 적용한다. 화면과 변경 지점이 명확한 소규모 작업은 단일 흐름으로 처리한다.
+- 검증 루프는 실패한 범위부터 재검증한다. 전체 빌드·전체 테스트는 마지막 확인 단계에서 1회 실행하는 것을 기본으로 한다.
+- 문서만 변경한 작업은 빌드·테스트를 실행하지 않고, 문서 내용과 링크만 확인한다.
+
+---
+
 ## Agent Role Division
 
 5단계 파이프라인 — 분석 → 설계 → 구현 → 검증(정적) → 테스트(동적)
@@ -75,17 +111,18 @@ docker-compose.yml
 
 → 상세 워크플로우 및 판단 기준: [`docs/claude-config/agent-roles.md`](docs/claude-config/agent-roles.md)
 
-**자동 실행**: 다중 레이어 신규 기능은 `/feature <요구사항>` 스킬로 5단계를 자동 운영한다(설계 산출 후 승인 게이트 → 구현~테스트까지 자동, 실패 시 SendMessage로 같은 구현 에이전트에 되돌림). 정의: [`.claude/skills/feature/SKILL.md`](.claude/skills/feature/SKILL.md)
+**자동 실행**: 사용자가 명시적으로 `/feature <요구사항>`를 요청했거나, 신규 API/DB/보안/공통 유틸처럼 실패 비용이 큰 다중 레이어 신규 기능일 때만 5단계를 자동 운영한다(설계 산출 후 승인 게이트 → 구현~테스트까지 자동, 실패 시 SendMessage로 같은 구현 에이전트에 되돌림). 정의: [`.claude/skills/feature/SKILL.md`](.claude/skills/feature/SKILL.md)
 
 **작업 발굴**: 무엇을 할지 정하지 못했을 때 `/next [범위]` 스킬로 webapp-planner가 코드·이력 기반 후보를 우선순위와 함께 제시하고, 선택 항목을 `/feature`로 넘긴다. 정의: [`.claude/skills/next/SKILL.md`](.claude/skills/next/SKILL.md)
 
 **핵심 규칙**
-1. 탐색 범위가 3쿼리 이상이면 codebase-explorer에 위임한다.
-2. 수정 파일 3개↑ · 파일 간 의존관계 있음 · 설계 옵션 2개↑ → webapp-planner 사용.
+1. 탐색 범위가 3쿼리 이상이면서 대상 화면·메뉴·파일이 불명확하면 codebase-explorer에 위임한다. 대상이 명확하면 먼저 직접 좁게 탐색한다.
+2. 수정 파일 3개↑ · 파일 간 의존관계 있음 · 설계 옵션 2개↑이고 영향 범위가 불명확하면 webapp-planner 사용.
 3. 단순 파일 읽기(경로가 이미 알려진 경우)는 Read·Grep 직접 사용한다.
 4. 작업 결과가 CLAUDE.md에 영향 시 webapp-developer가 즉시 이 파일을 업데이트한다.
-5. **webapp-developer 구현이 끝나면 규모·파일 수와 무관하게** webapp-verifier가 컨벤션·타입·누락·히스토리를 정적 점검한다. 단일 파일·소규모 변경이라도 메인이 직접 `tsc`·`grep`만으로 이 단계를 갈음해 건너뛰지 않는다.
-6. 정적 검증 통과 후 webapp-tester가 빌드·타입체크·테스트를 실제 실행해 런타임 결함을 확인한다. dev 서버 가동 중이면 `npm run build`(.next 캐시 충돌) 대신 `npx tsc --noEmit`·lint 위주로 실행한다.
+5. webapp-verifier는 신규 기능·보안 변경·공통 유틸·리팩토링처럼 독립 정적 점검 가치가 큰 작업에 사용한다. 단순 문구·스타일·문서 변경은 메인 에이전트의 자체 확인으로 갈음할 수 있다.
+6. 정적 검증 통과 후 webapp-tester가 빌드·타입체크·테스트를 실제 실행해 런타임 결함을 확인한다. 변경 범위에 맞는 최소 명령부터 실행하고, 전체 빌드·전체 테스트는 마지막 1회 확인을 기본으로 한다. dev 서버 가동 중이면 `npm run build`(.next 캐시 충돌) 대신 `npx tsc --noEmit`·lint 위주로 실행한다.
+7. 비용 절감형 탐색·검증 규칙이 5단계 파이프라인보다 우선한다. 풀 파이프라인은 필요성이 확인된 경우에만 적용한다.
 
 ---
 

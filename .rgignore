@@ -1,0 +1,31 @@
+# Agent/search defaults
+node_modules/
+frontend/node_modules/
+
+# Frontend build/cache output
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/coverage/
+frontend/tsconfig.tsbuildinfo
+.next/
+coverage/
+dist/
+*.tsbuildinfo
+
+# Backend build/cache output
+backend/build/
+backend/.gradle/
+backend/bin/
+backend/logs/
+build/
+
+# Long-lived generated/reference material
+docs/history/
+references/
+
+# Runtime files
+uploads/
+backend/uploads/
+frontend/images/
+*.log
