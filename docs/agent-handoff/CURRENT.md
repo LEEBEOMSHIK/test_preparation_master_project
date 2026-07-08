@@ -6,7 +6,7 @@
 
 ## Current Goal
 
-- 관리자 목록 표에서 해상도가 좁을 때 오른쪽 관리(상세/수정/삭제) 컬럼이 잘리는 문제 수정 — **구현·검증 완료, 커밋 대기**.
+- 관리자 목록 표에서 해상도가 좁을 때 오른쪽 관리(상세/수정/삭제) 컬럼이 잘리는 문제 수정 — **완료, 커밋·푸시됨**.
 
 ## Root Cause
 
@@ -29,19 +29,12 @@
 
 ## Remaining
 
-- 사용자 요청 시 커밋/푸시. 브라우저에서 좁은 창 폭으로 가로 스크롤 동작 확인은 선택.
+- 없음. 브라우저에서 좁은 창 폭으로 가로 스크롤 동작 확인은 선택.
 
 ## Warnings / Notes
 
 - 기존 미추적 `references/`는 이번 작업과 무관하므로 건드리지 않는다.
 
-## Next Commands
-
-```powershell
-git status --short
-git add frontend/src/app/admin docs/history/front/adm docs/agent-handoff/CURRENT.md
-```
-
 ## Last Commit
 
-- `870ea36 [INFRA] docs: 세션 인계 정책 추가`
+- `3337f68 [FE] fix: 관리자 목록 테이블 가로 스크롤 처리(관리 버튼 클리핑 수정)` — main 푸시 완료
