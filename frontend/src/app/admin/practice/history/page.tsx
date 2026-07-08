@@ -216,6 +216,7 @@ export default function PracticeHistoryPage() {
             {hasActiveFilter ? '검색 조건에 해당하는 기록이 없습니다.' : '실행 기록이 없습니다.'}
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm table-fixed">
             <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
@@ -280,6 +281,7 @@ export default function PracticeHistoryPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

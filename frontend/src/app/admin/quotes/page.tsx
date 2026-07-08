@@ -174,6 +174,7 @@ export default function AdminQuotesPage() {
 
       {/* 목록 */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full table-fixed text-sm">
           <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -235,6 +236,7 @@ export default function AdminQuotesPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* 페이지네이션 */}

@@ -138,6 +138,7 @@ export default function AdminFaqPage() {
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center text-sm text-gray-400">검색 결과가 없습니다.</div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full table-fixed text-sm">
             <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <thead>
@@ -202,6 +203,7 @@ export default function AdminFaqPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

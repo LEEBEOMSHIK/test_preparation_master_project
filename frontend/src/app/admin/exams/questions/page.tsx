@@ -379,6 +379,7 @@ export default function AdminQuestionsPage() {
               </div>
             </div>
 
+            <div className="overflow-x-auto">
             <table className="w-full text-sm table-fixed">
               <colgroup>
                 {widths.map((w, i) => (
@@ -523,6 +524,7 @@ export default function AdminQuestionsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             {totalPages > 1 && (
               <div className="px-5 py-4 border-t border-gray-100">

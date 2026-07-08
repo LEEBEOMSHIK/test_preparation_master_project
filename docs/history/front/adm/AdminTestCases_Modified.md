@@ -1,3 +1,25 @@
+## HIST-20260708-001
+
+- **날짜**: 2026-07-08
+- **수정 범위**: 관리자 프론트엔드 / 테스트 케이스 관리 — 테이블 클리핑 버그 수정
+- **수정 개요**: 목록 표가 `table-fixed` + `useColumnResize` px 고정 `<colgroup>`을 쓰는데, 컬럼 폭 합이 카드 컨테이너 폭을 넘으면 카드 div의 `overflow-hidden` 때문에 가로 스크롤 없이 오른쪽 컬럼이 잘리는 버그가 있었다(localStorage에 폭이 영속되어 드래그로 넓힌 사용자는 항상 재현). 표를 감싸던 내부 `<div className="overflow-hidden">`을 `overflow-x-auto`로 교체해 가로 스크롤이 생기도록 수정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/test-cases/page.tsx` | 수정 | 목록 `<table>`을 감싸던 `overflow-hidden` div를 `overflow-x-auto`로 변경 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/test-cases/page.tsx`
+- 변경 전: `<div className="overflow-hidden"><table className="w-full table-fixed text-sm">`
+- 변경 후: `<div className="overflow-x-auto"><table className="w-full table-fixed text-sm">`
+- 이유: fixed table layout + 컬럼 리사이즈 영속 폭 + `overflow-hidden` 조합에서 오른쪽 컬럼(액션 버튼 등)이 클리핑되는 공통 버그 수정
+
+### 복원 방법
+이 ID(HIST-20260708-001)만으로 복원 시 해당 div의 className을 `overflow-x-auto`에서 `overflow-hidden`으로 되돌린다.
+
 ## HIST-20260704-002
 
 - **날짜**: 2026-07-04

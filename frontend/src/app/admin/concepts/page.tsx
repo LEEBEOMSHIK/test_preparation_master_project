@@ -138,6 +138,7 @@ export default function AdminConceptsPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm table-fixed">
             <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -204,6 +205,7 @@ export default function AdminConceptsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

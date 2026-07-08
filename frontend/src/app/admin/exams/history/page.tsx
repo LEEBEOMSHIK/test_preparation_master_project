@@ -154,6 +154,7 @@ export default function ExamHistoryPage() {
         ) : items.length === 0 ? (
           <div className="py-16 text-center text-sm text-gray-400 dark:text-gray-500">응시 이력이 없습니다.</div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm table-fixed">
             <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <thead>
@@ -194,6 +195,7 @@ export default function ExamHistoryPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

@@ -141,6 +141,7 @@ export default function AdminExamsPage() {
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center text-gray-400 text-sm">검색 결과가 없습니다.</div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full table-fixed text-sm">
             <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <thead>
@@ -202,6 +203,7 @@ export default function AdminExamsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

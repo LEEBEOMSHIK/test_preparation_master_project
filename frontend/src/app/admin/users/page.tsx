@@ -127,6 +127,7 @@ export default function AdminUsersPage() {
         {loading ? (
           <TableSkeleton rows={5} cols={7} />
         ) : (
+        <div className="overflow-x-auto">
         <table className="w-full table-fixed text-sm">
           <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -192,6 +193,7 @@ export default function AdminUsersPage() {
             ))}
           </tbody>
         </table>
+        </div>
         )}
       </div>
     </div>

@@ -1,4 +1,26 @@
-﻿## HIST-20260707-005
+﻿## HIST-20260708-001
+
+- **날짜**: 2026-07-08
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리 (문항 목록) — 테이블 클리핑 버그 수정
+- **수정 개요**: 문항 목록 표가 `table-fixed` + `useColumnResize` px 고정 `<colgroup>`을 쓰는데, 컬럼 폭 합(약 1088px)이 카드 컨테이너 폭을 넘으면 카드 div의 `overflow-hidden` 때문에 가로 스크롤 없이 오른쪽 관리 버튼 컬럼이 잘리는 버그가 있었다(localStorage에 폭이 영속되어 드래그로 넓힌 사용자는 항상 재현). `<table>`만 `overflow-x-auto` div로 감싸 가로 스크롤이 생기도록 수정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | 목록 `<table>`을 `<div className="overflow-x-auto">`로 감쌈 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/page.tsx`
+- 변경 전: `<table className="w-full text-sm table-fixed">`가 카드 div(`overflow-hidden`) 바로 아래에 있어, colgroup 폭 합이 컨테이너보다 크면 오른쪽 컬럼이 잘림
+- 변경 후: `<table>...</table>` 전체를 `<div className="overflow-x-auto">`로 감싸 표가 컨테이너보다 넓어질 때 가로 스크롤로 처리
+- 이유: fixed table layout + 컬럼 리사이즈 영속 폭 + `overflow-hidden` 카드 조합에서 오른쪽 컬럼(관리 버튼 등)이 클리핑되는 공통 버그 수정
+
+### 복원 방법
+이 ID(HIST-20260708-001)만으로 복원 시 `<table>` 앞뒤에 추가한 `<div className="overflow-x-auto">`/`</div>` 래퍼를 제거한다.
+
+## HIST-20260707-005
 
 - **날짜**: 2026-07-07
 - **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정 — 문항번호 양의 정수 검증 및 TS 테스트 보정

@@ -732,7 +732,7 @@ export default function AdminTestCasesPage() {
         {filtered.length === 0 ? (
           <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">조건에 맞는 테스트 케이스가 없습니다.</div>
         ) : (
-          <div className="overflow-hidden">
+          <div className="overflow-x-auto">
             <table className="w-full table-fixed text-sm">
               <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
               <thead>
