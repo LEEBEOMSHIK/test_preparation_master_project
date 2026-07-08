@@ -32,6 +32,33 @@ codebase-explorer → webapp-planner → webapp-developer → webapp-verifier �
 
 ---
 
+## 세션 인계 기준
+
+긴 작업은 `docs/agent-handoff/CURRENT.md`를 단계 경계마다 갱신해 다른 AI나 새 세션이 이어받을 수 있게 한다.
+
+`CURRENT.md`는 누적 로그가 아니라 최신 작업 1개의 상태 스냅샷이다. 새 작업을 시작할 때 이전 내용을 이어 붙이지 말고 덮어쓴다. 완료된 작업의 상세 기록은 git commit과 `docs/history/`가 담당하며, 장기 보관이 꼭 필요한 인계 기록만 `docs/agent-handoff/archive/` 하위로 이동한다.
+
+### 갱신 시점
+
+- 탐색 완료 후 구현 시작 전
+- 설계 승인 후 구현 시작 전
+- 구현 완료 후 검증 시작 전
+- 검증·테스트 실패 후 재수정 시작 전
+- 파일 5개 이상 수정 또는 DB/API/공통 유틸 변경이 발생한 시점
+- subagent 또는 검증 루프가 1회 이상 발생한 시점
+- 커밋 전, 커밋·푸시 완료 후
+
+### 피해야 할 중단 지점
+
+- DB 마이그레이션 작성 중
+- 다중 파일 rename 중
+- 테스트 실패 수정 중
+- `git add`/`commit`/`push` 진행 중
+
+`CURRENT.md`에는 현재 목표, 사용자 결정, 완료/미완료 작업, 수정 파일, 검증 결과, 다음 명령, 주의할 미추적 파일을 반드시 남긴다.
+
+---
+
 ## codebase-explorer — 분석 전담
 
 | 작업 유형 | 예시 |
