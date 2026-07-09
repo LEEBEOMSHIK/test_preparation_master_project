@@ -1,4 +1,90 @@
-﻿## HIST-20260708-001
+﻿## HIST-20260709-002
+
+- **날짜**: 2026-07-09
+- **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정 — SQL 문항 페이로드 변환 정적 검증 Low 결함 수정
+- **수정 개요**: 정적 검증에서 발견된 Low 결함 수정. `lib/sql.ts`의 `toSqlDataPayload`가 컬럼을 이름 기준으로 `filter`한 뒤 각 행은 `row.slice(0, columnCount)`로 앞에서부터 잘라 별도의 인덱스 기준을 썼다. 중간 컬럼의 이름만 비워 제출하면(예: 컬럼 `[A, (빈이름), C]` + 행 `[a, b, c]`) 컬럼은 `[A, C]`로 줄어드는데 행은 앞 2칸(`[a, b]`)을 그대로 잘라써서 `C` 자리에 실제로는 빈이름 컬럼의 값(`b`)이 들어갔다. 길이가 컬럼 수와 일치해 백엔드 `validateSqlData`(행 길이=컬럼 수) 검증도 통과하므로 어긋난 데이터가 조용히 저장되는 문제였다. 이름이 있는 컬럼의 원본 인덱스(`keepIndices`)를 먼저 구하고, 컬럼 필터링과 각 행의 셀 선택 모두 동일한 인덱스 집합을 사용하도록 수정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/sql.ts` | 수정 | `toSqlDataPayload`에서 컬럼 필터링과 행 셀 선택이 같은 원본 인덱스(`keepIndices`) 집합을 사용하도록 변경 |
+
+### 수정 상세
+
+#### `frontend/src/lib/sql.ts`
+- 변경 전:
+  ```ts
+  const columns = t.columns.filter((c) => c.name.trim() !== '').map(...);
+  const columnCount = columns.length;
+  const rows = t.rows
+    .filter((row) => row.some((cell) => cell.trim() !== ''))
+    .map((row) => {
+      const next = row.slice(0, columnCount);
+      while (next.length < columnCount) next.push('');
+      return next;
+    });
+  ```
+- 변경 후:
+  ```ts
+  const keepIndices = t.columns.map((c, i) => i).filter((i) => t.columns[i].name.trim() !== '');
+  const columns = keepIndices.map((i) => ({
+    name: t.columns[i].name.trim(),
+    dataType: t.columns[i].dataType.trim() || undefined,
+    primaryKey: t.columns[i].primaryKey,
+  }));
+  const rows = t.rows
+    .filter((row) => row.some((cell) => cell.trim() !== ''))
+    .map((row) => keepIndices.map((i) => row[i] ?? ''));
+  ```
+- 이유: 컬럼 필터링(이름 기준)과 행 셀 선택(위치 기준, 앞에서부터 자르기)이 서로 다른 인덱스 규칙을 쓰던 것을 동일한 `keepIndices` 기준으로 통일해, 중간 컬럼 이름만 비워도 남은 컬럼과 값이 올바르게 짝지어지도록 함.
+
+### 복원 방법
+이 ID(HIST-20260709-002)만으로 복원 시: `toSqlDataPayload`를 `keepIndices` 이전 방식(컬럼은 `filter`, 행은 `row.slice(0, columnCount)` + 패딩)으로 되돌린다.
+
+## HIST-20260709-001
+
+- **날짜**: 2026-07-09
+- **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정·목록 — 신규 문항 유형 SQL 추가
+- **수정 개요**: 문항 유형에 `SQL`을 신설했다. SCHEDULING과 동일한 Draft ↔ Data 변환 패턴으로 `src/lib/sql.ts`(테이블/컬럼/샘플 데이터 편집 헬퍼)를 추가하고, 등록/수정 폼에 테이블 카드 반복형 `SqlProblemEditor`(테이블명·컬럼 편집표·샘플 데이터 행 표, cyan 계열 accent)를 붙였다. 문항 상세·퀴즈 풀이 화면에서는 `SqlProblemView`가 표시용 표/스키마(DDL, `CodeBlock language="sql"`) 토글을 제공한다(정답은 관리자가 직접 입력, SQL 실행 없음). 문항 목록·상세·시험지 등록/수정 화면의 `TYPE_LABEL`/`TYPE_COLOR` Record에도 SQL 키를 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/sql.ts` | 추가 | SQL 문항 등록/수정 폼 공용 헬퍼 — `SqlColumnDraft`/`SqlTableDraft`/`SqlDataDraft`, `emptyColumnDraft`/`emptyTableDraft`/`emptySqlDraft`/`toSqlDataPayload`/`fromSqlData` |
+| `frontend/src/components/ui/SqlProblemEditor.tsx` | 추가 | SQL 문항 등록/수정 에디터 — 테이블 카드 반복(테이블명·컬럼 편집표(이름/타입/PK)·샘플 데이터 행 표, 각각 추가/삭제) |
+| `frontend/src/components/ui/SqlProblemView.tsx` | 추가 | SQL 문항 표시용 뷰 — 표/스키마(DDL) 세그먼트 토글, 스키마 모드는 `CREATE TABLE` DDL을 `CodeBlock language="sql"`로 렌더 |
+| `frontend/src/types/index.ts` | 수정 | `QuestionType`에 `'SQL'` 추가, `SqlColumn`/`SqlTable`/`SqlData` 타입 추가, `QuestionSummary.sqlData?` 필드 추가 |
+| `frontend/src/services/examService.ts` | 수정 | `adminCreateQuestionsBulk`/`adminUpdateQuestion` 인라인 요청 타입에 `sqlData?: SqlData` 추가 |
+| `frontend/src/services/quizService.ts` | 수정 | `QuizQuestion` 인터페이스에 `sqlData?: SqlData` 추가 |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | `QUESTION_TYPES`에 SQL 항목 추가, `QuestionDraft.sqlData` 필드·`emptyDraft`/가져오기 파싱 초기값 반영, `isSql` 분기로 `SqlProblemEditor` + 정답(선택) 입력 섹션 추가, 유형 버튼 색 분기(cyan) 추가, 제출 payload에 `sqlData` 변환 추가 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | 위와 동일 패턴 — `FormState.sqlData`, `fromSqlData(q.sqlData)` 초기화, `isSql` 분기 에디터 섹션, 유형 버튼 색 분기, 제출 payload `sqlData` 반영 |
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | `TYPE_LABEL.SQL`/`TYPE_COLOR.SQL`(cyan) 추가 |
+| `frontend/src/app/admin/exams/papers/new/page.tsx` | 수정 | (계획 외 발견) `TYPE_LABEL`/`TYPE_COLOR` Record가 `QuestionSummary`의 공용 `QuestionType`을 사용해 SQL 키 누락 시 컴파일 에러 — SQL 키 추가 |
+| `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` | 수정 | 위와 동일 이유로 `TYPE_LABEL`/`TYPE_COLOR`에 SQL 키 추가 |
+| `frontend/src/components/ui/QuestionDetailModal.tsx` | 수정 | `QuestionDetailItem.sqlData?` 필드, `TYPE_LABEL`/`TYPE_COLOR`에 SQL 키, schedulingData 렌더 블록 아래 `SqlProblemView` 렌더 추가 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `SqlProblemView`/`SqlProblemEditor`/`lib/sql.ts` 3행 추가 |
+| `docs/db-guidelines.md` | 수정 | question_bank ERD·컬럼 코멘트·question_type 값 목록에 `sql_data`/SQL 추가 |
+| `frontend/src/data/tableComments.ts` | 수정 | question_bank.sql_data 코멘트 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/new/page.tsx` / `[id]/edit/page.tsx`
+- 변경 전: `QUESTION_TYPES`/폼 상태/제출 payload에 SQL 관련 필드가 없었다.
+- 변경 후: SCHEDULING 섹션 바로 아래 동일 구조로 `isSql && <SqlProblemEditor value={...sqlData} onChange={...} />` + 정답(선택) 입력을 추가했고, 제출 시 `q.questionType === 'SQL' ? toSqlDataPayload(q.sqlData) : undefined`로 payload를 구성한다.
+- 이유: SCHEDULING과 동일한 "구조화 입력 + 정답 수동 입력" 패턴을 그대로 재사용하기 위함.
+
+#### `frontend/src/app/admin/exams/papers/new/page.tsx` / `[id]/edit/page.tsx`
+- 변경 전: `Record<QuestionType, string>` 형태의 `TYPE_LABEL`/`TYPE_COLOR`에 SQL 키가 없어 `QuestionType`에 SQL을 추가하는 순간 `npx tsc --noEmit`에서 컴파일 에러가 발생함(계획 문서에 없던 파일, 시험지 등록/수정 화면이 문항은행에서 문항을 가져올 때 공용 `QuestionType`을 사용하는 구조라 함께 갱신 필요).
+- 변경 후: 두 파일 모두 `TYPE_LABEL.SQL = 'SQL'`, `TYPE_COLOR.SQL = 'bg-cyan-50 text-cyan-600'` 추가.
+- 이유: 프론트 전역 `QuestionType` 유니온에 SQL을 추가하면서 발생하는 컴파일 에러를 전부 해소하기 위함(`npx tsc --noEmit`로 확인).
+
+### 복원 방법
+
+이 ID(HIST-20260709-001)만으로 복원 시: `frontend/src/lib/sql.ts`, `frontend/src/components/ui/SqlProblemEditor.tsx`, `frontend/src/components/ui/SqlProblemView.tsx` 파일을 삭제한다. `types/index.ts`에서 `QuestionType`의 `'SQL'`과 `SqlColumn`/`SqlTable`/`SqlData`/`QuestionSummary.sqlData`를 제거한다. `examService.ts`/`quizService.ts`의 `sqlData` 필드를 제거한다. 등록/수정 화면에서 `isSql` 분기·`SqlProblemEditor` 사용·유형 버튼 cyan 분기·payload의 `sqlData` 변환을 제거한다. 목록·상세·시험지 등록/수정 4개 화면의 `TYPE_LABEL`/`TYPE_COLOR`에서 `SQL` 키를 제거한다. `QuestionDetailModal.tsx`에서 `sqlData` 필드·`SqlProblemView` 렌더를 제거한다. `CLAUDE.md`/`docs/db-guidelines.md`/`tableComments.ts`의 SQL 관련 행을 제거한다.
+
+## HIST-20260708-001
 
 - **날짜**: 2026-07-08
 - **수정 범위**: 관리자 프론트엔드 / 문항 관리 (문항 목록) — 테이블 클리핑 버그 수정

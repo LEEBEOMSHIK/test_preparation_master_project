@@ -1,3 +1,28 @@
+## HIST-20260709-001
+
+- **날짜**: 2026-07-09
+- **수정 범위**: 사용자 프론트엔드 / 퀴즈 플레이 — 신규 문항 유형 SQL 표시·답안 입력
+- **수정 개요**: 퀴즈 문항이 SQL 유형인 경우 SchedulingProblemTable 렌더 아래에 공용 `<SqlProblemView>`를 렌더링해 테이블 구조·샘플 데이터를 표 또는 스키마(DDL) 형태로 표시한다. 답안 입력은 CODE 유형과 동일하게 멀티라인 monospace `CodeAnswerInput`을 재사용하도록 분기를 `(isCode || isSql) && !optionsAvailable`로 확장했다(정답은 SHORT_ANSWER·SCHEDULING과 동일한 콤마 다중값 채점 라우팅, 백엔드 AnswerGrader에서 처리). `ScratchPadPanel`의 `isCodeQuestion`은 `isCode` 그대로 유지(SQL은 코드 트레이싱 대상이 아님).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/quizService.ts` | 수정 | `QuizQuestion`에 `sqlData?: SqlData` 필드 추가 |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | `{q.schedulingData && <SchedulingProblemTable .../>}` 아래에 `{q.sqlData && <SqlProblemView data={q.sqlData} />}` 추가, `isSql` 판정 추가, 답안 입력 분기를 `(isCode \|\| isSql) && !optionsAvailable`로 확장(placeholder도 SQL 전용 문구로 분기) |
+
+### 수정 상세
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `{q.schedulingData && <SchedulingProblemTable data={q.schedulingData} />}` 다음 별도 렌더 없음. 답안 입력은 `isCode && !optionsAvailable`일 때만 `CodeAnswerInput`, 그 외는 일반 `<input>`.
+- 변경 후: `SchedulingProblemTable` 아래에 `{q.sqlData && <SqlProblemView data={q.sqlData} />}` 추가. `const isSql = q.questionType === 'SQL';` 추가, 답안 입력 조건을 `(isCode || isSql) && !optionsAvailable`로 확장하고 SQL일 때 placeholder를 `'SQL 답안을 입력하세요'`로 분기.
+- 이유: SQL 답안은 여러 줄(SELECT/WHERE/GROUP BY 등)이 될 수 있어 CODE와 동일한 멀티라인 monospace 입력이 필요하기 때문. 채점은 여전히 텍스트 비교(SQL 실행 없음)이므로 표시·입력 UI만 CODE와 공유한다.
+
+### 복원 방법
+이 ID(HIST-20260709-001)만으로 복원 시:
+- `quizService.ts`: `QuizQuestion.sqlData` 필드 제거
+- `quiz/[categoryId]/page.tsx`: `<SqlProblemView>` 렌더 블록·import·`isSql` 변수 제거, 답안 입력 분기를 `isCode && !optionsAvailable`로 되돌리고 placeholder를 `'코드 답안을 입력하세요'` 고정으로 복원
+
 ## HIST-20260706-001
 
 - **날짜**: 2026-07-06

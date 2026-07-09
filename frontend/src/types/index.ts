@@ -64,7 +64,7 @@ export interface AuthTokens {
 // Exam
 // ──────────────────────────────────────────
 export type QuestionMode = 'RANDOM' | 'SEQUENTIAL';
-export type QuestionType = 'MULTIPLE_CHOICE' | 'SHORT_ANSWER' | 'OX' | 'CODE' | 'SCHEDULING';
+export type QuestionType = 'MULTIPLE_CHOICE' | 'SHORT_ANSWER' | 'OX' | 'CODE' | 'SCHEDULING' | 'SQL';
 
 // ──────────────────────────────────────────
 // Scheduling (CPU 스케줄링 구조화 문항 — SCHEDULING 유형 전용)
@@ -90,6 +90,27 @@ export interface SchedulingData {
   /** RR에서만 사용 */
   timeQuantum?: number;
   processes: SchedulingProcessRow[];
+}
+
+// ──────────────────────────────────────────
+// SQL (구조화 문항 데이터 — SQL 유형 전용)
+// ──────────────────────────────────────────
+export interface SqlColumn {
+  name: string;
+  /** 예: INT, VARCHAR(50) — 선택 */
+  dataType?: string;
+  primaryKey?: boolean;
+}
+
+export interface SqlTable {
+  name: string;
+  columns: SqlColumn[];
+  /** 샘플 데이터 행 — 선택 */
+  rows?: string[][];
+}
+
+export interface SqlData {
+  tables: SqlTable[];
 }
 
 export interface ExamSummary {
@@ -156,6 +177,8 @@ export interface QuestionSummary {
   aiSummary?: string;
   /** CPU 스케줄링 구조화 데이터 (SCHEDULING 유형 전용) */
   schedulingData?: SchedulingData;
+  /** SQL 구조화 데이터 (SQL 유형 전용) */
+  sqlData?: SqlData;
   createdAt: string;
   updatedAt?: string;
 }

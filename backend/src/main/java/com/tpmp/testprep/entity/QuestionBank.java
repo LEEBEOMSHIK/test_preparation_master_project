@@ -1,6 +1,7 @@
 package com.tpmp.testprep.entity;
 
 import com.tpmp.testprep.entity.support.SchedulingData;
+import com.tpmp.testprep.entity.support.SqlData;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -110,6 +111,11 @@ public class QuestionBank extends BaseEntity {
     @Column(name = "scheduling_data", columnDefinition = "jsonb")
     private SchedulingData schedulingData;
 
+    /** SQL 구조화 문항 데이터 (SQL 유형에서만 사용) */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "sql_data", columnDefinition = "jsonb")
+    private SqlData sqlData;
+
     @Builder
     public QuestionBank(String title, Integer examYear, Integer examRound, Integer questionNo,
                         String content, QuestionType questionType,
@@ -120,6 +126,7 @@ public class QuestionBank extends BaseEntity {
                         List<String> aiKeywords, List<String> aiDomains,
                         String aiDifficulty, String aiSummary,
                         SchedulingData schedulingData,
+                        SqlData sqlData,
                         String instruction,
                         Long createdByUno) {
         this.title = title;
@@ -140,6 +147,7 @@ public class QuestionBank extends BaseEntity {
         this.aiDifficulty = aiDifficulty;
         this.aiSummary = aiSummary;
         this.schedulingData = schedulingData;
+        this.sqlData = sqlData;
         this.instruction = instruction;
         initAudit(createdByUno);
     }
@@ -153,6 +161,7 @@ public class QuestionBank extends BaseEntity {
                        List<String> aiKeywords, List<String> aiDomains,
                        String aiDifficulty, String aiSummary,
                        SchedulingData schedulingData,
+                       SqlData sqlData,
                        String instruction,
                        Long modifiedByUno) {
         this.title = title;
@@ -173,6 +182,7 @@ public class QuestionBank extends BaseEntity {
         this.aiDifficulty = aiDifficulty;
         this.aiSummary = aiSummary;
         this.schedulingData = schedulingData;
+        this.sqlData = sqlData;
         this.instruction = instruction;
         updateAudit(modifiedByUno);
     }
@@ -192,6 +202,6 @@ public class QuestionBank extends BaseEntity {
     }
 
     public enum QuestionType {
-        MULTIPLE_CHOICE, SHORT_ANSWER, OX, CODE, SCHEDULING
+        MULTIPLE_CHOICE, SHORT_ANSWER, OX, CODE, SCHEDULING, SQL
     }
 }

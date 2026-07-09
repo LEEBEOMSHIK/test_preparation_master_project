@@ -2,6 +2,7 @@ package com.tpmp.testprep.dto.request;
 
 import com.tpmp.testprep.entity.QuestionBank;
 import com.tpmp.testprep.entity.support.SchedulingData;
+import com.tpmp.testprep.entity.support.SqlData;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -13,6 +14,7 @@ import java.util.List;
  * 문항 등록/수정 요청 DTO.
  * SQL Injection 방지: 모든 String 필드는 JPA 파라미터 바인딩으로 안전하게 처리됨.
  * code 필드(SQL/코드 문제)도 TEXT 컬럼에 값으로 저장되므로 SQL Injection 위험 없음.
+ * sqlData(SQL 유형 테이블/컬럼/행 구조 데이터)도 값으로만 저장되며 실행되지 않으므로 SQL Injection 위험 없음.
  */
 public record QuestionBankRequest(
         @Size(max = 200, message = "문항 제목은 200자를 초과할 수 없습니다.")
@@ -72,5 +74,9 @@ public record QuestionBankRequest(
 
         /** CPU 스케줄링 구조화 데이터 (SCHEDULING 유형에서만 사용, 선택) */
         @Valid
-        SchedulingData schedulingData
+        SchedulingData schedulingData,
+
+        /** SQL 구조화 데이터 (SQL 유형에서만 사용, 선택) */
+        @Valid
+        SqlData sqlData
 ) {}

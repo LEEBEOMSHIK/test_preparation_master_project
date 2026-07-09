@@ -21,6 +21,7 @@ const TYPE_LABEL: Record<QuestionType, string> = {
   OX: 'O/X',
   CODE: '코드',
   SCHEDULING: '스케줄링',
+  SQL: 'SQL',
 };
 
 const TYPE_COLOR: Record<QuestionType, string> = {
@@ -29,6 +30,7 @@ const TYPE_COLOR: Record<QuestionType, string> = {
   OX:              'bg-amber-50 text-amber-600',
   CODE:            'bg-violet-50 text-violet-600',
   SCHEDULING:      'bg-teal-50 text-teal-600',
+  SQL:             'bg-cyan-50 text-cyan-600',
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;

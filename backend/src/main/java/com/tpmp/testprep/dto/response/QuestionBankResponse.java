@@ -2,6 +2,7 @@ package com.tpmp.testprep.dto.response;
 
 import com.tpmp.testprep.entity.QuestionBank;
 import com.tpmp.testprep.entity.support.SchedulingData;
+import com.tpmp.testprep.entity.support.SqlData;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,6 +31,7 @@ public record QuestionBankResponse(
         String aiDifficulty,
         String aiSummary,
         SchedulingData schedulingData,
+        SqlData sqlData,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
@@ -57,6 +59,7 @@ public record QuestionBankResponse(
                 qb.getAiDifficulty(),
                 qb.getAiSummary(),
                 qb.getSchedulingData(),
+                qb.getSqlData(),
                 qb.getCreateDt(),
                 qb.getModifiedDt()
         );

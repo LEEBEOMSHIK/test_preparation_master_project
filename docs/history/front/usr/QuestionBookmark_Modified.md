@@ -1,3 +1,25 @@
+## HIST-20260709-001
+
+- **날짜**: 2026-07-09
+- **수정 범위**: 사용자 프론트엔드 / 복습 표시(즐겨찾기) 목록 — 신규 문항 유형 SQL 배지 지원
+- **수정 개요**: 문항 유형에 `SQL`이 신설됨에 따라 복습 표시 목록의 유형 배지 `TYPE_LABEL`/`TYPE_COLOR` Record에 SQL 키를 추가했다(공용 `QuestionType` 유니온을 사용하므로 SCHEDULING 선례와 동일하게 누락 시 컴파일 에러). 기존 SCHEDULING과 마찬가지로 `bookmarkToDetailItem`은 `sqlData`를 상세 모달로 전달하지 않는 기존 구조를 그대로 유지했다(별도 확장 범위 아님).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/bookmarks/page.tsx` | 수정 | `TYPE_LABEL.SQL = 'SQL'`, `TYPE_COLOR.SQL = 'bg-cyan-50 text-cyan-600'` 추가 |
+
+### 수정 상세
+
+#### `app/user/bookmarks/page.tsx`
+- 변경 전: `TYPE_LABEL`/`TYPE_COLOR` Record에 `MULTIPLE_CHOICE`/`SHORT_ANSWER`/`OX`/`CODE`/`SCHEDULING` 5개 키만 존재
+- 변경 후: 두 Record 모두에 `SQL` 키 추가
+- 이유: `types/index.ts`의 `QuestionType` 유니온에 `'SQL'`을 추가하면서 `Record<QuestionType, string>` 타입이 컴파일 에러가 되는 것을 막기 위함(`npx tsc --noEmit`로 확인)
+
+### 복원 방법
+이 ID(HIST-20260709-001)만으로 복원 시: `TYPE_LABEL`/`TYPE_COLOR`에서 `SQL` 키를 제거한다.
+
 ## HIST-20260626-001
 
 - **날짜**: 2026-06-26

@@ -12,6 +12,8 @@ import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { QuestionAnalysisPanel } from '@/components/ui/QuestionAnalysisPanel';
 import { SchedulingProblemEditor } from '@/components/ui/SchedulingProblemEditor';
 import { emptySchedulingDraft, toSchedulingDataPayload, type SchedulingDataDraft } from '@/lib/scheduling';
+import { SqlProblemEditor } from '@/components/ui/SqlProblemEditor';
+import { emptySqlDraft, toSqlDataPayload, type SqlDataDraft } from '@/lib/sql';
 import { stripHtml } from '@/lib/html';
 import { hasOptions } from '@/lib/answer';
 import { isBlankOrPositiveIntegerText, toOptionalPositiveInteger } from '@/lib/questionNumber';
@@ -24,6 +26,7 @@ const QUESTION_TYPES: { value: QuestionType; label: string; desc: string }[] = [
   { value: 'OX',              label: 'O/X',     desc: '참/거짓 판별' },
   { value: 'CODE',            label: '코드',    desc: '프로그래밍 문제' },
   { value: 'SCHEDULING',      label: '스케줄링', desc: 'CPU 스케줄링 문제' },
+  { value: 'SQL',             label: 'SQL',     desc: '테이블·데이터 기반 SQL 문제' },
 ];
 
 const LANGUAGES: { value: string; label: string }[] = [
@@ -66,6 +69,8 @@ interface QuestionDraft {
   aiAnalysis:   QuestionAnalysis | null;
   /** CPU 스케줄링 구조화 데이터 (SCHEDULING 유형에서만 사용) */
   schedulingData: SchedulingDataDraft;
+  /** SQL 구조화 데이터 (SQL 유형에서만 사용) */
+  sqlData: SqlDataDraft;
 }
 
 interface ImportedDraft extends QuestionDraft {
@@ -95,6 +100,7 @@ const emptyDraft = (): QuestionDraft => ({
   examTypeId:   null,
   aiAnalysis:   null,
   schedulingData: emptySchedulingDraft(),
+  sqlData:      emptySqlDraft(),
 });
 
 function parseTextToQuestions(text: string): ImportedDraft[] {
@@ -113,6 +119,7 @@ function parseTextToQuestions(text: string): ImportedDraft[] {
         examTypeId: null,
         aiAnalysis: null,
         schedulingData: emptySchedulingDraft(),
+        sqlData: emptySqlDraft(),
         excluded: false, sourceHint: '클립보드',
       });
     }
@@ -157,6 +164,7 @@ async function simulateFileParse(file: File): Promise<ImportedDraft[]> {
           examTypeId: null,
           aiAnalysis: null,
           schedulingData: emptySchedulingDraft(),
+          sqlData: emptySqlDraft(),
           excluded: false, sourceHint: file.name,
         })),
       );
@@ -173,7 +181,7 @@ function ManualQuestionCard({
   draft:              QuestionDraft;
   index:              number;
   total:              number;
-  onChange:           (field: string, value: string | string[] | number | null | QuestionAnalysis | SchedulingDataDraft) => void;
+  onChange:           (field: string, value: string | string[] | number | null | QuestionAnalysis | SchedulingDataDraft | SqlDataDraft) => void;
   onRemove:           () => void;
   onAnalyzed:         (result: QuestionAnalysis) => void;
   examTypeSlaves:     DomainSlave[];
@@ -183,6 +191,7 @@ function ManualQuestionCard({
 }) {
   const isCode = draft.questionType === 'CODE';
   const isScheduling = draft.questionType === 'SCHEDULING';
+  const isSql = draft.questionType === 'SQL';
 
   const examTypeName   = examTypeSlaves.find((s) => s.id === draft.examTypeId)?.name ?? '';
   const categoryName   = questionTypeSlaves.find((s) => s.id === draft.categoryId)?.name ?? '';
@@ -311,6 +320,8 @@ function ManualQuestionCard({
                       ? 'border-violet-500 bg-violet-50 text-violet-700'
                       : t.value === 'SCHEDULING'
                       ? 'border-teal-500 bg-teal-50 text-teal-700'
+                      : t.value === 'SQL'
+                      ? 'border-cyan-500 bg-cyan-50 text-cyan-700'
                       : 'border-indigo-500 bg-indigo-50 text-indigo-700'
                     : 'border-gray-200 text-gray-500 hover:border-gray-300',
                 ].join(' ')}
@@ -485,6 +496,30 @@ function ManualQuestionCard({
           </div>
         )}
 
+        {/* ── SQL 섹션 ── */}
+        {isSql && (
+          <div className="space-y-3">
+            <SqlProblemEditor
+              value={draft.sqlData}
+              onChange={(next) => onChange('sqlData', next)}
+            />
+            {/* 정답 (선택) — 보기가 있으면 번호 선택 UI로 대체되므로 숨김 */}
+            {!hasOptions(draft.options) && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">정답 (선택)</label>
+                <input
+                  type="text"
+                  value={draft.answer}
+                  onChange={(e) => onChange('answer', e.target.value)}
+                  maxLength={2000}
+                  placeholder="예: SELECT name FROM employees WHERE ... 등 모범 답안을 입력하세요."
+                  className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-cyan-400 transition"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── 보기 (선택) — 유형 무관 상시 노출. 입력하면 유형과 무관하게
              '보기 참고 후 번호 입력' 문제로 동작한다. ── */}
         <div className="space-y-2">
@@ -640,7 +675,7 @@ export default function AdminQuestionNewPage() {
   const removeManualQuestion = (id: string) =>
     setManualQuestions((p) => p.filter((q) => q.localId !== id));
 
-  const updateManualQuestion = (id: string, field: string, value: string | string[] | number | null | QuestionAnalysis | SchedulingDataDraft) =>
+  const updateManualQuestion = (id: string, field: string, value: string | string[] | number | null | QuestionAnalysis | SchedulingDataDraft | SqlDataDraft) =>
     setManualQuestions((p) => p.map((q) => (q.localId === id ? { ...q, [field]: value } : q)));
 
   // ── File / clipboard helpers ─────────────────────────────────────────────────
@@ -773,6 +808,7 @@ export default function AdminQuestionNewPage() {
           code:         q.code   || undefined,
           language:     q.language || undefined,
           schedulingData: q.questionType === 'SCHEDULING' ? toSchedulingDataPayload(q.schedulingData) : undefined,
+          sqlData:      q.questionType === 'SQL' ? toSqlDataPayload(q.sqlData) : undefined,
           // aiAnalysis는 ManualQuestionDraft에만 존재; ImportedDraft는 null로 전송
           aiKeywords:   q.aiAnalysis?.keywords,
           aiDomains:    q.aiAnalysis?.domains,

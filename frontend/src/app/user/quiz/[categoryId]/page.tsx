@@ -11,6 +11,7 @@ import { ConceptNoteModal } from '@/components/ui/ConceptNoteModal';
 import { ExamResultDisplay } from '@/components/ui/ExamResultDisplay';
 import { CodeBlock } from '@/components/ui/CodeBlock';
 import { SchedulingProblemTable } from '@/components/ui/SchedulingProblemTable';
+import { SqlProblemView } from '@/components/ui/SqlProblemView';
 import { CodeAnswerInput } from '@/components/ui/CodeAnswerInput';
 import { ScratchPadPanel } from '@/components/ui/ScratchPadPanel';
 import { stripHtml } from '@/lib/html';
@@ -364,6 +365,7 @@ function QuizPlayContent() {
   const isMultipleChoice = q.questionType === 'MULTIPLE_CHOICE';
   const isOX = q.questionType === 'OX';
   const isCode = q.questionType === 'CODE';
+  const isSql = q.questionType === 'SQL';
   // 보기가 있으면(유형 무관) 참고 표시 + 번호 직접 입력으로 채점. 단 MULTIPLE_CHOICE는 기존 클릭 선택 유지.
   const optionsAvailable = hasOptions(q.options);
 
@@ -457,6 +459,10 @@ function QuizPlayContent() {
           <SchedulingProblemTable data={q.schedulingData} />
         )}
 
+        {q.sqlData && (
+          <SqlProblemView data={q.sqlData} />
+        )}
+
         {/* 선택지 */}
         {isMultipleChoice && q.options && (
           <div className="space-y-2">
@@ -529,12 +535,12 @@ function QuizPlayContent() {
                 ))}
               </div>
             )}
-            {isCode && !optionsAvailable ? (
+            {(isCode || isSql) && !optionsAvailable ? (
               <CodeAnswerInput
                 value={inputValue}
                 onChange={setInputValue}
                 disabled={!!answerState?.submitted}
-                placeholder="코드 답안을 입력하세요"
+                placeholder={isSql ? 'SQL 답안을 입력하세요' : '코드 답안을 입력하세요'}
                 onCtrlEnter={handleSubmitAnswer}
               />
             ) : (

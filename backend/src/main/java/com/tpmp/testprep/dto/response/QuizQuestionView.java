@@ -2,6 +2,7 @@ package com.tpmp.testprep.dto.response;
 
 import com.tpmp.testprep.entity.QuestionBank;
 import com.tpmp.testprep.entity.support.SchedulingData;
+import com.tpmp.testprep.entity.support.SqlData;
 
 import java.util.List;
 
@@ -18,7 +19,9 @@ public record QuizQuestionView(
         Integer examYear,
         Integer examRound,
         // 스케줄링 구조화 데이터 — 정답(answer)은 계속 미노출, 문제 표시용 구조만 전달
-        SchedulingData schedulingData) {
+        SchedulingData schedulingData,
+        // SQL 구조화 데이터 — 정답(answer)은 계속 미노출, 문제 표시용 구조만 전달
+        SqlData sqlData) {
 
     public static QuizQuestionView from(QuestionBank qb) {
         return new QuizQuestionView(
@@ -32,6 +35,7 @@ public record QuizQuestionView(
                 qb.getLanguage(),
                 qb.getExamYear(),
                 qb.getExamRound(),
-                qb.getSchedulingData());
+                qb.getSchedulingData(),
+                qb.getSqlData());
     }
 }

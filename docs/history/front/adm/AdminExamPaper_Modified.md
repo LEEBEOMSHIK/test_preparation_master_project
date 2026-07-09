@@ -1,3 +1,25 @@
+## HIST-20260709-001
+
+- **날짜**: 2026-07-09
+- **수정 범위**: 관리자 프론트엔드 / 시험지 등록·수정 — 신규 문항 유형 SQL 배지 지원
+- **수정 개요**: 문항 유형에 `SQL`이 신설되면서 문항은행에서 시험지에 문항을 가져올 때 사용하는 `TYPE_LABEL`/`TYPE_COLOR` Record(공용 `QuestionType` 사용)가 SQL 키 누락으로 컴파일 에러가 발생해 두 파일 모두 SQL 키를 추가했다. 백엔드 상세는 [back/adm/QuestionBank_Modified.md HIST-20260709-001], 문항 등록/수정 상세는 [front/adm/AdminQuestion_Modified.md HIST-20260709-001] 참조.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/papers/new/page.tsx` | 수정 | `TYPE_LABEL.SQL = 'SQL'`, `TYPE_COLOR.SQL = 'bg-cyan-50 text-cyan-600'` 추가 |
+| `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` | 수정 | 위와 동일 |
+
+### 수정 상세
+
+- 변경 전: 두 파일의 `TYPE_LABEL`/`TYPE_COLOR` Record에 `MULTIPLE_CHOICE`/`SHORT_ANSWER`/`OX`/`CODE`/`SCHEDULING` 5개 키만 존재.
+- 변경 후: 두 파일 모두 `SQL` 키 추가.
+- 이유: `types/index.ts`의 `QuestionType` 유니온에 `'SQL'`을 추가하면서 `Record<QuestionType, string>` 타입이 컴파일 에러가 되는 것을 막기 위함(`npx tsc --noEmit`로 확인).
+
+### 복원 방법
+이 ID(HIST-20260709-001)만으로 복원 시: 두 파일의 `TYPE_LABEL`/`TYPE_COLOR`에서 `SQL` 키를 제거한다.
+
 ## HIST-20260708-001
 
 - **날짜**: 2026-07-08

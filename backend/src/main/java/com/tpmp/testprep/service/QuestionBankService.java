@@ -9,6 +9,7 @@ import com.tpmp.testprep.entity.DomainSlave;
 import com.tpmp.testprep.entity.QuestionBank;
 import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.entity.support.SchedulingData;
+import com.tpmp.testprep.entity.support.SqlData;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.DomainSlaveRepository;
@@ -53,6 +54,7 @@ public class QuestionBankService {
     @Transactional
     public QuestionBankResponse createQuestion(QuestionBankRequest request, String adminEmail) {
         validateSchedulingData(request);
+        validateSqlData(request);
         validateBody(request);
         Long adminId = resolveAdminId(adminEmail);
         DomainSlave category = resolveCategory(request.categoryId());
@@ -78,6 +80,7 @@ public class QuestionBankService {
                 .aiDifficulty(request.aiDifficulty())
                 .aiSummary(request.aiSummary())
                 .schedulingData(request.schedulingData())
+                .sqlData(request.sqlData())
                 .createdByUno(adminId)
                 .build();
         return QuestionBankResponse.from(questionBankRepository.save(qb));
@@ -87,6 +90,7 @@ public class QuestionBankService {
     @Transactional
     public int createQuestionsBulk(QuestionBankBulkRequest bulkRequest, String adminEmail) {
         bulkRequest.questions().forEach(this::validateSchedulingData);
+        bulkRequest.questions().forEach(this::validateSqlData);
         bulkRequest.questions().forEach(this::validateBody);
         Long adminId = resolveAdminId(adminEmail);
         List<QuestionBankRequest> requests = bulkRequest.questions();
@@ -114,6 +118,7 @@ public class QuestionBankService {
                         .aiDifficulty(req.aiDifficulty())
                         .aiSummary(req.aiSummary())
                         .schedulingData(req.schedulingData())
+                        .sqlData(req.sqlData())
                         .createdByUno(adminId)
                         .build());
         }
@@ -125,6 +130,7 @@ public class QuestionBankService {
     @Transactional
     public QuestionBankResponse updateQuestion(Long id, QuestionBankRequest request, String adminEmail) {
         validateSchedulingData(request);
+        validateSqlData(request);
         validateBody(request);
         Long adminId = resolveAdminId(adminEmail);
         DomainSlave category = resolveCategory(request.categoryId());
@@ -140,6 +146,7 @@ public class QuestionBankService {
                   request.aiKeywords(), request.aiDomains(),
                   request.aiDifficulty(), request.aiSummary(),
                   request.schedulingData(),
+                  request.sqlData(),
                   request.instruction(),
                   adminId);
         return QuestionBankResponse.from(qb);
@@ -311,6 +318,35 @@ public class QuestionBankService {
         if (isPriorityAlgorithm
                 && data.processes().stream().anyMatch(p -> p.priority() == null)) {
             throw new BusinessException(ErrorCode.SCHEDULING_DATA_INVALID);
+        }
+    }
+
+    /**
+     * SQL 유형 문항의 SQL 데이터 정합성 검증.
+     * <ul>
+     *   <li>questionType == SQL 인데 sqlData 가 없으면 오류</li>
+     *   <li>테이블 목록이 비어있으면 오류</li>
+     *   <li>테이블의 rows가 존재할 때, 각 행의 셀 수가 columns 개수와 다르면 오류</li>
+     * </ul>
+     * 등록(단건/일괄) · 수정 3개 경로 모두에서 호출한다.
+     */
+    private void validateSqlData(QuestionBankRequest request) {
+        if (request.questionType() != QuestionBank.QuestionType.SQL) {
+            return;
+        }
+        SqlData data = request.sqlData();
+        if (data == null || data.tables() == null || data.tables().isEmpty()) {
+            throw new BusinessException(ErrorCode.SQL_DATA_INVALID);
+        }
+        for (SqlData.SqlTable table : data.tables()) {
+            if (table.rows() == null || table.rows().isEmpty()) {
+                continue;
+            }
+            int columnCount = table.columns().size();
+            boolean invalidRow = table.rows().stream().anyMatch(row -> row.size() != columnCount);
+            if (invalidRow) {
+                throw new BusinessException(ErrorCode.SQL_DATA_INVALID);
+            }
         }
     }
 

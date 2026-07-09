@@ -13,8 +13,8 @@ import java.util.stream.Collectors;
  * <p>SHORT_ANSWER 에서 정답·사용자 답안 모두 콤마/슬래시로 구분된 복수 정답을 지원한다.
  * 콤마·슬래시 분리 후 토큰을 trim·소문자화·공백 축약하고, 말미의 괄호 부연 설명
  * (예: "워터링 홀 (Watering Hole)" → "워터링 홀")을 제거하여 Set 비교하므로
- * 순서·공백·부연설명 차이는 무시된다. SCHEDULING 유형도 정답을 관리자가 수동으로
- * 입력하며(자동 계산 없음) SHORT_ANSWER와 동일하게 다중값 비교로 채점한다.
+ * 순서·공백·부연설명 차이는 무시된다. SCHEDULING · SQL 유형도 정답을 관리자가 수동으로
+ * 입력하며(자동 계산·SQL 실행 없음) SHORT_ANSWER와 동일하게 다중값 비교로 채점한다.
  *
  * <p>위 Set 비교(multiSetMatch)가 실패하면, 느슨한 폴백으로 양쪽 문자열의 괄호 부연·
  * 공백·콤마·슬래시를 모두 제거한 뒤 동등 비교한다. 이는 사용자가 구분자 없이
@@ -43,8 +43,9 @@ public final class AnswerGrader {
         if (correctAnswer == null || userAnswer == null) {
             return false;
         }
-        // SHORT_ANSWER, SCHEDULING — 콤마·슬래시 다중 정답 Set 비교 (SCHEDULING은 자동 계산 없이 수동 정답을 동일 방식으로 채점)
-        if ("SHORT_ANSWER".equals(questionType) || "SCHEDULING".equals(questionType)) {
+        // SHORT_ANSWER, SCHEDULING, SQL — 콤마·슬래시 다중 정답 Set 비교
+        // (SCHEDULING·SQL은 자동 계산·SQL 실행 없이 수동 정답을 동일 방식으로 채점)
+        if ("SHORT_ANSWER".equals(questionType) || "SCHEDULING".equals(questionType) || "SQL".equals(questionType)) {
             if (multiSetMatch(correctAnswer, userAnswer)) {
                 return true;
             }

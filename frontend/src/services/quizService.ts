@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import type { ApiResponse, DomainMaster, SchedulingData } from '@/types';
+import type { ApiResponse, DomainMaster, SchedulingData, SqlData } from '@/types';
 
 export interface QuizQuestion {
   id: number;
@@ -15,6 +15,8 @@ export interface QuizQuestion {
   examRound?: number;
   /** CPU 스케줄링 구조화 데이터 (SCHEDULING 유형에서만 존재) */
   schedulingData?: SchedulingData;
+  /** SQL 구조화 데이터 (SQL 유형에서만 존재) */
+  sqlData?: SqlData;
 }
 
 export interface CheckResult {

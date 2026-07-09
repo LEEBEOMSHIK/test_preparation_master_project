@@ -228,6 +228,34 @@ class AnswerGraderTest {
     }
 
     // -----------------------------------------------------------------------
+    // SQL — SHORT_ANSWER와 동일한 콤마 다중값 비교 라우팅
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("SQL: 순서가 달라도 원소가 같으면 정답 (SHORT_ANSWER와 동일 라우팅)")
+    void sql_reversedOrder_correct() {
+        assertThat(AnswerGrader.isCorrect("SQL", "Alice, Bob", "Bob, Alice")).isTrue();
+    }
+
+    @Test
+    @DisplayName("SQL: 원소 개수가 다르면 오답")
+    void sql_differentSize_incorrect() {
+        assertThat(AnswerGrader.isCorrect("SQL", "Alice", "Alice, Bob")).isFalse();
+    }
+
+    @Test
+    @DisplayName("SQL: 대소문자·공백 차이는 무시")
+    void sql_whitespaceAndCase_correct() {
+        assertThat(AnswerGrader.isCorrect("SQL", "SELECT name FROM t", "select name from t")).isTrue();
+    }
+
+    @Test
+    @DisplayName("SQL: 단일 정답 불일치")
+    void sql_singleToken_incorrect() {
+        assertThat(AnswerGrader.isCorrect("SQL", "Alice", "Bob")).isFalse();
+    }
+
+    // -----------------------------------------------------------------------
     // MULTIPLE_CHOICE
     // -----------------------------------------------------------------------
 

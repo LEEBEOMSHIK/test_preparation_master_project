@@ -1,3 +1,62 @@
+## HIST-20260709-001
+
+- **날짜**: 2026-07-09
+- **수정 범위**: 관리자 백엔드 / 문항(QuestionBank) — 신규 문항 유형 SQL 추가
+- **수정 개요**: 새 `QuestionType.SQL` 추가. SQL 데이터(테이블명·컬럼 목록·샘플 데이터 행)를 JSONB 컬럼 `sql_data` 하나에 구조화 저장(`entity/support/SqlData.java` 신규 record — `SqlTable`/`SqlColumn` 중첩). 등록(단건/일괄)·수정 3개 경로 모두 sqlData 반영 + `validateSqlData` 신규 검증(테이블 목록 비어있음/행의 셀 수가 컬럼 수와 불일치 시 `SQL_DATA_INVALID`). 채점은 SHORT_ANSWER·SCHEDULING과 동일한 콤마 다중값 비교로 라우팅(AnswerGrader). SQL 실행·자동 채점은 하지 않음(정답 수동 입력). QuizQuestionView에도 sqlData를 반영해 퀴즈 풀이 화면에 문제 구조를 전달한다(정답은 계속 미노출). 지원 범위는 QuestionBank(데일리 퀴즈)만이며 Question(시험) enum은 변경하지 않았다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/entity/support/SqlData.java` | 추가 | `SqlData(tables)` record + 중첩 `SqlTable(name,columns,rows?)`/`SqlColumn(name,dataType?,primaryKey)` record, Bean Validation 포함 |
+| `docs/db-migration/20260709_01_question_bank_sql_data.sql` | 추가 | `question_bank.sql_data JSONB` 컬럼 추가 + `question_type` CHECK 제약에 SQL 포함 6개 값으로 재생성 DDL (dev는 ddl-auto=update 자동 반영, 운영 수동 적용 필요) |
+| `backend/src/main/java/com/tpmp/testprep/entity/QuestionBank.java` | 수정 | `QuestionType`에 `SQL` 추가; `sqlData` 필드(@JdbcTypeCode JSONB, schedulingData와 동일 패턴) 추가; @Builder·update()에 sqlData 파라미터 추가 |
+| `backend/src/main/java/com/tpmp/testprep/exception/ErrorCode.java` | 수정 | `SQL_DATA_INVALID(BAD_REQUEST)` 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/request/QuestionBankRequest.java` | 수정 | `@Valid SqlData sqlData`(선택) 필드 추가, 클래스 상단 SQL Injection 무관 주석에 sqlData 한 줄 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionBankResponse.java` | 수정 | `sqlData` 필드 추가 + from() 매핑 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuizQuestionView.java` | 수정 | `sqlData` 필드 추가 + from() 매핑 (정답은 계속 미노출) |
+| `backend/src/main/java/com/tpmp/testprep/service/QuestionBankService.java` | 수정 | createQuestion/createQuestionsBulk/updateQuestion 3곳 모두 sqlData 전달; private `validateSqlData(request)` 신규 — SQL 유형일 때만 sqlData null·빈 테이블 목록 체크, 테이블별 rows가 있으면 각 행의 셀 수가 columns 개수와 일치하는지 검증 |
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | `"SHORT_ANSWER".equals(questionType) \|\| "SCHEDULING".equals(questionType)` 분기에 `\|\| "SQL".equals(questionType)` 추가 — multiSetMatch로 동일 라우팅, 클래스 Javadoc 한 줄 보강 |
+| `backend/src/test/java/com/tpmp/testprep/service/QuestionBankServiceTest.java` | 수정 | 기존 4개 `QuestionBankRequest` 생성 헬퍼/호출부에 신설된 마지막 파라미터(sqlData) `null` 추가, `requestOfSql(sqlData)` 헬퍼 신규 + SQL 유형 검증 테스트 6건 추가(null/빈 테이블/행 길이 불일치/정상 저장/rows 없음/비-SQL 회귀) |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 수정 | SQL 라우팅 테스트 4건 추가(순서 무관 일치·개수 불일치·대소문자 공백 무시·단일 불일치) |
+| `docs/db-guidelines.md` | 수정 | question_bank ERD·컬럼 코멘트·question_type 값 목록에 `sql_data`/SQL 추가 |
+| `frontend/src/data/tableComments.ts` | 수정 | question_bank.sql_data 코멘트 추가 |
+
+### 수정 상세
+
+#### `QuestionBank.java`
+- 변경 전: `enum QuestionType { MULTIPLE_CHOICE, SHORT_ANSWER, OX, CODE, SCHEDULING }`
+- 변경 후: `enum QuestionType { MULTIPLE_CHOICE, SHORT_ANSWER, OX, CODE, SCHEDULING, SQL }`; `@JdbcTypeCode(SqlTypes.JSON) @Column(name="sql_data", columnDefinition="jsonb") private SqlData sqlData;` 추가, @Builder·update() 마지막 도메인 파라미터(schedulingData 다음)로 추가
+
+#### `QuestionBankService.java`
+- 변경 전: 3곳 모두 `.schedulingData(request.schedulingData())`만 전달, `validateSchedulingData(request)`만 호출.
+- 변경 후: 3곳 모두 `.sqlData(request.sqlData())` 추가 전달; 각 메서드 진입 시 `validateSchedulingData` 다음에 `validateSqlData(request)`(bulk는 `.forEach`) 호출.
+
+#### `AnswerGrader.java`
+- 변경 전: `if ("SHORT_ANSWER".equals(questionType) || "SCHEDULING".equals(questionType)) { ... }`
+- 변경 후: `if ("SHORT_ANSWER".equals(questionType) || "SCHEDULING".equals(questionType) || "SQL".equals(questionType)) { ... }` — SQL 실행 없이 수동 정답을 SHORT_ANSWER와 동일 다중값 비교로 채점.
+
+#### `docs/db-migration/20260709_01_question_bank_sql_data.sql`
+```sql
+ALTER TABLE question_bank ADD COLUMN IF NOT EXISTS sql_data JSONB;
+-- question_type CHECK 제약 재생성 (SQL 포함 6개 값)
+```
+- 롤백: `ALTER TABLE question_bank DROP COLUMN sql_data;` + 제약을 이전 5개 값(SQL 제외)으로 재생성.
+
+### 복원 방법
+
+이 ID(HIST-20260709-001)만으로 복원 시:
+- DB: 롤백 SQL 실행(sql_data 컬럼 DROP, question_type CHECK 제약을 SQL 제외 5개 값으로 재생성)
+- `entity/support/SqlData.java`: 파일 삭제
+- `QuestionBank.java`: QuestionType에서 SQL 제거, sqlData 필드·builder/update 파라미터 제거
+- `ErrorCode.java`: SQL_DATA_INVALID 제거
+- `QuestionBankRequest.java`/`QuestionBankResponse.java`/`QuizQuestionView.java`: sqlData 필드·매핑 제거
+- `QuestionBankService.java`: sqlData 전달·validateSqlData() 제거
+- `AnswerGrader.java`: `|| "SQL".equals(questionType)` 제거
+- `QuestionBankServiceTest.java`: `requestOfSql` 헬퍼·SQL 검증 테스트 6건 삭제, 기존 4개 헬퍼 마지막 `null` 인자 제거
+- `AnswerGraderTest.java`: SQL 라우팅 테스트 4건 삭제
+- `docs/db-guidelines.md`/`frontend/src/data/tableComments.ts`: sql_data 코멘트 제거
+
 ## HIST-20260707-003
 
 - **날짜**: 2026-07-07

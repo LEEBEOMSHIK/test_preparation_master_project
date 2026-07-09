@@ -5,6 +5,7 @@ import com.tpmp.testprep.entity.DomainSlave;
 import com.tpmp.testprep.entity.QuestionBank;
 import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.entity.support.SchedulingData;
+import com.tpmp.testprep.entity.support.SqlData;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.DomainSlaveRepository;
@@ -31,7 +32,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * QuestionBankService — SCHEDULING 유형 신설에 따른 validateSchedulingData 검증 단위 테스트.
+ * QuestionBankService — SCHEDULING·SQL 유형 신설에 따른 validateSchedulingData·validateSqlData 검증 단위 테스트.
  * createQuestion(단건 등록) 경로를 통해 private 검증 로직을 간접 검증한다.
  */
 @ExtendWith(MockitoExtension.class)
@@ -65,7 +66,16 @@ class QuestionBankServiceTest {
                 "제목", null, null, null, "문항 내용", null, type, 10L, 20L,
                 null, "정답", null, null, null,
                 null, null, null, null,
-                schedulingData
+                schedulingData, null
+        );
+    }
+
+    private QuestionBankRequest requestOfSql(SqlData sqlData) {
+        return new QuestionBankRequest(
+                "제목", null, null, null, "문항 내용", null, QuestionBank.QuestionType.SQL, 10L, 20L,
+                null, "정답", null, null, null,
+                null, null, null, null,
+                null, sqlData
         );
     }
 
@@ -75,7 +85,7 @@ class QuestionBankServiceTest {
                 "제목", null, null, null, content, instruction, QuestionBank.QuestionType.SHORT_ANSWER, 10L, 20L,
                 null, "정답", null, null, null,
                 null, null, null, null,
-                null
+                null, null
         );
     }
 
@@ -85,7 +95,7 @@ class QuestionBankServiceTest {
                 QuestionBank.QuestionType.SHORT_ANSWER, 10L, 20L,
                 null, "정답", null, null, null,
                 null, null, null, null,
-                null
+                null, null
         );
     }
 
@@ -189,6 +199,88 @@ class QuestionBankServiceTest {
         verify(questionBankRepository).save(any(QuestionBank.class));
     }
 
+    // ── SQL 유형 검증 ────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("SQL: sqlData가 null이면 SQL_DATA_INVALID 예외")
+    void sqlData_null_throws() {
+        QuestionBankRequest req = requestOfSql(null);
+
+        assertThatThrownBy(() -> service.createQuestion(req, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.SQL_DATA_INVALID));
+    }
+
+    @Test
+    @DisplayName("SQL: 테이블 목록이 비어있으면 SQL_DATA_INVALID 예외")
+    void sqlData_emptyTables_throws() {
+        QuestionBankRequest req = requestOfSql(new SqlData(List.of()));
+
+        assertThatThrownBy(() -> service.createQuestion(req, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.SQL_DATA_INVALID));
+    }
+
+    @Test
+    @DisplayName("SQL: 행의 셀 수가 컬럼 수와 다르면 SQL_DATA_INVALID 예외")
+    void sqlData_rowLengthMismatch_throws() {
+        SqlData data = new SqlData(List.of(new SqlData.SqlTable(
+                "employees",
+                List.of(new SqlData.SqlColumn("id", "INT", true), new SqlData.SqlColumn("name", "VARCHAR(50)", false)),
+                List.of(List.of("1", "Alice", "extra")))));
+        QuestionBankRequest req = requestOfSql(data);
+
+        assertThatThrownBy(() -> service.createQuestion(req, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.SQL_DATA_INVALID));
+    }
+
+    @Test
+    @DisplayName("SQL: 유효한 테이블·컬럼·행이면 정상 저장되고 sqlData가 그대로 반영")
+    void sqlData_valid_savesSuccessfully() {
+        SqlData data = new SqlData(List.of(new SqlData.SqlTable(
+                "employees",
+                List.of(new SqlData.SqlColumn("id", "INT", true), new SqlData.SqlColumn("name", "VARCHAR(50)", false)),
+                List.of(List.of("1", "Alice")))));
+        QuestionBankRequest req = requestOfSql(data);
+
+        service.createQuestion(req, ADMIN_EMAIL);
+
+        ArgumentCaptor<QuestionBank> captor = ArgumentCaptor.forClass(QuestionBank.class);
+        verify(questionBankRepository).save(captor.capture());
+        assertThat(captor.getValue().getSqlData()).isEqualTo(data);
+        assertThat(captor.getValue().getQuestionType()).isEqualTo(QuestionBank.QuestionType.SQL);
+    }
+
+    @Test
+    @DisplayName("SQL: rows가 없으면(선택) 검증을 통과하고 정상 저장")
+    void sqlData_withoutRows_savesSuccessfully() {
+        SqlData data = new SqlData(List.of(new SqlData.SqlTable(
+                "employees",
+                List.of(new SqlData.SqlColumn("id", "INT", true)),
+                null)));
+        QuestionBankRequest req = requestOfSql(data);
+
+        service.createQuestion(req, ADMIN_EMAIL);
+
+        verify(questionBankRepository).save(any(QuestionBank.class));
+    }
+
+    // ── 회귀 확인: SQL이 아닌 유형은 sqlData 검증을 타지 않음 ──────────────────
+
+    @Test
+    @DisplayName("SHORT_ANSWER: sqlData가 없어도 예외 없이 정상 저장 (회귀 확인)")
+    void nonSql_withoutSqlData_savesSuccessfully() {
+        QuestionBankRequest req = requestOf(QuestionBank.QuestionType.SHORT_ANSWER, null);
+
+        service.createQuestion(req, ADMIN_EMAIL);
+
+        verify(questionBankRepository).save(any(QuestionBank.class));
+    }
+
     // ── 문항번호 자동 부여 ───────────────────────────────────────────────────
 
     @Test
@@ -198,7 +290,7 @@ class QuestionBankServiceTest {
                 "제목", 2024, 1, null, "문항 내용", null, QuestionBank.QuestionType.SHORT_ANSWER, 10L, 20L,
                 null, "정답", null, null, null,
                 null, null, null, null,
-                null
+                null, null
         );
 
         service.createQuestion(req, ADMIN_EMAIL);
