@@ -80,18 +80,23 @@ public class DataInitializer implements ApplicationRunner {
     }
 
     private void fixQuestionTypeConstraints() {
-        String[] tables = {"questions", "question_bank"};
-        for (String table : tables) {
-            try {
-                jdbcTemplate.execute(
-                    "ALTER TABLE " + table + " DROP CONSTRAINT IF EXISTS " + table + "_question_type_check");
-                jdbcTemplate.execute(
-                    "ALTER TABLE " + table + " ADD CONSTRAINT " + table + "_question_type_check " +
-                    "CHECK (question_type IN ('MULTIPLE_CHOICE', 'SHORT_ANSWER', 'OX', 'CODE'))");
-                log.info("[DataInitializer] {}.question_type_check 제약 재생성 완료", table);
-            } catch (Exception e) {
-                log.warn("[DataInitializer] {}.question_type_check 제약 재생성 실패: {}", table, e.getMessage());
-            }
+        // questions(시험)는 구조화 유형(SCHEDULING/SQL) 미지원 — 4개 값 유지
+        fixQuestionTypeConstraint("questions", "'MULTIPLE_CHOICE', 'SHORT_ANSWER', 'OX', 'CODE'");
+        // question_bank(데일리 퀴즈)는 SCHEDULING·SQL 구조화 유형 지원
+        fixQuestionTypeConstraint("question_bank",
+                "'MULTIPLE_CHOICE', 'SHORT_ANSWER', 'OX', 'CODE', 'SCHEDULING', 'SQL'");
+    }
+
+    private void fixQuestionTypeConstraint(String table, String allowedValues) {
+        try {
+            jdbcTemplate.execute(
+                "ALTER TABLE " + table + " DROP CONSTRAINT IF EXISTS " + table + "_question_type_check");
+            jdbcTemplate.execute(
+                "ALTER TABLE " + table + " ADD CONSTRAINT " + table + "_question_type_check " +
+                "CHECK (question_type IN (" + allowedValues + "))");
+            log.info("[DataInitializer] {}.question_type_check 제약 재생성 완료", table);
+        } catch (Exception e) {
+            log.warn("[DataInitializer] {}.question_type_check 제약 재생성 실패: {}", table, e.getMessage());
         }
     }
 

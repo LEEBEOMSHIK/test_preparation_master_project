@@ -1,3 +1,23 @@
+## HIST-20260709-002
+
+- **날짜**: 2026-07-09
+- **수정 범위**: 백엔드 공통(`config/DataInitializer`) — `question_bank`/`questions` question_type CHECK 제약 자동 재생성 로직 결함 수정
+- **수정 개요**: `DataInitializer.fixQuestionTypeConstraints()`가 매 앱 기동 시 `questions`와 `question_bank` 두 테이블에 **동일한** 4개 값(`MULTIPLE_CHOICE, SHORT_ANSWER, OX, CODE`)짜리 CHECK 제약을 강제로 재생성하고 있었다. `question_bank`는 SCHEDULING(2026-07-06)·SQL(2026-07-09, HIST-20260709-001) 유형을 지원하므로 이 제약과 값이 어긋나며, 기동 시 기존 SCHEDULING/SQL 행이 있으면 ADD가 위반으로 실패해(예외는 캐치되어 WARN 로그만 남고 앱은 정상 기동) `question_bank`에 CHECK 제약이 아예 없는 상태로 남는다. 더 심각한 잠재 결함은, DB를 새로 초기화하거나 우연히 SCHEDULING/SQL 행이 하나도 없는 시점에 재기동하면 이 ADD가 **성공**해 잘못된 4개 값 제약이 실제로 걸려버리고, 이후 SCHEDULING/SQL 문항 저장이 전부 DB 제약 위반(500)으로 실패하게 된다. 발견 경위: 사용자가 SQL 문항 기능 구현 직후 데일리 퀴즈 화면에서 카테고리 무관 500 에러를 신고 — 직접 원인은 별개로 재기동 전 백엔드 프로세스가 어제자 컴파일 클래스를 메모리에 들고 있던 클래스로더 불일치(`NoSuchMethodError: QuestionBank.getSqlData()`)였고 백엔드 재기동으로 해결됐으나, 재기동 로그에서 이 CHECK 제약 실패 경고를 추가로 발견해 근본 수정했다.
+- **수정 내용**: `fixQuestionTypeConstraints()`를 테이블별로 분리 — `questions`는 기존 4개 값 유지(구조화 유형 미지원, 설계대로), `question_bank`는 `SCHEDULING`·`SQL`을 포함한 6개 값으로 CHECK 제약을 재생성하도록 `fixQuestionTypeConstraint(table, allowedValues)` 헬퍼로 추출.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java` | 수정 | `fixQuestionTypeConstraints()`를 테이블별 허용값 분리 호출로 변경, `fixQuestionTypeConstraint(table, allowedValues)` private 헬퍼 신규 추출 |
+
+### 재현·검증
+- 백엔드 재기동 후 로그: `question_bank.question_type_check 제약 재생성 완료`(이전엔 `재생성 실패`)로 확인.
+- `curl` E2E: `/api/user/quiz/questions?categoryId=3&language=c`(프로그래밍 언어/C), `categoryId=2`(SQL), `categoryId=1`(운영체제) 모두 HTTP 200 정상 응답 확인(이전엔 전체 카테고리 500).
+
+### 복원 방법
+이 ID(HIST-20260709-002)만으로 복원 시 `fixQuestionTypeConstraints()`를 단일 루프(`{"questions","question_bank"}` + 4개 값 공통 CHECK)로 되돌린다. 단, 되돌리면 위에서 설명한 잠재 결함이 재발한다.
+
 ## HIST-20260709-001
 
 - **날짜**: 2026-07-09
