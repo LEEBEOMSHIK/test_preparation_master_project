@@ -1,3 +1,31 @@
+## HIST-20260710-001
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 사용자 프론트엔드 / 복습 표시(북마크) — 재풀이 모드 추가
+- **수정 개요**: 복습 표시 목록 화면에서 카드를 클릭하면 정답·해설까지 즉시 노출되어 회상 연습이 불가능하던 문제를 해결했다. 목록 팝업(`QuestionDetailModal`)은 그대로 유지하되 신규 prop `hideAnswerInitially`를 전달해 정답·해설을 "정답 보기" 버튼으로 가리도록 했고, 헤더에 "복습 시작" 버튼을 추가해 데일리 퀴즈 풀이 화면(`/user/quiz/bookmarks`)으로 이동해 실제로 답을 입력하고 채점받을 수 있도록 했다. 퀴즈 풀이 화면 자체의 북마크 재풀이 모드 구현은 `docs/history/front/usr/DailyQuiz_Modified.md`, 백엔드 신규 엔드포인트는 `docs/history/back/usr/UserQuiz_Modified.md`에 기록.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/bookmarks/page.tsx` | 수정 | 헤더에 "복습 시작" 버튼 추가(문항 1개 이상일 때만 노출), `QuestionDetailModal`에 `hideAnswerInitially` 전달 |
+| `frontend/src/components/ui/QuestionDetailModal.tsx` | 수정 | 신규 prop `hideAnswerInitially?: boolean`(기본 false) 추가 — true면 정답·해설 영역을 "정답 보기" 버튼으로 가림 |
+
+### 수정 상세
+
+#### `app/user/bookmarks/page.tsx`
+- 변경 전: 헤더에 제목 + 문항 수만 표시, `<QuestionDetailModal question onClose hideEditLink />`
+- 변경 후: 헤더를 `flex items-center justify-between gap-3`로 재구성, `bookmarks.length > 0`일 때 우측에 "복습 시작" 버튼 추가 — 클릭 시 `router.push('/user/quiz/bookmarks?name=' + encodeURIComponent('복습 표시'))`. `<QuestionDetailModal ... hideAnswerInitially />` 추가
+- 이유: 목록 팝업에서 실제 회상 연습(답 입력→채점)이 불가능한 문제를 데일리 퀴즈 풀이 화면 재사용으로 해결
+
+#### `components/ui/QuestionDetailModal.tsx`
+- 변경 전: props `{ question, onClose, hideEditLink }`, 정답·해설·객관식 정답 하이라이트가 항상 노출
+- 변경 후: props에 `hideAnswerInitially?: boolean`(기본 false) 추가. 내부 `revealed` state(문항 id 변경 시 useEffect로 false 초기화) + `showAnswer = !hideAnswerInitially || revealed`. 객관식 선택지의 정답 하이라이트(`isCorrect`)·정답(비객관식) 섹션·해설 섹션 모두 `showAnswer` 조건으로 감싸고, 가려진 상태에서는 "정답 보기" 버튼(인디고 테마, 다크모드 대응)을 렌더해 클릭 시 `revealed=true`로 공개
+- 이유: 계획서 스펙 그대로 구현(기존 관리자 화면 등 다른 사용처는 prop 기본값 false라 동작 불변, 회귀 없음)
+
+### 복원 방법
+이 ID(HIST-20260710-001)만으로 복원 시: `bookmarks/page.tsx`에서 "복습 시작" 버튼과 `hideAnswerInitially` prop 전달을 제거하고, `QuestionDetailModal.tsx`에서 `hideAnswerInitially` prop과 관련 `revealed` state·"정답 보기" 버튼·`showAnswer` 조건부 렌더링을 제거해 원래의 항상-노출 동작으로 되돌린다.
+
 ## HIST-20260709-001
 
 - **날짜**: 2026-07-09

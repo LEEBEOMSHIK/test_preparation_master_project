@@ -18,7 +18,7 @@ import { stripHtml } from '@/lib/html';
 import { hasOptions } from '@/lib/answer';
 import type { ConceptNote, ExamResultData, QuestionResult, QuestionType } from '@/types';
 
-type Phase = 'loading' | 'quiz' | 'continue' | 'result';
+type Phase = 'loading' | 'quiz' | 'continue' | 'result' | 'empty';
 
 /** 언어 코드(소문자) → 표시 라벨 — CodeLanguageModal의 CODE_LANGUAGES 라벨과 동일 컨벤션 */
 const LANGUAGE_LABELS: Record<string, string> = {
@@ -67,8 +67,11 @@ function QuizPlayContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const categoryId = Number(params.categoryId);
-  const categoryName = searchParams.get('name') ?? '퀴즈';
+  const rawCategoryId = String(params.categoryId);
+  // 복습 표시(북마크) 재풀이 모드 — route param이 'bookmarks'면 카테고리 대신 북마크 문항 전체를 로드
+  const isBookmarkMode = rawCategoryId === 'bookmarks';
+  const categoryId = Number(rawCategoryId);
+  const categoryName = searchParams.get('name') ?? (isBookmarkMode ? '복습 표시' : '퀴즈');
   // CODE(프로그래밍 언어) 카테고리에서 선택한 언어 필터 — 없으면 전체(필터 없음)
   const language = searchParams.get('language') ?? undefined;
   // 문항 출처 필터(EXAM/AI_CUSTOM) — 없으면 전체(필터 없음)
@@ -103,23 +106,29 @@ function QuizPlayContent() {
 
   const loadBatch = useCallback(() => {
     setPhase('loading');
-    quizService.getQuestions(categoryId, 10, language, source).then(res => {
+    const request = isBookmarkMode
+      ? quizService.getBookmarkedQuestions()
+      : quizService.getQuestions(categoryId, 10, language, source);
+    request.then(res => {
       if (res.data.success && res.data.data && res.data.data.length > 0) {
         setQuestions(res.data.data);
         setAnswers({});
         setCurrent(0);
         setInputValue('');
         setPhase('quiz');
+      } else if (isBookmarkMode) {
+        setQuestions([]);
+        setPhase('empty');
       } else {
         alert('이 카테고리에 등록된 문항이 없습니다.');
         router.push('/user/quiz');
       }
     });
-  }, [categoryId, language, source, router]);
+  }, [categoryId, language, source, router, isBookmarkMode]);
 
   useEffect(() => {
     loadBatch();
-  }, [categoryId, language, source]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [categoryId, language, source, isBookmarkMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 마운트 시 북마크 ID 목록 초기화 — 실패해도 퀴즈 진행 막지 않음
   useEffect(() => {
@@ -278,6 +287,21 @@ function QuizPlayContent() {
     return <QuizCardSkeleton />;
   }
 
+  // ── Empty (북마크 재풀이 모드 — 복습 표시한 문항이 없음) ─────────────────────────
+  if (phase === 'empty') {
+    return (
+      <div className="max-w-lg mx-auto py-16 text-center space-y-4">
+        <p className="text-gray-600 dark:text-gray-300 font-medium">복습 표시한 문항이 없습니다</p>
+        <button
+          onClick={() => router.push('/user/bookmarks')}
+          className="px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition"
+        >
+          복습 표시 화면으로 돌아가기
+        </button>
+      </div>
+    );
+  }
+
   // ── Continue (end of batch) ────────────────────────────────────────────────
   if (phase === 'continue') {
     const roundScore = questions.length > 0
@@ -317,12 +341,15 @@ function QuizPlayContent() {
           >
             종료하기
           </button>
-          <button
-            onClick={handleContinue}
-            className="flex-1 py-3 text-sm bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition font-medium"
-          >
-            계속 풀기
-          </button>
+          {/* 북마크 재풀이 모드는 배치 재로드가 없으므로 "계속 풀기" 버튼을 숨긴다 */}
+          {!isBookmarkMode && (
+            <button
+              onClick={handleContinue}
+              className="flex-1 py-3 text-sm bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition font-medium"
+            >
+              계속 풀기
+            </button>
+          )}
         </div>
       </div>
     );
@@ -352,8 +379,8 @@ function QuizPlayContent() {
         <ExamResultDisplay
           result={resultData}
           showScoreCard={false}
-          onBack={() => router.push('/user/quiz')}
-          backLabel="카테고리 선택"
+          onBack={() => router.push(isBookmarkMode ? '/user/bookmarks' : '/user/quiz')}
+          backLabel={isBookmarkMode ? '복습 표시로 돌아가기' : '카테고리 선택'}
           showSavedBanner={false}
           onRetake={handleRetake}
         />
@@ -373,8 +400,9 @@ function QuizPlayContent() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
-      {/* 풀이 스크래치패드 — 자유 메모 / 코드 트레이싱 / 계산기, localStorage 영속 */}
-      <ScratchPadPanel storageKey={`tpmp_scratchpad:quiz:${categoryId}:${q.id}`} isCodeQuestion={isCode} />
+      {/* 풀이 스크래치패드 — 자유 메모 / 코드 트레이싱 / 계산기, localStorage 영속
+          (북마크 재풀이 모드는 categoryId가 NaN이므로 rawCategoryId('bookmarks')를 키에 사용) */}
+      <ScratchPadPanel storageKey={`tpmp_scratchpad:quiz:${rawCategoryId}:${q.id}`} isCodeQuestion={isCode} />
       {/* 헤더: 카테고리 + 진행상태 + 종료 버튼 */}
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-3">

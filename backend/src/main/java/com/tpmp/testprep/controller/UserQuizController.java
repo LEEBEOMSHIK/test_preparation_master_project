@@ -47,4 +47,11 @@ public class UserQuizController {
             @AuthenticationPrincipal String email) {
         return ResponseEntity.ok(ApiResponse.success(userQuizService.checkAnswer(request, email)));
     }
+
+    /** 사용자가 복습 표시(북마크)한 문항 전체 (재풀이 모드용, 정답 미노출) */
+    @GetMapping("/bookmarked-questions")
+    public ResponseEntity<ApiResponse<List<QuizQuestionView>>> getBookmarkedQuestions(
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.success(userQuizService.getBookmarkedQuestions(email)));
+    }
 }

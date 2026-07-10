@@ -1,8 +1,12 @@
 package com.tpmp.testprep.service;
 
+import com.tpmp.testprep.dto.response.QuizQuestionView;
 import com.tpmp.testprep.entity.QuestionBank;
+import com.tpmp.testprep.entity.User;
+import com.tpmp.testprep.entity.UserQuestionBookmark;
 import com.tpmp.testprep.repository.DomainMasterRepository;
 import com.tpmp.testprep.repository.QuestionBankRepository;
+import com.tpmp.testprep.repository.UserQuestionBookmarkRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,18 +17,21 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * UserQuizService — 데일리 퀴즈 CODE(프로그래밍 언어) 카테고리 언어 필터 및 출처(EXAM/AI_CUSTOM) 필터
- * 정규화 로직 단위 테스트.
+ * 정규화 로직 단위 테스트 + 복습 표시(북마크) 재풀이용 문항 조회 단위 테스트.
  * getQuizQuestions(categoryId, limit, language, source)가 findRandomByCategory에 넘기는 language/source
  * 파라미터가 각각의 정규화 규칙(공백·"ALL"·정의되지 않은 값 → null)을 따르는지 검증한다.
  */
@@ -35,14 +42,22 @@ class UserQuizServiceTest {
     @Mock private QuestionBankRepository questionBankRepository;
     @Mock private UserRepository userRepository;
     @Mock private QuizHistoryRecorder quizHistoryRecorder;
+    @Mock private UserQuestionBookmarkRepository userQuestionBookmarkRepository;
+    @Mock private User mockUser;
 
     private UserQuizService service;
 
+    private static final String USER_EMAIL = "user@tpmp.com";
+
     @BeforeEach
     void setUp() {
-        service = new UserQuizService(domainMasterRepository, questionBankRepository, userRepository, quizHistoryRecorder);
-        when(questionBankRepository.findRandomByCategory(anyLong(), anyInt(), any(), any()))
+        service = new UserQuizService(domainMasterRepository, questionBankRepository, userRepository, quizHistoryRecorder, userQuestionBookmarkRepository);
+        // findRandomByCategory는 language/source 정규화 테스트에서만 사용되므로, 북마크 테스트에서는
+        // 불필요한 스터빙으로 strict-stub 검증에 걸리지 않도록 lenient 처리한다.
+        lenient().when(questionBankRepository.findRandomByCategory(anyLong(), anyInt(), any(), any()))
                 .thenReturn(Collections.<QuestionBank>emptyList());
+        lenient().when(userRepository.findByEmail(USER_EMAIL)).thenReturn(Optional.of(mockUser));
+        lenient().when(mockUser.getId()).thenReturn(1L);
     }
 
     /**
@@ -125,5 +140,37 @@ class UserQuizServiceTest {
     @DisplayName("source가 정의되지 않은 값이면 필터 없이 null로 전달")
     void source_invalidValue_normalizesToNull() {
         assertThat(capturedSource(1L, 10, "INVALID")).isNull();
+    }
+
+    @Test
+    @DisplayName("복습 표시(북마크)한 문항이 없으면 빈 목록 반환")
+    void getBookmarkedQuestions_noBookmarks_returnsEmptyList() {
+        when(userQuestionBookmarkRepository.findAllByUserIdWithQuestion(1L))
+                .thenReturn(Collections.<UserQuestionBookmark>emptyList());
+
+        List<QuizQuestionView> result = service.getBookmarkedQuestions(USER_EMAIL);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("복습 표시한 문항이 있으면 정답을 노출하지 않는 QuizQuestionView 목록으로 매핑")
+    void getBookmarkedQuestions_withBookmarks_mapsToQuizQuestionViewWithoutAnswer() {
+        QuestionBank qb = QuestionBank.builder()
+                .questionType(QuestionBank.QuestionType.SHORT_ANSWER)
+                .content("문항 내용")
+                .answer("정답")
+                .build();
+        UserQuestionBookmark bookmark = UserQuestionBookmark.builder()
+                .user(mockUser)
+                .questionBank(qb)
+                .build();
+        when(userQuestionBookmarkRepository.findAllByUserIdWithQuestion(1L))
+                .thenReturn(List.of(bookmark));
+
+        List<QuizQuestionView> result = service.getBookmarkedQuestions(USER_EMAIL);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).content()).isEqualTo("문항 내용");
     }
 }

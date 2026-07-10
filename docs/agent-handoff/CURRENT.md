@@ -6,29 +6,31 @@
 
 ## Current Goal
 
-- 데일리 퀴즈: AI 커스텀 문제가 있는 카테고리를 CODE 언어 필터 선례처럼 나눠, "AI 커스텀만"(및 기출만/전체) 골라 풀 수 있게 하는 풀스택 기능. **구현 완료, 검증 완료, 커밋 전(미커밋).**
+- 복습 표시(북마크) 재풀이 모드 — **구현·검증 완료, 커밋 대기.**
+  - BE: `GET /api/user/quiz/bookmarked-questions` (UserQuizService.getBookmarkedQuestions, 정답 미노출·최신순·상한 100) + 테스트 2건
+  - FE: 퀴즈 풀이 페이지 `categoryId==='bookmarks'` 재풀이 모드(전체 1회 로드, empty phase, 결과 화면 복습 표시로 복귀), 복습 표시 화면 "복습 시작" 버튼, QuestionDetailModal `hideAnswerInitially`(정답 보기 토글, 기본 false로 기존 사용처 불변)
 
-## 완료한 작업
+## 검증 (메인 직접)
 
-- BE: `QuestionBankRepository`에 `findDistinctCategoryIdsWithAiCustomQuestions()` 신규 쿼리 추가, `findRandomByCategory`에 `source` 파라미터 추가(native query). `DomainSlaveResponse`에 `hasAiCustomQuestions` 필드 추가(3-arg `from`, 1-arg 하위 호환 유지). `UserQuizService.getCategories`에 `aiCustomCategoryIds` 조회·전달, `getQuizQuestions` 4-arg(`categoryId, limit, language, source`)로 확장 + `normalizeSource` 신규. `UserQuizController`에 `source` 쿼리 파라미터 추가. `UserQuizServiceTest`에 source 정규화 테스트 6개 추가(기존 language 테스트 4개 유지, 헬퍼 4-arg로 갱신).
-- FE: `DomainSlave` 타입에 `hasAiCustomQuestions?` 추가. `quizService.getQuestions`에 `source` 파라미터 추가. `CodeLanguageModal`을 `showLanguage`/`showSource` props로 확장 — 둘 다 true면 언어+출처 두 섹션을 함께 보여주고 "시작" 버튼으로 확정(`onSelect({ language?, source? })` 시그니처로 변경). `user/quiz/page.tsx`의 `handleSelect`/`handleSelectScope`(구 `handleSelectLanguage`)에 출처 분기 추가. `user/quiz/[categoryId]/page.tsx`에 `source` 쿼리 읽기·`loadBatch` 반영·헤더 출처 배지 추가.
-- 문서: `CLAUDE.md`/`AGENTS.md`의 `CodeLanguageModal` 행 갱신. 히스토리 prepend: `docs/history/back/usr/UserQuiz_Modified.md`(HIST-20260710-001), `docs/history/front/usr/DailyQuiz_Modified.md`(HIST-20260710-001).
+- `./gradlew test` 전체 통과(UserQuizServiceTest 11건), `npx tsc --noEmit` 0 에러
+- 히스토리 4파일 git diff --numstat 전부 순수 추가(에이전트가 QuestionBookmark 파일 덮어쓸 뻔한 것 자체 복구 — 최종본 기존 항목 보존 확인)
+- 백엔드 재기동 후 E2E: bookmarked-questions 200(기존 북마크 2건, answer 키 미노출), SCHEDULING 문항 토글 추가 시 schedulingData 포함 최신순 반환 확인 후 원복
 
-## 검증 결과
+## 탐색 결과
 
-- `cd backend && ./gradlew test` → BUILD SUCCESSFUL (전체 통과)
-- `cd frontend && npx tsc --noEmit` → 오류 없음
-- `npm run build` 미실행(정책상 금지).
-- **백엔드 재기동 완료 + E2E 통과** (메인 에이전트 직접 실행):
-  - `/api/user/quiz/categories`: 운영체제 hasAiCustom=true, 프로그래밍 언어 hasAiCustom=true+hasCode=true(복합 모달 케이스 실존), 나머지 false — 데이터와 일치
-  - `source=AI_CUSTOM`(운영체제): 5문항 전부 연도·회차 null / `source=EXAM`: 5문항 전부 연도·회차 있음 / source 없음: 혼합 10문항
+- `user/bookmarks/page.tsx`: 카드 목록 → 클릭 시 `QuestionDetailModal`(hideEditLink)로 정답·해설까지 즉시 노출(:180-184). `bookmarkToDetailItem`이 answer/explanation 그대로 전달.
+- 퀴즈 풀이 화면 `user/quiz/[categoryId]/page.tsx`: 채점(`/user/quiz/check`)·해설·보기채점·구조화 데이터 렌더·스크래치패드·북마크 토글 전부 보유 — 재풀이 모드로 재사용 예정(route param 'bookmarks' 특수 모드).
+- BE: 북마크 조회 API 존재(bookmarkService.getBookmarks → BookmarkQuestion DTO). 재풀이용으로 QuizQuestionView 형태 신규 엔드포인트 필요(정답 미노출 규칙 유지).
+
+## 미커밋 작업 (직전 완료분)
+
+- 개념노트 상세 2곳 스크래치패드 장착 (HIST-20260710-001, UserConceptNote_Modified.md) + CLAUDE.md/AGENTS.md 표 문구. tsc 통과. — 이번 작업과 별도 커밋 예정.
 
 ## Warnings / Notes
 
-- 백엔드 코드 변경했으므로 사용자가 dev 서버 재시작 필요(클래스로더 불일치 사고 이력, 이번 세션에서는 재시작하지 않음).
+- 백엔드 코드 변경 후 반드시 dev 서버 재시작(클래스로더 사고 이력). `npm run build` 금지.
 - 히스토리 prepend만, `references/` 미추적 유지.
-- 아직 git commit/push 하지 않음 — 사용자 확인 후 커밋 필요.
 
 ## Last Commit
 
-- `0412589 [FE] fix: AI 커스텀 문항 판정을 연도·회차 기준으로 변경(문항번호 병기)` (이번 작업분은 아직 미커밋)
+- `5b63052 [FE|BE] feat: 데일리 퀴즈 출처(전체/기출/AI 커스텀) 필터 추가`

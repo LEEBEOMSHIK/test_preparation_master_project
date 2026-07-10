@@ -194,7 +194,7 @@ rg --files frontend/src/app/admin backend/src/main/java
 | `useIsDarkMode()` | `src/lib/useIsDarkMode.ts` | 현재 다크모드 여부(html `dark` 클래스 기준, MutationObserver 반응) |
 | `<RichContent html className />` | `src/components/ui/RichContent.tsx` | 에디터 HTML 렌더링 |
 | `<RichTextEditor value onChange />` | `src/components/ui/RichTextEditor.tsx` | react-quill 에디터 (툴바 이미지 버튼·붙여넣기·드래그드롭 모두 서버 업로드 후 URL 삽입, base64 인라인 금지) |
-| `<QuestionDetailModal question onClose />` | `src/components/ui/QuestionDetailModal.tsx` | 문항 상세 모달 |
+| `<QuestionDetailModal question onClose hideEditLink hideAnswerInitially />` | `src/components/ui/QuestionDetailModal.tsx` | 문항 상세 모달 (`hideAnswerInitially`=true면 정답·해설을 "정답 보기" 버튼으로 가림, 기본 false) |
 | `<ConceptNoteModal defaultTitle existingNote link onClose onSaved />` | `src/components/ui/ConceptNoteModal.tsx` | 문항별 개념노트 작성/수정 모달 (시험=questionId·퀴즈=questionBankId 공용) |
 | `<PermissionDeniedModal />` | `src/components/ui/PermissionDeniedModal.tsx` | 권한 없음 팝업 |
 | `<TableSkeleton />` 외 | `src/components/ui/Skeleton.tsx` | 스켈레톤 UI 모음 |
@@ -213,7 +213,7 @@ rg --files frontend/src/app/admin backend/src/main/java
 | `<SqlProblemEditor value onChange />` | `src/components/ui/SqlProblemEditor.tsx` | SQL 문항 등록/수정 에디터 — 테이블 카드 반복(테이블명·컬럼 편집·샘플 데이터 행 추가/삭제) |
 | `emptySqlDraft`/`toSqlDataPayload`/`fromSqlData` 등 | `src/lib/sql.ts` | SQL 문항 등록/수정 폼 공용 헬퍼 (Draft ↔ SqlData 변환) |
 | `<Pagination page totalPages onChange className />` | `src/components/ui/Pagination.tsx` | 관리자 목록 표 공용 페이지네이션(0-based) — 첫/마지막 고정 + 현재 ±2 윈도우 + 생략부호(…), 화살표·번호 버튼 다크모드 대응 |
-| `<ScratchPadPanel storageKey isCodeQuestion className />` | `src/components/ui/ScratchPadPanel.tsx` | 풀이 화면 FAB+드로어/바텀시트 스크래치패드(자유메모·CODE 트레이싱·페이지 부재 풀이 도구·스케줄링(간트 차트) 풀이 도구·트리 시각화·안전 계산기), localStorage 영속. 코드 트레이싱 탭은 "타이핑→자동 렌더" 표기법 방식(traceNotation). 데스크톱 드로어는 왼쪽 가장자리 드래그로 폭 리사이즈 가능(300~720px, localStorage 키 `tpmp:scratchpad:panel-width` 영속) |
+| `<ScratchPadPanel storageKey isCodeQuestion className />` | `src/components/ui/ScratchPadPanel.tsx` | 풀이·개념노트 상세 화면 FAB+드로어/바텀시트 스크래치패드(자유메모·CODE 트레이싱·페이지 부재 풀이 도구·스케줄링(간트 차트) 풀이 도구·트리 시각화·안전 계산기), localStorage 영속. 코드 트레이싱 탭은 "타이핑→자동 렌더" 표기법 방식(traceNotation). 데스크톱 드로어는 왼쪽 가장자리 드래그로 폭 리사이즈 가능(300~720px, localStorage 키 `tpmp:scratchpad:panel-width` 영속) |
 | `<PageReplacementTool value onChange />`, `type PageReplacementData`, `parseRefTokens`, `isPageReplacementData` | `src/components/ui/PageReplacementTool.tsx` | 페이지 부재(페이지 교체) 손입력 풀이 도구 — 참조열/프레임 수로 표 골격만 생성, FIFO/LRU/Optimal 자동 계산·채점 없음. 참조열/프레임 수 변경 시 그리드 자동 리사이즈(기존 입력값 최대한 보존) |
 | `<SchedulingSolveTool value onChange />`, `type SchedulingSolveData`, `isSchedulingSolveData` | `src/components/ui/SchedulingSolveTool.tsx` | 손입력 간트 차트 스케줄링 풀이 도구(풀이 스크래치패드 전용) — 프로세스 표+총 시간으로 타임 슬롯·결과 표 골격 생성, FIFO/SJF/RR/Priority 등 알고리즘 자동 계산·채점 없음(반환/대기시간 평균만 자동). 문항 등록/표시용 `SchedulingProblemEditor`/`SchedulingProblemTable`과는 별개 |
 | `<BinaryTreeTool value onChange />`, `type TreeNode`, `parseLevelOrderTree`, `MAX_TREE_NODES` | `src/components/ui/BinaryTreeTool.tsx` | 이진트리 시각화 도구 — 레벨오더 배열 표기(`[1, 2, 3, null, 4, 5]`)를 LeetCode 표준 BFS 규칙으로 역직렬화 후 SVG로 자동 렌더(in-order x·깊이 y 좌표). 순수 시각화(채점/코드실행 없음), 노드 200개 상한 |

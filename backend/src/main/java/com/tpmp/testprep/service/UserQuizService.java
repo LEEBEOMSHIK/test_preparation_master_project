@@ -8,10 +8,13 @@ import com.tpmp.testprep.dto.response.QuizQuestionView;
 import com.tpmp.testprep.entity.DomainMaster;
 import com.tpmp.testprep.entity.DomainSlave;
 import com.tpmp.testprep.entity.QuestionBank;
+import com.tpmp.testprep.entity.User;
+import com.tpmp.testprep.entity.UserQuestionBookmark;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.DomainMasterRepository;
 import com.tpmp.testprep.repository.QuestionBankRepository;
+import com.tpmp.testprep.repository.UserQuestionBookmarkRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import com.tpmp.testprep.service.support.AnswerGrader;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +38,7 @@ public class UserQuizService {
     private final QuestionBankRepository questionBankRepository;
     private final UserRepository userRepository;
     private final QuizHistoryRecorder quizHistoryRecorder;
+    private final UserQuestionBookmarkRepository userQuestionBookmarkRepository;
 
     /** 퀴즈 카테고리 목록 (문제 유형 / 시험 유형 도메인만 반환) */
     public List<DomainMasterResponse> getCategories(String examTypeIds) {
@@ -100,6 +104,18 @@ public class UserQuizService {
         if ("AI_CUSTOM".equalsIgnoreCase(trimmed)) return "AI_CUSTOM";
         if ("EXAM".equalsIgnoreCase(trimmed)) return "EXAM";
         return null; // 그 외 값은 무시(필터 없음)
+    }
+
+    /** 사용자가 복습 표시(북마크)한 문항 전체를 퀴즈 재풀이용으로 반환 — 정답 미노출, 최신순, 상한 100 */
+    public List<QuizQuestionView> getBookmarkedQuestions(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        return userQuestionBookmarkRepository.findAllByUserIdWithQuestion(user.getId())
+                .stream()
+                .map(UserQuestionBookmark::getQuestionBank)
+                .limit(100)
+                .map(QuizQuestionView::from)
+                .toList();
     }
 
     /**

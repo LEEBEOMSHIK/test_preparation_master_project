@@ -112,9 +112,19 @@ export default function BookmarksPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold text-gray-900">복습 표시</h1>
-        <span className="text-sm text-gray-400">{bookmarks.length}개 문항</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-bold text-gray-900">복습 표시</h1>
+          <span className="text-sm text-gray-400">{bookmarks.length}개 문항</span>
+        </div>
+        {bookmarks.length > 0 && (
+          <button
+            onClick={() => router.push('/user/quiz/bookmarks?name=' + encodeURIComponent('복습 표시'))}
+            className="shrink-0 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition"
+          >
+            복습 시작
+          </button>
+        )}
       </div>
 
       <div className="grid gap-3">
@@ -181,6 +191,7 @@ export default function BookmarksPage() {
         question={selectedQuestion}
         onClose={() => setSelectedQuestion(null)}
         hideEditLink
+        hideAnswerInitially
       />
     </div>
   );

@@ -40,4 +40,8 @@ export const quizService = {
 
   checkAnswer: (questionId: number, userAnswer: string) =>
     apiClient.post<ApiResponse<CheckResult>>('/user/quiz/check', { questionId, userAnswer }),
+
+  /** 사용자가 복습 표시(북마크)한 문항 전체 (재풀이 모드용, 정답 미노출) */
+  getBookmarkedQuestions: () =>
+    apiClient.get<ApiResponse<QuizQuestion[]>>('/user/quiz/bookmarked-questions'),
 };

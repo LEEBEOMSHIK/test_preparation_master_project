@@ -1,3 +1,31 @@
+## HIST-20260710-002
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 풀이 화면 — 복습 표시(북마크) 재풀이 모드 추가
+- **수정 개요**: 복습 표시 목록 화면(`/user/bookmarks`)의 "복습 시작" 버튼에서 진입하는 `/user/quiz/bookmarks` 경로를 위해, 기존 카테고리별 퀴즈 풀이 화면(`app/user/quiz/[categoryId]/page.tsx`)에 route param이 `'bookmarks'`일 때만 활성화되는 북마크 재풀이 모드를 추가했다. `quizService.getBookmarkedQuestions()`로 사용자의 북마크 문항 전체를 한 번에 로드(배치 재로드 없음)하고, 기존 흐름(문항 카드·답 입력·채점·해설·스크래치패드·북마크 별 토글)을 그대로 재사용한다. 문항의 실제 채점은 `checkAnswer(questionId, userAnswer)`가 문항 id만으로 처리하므로(서버가 문항의 실제 categoryId를 자체 결정) FE는 route의 categoryId가 숫자가 아니어도 채점 경로에는 영향이 없음을 확인했다. `categoryId`가 `NaN`이 되는 지점(스크래치패드 storageKey)만 `rawCategoryId('bookmarks')`로 대체했다. 문항이 0개면 안내 문구 + 복습 표시 화면 복귀 버튼을 보여주는 신규 `'empty'` phase를 추가했고, 배치 완료 화면(`'continue'` phase)에서는 "계속 풀기"(추가 배치 로드) 버튼을 숨겼다. 결과 화면의 "뒤로가기"도 북마크 모드에서는 `/user/bookmarks`로 향하도록 자체 판단으로 개선했다(계획서에 명시되지 않았으나 UX 일관성을 위해 추가, 위험 없는 변경).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | `isBookmarkMode` 판별, `loadBatch` 분기, `Phase`에 `'empty'` 추가, continue phase "계속 풀기" 버튼 숨김, 결과 화면 뒤로가기 목적지 분기, 스크래치패드 storageKey를 `rawCategoryId` 기반으로 변경 |
+| `frontend/src/services/quizService.ts` | 수정 | `getBookmarkedQuestions()` 신규 추가 — `GET /user/quiz/bookmarked-questions` |
+
+### 수정 상세
+
+#### `services/quizService.ts`
+- 변경 전: `getCategories`/`getQuestions`/`checkAnswer` 3개 메서드만 존재
+- 변경 후: `getBookmarkedQuestions: () => apiClient.get<ApiResponse<QuizQuestion[]>>('/user/quiz/bookmarked-questions')` 추가
+- 이유: 백엔드 신규 엔드포인트(`docs/history/back/usr/UserQuiz_Modified.md` HIST-20260710-002) 호출용
+
+#### `app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `categoryId = Number(params.categoryId)`만 존재, `Phase = 'loading' | 'quiz' | 'continue' | 'result'`, `loadBatch`가 항상 `quizService.getQuestions(...)` 호출, 문항 0개 시 항상 alert + `/user/quiz`로 리다이렉트, continue phase에 "종료하기"/"계속 풀기" 버튼 항상 노출, 결과 화면 뒤로가기는 항상 `/user/quiz`, 스크래치패드 storageKey가 `categoryId`(숫자) 기반
+- 변경 후: `rawCategoryId = String(params.categoryId)`, `isBookmarkMode = rawCategoryId === 'bookmarks'`, `categoryName` 기본값이 북마크 모드면 `'복습 표시'`. `Phase`에 `'empty'` 추가. `loadBatch`는 북마크 모드면 `quizService.getBookmarkedQuestions()`를 호출하고, 결과가 0개면(북마크 모드 한정) alert 없이 `setPhase('empty')`. `'empty'` phase는 안내 문구 + `/user/bookmarks`로 돌아가는 버튼 렌더. continue phase는 `!isBookmarkMode`일 때만 "계속 풀기" 버튼 렌더(북마크 모드는 배치 재로드가 없으므로). 결과 화면 `onBack`/`backLabel`이 북마크 모드면 `/user/bookmarks`·"복습 표시로 돌아가기". 스크래치패드 storageKey를 `tpmp_scratchpad:quiz:${rawCategoryId}:${q.id}`로 변경(북마크 모드에서 `categoryId`가 `NaN`이 되는 것을 회피)
+- 이유: 계획서 스펙 그대로 구현. 북마크 별 토글로 해제해도 현재 세션 문항 목록은 유지되는 요구사항은 기존 `handleToggleBookmark`가 `bookmarkedIds` state만 갱신하고 `questions` 배열을 건드리지 않으므로 별도 코드 변경 없이 이미 충족됨을 확인(계획서 5번 항목)
+
+### 복원 방법
+이 ID(HIST-20260710-002)만으로 복원 시: `quizService.ts`에서 `getBookmarkedQuestions` 제거. `[categoryId]/page.tsx`에서 `rawCategoryId`/`isBookmarkMode` 관련 분기(loadBatch, `'empty'` phase, continue phase 버튼 숨김, 결과 화면 목적지 분기)를 제거하고 `categoryId = Number(params.categoryId)`·스크래치패드 storageKey를 `${categoryId}` 기반으로 되돌린다.
+
 ## HIST-20260710-001
 
 - **날짜**: 2026-07-10

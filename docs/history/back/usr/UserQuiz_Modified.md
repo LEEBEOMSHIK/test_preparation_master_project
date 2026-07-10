@@ -1,3 +1,37 @@
+## HIST-20260710-002
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈 — 복습 표시(북마크) 재풀이용 신규 엔드포인트 추가
+- **수정 개요**: 복습 표시(북마크) 목록 화면의 "복습 시작" 버튼이 실제로 답을 입력하고 채점받을 수 있도록, 데일리 퀴즈 풀이 화면에서 사용자의 북마크 문항 전체를 정답 미노출 상태로 가져오는 `GET /api/user/quiz/bookmarked-questions` 엔드포인트를 추가했다. 기존 북마크 조회 구조(`UserQuestionBookmarkRepository.findAllByUserIdWithQuestion` — 소프트 삭제 문항 제외, 최신순)를 그대로 재사용해 `QuestionBank` 엔티티 목록을 얻고 `QuizQuestionView.from`으로 매핑(정답 미노출, 상한 100)했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java` | 수정 | `UserQuestionBookmarkRepository` 의존성 추가, `getBookmarkedQuestions(String email)` 신규 메서드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/controller/UserQuizController.java` | 수정 | `GET /bookmarked-questions` 엔드포인트 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/UserQuizServiceTest.java` | 수정 | `UserQuestionBookmarkRepository`/`User` 목 추가, 생성자 호출을 5-arg로 갱신, 기존 `findRandomByCategory` 스텁을 `lenient()`로 전환(새 테스트에서 미사용으로 인한 strict-stub 실패 방지), 북마크 관련 테스트 2건 신규 추가 |
+
+### 수정 상세
+
+#### `service/UserQuizService.java`
+- 변경 전: 필드 4개(`domainMasterRepository`, `questionBankRepository`, `userRepository`, `quizHistoryRecorder`), 북마크 관련 메서드 없음
+- 변경 후: `private final UserQuestionBookmarkRepository userQuestionBookmarkRepository;` 필드 추가(5번째, `@RequiredArgsConstructor`로 생성자 자동 5-arg 확장). `getBookmarkedQuestions(String email)` 신규: 이메일로 `User` 조회 후 `userQuestionBookmarkRepository.findAllByUserIdWithQuestion(user.getId())` → `.map(UserQuestionBookmark::getQuestionBank)` → `.limit(100)` → `.map(QuizQuestionView::from)` → `.toList()`
+- 이유: 계획서 스펙 그대로 구현. 기존 북마크 조회 리포지토리 쿼리가 이미 `qb.delYn = 'N'`·`ORDER BY b.createdAt DESC`(최신순)를 보장하므로 별도 필터·정렬 로직 추가 없이 재사용
+
+#### `controller/UserQuizController.java`
+- 변경 전: `/categories`·`/questions`·`/check` 3개 엔드포인트만 존재
+- 변경 후: `@GetMapping("/bookmarked-questions")` 신규 — `@AuthenticationPrincipal String email`만 받아 `userQuizService.getBookmarkedQuestions(email)` 결과를 `List<QuizQuestionView>`로 반환
+- 이유: 프론트엔드 `quizService.getBookmarkedQuestions()` 호출 대상
+
+#### `test/UserQuizServiceTest.java`
+- 변경 전: 생성자 4-arg 호출, `findRandomByCategory` 스텁이 strict(`when(...)`)
+- 변경 후: `@Mock UserQuestionBookmarkRepository`·`@Mock User mockUser` 추가, 생성자 5-arg로 갱신, `findRandomByCategory` 스텁을 `lenient()`로 전환(북마크 테스트에서는 호출되지 않으므로 strict-stub 미사용 예외 방지), `userRepository.findByEmail(USER_EMAIL)`/`mockUser.getId()` lenient 스텁 추가. 신규 테스트 2건: 북마크 없음 → 빈 목록, 북마크 있음 → `QuizQuestionView`로 매핑되고 `content`가 정확히 전달됨(정답 필드는 `QuizQuestionView`에 애초에 없으므로 별도 미노출 검증 불필요, record 필드 자체로 보장됨)
+- 이유: 신규 서비스 메서드 단위 테스트 커버리지 확보. `./gradlew test --tests UserQuizServiceTest` 11개 전체 통과, 전체 `./gradlew test` 스위트도 실패 없이 통과 확인
+
+### 복원 방법
+이 ID(HIST-20260710-002)만으로 복원 시: `UserQuizService.java`에서 `userQuestionBookmarkRepository` 필드와 `getBookmarkedQuestions` 메서드를 제거(4-arg 생성자로 복귀), `UserQuizController.java`에서 `/bookmarked-questions` 엔드포인트를 제거, `UserQuizServiceTest.java`에서 북마크 관련 목·테스트·5-arg 생성자 호출을 제거하고 4-arg로 되돌린다.
+
 ## HIST-20260710-001
 
 - **날짜**: 2026-07-10

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { RichContent } from '@/components/ui/RichContent';
 import { CodeBlock } from '@/components/ui/CodeBlock';
@@ -33,6 +33,8 @@ interface Props {
   onClose: () => void;
   /** true로 설정하면 관리자 수정 링크를 숨깁니다 (사용자 북마크 페이지 등) */
   hideEditLink?: boolean;
+  /** true로 설정하면 정답·해설 영역을 "정답 보기" 버튼으로 가립니다 (기본 false, 회상 연습용 — 복습 재풀이 진입 전 목록 팝업 등) */
+  hideAnswerInitially?: boolean;
 }
 
 const TYPE_LABEL: Record<QuestionType, string> = {
@@ -52,7 +54,9 @@ const TYPE_COLOR: Record<QuestionType, string> = {
   SQL:             'bg-cyan-50 text-cyan-600',
 };
 
-export function QuestionDetailModal({ question, onClose, hideEditLink = false }: Props) {
+export function QuestionDetailModal({ question, onClose, hideEditLink = false, hideAnswerInitially = false }: Props) {
+  const [revealed, setRevealed] = useState(false);
+
   useEffect(() => {
     if (!question) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -60,7 +64,16 @@ export function QuestionDetailModal({ question, onClose, hideEditLink = false }:
     return () => window.removeEventListener('keydown', onKey);
   }, [question, onClose]);
 
+  // 문항이 바뀌면(모달 재오픈 포함) 정답 가림 상태를 초기화
+  useEffect(() => {
+    setRevealed(false);
+  }, [question?.id]);
+
   if (!question) return null;
+
+  // hideAnswerInitially가 아니면 항상 노출, 맞으면 "정답 보기" 클릭 전까지 가림
+  const showAnswer = !hideAnswerInitially || revealed;
+  const hasAnswerContent = !!question.answer || !!question.explanation;
 
   return (
     <div
@@ -161,29 +174,42 @@ export function QuestionDetailModal({ question, onClose, hideEditLink = false }:
             <div>
               <p className="text-xs font-medium text-gray-400 mb-1.5">선택지</p>
               <ol className="space-y-1.5">
-                {question.options.map((opt, i) => (
-                  <li
-                    key={i}
-                    className={[
-                      'flex items-start gap-2 px-3 py-2 rounded-lg text-sm border',
-                      question.answer === String(i + 1)
-                        ? 'border-green-300 bg-green-50 text-green-800 font-medium'
-                        : 'border-gray-100 text-gray-700',
-                    ].join(' ')}
-                  >
-                    <span className="font-semibold shrink-0">({i + 1})</span>
-                    <span>{opt}</span>
-                    {question.answer === String(i + 1) && (
-                      <span className="ml-auto shrink-0 text-xs text-green-600">정답</span>
-                    )}
-                  </li>
-                ))}
+                {question.options.map((opt, i) => {
+                  const isCorrect = showAnswer && question.answer === String(i + 1);
+                  return (
+                    <li
+                      key={i}
+                      className={[
+                        'flex items-start gap-2 px-3 py-2 rounded-lg text-sm border',
+                        isCorrect
+                          ? 'border-green-300 bg-green-50 text-green-800 font-medium'
+                          : 'border-gray-100 text-gray-700',
+                      ].join(' ')}
+                    >
+                      <span className="font-semibold shrink-0">({i + 1})</span>
+                      <span>{opt}</span>
+                      {isCorrect && (
+                        <span className="ml-auto shrink-0 text-xs text-green-600">정답</span>
+                      )}
+                    </li>
+                  );
+                })}
               </ol>
             </div>
           )}
 
+          {/* 정답 보기 토글 — hideAnswerInitially이고 아직 공개 전일 때만 노출 */}
+          {hideAnswerInitially && !showAnswer && hasAnswerContent && (
+            <button
+              onClick={() => setRevealed(true)}
+              className="w-full py-2.5 rounded-lg border border-indigo-200 text-indigo-600 text-sm font-medium hover:bg-indigo-50 transition dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
+            >
+              정답 보기
+            </button>
+          )}
+
           {/* 정답 (객관식 외) */}
-          {question.questionType !== 'MULTIPLE_CHOICE' && question.answer && (
+          {question.questionType !== 'MULTIPLE_CHOICE' && question.answer && showAnswer && (
             <div>
               <p className="text-xs font-medium text-gray-400 mb-1.5">정답</p>
               <p className="px-3 py-2 bg-green-50 border border-green-200 text-green-800 text-sm rounded-lg font-medium">
@@ -193,7 +219,7 @@ export function QuestionDetailModal({ question, onClose, hideEditLink = false }:
           )}
 
           {/* 해설 */}
-          {question.explanation && (
+          {question.explanation && showAnswer && (
             <div>
               <p className="text-xs font-medium text-gray-400 mb-1.5">해설</p>
               <p className="px-3 py-2 bg-gray-50 border border-gray-100 text-gray-700 text-sm rounded-lg leading-relaxed whitespace-pre-wrap">
