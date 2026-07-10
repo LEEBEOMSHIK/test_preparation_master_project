@@ -6,33 +6,30 @@
 
 ## Current Goal
 
-- 보기(options) 있는 문항 채점 개선(빈칸 위치별 순서 비교·중복 정답·번호↔텍스트 상호 인정) + 관리자 정답 슬롯 UI — **완료, 커밋 직전**.
+- 풀이 스크래치패드(ScratchPadPanel)에 **손입력 간트 차트 스케줄링 풀이 도구** 탭 추가. FE 전용, BE/DB 연동 없음. — **구현·검증 완료, 커밋 대기**.
 
 ## 완료 내역
 
-- BE `AnswerGrader` 4-인자 오버로드: options 있으면 [,/] 분리 → 순서 보존 위치별 비교, 토큰 수 불일치 오답, `normalizeOptionToken`(열거 접두 "N."/"N)" 제거)·`resolveOptionToken`(1..N 숫자 → 보기 텍스트 치환) — 중복 번호 허용, 부분 점수 없음. `AnswerGraderTest` 13종 신규.
-- FE `lib/answer.ts`: `slotsToAnswer`/`parseAnswerToSlots` 추가(백엔드와 동일 정규화 규칙 — **두 구현이 어긋나면 안 됨**).
-- 관리자 questions new/edit: 보기 있을 때 "정답 (빈칸 순서대로)" 슬롯 UI(중복 지정 가능, 0=미선택 sentinel), edit는 answer 파싱 실패 시 원문 텍스트 폴백. 보기 원형 번호는 표시 전용으로 변경.
-- 사용자 placeholder 2곳(quiz/[categoryId], exam/[id]) 콤마 구분 안내로 갱신.
-- CLAUDE.md Shared Utilities 표 갱신, 히스토리 4파일 HIST-20260710-001 prepend.
+- 신규 `frontend/src/components/ui/SchedulingSolveTool.tsx`: `SchedulingSolveData`(processes/totalTime/ganttCells/results), `EMPTY_SCHEDULING_SOLVE_DATA`, `isSchedulingSolveData` 타입가드, `SchedulingSolveTool({value, onChange})`. 프로세스 표(최대 10행) + 총 시간(0~60, 실행시간 합 제안 버튼) → 간트 차트 타임 슬롯 골격 생성, 슬롯·완료/반환/대기시간 전부 손입력. 유일한 자동 계산은 반환/대기시간 평균(소수 둘째 자리). 간트 셀은 입력 텍스트 해시 기반 색상 표시(보조 표시일 뿐 계산 아님). `PageReplacementTool.tsx`의 리사이즈 보존 철학(resizeGrid → resizeGantt/resizeResults) 그대로 적용.
+- `ScratchPadPanel.tsx`: `TabKey`에 `'scheduling'` 추가(페이지 부재 뒤), `ScratchPadData.scheduling` 필드 + `EMPTY_DATA` + `loadData` 타입가드 폴백, 탭 렌더 분기 추가, 헤더 Javadoc 5탭→6탭 갱신.
+- `CLAUDE.md` Shared Utilities 표에 `SchedulingSolveTool` 행 추가, `ScratchPadPanel` 설명 갱신.
+- 히스토리: `docs/history/front/usr/UserExamination_Modified.md`에 `HIST-20260710-002` prepend(기존 `HIST-20260710-001` 보존 확인 완료).
 
 ## 검증
 
-- `./gradlew test --rerun` 전체 BUILD SUCCESSFUL, `npx tsc --noEmit` 0 errors.
-- 메인 에이전트가 AnswerGrader·answer.ts 정규화 규칙 일치 직접 리뷰 — 이상 없음.
-- 백엔드 재기동(PID 52160) 후 실제 문항 23(`/api/user/quiz/check`) E2E 6케이스 전부 기대값 일치:
-  "4,1,2,3"·"4, 1, 2, 3"·"pwd, ls, cd, cp"·"4, ls, 2, cp" → true / "1,2,3,4"·"4,1,2" → false.
+- `npx tsc --noEmit` (frontend) — 에러 0건.
+- `npm run build` 미실행(dev 서버 가동 중 정책 준수, FE 전용이라 백엔드 빌드·테스트 불필요).
 
 ## Remaining
 
-- 커밋·푸시 진행 중(사용자 승인됨).
-- 알려진 한계: 보기 텍스트 자체에 콤마/슬래시 포함 시 분리 왜곡 — 번호 입력으로 우회(Javadoc 문서화됨).
+- 사용자에게 최종 보고만 남음. 커밋은 사용자 명시 요청 시 진행(정책상 자동 커밋 금지 아님 — 이 세션에서는 아직 미요청).
 
 ## Warnings / Notes
 
-- 백엔드 dev 서버 PID 52160으로 실행 중(logs/restart-bootrun3.out.log). **다음 백엔드 코드 변경 후 반드시 재시작.**
+- 백엔드 dev 서버 PID 52160 실행 중 — 이번 작업은 FE 전용이라 재시작 불필요.
+- 히스토리 파일은 항상 상단 prepend만, 기존 항목 보존 확인됨(`git diff --stat`로 검증).
 - `references/` 미추적 디렉터리는 커밋 제외 유지.
 
 ## Last Commit
 
-- `e5775df [BE] fix: question_bank question_type CHECK 제약 재생성 결함 수정` (이번 작업은 직후 커밋 예정)
+- `faf56a2 [FE|BE] feat: 보기 문항 빈칸별 순서 채점 및 중복 정답 지원` (이번 스케줄링 탭 작업은 아직 미커밋)

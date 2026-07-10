@@ -1,3 +1,37 @@
+## HIST-20260710-002
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 사용자 프론트엔드 / 풀이 스크래치패드 — 손입력 간트 차트 CPU 스케줄링 풀이 도구 "스케줄링" 탭 신규 추가
+- **수정 개요**: 풀이 화면 공용 `ScratchPadPanel.tsx`(시험 응시 `exam/[id]` · 데일리 퀴즈 `user/quiz/[categoryId]` 공용)에 기존 페이지 부재 도구와 동일한 철학(자동 계산 시뮬레이터가 아닌 골격 생성 + 손입력)의 "스케줄링" 탭을 신규 추가했다. 신규 컴포넌트 `SchedulingSolveTool.tsx`는 프로세스 표(이름/도착시간/실행시간/우선순위, 최대 10행)와 총 시간(0~60, 실행시간 합 제안 버튼 제공) 입력으로 간트 차트 타임 슬롯 골격만 생성하고, 슬롯 값(프로세스명)·완료/반환/대기시간은 전부 사용자가 손으로 입력한다. FIFO/SJF/RR/Priority 등 알고리즘 자동 계산·채점은 하지 않으며, 유일한 자동 계산은 결과 표 하단의 반환/대기시간 평균(입력된 숫자만 대상 산술 평균, 소수 둘째 자리)이다. 간트 셀은 입력 텍스트를 해시해 팔레트 색상으로 시각 구분하되(표시 보조), 자동 계산이 아니다. `ScratchPadData`에 `scheduling: SchedulingSolveData` 필드를 추가했고, 구버전 저장분(필드 없음)은 `loadData`의 타입가드(`isSchedulingSolveData`)에서 `EMPTY_SCHEDULING_SOLVE_DATA`로 폴백해 하위호환을 유지한다. 문항 등록/표시용 `SchedulingProblemEditor`/`SchedulingProblemTable`(관리자 SCHEDULING 유형 구조화 문항)과는 목적이 다른 별개 컴포넌트다. FE 전용이며 BE/DB 연동 없음.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/SchedulingSolveTool.tsx` | 추가 | 손입력 간트 차트 스케줄링 풀이 도구(`SchedulingSolveData`, `EMPTY_SCHEDULING_SOLVE_DATA`, `isSchedulingSolveData`, `SchedulingSolveTool`) — 프로세스 표 추가/삭제, 총 시간 입력(실행시간 합 제안), 간트 차트 손입력 그리드(색상 해시 표시), 결과 손입력 표(완료/반환/대기시간, 평균 자동 계산) |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(공용) | `ScratchPadData`에 `scheduling` 필드 추가, `TabKey`에 `'scheduling'` 추가, 탭 목록(페이지 부재 뒤)·렌더 분기에 "스케줄링" 탭 편입, `loadData`에 `isSchedulingSolveData` 타입가드 하위호환 처리, 헤더 Javadoc 5탭→6탭 갱신 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `SchedulingSolveTool` 행 추가, `ScratchPadPanel` 설명에 스케줄링 탭 반영 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/SchedulingSolveTool.tsx`
+- 변경 전: 파일 없음(신규)
+- 변경 후: `SchedulingProcessDraft`/`SchedulingResultDraft`/`SchedulingSolveData` 타입 정의. `resizeGantt`/`resizeResults`가 총 시간·프로세스 수 변경 시 기존 손입력 값을 최대한 보존하며 리사이즈(`PageReplacementTool`의 `resizeGrid`와 동일 철학). `hashLabelToColorClass`가 셀 텍스트를 해시해 10색 팔레트 중 하나로 배경색 표시(표시 보조, 자동 계산 아님). `average`가 결과 표의 반환/대기시간 숫자 입력만 골라 소수 둘째 자리 평균 산출(안전 계산기 수준 산술 보조로 허용된 유일한 자동 계산). 프로세스 최대 10행, 총 시간 최대 60(localStorage 용량·렌더 보호).
+- 이유: 기존 페이지 부재 도구와 동일한 "골격 생성 + 손입력" 철학의 스케줄링 풀이 보조 도구 신규 제공
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: `ScratchPadData`에 `scheduling` 필드 없음, `TabKey`가 `'note' | 'trace' | 'pagereplace' | 'tree' | 'calc'`(5탭), `loadData`가 `scheduling` 필드를 검증하지 않음
+- 변경 후: `ScratchPadData.scheduling: SchedulingSolveData` 추가, `EMPTY_DATA.scheduling = EMPTY_SCHEDULING_SOLVE_DATA`, `TabKey`에 `'scheduling'` 추가(탭 배열에서 '페이지 부재' 다음), `loadData`가 `isSchedulingSolveData(p.scheduling)`로 검증 후 없거나 손상 시 `EMPTY_SCHEDULING_SOLVE_DATA`로 폴백, `tab === 'scheduling'`일 때 `<SchedulingSolveTool value={data.scheduling} onChange=... />` 렌더
+- 이유: 기존 5탭 구조에 신규 손입력 스케줄링 도구를 하위호환 유지하며 편입
+
+#### `CLAUDE.md`
+- 변경 전: Shared Utilities 표에 `SchedulingSolveTool` 행 없음, `ScratchPadPanel` 설명이 "자유메모·CODE 트레이싱·페이지 부재 풀이 도구·트리 시각화·안전 계산기"(5탭)
+- 변경 후: `SchedulingSolveTool` 행 추가, `ScratchPadPanel` 설명에 "스케줄링(간트 차트) 풀이 도구" 반영(6탭)
+- 이유: 공용 컴포넌트 표 최신화
+
+### 복원 방법
+이 ID(HIST-20260710-002)만으로 복원 시: (1) `frontend/src/components/ui/SchedulingSolveTool.tsx` 파일을 삭제한다. (2) `frontend/src/components/ui/ScratchPadPanel.tsx`에서 `SchedulingSolveTool` import, `ScratchPadData.scheduling` 필드, `EMPTY_DATA.scheduling`, `TabKey`의 `'scheduling'`, `loadData`의 `scheduling` 검증/폴백 로직, 탭 배열의 `{ key: 'scheduling', ... }`, `tab === 'scheduling'` 렌더 분기를 모두 제거하고 헤더 Javadoc을 5탭 설명으로 되돌린다. (3) `CLAUDE.md`의 `SchedulingSolveTool` 행을 삭제하고 `ScratchPadPanel` 설명에서 스케줄링 언급을 제거한다.
+
 ## HIST-20260710-001
 
 - **날짜**: 2026-07-10
