@@ -1,3 +1,43 @@
+## HIST-20260710-005
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 사용자 프론트엔드 / 풀이 스크래치패드 — 계산기 진수 변환(2·8·16진수) 표시 확장
+- **수정 개요**: HIST-20260710-004에서 추가한 스크래치패드 계산기의 비트 문맥 전용 `bin32`/`hex32` 보조 표시를 "정수 결과면 항상 2·8·16진수를 함께 보여주는" 진수 변환기로 확장했다. `safeMathCalc.BitwiseFormats`에 `octal` 필드를 추가하고, `evaluateExpression`의 표시 조건을 "비트 문맥 && 정수"에서 "0 이상의 안전한 정수(`Number.isSafeInteger`)는 항상 포함, 음수 정수는 비트 문맥일 때만 32비트 2의 보수로 포함"으로 변경했다(예: `172`, `86+86` 같은 순수 사칙연산 정수 결과도 이제 2·8·16진수를 함께 보여준다). 일반 산술의 음수 결과(`3-10=-7`)는 2의 보수 표기가 혼란을 줄 수 있어 계속 제외한다. 계산기 결과/기록 표시를 `bin32`/`hex32` → `bin`/`oct`/`hex`로 단순화하고, 계산기 탭에 사용법 안내 문구를 추가했다. eval/Function은 계속 사용하지 않는다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/safeMathCalc.ts` | 수정 | `BitwiseFormats`에 `octal` 필드 추가, `formatBitwise`가 8진 문자열도 생성(음수는 11자리 2의 보수 패딩), `evaluateExpression`의 진수 표시 조건을 "0 이상 안전한 정수는 항상 포함, 음수 정수는 비트 문맥일 때만 포함"으로 변경 + JSDoc 갱신 |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정 | 계산기 결과 표시·`formatCalcValue`(기록 포맷)에 `oct` 추가(`bin32`/`hex32` → `bin`/`oct`/`hex`로 라벨 단순화), 계산기 탭 상단에 진수 변환 사용법 안내 문구 추가 |
+| `CLAUDE.md` | 수정 | `evaluateExpression` 설명을 "정수 결과 2·8·16진수 자동 표시" 조건(0 이상 항상 포함/음수는 비트 문맥에서만/안전 정수 범위)으로 갱신 |
+| `AGENTS.md` | 수정 | 동일하게 `evaluateExpression` 설명 갱신 |
+
+### 수정 상세
+
+#### `frontend/src/lib/safeMathCalc.ts`
+- 변경 전: `BitwiseFormats = { binary, hex }`. `evaluateExpression`은 `BIT_CONTEXT_PATTERN.test(trimmed) && Number.isInteger(value)`일 때만 bitwise를 반환(순수 사칙연산 정수 결과는 진수 표시 없음).
+- 변경 후: `BitwiseFormats = { binary, octal, hex }`. `formatBitwise`가 8진 문자열도 함께 생성한다(음수는 `(value >>> 0).toString(8)`을 11자리로 패딩해 32비트 2의 보수 표현). `evaluateExpression`은 `Number.isSafeInteger(value) && (value >= 0 || BIT_CONTEXT_PATTERN.test(trimmed))`일 때 bitwise를 반환 — 0 이상 정수는 항상, 음수 정수는 비트 문맥일 때만 포함하고 안전하지 않은 정수(`MAX_SAFE_INTEGER` 초과)는 항상 제외한다.
+- 이유: 사용자가 `172`처럼 일반 사칙연산 결과도 진수 변환으로 바로 확인하고 싶어 함. 단 음수의 2의 보수 표기는 비트 연산 맥락이 아니면 오해를 줄 수 있어 그대로 유지.
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: 계산기 결과는 비트 문맥일 때만 `bin32 0b… · hex32 0x…`로 표시, 기록도 동일 포맷. 계산기 탭에 사용법 안내 문구 없음(입력창 placeholder만 존재).
+- 변경 후: 결과/기록 표시를 `bin 0b… · oct 0o… · hex 0x…`로 확장(값이 32비트 문맥이 아니어도 라벨은 동일하게 단순화, 비트 문맥 음수만 32비트 2의 보수 값이 채워짐). 계산기 탭 입력창 위에 `172` 또는 `0b1010` 입력 예시와 함께 "2·8·16진수 동시 표시" 안내 문구를 추가했다.
+- 이유: 확장된 표시 조건을 실제 UI에 반영하고 사용자가 새 동작을 바로 알 수 있도록 안내.
+
+### 검증
+- 스모크 테스트(`npx tsc src/lib/safeMathCalc.ts --outDir <scratchpad>/smoke2 --module nodenext --target es2020 --moduleResolution nodenext` 트랜스파일 후 node 실행):
+  - `172` → `{"value":172,"bitwise":{"binary":"0b10101100","octal":"0o254","hex":"0xAC"}}`
+  - `86+86` → `{"value":172,"bitwise":{"binary":"0b10101100","octal":"0o254","hex":"0xAC"}}`
+  - `10/4` → `{"value":2.5}` (진수 표시 없음)
+  - `3-10` → `{"value":-7}` (진수 표시 없음, 비트 문맥 아님)
+  - `~5` → `{"value":-6,"bitwise":{"binary":"0b11111111111111111111111111111010","octal":"0o37777777772","hex":"0xFFFFFFFA"}}`
+  - `0xFF ^ 0x0F` → `{"value":240,"bitwise":{"binary":"0b11110000","octal":"0o360","hex":"0xF0"}}`
+- `cd frontend; npx tsc --noEmit` 통과(오류 없음).
+
+### 복원 방법
+이 ID(HIST-20260710-005)만으로 복원 시: `safeMathCalc.ts`의 `BitwiseFormats`에서 `octal` 필드를 제거하고 `formatBitwise`의 8진 생성 로직을 삭제하며, `evaluateExpression`의 표시 조건을 HIST-20260710-004 시점의 `BIT_CONTEXT_PATTERN.test(trimmed) && Number.isInteger(value)`로 되돌린다. `ScratchPadPanel.tsx`에서 계산기 안내 문구를 제거하고 결과/기록 표시를 `bin32`/`hex32` 2종으로 되돌린다(`oct` 표시 삭제). `CLAUDE.md`/`AGENTS.md`의 `evaluateExpression` 설명도 HIST-20260710-004 시점 문구로 되돌린다.
+
 ## HIST-20260710-004
 
 - **날짜**: 2026-07-10

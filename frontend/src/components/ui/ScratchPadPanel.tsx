@@ -77,7 +77,7 @@ type TabKey = 'note' | 'trace' | 'pagereplace' | 'scheduling' | 'tree' | 'calc';
 function formatCalcValue(result: EvalResult): string {
   if ('error' in result) return result.error;
   if (!result.bitwise) return String(result.value);
-  return `${result.value} (${result.bitwise.binary}, ${result.bitwise.hex})`;
+  return `${result.value} (bin ${result.bitwise.binary} · oct ${result.bitwise.octal} · hex ${result.bitwise.hex})`;
 }
 
 /** 드로어 폭을 [MIN_PANEL_WIDTH, max] 범위로 clamp */
@@ -442,6 +442,9 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
 
         {tab === 'calc' && (
           <div className="flex flex-col gap-3">
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500">
+              <span className="font-mono">172</span> 또는 <span className="font-mono">0b1010</span> 입력 시 2·8·16진수 동시 표시(음수는 비트 연산·진법 리터럴 사용 시에만 표시)
+            </p>
             <div className="flex gap-2">
               <input
                 value={calcInput}
@@ -472,7 +475,7 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
                     <span>= {calcResult.value}</span>
                     {calcResult.bitwise && (
                       <span className="text-xs opacity-80 break-all">
-                        bin32 {calcResult.bitwise.binary} · hex32 {calcResult.bitwise.hex}
+                        bin {calcResult.bitwise.binary} · oct {calcResult.bitwise.octal} · hex {calcResult.bitwise.hex}
                       </span>
                     )}
                   </div>

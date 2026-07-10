@@ -9,13 +9,23 @@
  *   - 숫자: 10진수(소수점 포함), 2진수(0b1010), 8진수(0o12), 16진수(0xA)
  *   - 산술: + - * / % ** ( ), 단항 마이너스/플러스
  *   - 비트: & | ^ ~ << >> >>> (JavaScript/Java 계열과 같은 32비트 정수 기준)
+ *
+ * 안전한 정수 결과는 계산 방식과 무관하게(사칙연산이든 비트 연산이든) 2·8·16진수 변환값을
+ * bitwise 필드로 함께 반환한다. 음수는 비트 문맥일 때만 32비트 2의 보수로 표시한다.
  * 순수 함수 — 부수효과 없음. 어떤 입력에도 throw하지 않고 { error }로 반환한다.
  */
 
+/**
+ * 정수 결과의 진수 변환 보조 표시값(2진/8진/16진). 이름은 하위 호환을 위해 BitwiseFormats로
+ * 유지하지만, 비트 연산 결과뿐 아니라 "정수 결과 전반"의 진수 변환 표시 겸용으로 쓰인다.
+ * 음수는 비트 문맥(비트 연산자·0b/0o/0x 리터럴 사용)일 때만 생성되며 32비트 2의 보수 기준으로 표시한다.
+ */
 export interface BitwiseFormats {
-  /** 32비트 정수 관점의 2진 표현. 음수는 32비트 2의 보수 전체를 표시한다. */
+  /** 2진 표현. 음수(비트 문맥)는 32비트 2의 보수 전체를 표시한다. */
   binary: string;
-  /** 32비트 정수 관점의 16진 표현. 음수는 32비트 2의 보수 전체를 표시한다. */
+  /** 8진 표현. 음수(비트 문맥)는 32비트 2의 보수 전체를 표시한다. */
+  octal: string;
+  /** 16진 표현. 음수(비트 문맥)는 32비트 2의 보수 전체를 표시한다. */
   hex: string;
 }
 
@@ -36,13 +46,19 @@ interface Token {
   value: string;
 }
 
-/** 비트 연산 결과 보조 표시용 32비트 2진/16진 문자열 생성 */
+/**
+ * 정수 결과 보조 표시용 2진/8진/16진 문자열 생성.
+ * 음수(비트 문맥 전용 호출)는 32비트 2의 보수 기준 자릿수로 패딩한다.
+ * - 2진: 32자리, 8진: 11자리(32비트를 8진으로 표현 시 최대 11자리), 16진: 8자리
+ */
 function formatBitwise(value: number): BitwiseFormats {
   const unsigned = value >>> 0;
   const binaryDigits = unsigned.toString(2);
+  const octalDigits = unsigned.toString(8);
   const hexDigits = unsigned.toString(16).toUpperCase();
   return {
     binary: `0b${value < 0 ? binaryDigits.padStart(32, '0') : binaryDigits}`,
+    octal: `0o${value < 0 ? octalDigits.padStart(11, '0') : octalDigits}`,
     hex: `0x${value < 0 ? hexDigits.padStart(8, '0') : hexDigits}`,
   };
 }
@@ -278,7 +294,12 @@ class Parser {
 /**
  * 수식 문자열을 안전하게 계산한다. eval/Function 미사용.
  * @param expr 계산할 수식 (숫자, + - * / % **, 비트 연산자, 괄호, 공백)
- * @returns 성공 시 { value: number }, 실패 시 { error: string }. 비트 문맥이면 bitwise 표시값을 함께 반환한다. 절대 throw하지 않는다.
+ * @returns 성공 시 { value: number }, 실패 시 { error: string }. 절대 throw하지 않는다.
+ *
+ * 안전한 정수 결과에는 bitwise(2·8·16진수 변환)를 함께 반환한다:
+ * - 0 이상 정수 → 항상 포함.
+ * - 음수 정수 → 비트 문맥(비트 연산자 또는 0b/0o/0x 리터럴 포함)일 때만 32비트 2의 보수로 포함.
+ * - Number.MAX_SAFE_INTEGER 초과 등 안전하지 않은 정수, 정수가 아닌 결과 → 미포함.
  */
 export function evaluateExpression(expr: string): EvalResult {
   const trimmed = expr.trim();
@@ -297,9 +318,14 @@ export function evaluateExpression(expr: string): EvalResult {
     if (!Number.isFinite(value)) {
       return { error: '계산 결과가 유효하지 않습니다.' };
     }
-    return BIT_CONTEXT_PATTERN.test(trimmed) && Number.isInteger(value)
-      ? { value, bitwise: formatBitwise(value) }
-      : { value };
+    // 진수 변환(bitwise) 표시 규칙:
+    // - 0 이상의 안전한 정수(Number.isSafeInteger) 결과는 항상 2·8·16진수를 함께 표시한다.
+    // - 음수 정수는 비트 문맥(비트 연산자 또는 0b/0o/0x 리터럴 사용)일 때만 32비트 2의 보수로 표시한다.
+    //   일반 산술의 음수 결과(예: 3-10 = -7)까지 2의 보수로 보여주면 혼란을 주므로 제외한다.
+    // - Number.MAX_SAFE_INTEGER를 넘는 정수는 표시를 생략한다.
+    const isSafeInt = Number.isSafeInteger(value);
+    const showBitwise = isSafeInt && (value >= 0 || BIT_CONTEXT_PATTERN.test(trimmed));
+    return showBitwise ? { value, bitwise: formatBitwise(value) } : { value };
   } catch (e) {
     if (e instanceof ScratchCalcError) {
       return { error: e.message };

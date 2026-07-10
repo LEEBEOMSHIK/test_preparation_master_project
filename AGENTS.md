@@ -223,7 +223,7 @@ rg --files frontend/src/app/admin backend/src/main/java
 | `<TableSkeleton />` 외 | `src/components/ui/Skeleton.tsx` | 스켈레톤 UI 모음 |
 | `<QuestionAnalysisPanel content />` | `src/components/ui/QuestionAnalysisPanel.tsx` | 문항 AI 키워드·도메인 추출 패널 |
 | `<ScratchPadPanel storageKey isCodeQuestion className />` | `src/components/ui/ScratchPadPanel.tsx` | 풀이 화면 FAB+드로어/바텀시트 스크래치패드(자유메모·CODE 트레이싱·페이지 부재 풀이 도구·스케줄링(간트 차트) 풀이 도구·트리 시각화·안전 계산기), localStorage 영속 |
-| `evaluateExpression(expr)` | `src/lib/safeMathCalc.ts` | 안전한 산술·비트 수식 평가(eval/Function 미사용). 10진/2진(`0b`)/8진(`0o`)/16진(`0x`) 숫자와 `+ - * / % **`, `& \| ^ ~ << >> >>>` 지원. 비트 연산은 32비트 정수 기준이며 비트 문맥 결과는 decimal 값과 `bitwise.binary`/`bitwise.hex` 보조 표시값을 반환 |
+| `evaluateExpression(expr)` | `src/lib/safeMathCalc.ts` | 안전한 산술·비트 수식 평가(eval/Function 미사용). 10진/2진(`0b`)/8진(`0o`)/16진(`0x`) 숫자와 `+ - * / % **`, `& \| ^ ~ << >> >>>` 지원. 비트 연산은 32비트 정수 기준. **안전한 정수 결과는 계산 방식과 무관하게 2·8·16진수 변환값**(`bitwise.binary`/`bitwise.octal`/`bitwise.hex`)을 함께 반환 — 0 이상 정수는 항상 포함, 음수 정수는 비트 문맥(비트 연산자·0b/0o/0x 리터럴 사용)일 때만 32비트 2의 보수로 포함, `Number.MAX_SAFE_INTEGER` 초과는 미포함 |
 | `parseTraceLines(text)`, `type TraceLine` | `src/lib/traceNotation.ts` | 코드 트레이싱 표기법(`name = value`/`name: type = value`/배열 표기) 순수 파서 — eval/Function/JSON.parse 미사용, 실패 시 text로 안전 폴백. 변수 참조 산술·비트 수식 자동 계산(`evaluateExpression` 재사용)을 지원하며, `mask = 0b1010 & 3`, `mask << 1` 같은 비트 수식도 계산 |
 | `<TracePreview lines />` | `src/components/ui/TracePreview.tsx` | `traceNotation` 파싱 결과(변수 행·1D 배열·2D 배열·자유 텍스트·이름 없는 수식)를 실시간 렌더하는 읽기 전용 프리뷰 |
 
