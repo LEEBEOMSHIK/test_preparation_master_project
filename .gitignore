@@ -58,3 +58,6 @@ frontend/tsconfig.tsbuildinfo
 # Runtime storage (런타임 업로드/이미지 — 커밋 대상 아님)
 backend/uploads/
 frontend/images/
+
+# 로컬 참고 자료 이미지 (커밋 대상 아님)
+references/images/
