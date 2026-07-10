@@ -6,6 +6,7 @@ import { conceptNoteService } from '@/services/conceptNoteService';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { RichContent } from '@/components/ui/RichContent';
 import { LinkedQuestionBox } from '@/components/ui/LinkedQuestionBox';
+import { ScratchPadPanel } from '@/components/ui/ScratchPadPanel';
 import type { ConceptNote } from '@/types';
 
 export default function ConceptExploreDetailPage() {
@@ -69,6 +70,9 @@ export default function ConceptExploreDetailPage() {
           </div>
         </div>
       )}
+
+      {/* 풀이 스크래치패드 — 내 노트 상세와 같은 노트 단위 키 공유 (같은 노트면 어느 화면에서든 같은 메모) */}
+      {note && <ScratchPadPanel storageKey={`tpmp_scratchpad:concept:${id}`} />}
     </div>
   );
 }

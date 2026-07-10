@@ -1,3 +1,22 @@
+## HIST-20260710-001
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 사용자 프론트엔드 / 개념노트 — 노트 상세 화면 2곳에 풀이 스크래치패드 추가
+- **수정 개요**: 시험·데일리 퀴즈 풀이 화면에만 있던 풀이 스크래치패드(`ScratchPadPanel` — 자유메모·페이지 부재·스케줄링·트리·계산기 탭, FAB+드로어)를 개념노트 상세 화면에도 장착했다. 대상은 내 노트 상세(`user/concepts/[id]`, view/edit 공통)와 공개 탐색 상세(`user/concepts/explore/[id]`) 2곳. storageKey는 노트 단위 `tpmp_scratchpad:concept:{noteId}`로 두 화면이 공유(같은 노트면 어느 경로로 보든 같은 메모 유지). 신규 작성 화면은 id가 'new'라서 노트 간 메모가 섞이므로 제외(`!isNew` 가드). `isCodeQuestion`은 전달하지 않아 코드 트레이싱 탭은 숨김(문항 유형 컨텍스트가 없는 화면이므로 기본값 유지). 목록/탐색 목록 화면은 풀이 대상이 없어 제외.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/concepts/[id]/page.tsx` | 수정 | import + `{!isNew && <ScratchPadPanel storageKey={...} />}` 장착 |
+| `frontend/src/app/user/concepts/explore/[id]/page.tsx` | 수정 | import + `{note && <ScratchPadPanel storageKey={...} />}` 장착 |
+
+### 검증
+- `npx tsc --noEmit` 통과.
+
+### 복원 방법
+이 ID(HIST-20260710-001)만으로 복원 시 두 파일의 import와 `<ScratchPadPanel />` 마운트 줄을 제거한다.
+
 ## HIST-20260620-001
 
 - **날짜**: 2026-06-20

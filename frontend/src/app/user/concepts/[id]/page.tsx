@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { conceptNoteService } from '@/services/conceptNoteService';
 import { notionService, type NotionStatus } from '@/services/notionService';
 import { LinkedQuestionBox } from '@/components/ui/LinkedQuestionBox';
+import { ScratchPadPanel } from '@/components/ui/ScratchPadPanel';
 import { Skeleton } from '@/components/ui/Skeleton';
 import type { ConceptNote } from '@/types';
 
@@ -215,6 +216,9 @@ export default function ConceptNoteDetailPage() {
           </div>
         </div>
       )}
+
+      {/* 풀이 스크래치패드 — 노트 단위 localStorage 저장 (신규 작성 화면은 id가 'new'라 노트 간 섞이므로 제외) */}
+      {!isNew && <ScratchPadPanel storageKey={`tpmp_scratchpad:concept:${id}`} />}
     </div>
   );
 }
