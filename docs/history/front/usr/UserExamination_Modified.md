@@ -1,3 +1,21 @@
+## HIST-20260710-003
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 사용자 프론트엔드 / 풀이 스크래치패드 — 스케줄링 탭 간트 셀 색상이 다크모드에서 보이지 않는 버그 수정
+- **수정 개요**: 사용자 신고 "같은 이름을 적은 칸이 같은 색으로 묶여 보이지 않는다" 원인 분석 결과, `globals.css:121`의 다크모드 전역 폼 규칙 `.dark input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='submit']):not([type='button'])`이 `:not([attr])` 다중 선택자로 특이도가 높아(≈0-6-1) 간트 셀의 Tailwind 다크 유틸리티(`dark:bg-indigo-500/20` 등, ≈0-2-0)를 덮어써 **다크모드에서 모든 셀 배경이 전역 `#374151` 회색으로 강제**되고 있었다(라이트모드는 정상). 컴파일된 CSS에 팔레트 클래스가 존재함을 확인했으므로 빌드/JIT 문제가 아닌 순수 CSS 특이도 문제. `GANTT_COLOR_PALETTE`의 다크 변형(bg/text/border)에 Tailwind `!`(important) 수식을 적용해 전역 규칙을 이기도록 수정했다. 추가로 `hashLabelToColorClass`가 대소문자를 구분해 `P1`/`p1`이 다른 색이 되던 것을 `toLowerCase()` 정규화로 같은 색으로 묶이게 보정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/SchedulingSolveTool.tsx` | 수정 | `GANTT_COLOR_PALETTE` 다크 변형 10종에 `dark:!bg-*`/`dark:!text-*`/`dark:!border-*` important 적용(+사유 주석), `hashLabelToColorClass` 소문자 정규화 |
+
+### 검증
+- `npx tsc --noEmit` 통과. dev 서버 컴파일 CSS에서 `background-color: rgb(99 102 241 / 0.2) !important` 생성 확인.
+
+### 복원 방법
+이 ID(HIST-20260710-003)만으로 복원 시 팔레트의 `!` 수식을 제거하고 해시의 `.toLowerCase()`를 삭제한다. 단, 되돌리면 다크모드에서 색상이 다시 보이지 않는다.
+
 ## HIST-20260710-002
 
 - **날짜**: 2026-07-10

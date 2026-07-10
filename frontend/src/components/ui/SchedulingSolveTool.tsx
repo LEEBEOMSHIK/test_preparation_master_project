@@ -120,23 +120,30 @@ export function isSchedulingSolveData(v: unknown): v is SchedulingSolveData {
   );
 }
 
-/** 간트 셀 배경 색상 팔레트 — 같은 프로세스명 입력을 같은 색 계열로 시각 구분(표시 보조, 자동 계산 아님) */
+/**
+ * 간트 셀 배경 색상 팔레트 — 같은 프로세스명 입력을 같은 색 계열로 시각 구분(표시 보조, 자동 계산 아님).
+ * 다크모드 변형에 `!`(important)를 쓰는 이유: globals.css의 `.dark input:not(...)` 전역 폼 규칙이
+ * `:not([type=...])` 다중 선택자로 특이도가 높아 일반 유틸리티(`dark:bg-*`)를 덮어쓰기 때문.
+ */
 const GANTT_COLOR_PALETTE = [
-  'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-700/50',
-  'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-700/50',
-  'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-700/50',
-  'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-700/50',
-  'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-700/50',
-  'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-700/50',
-  'bg-lime-100 text-lime-700 border-lime-200 dark:bg-lime-500/20 dark:text-lime-300 dark:border-lime-700/50',
-  'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-500/20 dark:text-fuchsia-300 dark:border-fuchsia-700/50',
-  'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-700/50',
-  'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-500/20 dark:text-teal-300 dark:border-teal-700/50',
+  'bg-indigo-100 text-indigo-700 border-indigo-200 dark:!bg-indigo-500/20 dark:!text-indigo-300 dark:!border-indigo-700/50',
+  'bg-emerald-100 text-emerald-700 border-emerald-200 dark:!bg-emerald-500/20 dark:!text-emerald-300 dark:!border-emerald-700/50',
+  'bg-amber-100 text-amber-700 border-amber-200 dark:!bg-amber-500/20 dark:!text-amber-300 dark:!border-amber-700/50',
+  'bg-rose-100 text-rose-700 border-rose-200 dark:!bg-rose-500/20 dark:!text-rose-300 dark:!border-rose-700/50',
+  'bg-sky-100 text-sky-700 border-sky-200 dark:!bg-sky-500/20 dark:!text-sky-300 dark:!border-sky-700/50',
+  'bg-violet-100 text-violet-700 border-violet-200 dark:!bg-violet-500/20 dark:!text-violet-300 dark:!border-violet-700/50',
+  'bg-lime-100 text-lime-700 border-lime-200 dark:!bg-lime-500/20 dark:!text-lime-300 dark:!border-lime-700/50',
+  'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200 dark:!bg-fuchsia-500/20 dark:!text-fuchsia-300 dark:!border-fuchsia-700/50',
+  'bg-orange-100 text-orange-700 border-orange-200 dark:!bg-orange-500/20 dark:!text-orange-300 dark:!border-orange-700/50',
+  'bg-teal-100 text-teal-700 border-teal-200 dark:!bg-teal-500/20 dark:!text-teal-300 dark:!border-teal-700/50',
 ];
 
-/** 입력된 텍스트를 해시해 팔레트에서 색상 클래스를 결정 — 빈 문자열은 색상 없음(기본 회색 유지) */
+/**
+ * 입력된 텍스트를 해시해 팔레트에서 색상 클래스를 결정 — 빈 문자열은 색상 없음(기본 회색 유지).
+ * 대소문자만 다른 입력(P1/p1)은 같은 프로세스로 보고 같은 색으로 묶는다.
+ */
 function hashLabelToColorClass(label: string): string {
-  const trimmed = label.trim();
+  const trimmed = label.trim().toLowerCase();
   if (!trimmed) return '';
   let hash = 0;
   for (let i = 0; i < trimmed.length; i++) {

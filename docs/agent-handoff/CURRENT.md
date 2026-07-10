@@ -20,9 +20,13 @@
 - `npx tsc --noEmit` (frontend) — 에러 0건.
 - `npm run build` 미실행(dev 서버 가동 중 정책 준수, FE 전용이라 백엔드 빌드·테스트 불필요).
 
+## 후속 버그 수정 (HIST-20260710-003, 미커밋)
+
+- 사용자 신고: 다크모드에서 간트 셀 색상이 전부 회색 — `globals.css:121` `.dark input:not(...)` 전역 폼 규칙(고특이도)이 다크 유틸리티를 덮어쓰는 CSS 특이도 문제. `GANTT_COLOR_PALETTE` 다크 변형에 `!`(important) 적용 + 해시 소문자 정규화(P1/p1 동일 색). tsc 통과, dev 서버 CSS에 `!important` 팔레트 생성 확인.
+
 ## Remaining
 
-- 없음. 커밋·푸시 완료.
+- 후속 수정분 커밋 대기(사용자 요청 시).
 
 ## Warnings / Notes
 
