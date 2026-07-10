@@ -193,6 +193,8 @@ export interface DomainSlave {
   displayOrder?: number;
   /** CODE 유형 문항이 존재하는 카테고리 여부 — true면 데일리 퀴즈에서 프로그래밍 언어 선택 모달을 노출 */
   hasCodeQuestions?: boolean;
+  /** AI 커스텀 문항(examYear·examRound 모두 null)이 존재하는 카테고리 여부 — true면 데일리 퀴즈에서 출처 선택 모달을 노출 */
+  hasAiCustomQuestions?: boolean;
 }
 
 export interface DomainMaster {

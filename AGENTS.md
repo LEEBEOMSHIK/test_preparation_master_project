@@ -226,6 +226,7 @@ rg --files frontend/src/app/admin backend/src/main/java
 | `evaluateExpression(expr)` | `src/lib/safeMathCalc.ts` | 안전한 산술·비트 수식 평가(eval/Function 미사용). 10진/2진(`0b`)/8진(`0o`)/16진(`0x`) 숫자와 `+ - * / % **`, `& \| ^ ~ << >> >>>` 지원. 비트 연산은 32비트 정수 기준. **안전한 정수 결과는 계산 방식과 무관하게 2·8·16진수 변환값**(`bitwise.binary`/`bitwise.octal`/`bitwise.hex`)을 함께 반환 — 0 이상 정수는 항상 포함, 음수 정수는 비트 문맥(비트 연산자·0b/0o/0x 리터럴 사용)일 때만 32비트 2의 보수로 포함, `Number.MAX_SAFE_INTEGER` 초과는 미포함 |
 | `parseTraceLines(text)`, `type TraceLine` | `src/lib/traceNotation.ts` | 코드 트레이싱 표기법(`name = value`/`name: type = value`/배열 표기) 순수 파서 — eval/Function/JSON.parse 미사용, 실패 시 text로 안전 폴백. 변수 참조 산술·비트 수식 자동 계산(`evaluateExpression` 재사용)을 지원하며, `mask = 0b1010 & 3`, `mask << 1` 같은 비트 수식도 계산 |
 | `<TracePreview lines />` | `src/components/ui/TracePreview.tsx` | `traceNotation` 파싱 결과(변수 행·1D 배열·2D 배열·자유 텍스트·이름 없는 수식)를 실시간 렌더하는 읽기 전용 프리뷰 |
+| `<CodeLanguageModal open onClose showLanguage showSource onSelect />` | `src/components/ui/CodeLanguageModal.tsx` | 데일리 퀴즈 카테고리 선택 시 언어(Java/Python/C)·출처(기출/AI 커스텀) 필터 선택 모달 |
 
 새 유틸 함수는 `src/lib/`에, 새 UI 컴포넌트는 `src/components/ui/`에 추가하고 위 표를 즉시 갱신한다.
 

@@ -30,20 +30,21 @@ export default function QuizCategoryPage() {
   }, [examTypeIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelect = (slave: DomainSlave) => {
-    // CODE 유형(프로그래밍 언어) 문항이 있는 카테고리는 즉시 이동하지 않고 언어 선택 모달을 먼저 띄운다.
-    if (slave.hasCodeQuestions) {
+    // CODE 유형(프로그래밍 언어) 또는 AI 커스텀 문항이 있는 카테고리는 즉시 이동하지 않고 선택 모달을 먼저 띄운다.
+    if (slave.hasCodeQuestions || slave.hasAiCustomQuestions) {
       setLanguageModalSlave(slave);
       return;
     }
     router.push(`/user/quiz/${slave.id}?name=${encodeURIComponent(slave.name)}`);
   };
 
-  const handleSelectLanguage = (language?: string) => {
+  const handleSelectScope = (selection: { language?: string; source?: string }) => {
     if (!languageModalSlave) return;
     const slave = languageModalSlave;
     setLanguageModalSlave(null);
     const query = new URLSearchParams({ name: slave.name });
-    if (language) query.set('language', language);
+    if (selection.language) query.set('language', selection.language);
+    if (selection.source) query.set('source', selection.source);
     router.push(`/user/quiz/${slave.id}?${query.toString()}`);
   };
 
@@ -110,7 +111,9 @@ export default function QuizCategoryPage() {
       <CodeLanguageModal
         open={languageModalSlave !== null}
         onClose={() => setLanguageModalSlave(null)}
-        onSelect={handleSelectLanguage}
+        showLanguage={languageModalSlave?.hasCodeQuestions ?? false}
+        showSource={languageModalSlave?.hasAiCustomQuestions ?? false}
+        onSelect={handleSelectScope}
       />
     </div>
   );

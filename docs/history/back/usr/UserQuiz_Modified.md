@@ -1,3 +1,49 @@
+## HIST-20260710-001
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈 — 출처(전체/기출/AI 커스텀) 필터 추가
+- **수정 개요**: 기존 CODE 언어 필터(HIST 관련 e715088)와 동일한 패턴으로, 데일리 퀴즈 카테고리별 랜덤 문항 조회에 문항 출처 필터(`source`: "EXAM"=기출, "AI_CUSTOM"=AI 커스텀)를 추가했다. AI 커스텀 문항 판정 기준은 `examYear IS NULL AND examRound IS NULL`(관리자 문항관리 화면과 동일 기준). `QuestionBankRepository.findRandomByCategory` native query에 `source` 파라미터를 추가하고, 신규 `findDistinctCategoryIdsWithAiCustomQuestions()`로 AI 커스텀 문항이 존재하는 카테고리 ID를 구해 `DomainSlaveResponse.hasAiCustomQuestions`로 프론트에 노출한다. `UserQuizService.getQuizQuestions`는 4-arg(`categoryId, limit, language, source`)로 확장, `normalizeSource(source)`가 null/공백/"ALL"(대소문자 무시)/정의되지 않은 값을 모두 null(필터 없음)로 정규화하고 "AI_CUSTOM"/"EXAM"만 대소문자 무시 정규화해 통과시킨다. `UserQuizController.getQuizQuestions`에 `source` 쿼리 파라미터 추가.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/QuestionBankRepository.java` | 수정 | `findRandomByCategory`에 `source` 파라미터 추가(native query 조건 확장), `findDistinctCategoryIdsWithAiCustomQuestions()` 신규 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/DomainSlaveResponse.java` | 수정 | `hasAiCustomQuestions` 필드 추가, `from(slave, hasCodeQuestions, hasAiCustomQuestions)` 3-arg로 확장(1-arg 하위 호환 유지) |
+| `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java` | 수정 | `getCategories`에 `aiCustomCategoryIds` 조회·전달 추가, `getQuizQuestions`를 4-arg로 확장하고 `normalizeSource` 신규 추가 |
+| `backend/src/main/java/com/tpmp/testprep/controller/UserQuizController.java` | 수정 | `getQuizQuestions`에 `source` 쿼리 파라미터 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/UserQuizServiceTest.java` | 수정 | `findRandomByCategory` stub·캡처 헬퍼를 4-arg로 갱신, `capturedSource` 헬퍼 및 source 정규화 테스트 6개 신규 추가(기존 language 테스트 4개는 그대로 유지) |
+
+### 수정 상세
+
+#### `repository/QuestionBankRepository.java`
+- 변경 전: `findRandomByCategory(categoryId, limit, language)` 3-arg, source 조건 없음
+- 변경 후: `findRandomByCategory(categoryId, limit, language, source)` 4-arg. native query에 `AND (:source IS NULL OR (:source = 'AI_CUSTOM' AND exam_year IS NULL AND exam_round IS NULL) OR (:source = 'EXAM' AND (exam_year IS NOT NULL OR exam_round IS NOT NULL)))` 조건 추가. `findDistinctCategoryIdsWithAiCustomQuestions()` 신규: `qb.examYear IS NULL AND qb.examRound IS NULL AND qb.delYn = 'N' AND qb.category IS NOT NULL` 조건으로 category ID distinct 조회
+- 이유: 데일리 퀴즈 문항 출처 필터링 지원 및 필터 노출 대상 카테고리 판별
+
+#### `dto/response/DomainSlaveResponse.java`
+- 변경 전: `record(id, masterId, name, displayOrder, hasCodeQuestions)`, `from(slave)`/`from(slave, hasCodeQuestions)` 2종
+- 변경 후: `record(id, masterId, name, displayOrder, hasCodeQuestions, hasAiCustomQuestions)`, `from(slave)`(둘 다 false)/`from(slave, hasCodeQuestions, hasAiCustomQuestions)` 2종. 2-arg 호출부는 `UserQuizService.java` 한 곳뿐(사전 확인 완료)이라 그 호출부만 3-arg로 변경, 나머지 1-arg 호출부(`DomainService` 등)는 무변경으로 컴파일됨
+- 이유: AI 커스텀 필터 노출 여부를 프론트에 전달
+
+#### `service/UserQuizService.java`
+- 변경 전: `getQuizQuestions(categoryId, limit, language)` 3-arg, `getCategories`는 `codeCategoryIds`만 조회
+- 변경 후: `getCategories`에 `aiCustomCategoryIds` 조회 추가 후 `DomainSlaveResponse.from(s, codeCategoryIds.contains(...), aiCustomCategoryIds.contains(...))` 3-arg 호출로 변경. `getQuizQuestions(categoryId, limit, language, source)` 4-arg로 확장, `normalizeSource(source)` 신규 private 메서드 추가(null/공백/"ALL"→null, "AI_CUSTOM"/"EXAM" 대소문자 무시 정규화, 그 외 값→null)
+- 이유: 계획서 스펙 그대로 구현. 계획과 다른 점 없음
+
+#### `controller/UserQuizController.java`
+- 변경 전: `getQuizQuestions(categoryId, limit, language)` — `source` 파라미터 없음
+- 변경 후: `@RequestParam(required = false) String source` 추가, `userQuizService.getQuizQuestions(categoryId, limit, language, source)` 호출로 전달. 주석에 source 설명 한 줄 추가
+- 이유: 프론트에서 출처 필터 쿼리 전달 지원
+
+#### `test/UserQuizServiceTest.java`
+- 변경 전: `findRandomByCategory` stub이 3-arg(`anyLong(), anyInt(), any()`), `capturedLanguage` 헬퍼가 3-arg 호출·3-arg captor
+- 변경 후: stub을 4-arg(`anyLong(), anyInt(), any(), any()`)로 변경. `capturedLanguage`는 `service.getQuizQuestions(categoryId, limit, language, null)` 호출로 변경(source 인자는 `any()`로 매칭). 신규 `capturedSource(categoryId, limit, source)` 헬퍼(language는 null 고정, source만 캡처) 추가. source 정규화 테스트 6개(null→null, 공백→null, "ALL"/"all"→null, "ai_custom"/"AI_CUSTOM"/"exam"/"EXAM"→정규화값, "INVALID"→null) 신규 추가. 기존 language 테스트 4개는 헬퍼 내부만 4-arg로 갱신되고 테스트 로직·검증 내용은 그대로 유지
+- 이유: 시그니처 확장에 따른 컴파일 정합성 확보 + source 정규화 로직 커버리지 확보
+
+### 복원 방법
+이 ID(HIST-20260710-001)만으로 복원 시: `QuestionBankRepository.findRandomByCategory`를 3-arg(language만)로, `findDistinctCategoryIdsWithAiCustomQuestions()` 제거. `DomainSlaveResponse`를 `hasCodeQuestions` 단일 필드·2-arg `from`으로 되돌리고 `UserQuizService.java:71` 호출부도 2-arg로 되돌린다. `UserQuizService.getQuizQuestions`를 3-arg(language만)로, `normalizeSource` 제거. `UserQuizController.getQuizQuestions`에서 `source` 파라미터 제거. `UserQuizServiceTest`는 HIST-20260707-003 시점(3-arg stub, `capturedLanguage`만 존재, source 테스트 없음) 상태로 되돌린다.
+
 ## HIST-20260707-003
 
 - **날짜**: 2026-07-07

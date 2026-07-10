@@ -29,13 +29,15 @@ public class UserQuizController {
     }
 
     /** 카테고리별 랜덤 퀴즈 문항 (기본 10개)
-     *  language: CODE 유형 문항 대상 프로그래밍 언어 필터(java/python/c 등). 미전달·"ALL"이면 전체 반환 */
+     *  language: CODE 유형 문항 대상 프로그래밍 언어 필터(java/python/c 등). 미전달·"ALL"이면 전체 반환
+     *  source: 문항 출처 필터("EXAM"/"AI_CUSTOM"). 미전달·"ALL"·정의되지 않은 값이면 전체 반환 */
     @GetMapping("/questions")
     public ResponseEntity<ApiResponse<List<QuizQuestionView>>> getQuizQuestions(
             @RequestParam Long categoryId,
             @RequestParam(defaultValue = "10") int limit,
-            @RequestParam(required = false) String language) {
-        return ResponseEntity.ok(ApiResponse.success(userQuizService.getQuizQuestions(categoryId, limit, language)));
+            @RequestParam(required = false) String language,
+            @RequestParam(required = false) String source) {
+        return ResponseEntity.ok(ApiResponse.success(userQuizService.getQuizQuestions(categoryId, limit, language, source)));
     }
 
     /** 퀴즈 정답 확인 (단건 채점 + 이력 저장) */

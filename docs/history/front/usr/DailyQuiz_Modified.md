@@ -1,3 +1,56 @@
+## HIST-20260710-001
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 — 출처(전체/기출/AI 커스텀) 필터 추가
+- **수정 개요**: 기존 CODE 언어 필터(HIST-20260707-005)와 동일한 구조로, `hasAiCustomQuestions === true`인 카테고리(examYear·examRound 모두 null인 AI 커스텀 문항이 있는 문제 유형)를 클릭했을 때도 모달을 띄워 출처(기출/AI 커스텀/전체)를 고를 수 있게 했다. 한 카테고리가 CODE 문항과 AI 커스텀 문항을 동시에 보유하면(`hasCodeQuestions && hasAiCustomQuestions`) 언어·출처 두 섹션을 모달 하나에 함께 보여주고 "시작" 버튼으로 한 번에 확정하도록 `CodeLanguageModal`을 확장했다. 선택 결과는 `?language=`·`?source=` 쿼리로 함께 전달되어 퀴즈 풀이 화면에서 `quizService.getQuestions(categoryId, 10, language, source)`로 필터링된 문항을 받아온다. 헤더에는 언어 배지 옆에 출처 배지(기출=인디고, AI 커스텀=앰버)를 추가 표시(문항 카드 우상단의 연도/회차·AI 커스텀 배지와는 별개).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `DomainSlave`에 `hasAiCustomQuestions?: boolean` 필드 추가 |
+| `frontend/src/services/quizService.ts` | 수정 | `getQuestions(categoryId, limit, language?, source?)`로 확장 — source 있을 때만 쿼리 파라미터 전달 |
+| `frontend/src/components/ui/CodeLanguageModal.tsx` | 수정 | `showLanguage`/`showSource` props 추가해 언어·출처 섹션을 독립 제어. 둘 다 표시되는 경우 내부 state로 선택을 보류했다가 "시작" 버튼으로 `onSelect({ language, source })` 확정. `onSelect` 시그니처를 `(language?: string) => void`에서 `(selection: { language?: string; source?: string }) => void`로 변경(breaking, 호출부는 아래 `page.tsx`뿐이라 함께 수정) |
+| `frontend/src/app/user/quiz/page.tsx` | 수정 | `handleSelect` 조건에 `slave.hasAiCustomQuestions` 추가, `handleSelectLanguage`를 `handleSelectScope({ language?, source? })`로 이름 변경 및 두 값 모두 쿼리에 반영, `<CodeLanguageModal>` 호출부에 `showLanguage`/`showSource` 전달 |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | `source` 쿼리 파라미터 추가 읽기, `loadBatch`·`useEffect` deps에 `source` 추가, 헤더에 출처 배지 렌더 추가 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표의 `CodeLanguageModal` 행을 확장된 props·역할로 갱신 |
+| `AGENTS.md` | 수정 | Shared Utilities 표에 `CodeLanguageModal` 행 신규 추가(기존에 행 자체가 없었음) |
+
+### 수정 상세
+
+#### `types/index.ts`
+- 변경 전: `DomainSlave { ..., hasCodeQuestions? }`
+- 변경 후: `hasAiCustomQuestions?: boolean` 필드 추가
+- 이유: 백엔드 `DomainSlaveResponse.hasAiCustomQuestions`를 FE 타입에 반영
+
+#### `services/quizService.ts`
+- 변경 전: `getQuestions(categoryId, limit = 10, language?)` — language만 조건부 전달
+- 변경 후: `getQuestions(categoryId, limit = 10, language?, source?)` — language·source 각각 값이 있을 때만 쿼리 파라미터 전달(둘 다 없으면 기존과 100% 동일한 쿼리스트링, 회귀 없음)
+- 이유: 출처 필터 API 호출 지원
+
+#### `components/ui/CodeLanguageModal.tsx`
+- 변경 전: props `{ open, onClose, onSelect: (language?: string) => void }`, 언어 그리드만 렌더, 클릭 즉시 확정
+- 변경 후: props에 `showLanguage`/`showSource` 추가, `onSelect: (selection: { language?; source? }) => void`로 변경. `showLanguage && !showSource`는 언어 그리드만(클릭 즉시 확정), `!showLanguage && showSource`는 출처 그리드만(클릭 즉시 확정), 둘 다 true면 두 그리드를 함께 보여주되 내부 `useState`로 선택 보류(선택된 버튼은 인디고 테두리/배경 강조) 후 "시작" 버튼 클릭 시 확정. 안내 문구·모달 제목도 표시 섹션 조합에 따라 3가지로 분기(언어만/출처만/둘다)
+- 이유: 계획서 스펙 그대로 구현. **직접 판단한 부분**: "시작" 버튼 UI는 인디고 배경(`bg-indigo-600`) full-width 버튼으로, 취소 버튼 바로 위에 배치(둘 다 표시 케이스에서만 렌더). 미확정 상태 버튼 강조 색상은 기존 hover 스타일과 동일 톤(인디고)을 선택 상태에도 재사용해 톤 일관성을 유지했다
+
+#### `app/user/quiz/page.tsx`
+- 변경 전: `handleSelect`가 `slave.hasCodeQuestions`만 검사, `handleSelectLanguage(language?: string)`가 `?language=` 쿼리만 세팅
+- 변경 후: `handleSelect` 조건이 `slave.hasCodeQuestions || slave.hasAiCustomQuestions`. `handleSelectScope(selection: { language?; source? })`로 이름 변경, `language`·`source` 둘 다 있으면 쿼리에 모두 반영 후 이동. `<CodeLanguageModal>` 호출부에 `showLanguage={languageModalSlave?.hasCodeQuestions ?? false}`, `showSource={languageModalSlave?.hasAiCustomQuestions ?? false}` 전달
+- 이유: AI 커스텀 카테고리도 모달을 거치도록 확장, CODE 필터 기존 동작은 회귀 없음(showLanguage=true·showSource=false인 경우 기존과 동일한 즉시확정 UI)
+
+#### `app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `language` 쿼리만 읽어 `loadBatch`(3-arg `getQuestions`)에 전달, 헤더에 언어 배지만 표시
+- 변경 후: `source` 쿼리 추가 읽기, `loadBatch`가 4-arg `getQuestions(categoryId, 10, language, source)` 호출, `useCallback`/`useEffect` deps에 `source` 추가. 헤더 언어 배지 옆에 출처 배지(source==='AI_CUSTOM'이면 앰버, 아니면 인디고) 조건부 렌더 추가(source 없으면 렌더 안 함). 문항 카드 우상단의 연도/회차·AI 커스텀 배지(414-427행 부근, 문항 실제 데이터 기반)는 건드리지 않음
+- 이유: 출처 필터를 실제 API 호출에 반영하고 현재 필터 상태를 사용자에게 시각적으로 안내
+
+#### `CLAUDE.md` / `AGENTS.md`
+- 변경 전: `CodeLanguageModal` 행이 `onSelect(language?: string)` 시그니처로 설명됨(AGENTS.md는 행 자체 없음)
+- 변경 후: 확장된 props(`showLanguage`/`showSource`)와 `onSelect({ language?, source? })` 시그니처로 갱신, AGENTS.md에는 짧은 한 줄 설명으로 신규 행 추가
+- 이유: 공용 컴포넌트 문서 최신화
+
+### 복원 방법
+이 ID(HIST-20260710-001)만으로 복원 시: `types/index.ts`에서 `hasAiCustomQuestions` 필드 제거. `quizService.ts`의 `getQuestions`를 3-arg(language만)로 되돌린다. `CodeLanguageModal.tsx`를 HIST-20260707-005 시점(props `{ open, onClose, onSelect: (language?) => void }`, 언어 그리드만, showLanguage/showSource·source 섹션·"시작" 버튼 전부 제거)으로 되돌린다. `page.tsx`의 `handleSelect` 조건에서 `|| slave.hasAiCustomQuestions` 제거, `handleSelectScope`를 `handleSelectLanguage(language?: string)`로 되돌리고 `<CodeLanguageModal>` 호출부에서 `showLanguage`/`showSource` props 제거, `onSelect={handleSelectLanguage}`로 되돌린다. `[categoryId]/page.tsx`에서 `source` 읽기·deps·출처 배지 블록 제거. `CLAUDE.md`/`AGENTS.md`의 `CodeLanguageModal` 행을 HIST-20260707-005 시점 내용으로 되돌린다(AGENTS.md는 행 자체를 삭제).
+
 ## HIST-20260707-005
 
 - **날짜**: 2026-07-07

@@ -71,6 +71,8 @@ function QuizPlayContent() {
   const categoryName = searchParams.get('name') ?? '퀴즈';
   // CODE(프로그래밍 언어) 카테고리에서 선택한 언어 필터 — 없으면 전체(필터 없음)
   const language = searchParams.get('language') ?? undefined;
+  // 문항 출처 필터(EXAM/AI_CUSTOM) — 없으면 전체(필터 없음)
+  const source = searchParams.get('source') ?? undefined;
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -101,7 +103,7 @@ function QuizPlayContent() {
 
   const loadBatch = useCallback(() => {
     setPhase('loading');
-    quizService.getQuestions(categoryId, 10, language).then(res => {
+    quizService.getQuestions(categoryId, 10, language, source).then(res => {
       if (res.data.success && res.data.data && res.data.data.length > 0) {
         setQuestions(res.data.data);
         setAnswers({});
@@ -113,11 +115,11 @@ function QuizPlayContent() {
         router.push('/user/quiz');
       }
     });
-  }, [categoryId, language, router]);
+  }, [categoryId, language, source, router]);
 
   useEffect(() => {
     loadBatch();
-  }, [categoryId, language]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [categoryId, language, source]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 마운트 시 북마크 ID 목록 초기화 — 실패해도 퀴즈 진행 막지 않음
   useEffect(() => {
@@ -380,6 +382,16 @@ function QuizPlayContent() {
           {language && (
             <span className="text-xs font-medium text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">
               {LANGUAGE_LABELS[language.toLowerCase()] ?? language}
+            </span>
+          )}
+          {source && (
+            <span className={[
+              'text-xs font-medium rounded-full px-2 py-0.5 border',
+              source === 'AI_CUSTOM'
+                ? 'text-amber-600 bg-amber-50 border-amber-100'
+                : 'text-indigo-600 bg-indigo-50 border-indigo-100',
+            ].join(' ')}>
+              {source === 'AI_CUSTOM' ? 'AI 커스텀' : '기출'}
             </span>
           )}
           {sessionAnswered > 0 && (

@@ -33,9 +33,9 @@ export const quizService = {
         : undefined,
     }),
 
-  getQuestions: (categoryId: number, limit = 10, language?: string) =>
+  getQuestions: (categoryId: number, limit = 10, language?: string, source?: string) =>
     apiClient.get<ApiResponse<QuizQuestion[]>>('/user/quiz/questions', {
-      params: { categoryId, limit, ...(language ? { language } : {}) },
+      params: { categoryId, limit, ...(language ? { language } : {}), ...(source ? { source } : {}) },
     }),
 
   checkAnswer: (questionId: number, userAnswer: string) =>
