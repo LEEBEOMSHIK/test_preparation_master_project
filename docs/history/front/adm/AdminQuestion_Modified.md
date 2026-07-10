@@ -1,4 +1,40 @@
-﻿## HIST-20260710-002
+﻿## HIST-20260710-004
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리(목록) — 조회조건 세션 유지(등록/수정 다녀와도 복원)
+- **수정 개요**: 조회조건이 전부 컴포넌트 로컬 state라 등록/수정 화면으로 이동 후 돌아오면 조건이 초기화되던 불편을 해소. 적용된 조회조건(키워드/유형/카테고리/연도/회차/출처/등록일 범위)과 정렬·페이지·페이지당 개수를 sessionStorage(`tpmp:admin-questions:search:v1`)에 저장하고 마운트 시 복원한다. sessionStorage를 쓰는 이유: 탭을 닫으면 초기화되어 오래된 조건이 다음 세션까지 남지 않음(컬럼 폭 같은 영속 선호값은 기존대로 localStorage). SSR 하이드레이션 불일치를 피하려 복원은 마운트 후 useEffect에서 수행하고, 복원 완료 전 기본값이 저장소를 덮어쓰지 않도록 `searchStateHydrated` ref 가드를 둔다. 복원 시 입력값과 적용값을 동일하게 세팅(검색 전 입력 중이던 미적용 값은 보존 대상 아님).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | SavedSearchState 타입 + load/saveSearchState 헬퍼, 마운트 복원 useEffect, 적용 조건 변경 시 저장 useEffect, useRef import |
+
+### 검증
+- `npx tsc --noEmit` 통과.
+
+### 복원 방법
+이 ID(HIST-20260710-004)만으로 복원 시 SEARCH_STATE_KEY/SavedSearchState/load·saveSearchState와 복원·저장 useEffect 2개, useRef import를 제거한다.
+
+## HIST-20260710-003
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리(목록) — 출처(전체/기출/AI 커스텀) 조회조건 추가
+- **수정 개요**: 검색 조건 영역에 "출처" select를 추가해 AI 커스텀 문제(연도·회차 없음 — HIST-20260710-002에서 확정한 판정 기준과 동일)만, 또는 기출만 필터할 수 있게 했다. 이 화면은 전체 로드 후 클라이언트 필터 구조이므로 `sourceFilter`/`appliedSourceFilter` 상태 + `filtered` useMemo 조건 + 검색/초기화 버튼 연동만으로 구현(BE 변경 없음).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exams/questions/page.tsx` | 수정 | 출처 필터 상태 2종·select UI(회차 옆)·useMemo 필터 조건·deps·검색/초기화 연동 |
+
+### 검증
+- `npx tsc --noEmit` 통과.
+
+### 복원 방법
+이 ID(HIST-20260710-003)만으로 복원 시 sourceFilter/appliedSourceFilter 상태, 출처 select 블록, useMemo의 isAiCustom 조건, 초기화 연동을 제거한다.
+
+## HIST-20260710-002
 
 - **날짜**: 2026-07-10
 - **수정 범위**: 관리자 프론트엔드 / 문항 관리(목록) — AI 커스텀 판정 기준을 "연도·회차 없음"으로 변경(문항번호 무관)

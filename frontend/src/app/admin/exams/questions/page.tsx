@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { examService } from '@/services/examService';
@@ -36,6 +36,49 @@ const TYPE_COLOR: Record<QuestionType, string> = {
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 type SortField = 'sourceOrder' | 'createdAt' | 'updatedAt';
 
+// ── 조회조건 세션 유지 ─────────────────────────────────────────────────────────
+// 등록/수정 화면을 다녀와도 조회조건·정렬·페이지가 유지되도록 sessionStorage에 저장한다.
+// (탭을 닫으면 초기화 — 오래된 조건이 다음 세션까지 남지 않도록 localStorage가 아닌 sessionStorage 사용)
+const SEARCH_STATE_KEY = 'tpmp:admin-questions:search:v1';
+
+interface SavedSearchState {
+  keyword: string;
+  typeFilter: QuestionType | '';
+  categoryFilter: string;
+  yearFilter: string;
+  roundFilter: string;
+  sourceFilter: '' | 'AI_CUSTOM' | 'EXAM';
+  dateFrom: string;
+  dateTo: string;
+  sortField: SortField;
+  sortDir: 'asc' | 'desc';
+  page: number;
+  pageSize: 10 | 20 | 50;
+}
+
+/** sessionStorage에서 조회 상태 복원 — 파싱 실패/미존재/SSR 접근 오류 시 null */
+function loadSearchState(): SavedSearchState | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(SEARCH_STATE_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== 'object') return null;
+    return parsed as SavedSearchState;
+  } catch {
+    return null;
+  }
+}
+
+/** sessionStorage에 조회 상태 저장 — 접근 오류는 무시 */
+function saveSearchState(state: SavedSearchState): void {
+  try {
+    sessionStorage.setItem(SEARCH_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // 저장 실패 — 무시
+  }
+}
+
 function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.8}
@@ -64,6 +107,8 @@ export default function AdminQuestionsPage() {
   const [categoryFilter,   setCategoryFilter]   = useState('');
   const [yearFilter,       setYearFilter]       = useState('');
   const [roundFilter,      setRoundFilter]      = useState('');
+  // 출처: '' = 전체, AI_CUSTOM = 연도·회차 없음, EXAM = 연도 또는 회차 있음 (AI 커스텀 판정 기준과 동일)
+  const [sourceFilter,     setSourceFilter]     = useState<'' | 'AI_CUSTOM' | 'EXAM'>('');
   const [dateFrom,         setDateFrom]         = useState('');
   const [dateTo,           setDateTo]           = useState('');
 
@@ -73,6 +118,7 @@ export default function AdminQuestionsPage() {
   const [appliedCategoryFilter,   setAppliedCategoryFilter]   = useState('');
   const [appliedYearFilter,       setAppliedYearFilter]       = useState('');
   const [appliedRoundFilter,      setAppliedRoundFilter]      = useState('');
+  const [appliedSourceFilter,     setAppliedSourceFilter]     = useState<'' | 'AI_CUSTOM' | 'EXAM'>('');
   const [appliedDateFrom,         setAppliedDateFrom]         = useState('');
   const [appliedDateTo,           setAppliedDateTo]           = useState('');
 
@@ -90,6 +136,48 @@ export default function AdminQuestionsPage() {
     'tpmp:admin-questions:col-widths:v2',
     [56, 360, 96, 112, 112, 112, 240],
   );
+
+  // 조회 상태 복원 완료 여부 — 복원 전에 기본값으로 저장(덮어쓰기)되는 것을 방지
+  const searchStateHydrated = useRef(false);
+
+  // 마운트 시 sessionStorage에서 조회조건·정렬·페이지 복원 (입력값과 적용값을 동일하게 세팅)
+  useEffect(() => {
+    const s = loadSearchState();
+    if (s) {
+      setKeyword(s.keyword ?? '');                setAppliedKeyword(s.keyword ?? '');
+      setTypeFilter(s.typeFilter ?? '');          setAppliedTypeFilter(s.typeFilter ?? '');
+      setCategoryFilter(s.categoryFilter ?? '');  setAppliedCategoryFilter(s.categoryFilter ?? '');
+      setYearFilter(s.yearFilter ?? '');          setAppliedYearFilter(s.yearFilter ?? '');
+      setRoundFilter(s.roundFilter ?? '');        setAppliedRoundFilter(s.roundFilter ?? '');
+      setSourceFilter(s.sourceFilter ?? '');      setAppliedSourceFilter(s.sourceFilter ?? '');
+      setDateFrom(s.dateFrom ?? '');              setAppliedDateFrom(s.dateFrom ?? '');
+      setDateTo(s.dateTo ?? '');                  setAppliedDateTo(s.dateTo ?? '');
+      if (s.sortField) setSortField(s.sortField);
+      if (s.sortDir) setSortDir(s.sortDir);
+      if (typeof s.page === 'number' && s.page >= 0) setPage(s.page);
+      if (s.pageSize === 10 || s.pageSize === 20 || s.pageSize === 50) setPageSize(s.pageSize);
+    }
+    searchStateHydrated.current = true;
+  }, []);
+
+  // 적용된 조회조건·정렬·페이지 변경 시마다 저장 (복원 완료 후에만)
+  useEffect(() => {
+    if (!searchStateHydrated.current) return;
+    saveSearchState({
+      keyword: appliedKeyword,
+      typeFilter: appliedTypeFilter,
+      categoryFilter: appliedCategoryFilter,
+      yearFilter: appliedYearFilter,
+      roundFilter: appliedRoundFilter,
+      sourceFilter: appliedSourceFilter,
+      dateFrom: appliedDateFrom,
+      dateTo: appliedDateTo,
+      sortField,
+      sortDir,
+      page,
+      pageSize,
+    });
+  }, [appliedKeyword, appliedTypeFilter, appliedCategoryFilter, appliedYearFilter, appliedRoundFilter, appliedSourceFilter, appliedDateFrom, appliedDateTo, sortField, sortDir, page, pageSize]);
 
   useEffect(() => {
     examService
@@ -118,6 +206,7 @@ export default function AdminQuestionsPage() {
     setAppliedCategoryFilter(categoryFilter);
     setAppliedYearFilter(yearFilter);
     setAppliedRoundFilter(roundFilter);
+    setAppliedSourceFilter(sourceFilter);
     setAppliedDateFrom(dateFrom);
     setAppliedDateTo(dateTo);
     setPage(0);
@@ -184,6 +273,10 @@ export default function AdminQuestionsPage() {
       }
       if (appliedYearFilter  !== '' && q.examYear  !== Number(appliedYearFilter))  return false;
       if (appliedRoundFilter !== '' && q.examRound !== Number(appliedRoundFilter)) return false;
+      // 출처 필터 — AI 커스텀 판정은 연도·회차 없음 기준(문항번호 무관)
+      const isAiCustom = q.examYear == null && q.examRound == null;
+      if (appliedSourceFilter === 'AI_CUSTOM' && !isAiCustom) return false;
+      if (appliedSourceFilter === 'EXAM' && isAiCustom) return false;
       const created = new Date(q.createdAt).getTime();
       if (fromMs && created < fromMs) return false;
       if (toMs   && created > toMs)   return false;
@@ -199,7 +292,7 @@ export default function AdminQuestionsPage() {
       const diff = new Date(av).getTime() - new Date(bv).getTime();
       return sortDir === 'asc' ? diff : -diff;
     });
-  }, [allQuestions, appliedKeyword, appliedTypeFilter, appliedCategoryFilter, appliedYearFilter, appliedRoundFilter, appliedDateFrom, appliedDateTo, sortField, sortDir]);
+  }, [allQuestions, appliedKeyword, appliedTypeFilter, appliedCategoryFilter, appliedYearFilter, appliedRoundFilter, appliedSourceFilter, appliedDateFrom, appliedDateTo, sortField, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged      = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -301,6 +394,19 @@ export default function AdminQuestionsPage() {
             </select>
           </div>
 
+          <div className="w-28">
+            <label className="block text-xs font-medium text-gray-500 mb-1">출처</label>
+            <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value as '' | 'AI_CUSTOM' | 'EXAM')}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            >
+              <option value="">전체</option>
+              <option value="EXAM">기출</option>
+              <option value="AI_CUSTOM">AI 커스텀</option>
+            </select>
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">등록일 (시작)</label>
             <input
@@ -328,12 +434,12 @@ export default function AdminQuestionsPage() {
             검색
           </button>
 
-          {(keyword || typeFilter || categoryFilter || yearFilter || roundFilter || dateFrom || dateTo ||
-            appliedKeyword || appliedTypeFilter || appliedCategoryFilter || appliedYearFilter || appliedRoundFilter || appliedDateFrom || appliedDateTo) && (
+          {(keyword || typeFilter || categoryFilter || yearFilter || roundFilter || sourceFilter || dateFrom || dateTo ||
+            appliedKeyword || appliedTypeFilter || appliedCategoryFilter || appliedYearFilter || appliedRoundFilter || appliedSourceFilter || appliedDateFrom || appliedDateTo) && (
             <button
               onClick={() => {
-                setKeyword(''); setTypeFilter(''); setCategoryFilter(''); setYearFilter(''); setRoundFilter(''); setDateFrom(''); setDateTo('');
-                setAppliedKeyword(''); setAppliedTypeFilter(''); setAppliedCategoryFilter(''); setAppliedYearFilter(''); setAppliedRoundFilter(''); setAppliedDateFrom(''); setAppliedDateTo('');
+                setKeyword(''); setTypeFilter(''); setCategoryFilter(''); setYearFilter(''); setRoundFilter(''); setSourceFilter(''); setDateFrom(''); setDateTo('');
+                setAppliedKeyword(''); setAppliedTypeFilter(''); setAppliedCategoryFilter(''); setAppliedYearFilter(''); setAppliedRoundFilter(''); setAppliedSourceFilter(''); setAppliedDateFrom(''); setAppliedDateTo('');
                 setPage(0);
               }}
               className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"

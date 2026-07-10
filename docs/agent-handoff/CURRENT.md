@@ -4,6 +4,11 @@
 작업 단계 경계마다 갱신하고, 완료 후에도 마지막 커밋과 남은 이슈를 간단히 남긴다.
 누적 로그가 아니라 최신 작업 1개의 상태 스냅샷으로 운영한다.
 
+## 이후 추가 작업 (미커밋, admin/exams/questions/page.tsx)
+
+- HIST-20260710-003: 문항 관리 목록에 출처(전체/기출/AI 커스텀) 조회조건 추가 — 클라이언트 필터, AI 커스텀=연도·회차 없음 기준. tsc 통과.
+- HIST-20260710-004: 조회조건·정렬·페이지 sessionStorage(`tpmp:admin-questions:search:v1`) 유지 — 등록/수정 다녀와도 복원. 마운트 후 useEffect 복원 + hydrated ref 가드. tsc 통과.
+
 ## Current Goal
 
 - 복습 표시(북마크) 재풀이 모드 — **구현·검증 완료, 커밋 대기.**
