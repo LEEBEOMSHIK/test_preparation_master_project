@@ -20,7 +20,7 @@
  * 타입으로 오인되지 않는다).
  *
  * 변수 참조 수식 자동 계산 (2단계 확장):
- *   스칼라 var 라인의 rhs가 리터럴이 아니고 숫자/식별자/사칙연산자(`+ - * / % **`)/괄호/공백
+ *   스칼라 var 라인의 rhs가 리터럴이 아니고 숫자/식별자/산술·비트연산자(`+ - * / % ** & | ^ ~ << >> >>>`)/괄호/공백
  *   만으로 구성되면 `@/lib/safeMathCalc`의 기존 안전 계산기(`evaluateExpression`)로 계산을
  *   시도한다(eval/new Function 없음 — 계산은 전적으로 화이트리스트 재귀하강 파서에 위임).
  *
@@ -38,7 +38,7 @@
  *   남아 문자열 var로 폴백한다.
  *
  *   [확장3] `이름 =` 대입이 아예 없이 수식만 적은 줄(예: `av / len`)도 계산한다. 조건: (a) rhs와
- *   동일한 화이트리스트(숫자/식별자/사칙연산자/괄호/공백)만으로 구성되고, (b) 사칙연산자를
+ *   동일한 화이트리스트(숫자/식별자/산술·비트연산자/괄호/공백)만으로 구성되고, (b) 연산자를
  *   최소 1개 포함해야 한다(단어 하나·단일 식별자·자유 문장이 수식으로 오인되지 않도록 하는
  *   핵심 가드). 두 조건을 만족하면 named 변수 픽스포인트가 모두 끝난 뒤 최종 env로 한 번만
  *   평가한다(참조 식별자가 하나라도 최종 env에 없으면 계산하지 않음). 계산에 성공하면
@@ -112,10 +112,21 @@ const ASSIGN_PATTERN = /^([A-Za-z_]\w*)\s*(?::\s*([^=]+?))?\s*=\s*(.+)$/;
 
 const INT_PATTERN = /^-?\d+$/;
 const FLOAT_PATTERN = /^-?\d*\.\d+$/;
+const BINARY_PATTERN = /^0[bB][01]+$/;
+const OCTAL_PATTERN = /^0[oO][0-7]+$/;
+const HEX_PATTERN = /^0[xX][0-9A-Fa-f]+$/;
 
 /** 값이 정수/실수 리터럴 패턴에 맞는지 여부(자동 타입 추론용) */
 function isNumericLiteral(value: string): boolean {
-  return INT_PATTERN.test(value) || FLOAT_PATTERN.test(value);
+  return INT_PATTERN.test(value) || FLOAT_PATTERN.test(value) || BINARY_PATTERN.test(value) || OCTAL_PATTERN.test(value) || HEX_PATTERN.test(value);
+}
+
+/** trace 숫자 리터럴을 env용 number로 변환 — isNumericLiteral 통과 값만 호출한다. */
+function parseNumericLiteral(value: string): number {
+  if (BINARY_PATTERN.test(value)) return parseInt(value.slice(2), 2);
+  if (OCTAL_PATTERN.test(value)) return parseInt(value.slice(2), 8);
+  if (HEX_PATTERN.test(value)) return parseInt(value.slice(2), 16);
+  return Number(value);
 }
 
 /** 스칼라 값 하나에서 타입 라벨을 추론 */
@@ -140,11 +151,11 @@ function inferArray2DType(grid: string[][]): string {
   return allCells.every(isNumericLiteral) ? 'number[][]' : 'string[][]';
 }
 
-// 수식 자동 계산에 허용되는 문자: 숫자·소수점·식별자(영문/숫자/밑줄)·사칙연산자·괄호·공백만.
+// 수식 자동 계산에 허용되는 문자: 숫자·소수점·식별자(영문/숫자/밑줄)·산술/비트연산자·괄호·공백.
 // 이 화이트리스트를 통과해도 evaluateExpression 자체 화이트리스트(숫자/연산자만)는 별개로
 // 다시 적용되므로, 식별자 치환이 끝난 뒤 문자가 하나라도 남아있으면 계산기가 error를 반환한다.
-const FORMULA_CHAR_PATTERN = /^[A-Za-z0-9_.+\-*/%().\s]+$/;
-const IDENTIFIER_PATTERN = /[A-Za-z_]\w*/g;
+const FORMULA_CHAR_PATTERN = /^[A-Za-z0-9_.+\-*/%().\s<>&|^~]+$/;
+const IDENTIFIER_PATTERN = /\b[A-Za-z_]\w*\b/g;
 
 // [확장1] 식별자 없는 순수 리터럴 수식 전용 오탐 가드 — 공백 없이 숫자와 '-'/'.'만 압축
 // 나열된 형태(날짜 `2024-01-01`, 전화번호 `010-1234-5678`, 버전 `1.2.3`)는 뺄셈 수식으로
@@ -163,11 +174,11 @@ function formatComputedNumber(n: number): string {
 type FormulaEvalSuccess = { value: number; formatted: string };
 
 /**
- * 스칼라 rhs가 계산 가능한 사칙연산 수식인지 판정하고, 맞다면 안전 계산기(evaluateExpression)로
+ * 스칼라 rhs가 계산 가능한 산술·비트 수식인지 판정하고, 맞다면 안전 계산기(evaluateExpression)로
  * 계산한다. eval / new Function은 사용하지 않는다 — 계산은 전적으로 evaluateExpression에 위임한다.
  *
  * 두 갈래로 계산을 시도한다:
- *   [확장1] rhs에 식별자가 하나도 없는 순수 리터럴 수식(예: `10 / 4`) — 단, DATE_LIKE_GUARD_PATTERN에
+ *   [확장1] rhs에 식별자가 하나도 없는 순수 리터럴 수식(예: `10 / 4`, `0b1010 & 3`) — 단, DATE_LIKE_GUARD_PATTERN에
  *           매칭되는 날짜/버전/전화번호 압축 형태는 계산하지 않는다.
  *   [확장2] rhs의 식별자가 전부 env(순서 무관 픽스포인트로 채워지는 숫자 변수 환경)에 있으면,
  *           식별자를 숫자로 치환한 뒤 계산한다.
@@ -301,7 +312,7 @@ type ClassifiedLine = Array1DLine | Array2DLine | TextLine | ScalarAssignInfo | 
 // [확장3] 이름 없는 수식 후보 판별에 쓰는 "연산자 최소 1개 포함" 가드 — 단어 하나(note)·단일
 // 식별자(av)·자유 문장이 수식으로 오인되지 않도록 하는 핵심 조건. FORMULA_CHAR_PATTERN(숫자/
 // 식별자/연산자/괄호/공백 화이트리스트) 통과 + 이 조건을 모두 만족해야 수식 후보로 분류한다.
-const HAS_OPERATOR_PATTERN = /[+\-*/%]/;
+const HAS_OPERATOR_PATTERN = /(?:>>>|<<|>>|[+\-*/%&|^~])/;
 
 /**
  * 한 줄을 env(숫자 변수 환경)와 무관하게 1차 분류한다. 배열/텍스트는 이 시점에 바로 확정하고,
@@ -383,7 +394,7 @@ export function parseTraceLines(text: string): TraceLine[] {
   for (const i of scalarIndices) {
     const info = classified[i] as ScalarAssignInfo;
     if (isNumericLiteral(info.rhs)) {
-      literalEnv.set(info.name, Number(info.rhs));
+      literalEnv.set(info.name, parseNumericLiteral(info.rhs));
       literalLastIndex.set(info.name, i);
     }
   }

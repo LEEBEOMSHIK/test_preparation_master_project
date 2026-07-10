@@ -74,6 +74,12 @@ const MIN_PANEL_WIDTH = 300;
 
 type TabKey = 'note' | 'trace' | 'pagereplace' | 'scheduling' | 'tree' | 'calc';
 
+function formatCalcValue(result: EvalResult): string {
+  if ('error' in result) return result.error;
+  if (!result.bitwise) return String(result.value);
+  return `${result.value} (${result.bitwise.binary}, ${result.bitwise.hex})`;
+}
+
 /** 드로어 폭을 [MIN_PANEL_WIDTH, max] 범위로 clamp */
 function clampPanelWidth(width: number, max: number): number {
   return Math.min(Math.max(width, MIN_PANEL_WIDTH), max);
@@ -314,7 +320,7 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
     const result = evaluateExpression(calcInput);
     setCalcResult(result);
     if ('value' in result) {
-      const entry = `${calcInput.trim()} = ${result.value}`;
+      const entry = `${calcInput.trim()} = ${formatCalcValue(result)}`;
       updateData(prev => ({ ...prev, calcHistory: [entry, ...prev.calcHistory].slice(0, MAX_CALC_HISTORY) }));
     }
   }, [calcInput, updateData]);
@@ -388,6 +394,7 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
                 <span className="font-mono">grid = [[1,2],[3,4]]</span> ·{' '}
                 <span className="font-mono">x: long = 3</span>(타입 명시) ·{' '}
                 <span className="font-mono">avg = sum / len</span>(정의 순서 무관 숫자 변수 참조·리터럴 수식 자동 계산) ·{' '}
+                <span className="font-mono">mask = 0b1010 & 0b0110</span>(비트 계산) ·{' '}
                 <span className="font-mono">av / len</span>(이름 없이 수식만 적어도 자동 계산, 예: <span className="font-mono">10 / 4</span>)
               </p>
               <textarea
@@ -395,7 +402,7 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
                 onChange={e => updateData(prev => ({ ...prev, trace: e.target.value }))}
                 onKeyDown={handleTraceKeyDown}
                 placeholder={
-                  'i = 3\nx: long = 3\nsum = 10\nlen = 4\navg = sum / len\narr = [1, 2, 3]\ngrid = [[1, 2], [3, 4]]\n표기법이 아니어도 자유 메모로 그대로 남습니다.'
+                  'i = 3\nx: long = 3\nsum = 10\nlen = 4\navg = sum / len\nmask = 0b1010 & 0b0110\nmask << 1\narr = [1, 2, 3]\ngrid = [[1, 2], [3, 4]]\n표기법이 아니어도 자유 메모로 그대로 남습니다.'
                 }
                 spellCheck={false}
                 className="w-full h-40 resize-y rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm font-mono p-3 focus:outline-none focus:ring-2 focus:ring-indigo-400"
@@ -440,7 +447,7 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
                 value={calcInput}
                 onChange={e => setCalcInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && runCalc()}
-                placeholder="예: (12 + 8) * 3 % 7"
+                placeholder="예: (0b1010 & 0b0110) << 1"
                 className="flex-1 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
               <button
@@ -460,7 +467,16 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
                     : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400',
                 ].join(' ')}
               >
-                {'value' in calcResult ? `= ${calcResult.value}` : calcResult.error}
+                {'value' in calcResult ? (
+                  <div className="flex flex-col gap-1">
+                    <span>= {calcResult.value}</span>
+                    {calcResult.bitwise && (
+                      <span className="text-xs opacity-80 break-all">
+                        bin32 {calcResult.bitwise.binary} · hex32 {calcResult.bitwise.hex}
+                      </span>
+                    )}
+                  </div>
+                ) : calcResult.error}
               </div>
             )}
 

@@ -1,3 +1,42 @@
+## HIST-20260710-004
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 사용자 프론트엔드 / 풀이 스크래치패드 — 코드 트레이싱·계산기 비트 계산 지원
+- **수정 개요**: 풀이 스크래치패드의 공용 안전 계산 엔진 `safeMathCalc.evaluateExpression`을 산술 전용에서 산술+비트 수식 계산기로 확장했다. `0b`/`0o`/`0x` 숫자 리터럴과 `&`, `|`, `^`, `~`, `<<`, `>>`, `>>>`를 지원하며, 비트 연산은 JavaScript/Java 계열과 동일한 32비트 정수 기준으로 계산한다. 계산기 탭은 비트 문맥 결과에 decimal 값과 함께 `bin32`/`hex32`를 표시하고, 최근 계산 기록에도 2진/16진 보조값을 저장한다. 코드 트레이싱 탭은 기존 `avg = sum / len` 방식과 동일한 픽스포인트 수식 계산 경로에서 `mask = 0b1010 & 0b0110`, `mask << 1` 같은 비트 수식을 자동 계산할 수 있도록 `traceNotation`의 화이트리스트·식별자 매칭·숫자 리터럴 처리를 보정했다. eval/Function은 계속 사용하지 않는다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/safeMathCalc.ts` | 수정 | 2진/8진/16진 리터럴 토큰화, 비트 연산자 파싱(`& \| ^ ~ << >> >>>`), 32비트 정수 변환, 비트 문맥 결과용 `bitwise.binary`/`bitwise.hex` 반환 추가 |
+| `frontend/src/lib/traceNotation.ts` | 수정 | `0b`/`0o`/`0x` 리터럴을 숫자로 인식, env 등록 시 진법 변환, 수식 화이트리스트와 연산자 가드에 비트 연산자 추가, 식별자 정규식을 단어 경계 기반으로 보정해 `0b1010`의 `b1010` 오인 방지 |
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정 | 코드 트레이싱 안내·placeholder에 비트 계산 예시 추가, 계산기 placeholder 갱신, 비트 결과 표시(`bin32`/`hex32`)와 최근 계산 기록 포맷 확장 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표의 `evaluateExpression`, `parseTraceLines` 설명을 산술·비트 수식 지원 기준으로 갱신 |
+| `AGENTS.md` | 수정 | Shared Utilities 표에 스크래치패드·안전 계산기·코드 트레이싱 파서/프리뷰 설명 추가 |
+
+### 수정 상세
+
+#### `frontend/src/lib/safeMathCalc.ts`
+- 변경 전: 10진 숫자와 `+ - * / % ** ( )`만 허용하는 산술 계산기.
+- 변경 후: 자체 토큰화 단계에서 `0b1010`, `0o12`, `0xA`를 숫자 토큰으로 처리한다. 파서 우선순위를 `bitOr → bitXor → bitAnd → shift → additive → term → unary → power → primary`로 확장해 일반 언어의 비트 연산 우선순위에 맞췄다. `&`, `|`, `^`, `~`, `<<`, `>>`는 signed 32-bit, `>>>`는 unsigned right shift 결과로 계산한다. 비트 리터럴/연산자가 포함된 정수 결과는 `{ value, bitwise: { binary, hex } }`를 반환한다.
+- 이유: 계산기와 코드 트레이싱이 같은 안전 계산 엔진을 쓰므로, 엔진 한 곳을 확장해야 두 영역의 동작이 일관된다.
+
+#### `frontend/src/lib/traceNotation.ts`
+- 변경 전: 자동 수식 계산의 숫자 리터럴은 10진 정수/실수만 env에 등록했고, 수식 화이트리스트는 사칙연산자 중심이었다.
+- 변경 후: `isNumericLiteral`이 `0b`/`0o`/`0x`를 숫자로 인정하고 `parseNumericLiteral`로 env에는 실제 number 값을 저장한다. 수식 후보 화이트리스트와 연산자 가드는 비트 연산자를 포함한다. `IDENTIFIER_PATTERN`은 `\b[A-Za-z_]\w*\b`로 바꿔 `0b1010` 내부의 `b1010`을 변수명으로 잘못 치환하지 않는다.
+- 이유: `mask = 0b1010` 같은 리터럴 정의가 이후 `mask & 3`, `mask << 1`에서 정상 참조되도록 하기 위함.
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: 계산기 결과는 decimal 값만 표시·기록했고, 예시는 사칙연산 중심이었다.
+- 변경 후: 계산기 입력 예시를 `(0b1010 & 0b0110) << 1`로 갱신하고, 비트 문맥 결과는 `= 4` 아래 `bin32 0b100 · hex32 0x4` 형태로 표시한다. `formatCalcValue`가 최근 계산 기록에도 같은 보조 표시를 남긴다. 코드 트레이싱 textarea 안내/placeholder에는 `mask = 0b1010 & 0b0110`, `mask << 1` 예시를 추가했다.
+
+### 검증
+- `cd frontend; npx.cmd tsc --noEmit` 통과.
+- 별도 `node -e` 기반 계산 엔진 스모크 테스트는 현재 PowerShell 샌드박스에서 `node`/`C:\Program Files\nodejs\node.exe` 실행 경로가 인식되지 않아 수행하지 못했다. 타입체크는 통과했고, 런타임 계산은 `safeMathCalc`의 기존 eval 없는 파서 경로 안에서만 확장됐다.
+
+### 복원 방법
+이 ID(HIST-20260710-004)만으로 복원 시: `safeMathCalc.ts`에서 `BitwiseFormats`, 진법 리터럴 토큰화, 비트 연산 파서 단계(`parseBitwiseOr`/`parseBitwiseXor`/`parseBitwiseAnd`/`parseShift`), 단항 `~`, `bitwise` 반환을 제거하고 기존 사칙연산 파서로 되돌린다. `traceNotation.ts`의 `BINARY_PATTERN`/`OCTAL_PATTERN`/`HEX_PATTERN`/`parseNumericLiteral`, 비트 연산자 화이트리스트·가드, 단어 경계 식별자 정규식 변경을 되돌린다. `ScratchPadPanel.tsx`의 `formatCalcValue`, 비트 예시 문구, 계산기 placeholder, `bin32`/`hex32` 렌더를 제거하고 decimal 단일 표시로 복원한다. `CLAUDE.md`와 `AGENTS.md`의 Shared Utilities 설명도 사칙연산 기준으로 되돌린다.
+
 ## HIST-20260710-003
 
 - **날짜**: 2026-07-10
