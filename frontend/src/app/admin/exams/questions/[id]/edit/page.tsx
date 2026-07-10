@@ -16,7 +16,7 @@ import { SqlProblemEditor } from '@/components/ui/SqlProblemEditor';
 import { emptySqlDraft, fromSqlData, toSqlDataPayload, type SqlDataDraft } from '@/lib/sql';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { stripHtml } from '@/lib/html';
-import { hasOptions } from '@/lib/answer';
+import { hasOptions, parseAnswerToSlots, slotsToAnswer } from '@/lib/answer';
 import { isBlankOrPositiveIntegerText, toOptionalPositiveInteger } from '@/lib/questionNumber';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -107,6 +107,21 @@ export default function AdminQuestionEditPage() {
   const [error,   setError]   = useState('');
   const [domains, setDomains] = useState<DomainMaster[]>([]);
 
+  // ── 정답 슬롯(빈칸 순서대로) — options가 있을 때만 사용. 0 = 아직 미선택.
+  // 문항 로드 시 1회 answer 문자열을 파싱해 초기화한다. 매칭 실패 시(레거시·손상 데이터)
+  // 슬롯 UI 대신 원문 텍스트 입력으로 폴백하고, 이후로는 이 로컬 상태가 진실 원천이다.
+  const [slots, setSlots] = useState<number[]>([]);
+  const [answerFallback, setAnswerFallback] = useState(false);
+
+  const commitSlots = (next: number[]) => {
+    setSlots(next);
+    update('answer', slotsToAnswer(next));
+  };
+  const addSlot = () => commitSlots([...slots, 0]);
+  const removeSlot = (slotIdx: number) => commitSlots(slots.filter((_, idx) => idx !== slotIdx));
+  const selectSlot = (slotIdx: number, optionNo: number) =>
+    commitSlots(slots.map((v, idx) => (idx === slotIdx ? optionNo : v)));
+
   const examTypeSlaves: DomainSlave[]     = domains.find((m) => m.code === 'EXAM_TYPE')?.slaves ?? [];
   const questionTypeSlaves: DomainSlave[] = domains.find((m) => m.code === 'QUESTION_TYPE')?.slaves ?? [];
   const examYearSlaves: DomainSlave[]     = domains.find((m) => m.code === 'EXAM_YEAR')?.slaves ?? [];
@@ -124,6 +139,8 @@ export default function AdminQuestionEditPage() {
       .then((res) => {
         const q = res.data.data;
         if (!q) return;
+        const loadedOptions = q.options?.length ? q.options : [];
+        const loadedAnswer  = q.answer ?? (q.questionType === 'OX' ? 'O' : q.questionType === 'MULTIPLE_CHOICE' ? '1' : '');
         setForm({
           title:        q.title ?? '',
           examYear:     q.examYear != null ? String(q.examYear) : '',
@@ -132,8 +149,8 @@ export default function AdminQuestionEditPage() {
           instruction:  q.instruction ?? '',
           content:      q.content,
           questionType: q.questionType,
-          options:      q.options?.length ? q.options : [],
-          answer:       q.answer ?? (q.questionType === 'OX' ? 'O' : q.questionType === 'MULTIPLE_CHOICE' ? '1' : ''),
+          options:      loadedOptions,
+          answer:       loadedAnswer,
           code:         q.code ?? '',
           language:     q.language ?? 'javascript',
           explanation:  q.explanation ?? '',
@@ -150,6 +167,20 @@ export default function AdminQuestionEditPage() {
           schedulingData: fromSchedulingData(q.schedulingData),
           sqlData:      fromSqlData(q.sqlData),
         });
+        // 보기가 있으면 기존 answer를 슬롯으로 복원 시도 — 매칭 실패 시 원문 텍스트 폴백
+        if (hasOptions(loadedOptions)) {
+          const parsed = parseAnswerToSlots(loadedAnswer, loadedOptions);
+          if (parsed === null) {
+            setAnswerFallback(true);
+            setSlots([]);
+          } else {
+            setAnswerFallback(false);
+            setSlots(parsed);
+          }
+        } else {
+          setAnswerFallback(false);
+          setSlots([]);
+        }
       })
       .catch(() => setError('문항 정보를 불러오지 못했습니다.'))
       .finally(() => setFetching(false));
@@ -165,12 +196,17 @@ export default function AdminQuestionEditPage() {
   };
 
   const handleTypeChange = (type: QuestionType) => {
+    const optionsActive = hasOptions(form.options);
     setForm((prev) => ({
       ...prev,
       questionType: type,
-      answer:   type === 'OX' ? 'O' : type === 'MULTIPLE_CHOICE' ? '1' : '',
+      answer:   optionsActive ? '' : (type === 'OX' ? 'O' : type === 'MULTIPLE_CHOICE' ? '1' : ''),
       language: type === 'CODE' ? (prev.language || 'javascript') : prev.language,
     }));
+    if (optionsActive) {
+      setAnswerFallback(false);
+      setSlots([]);
+    }
   };
 
   const handleSubmit = async () => {
@@ -577,19 +613,12 @@ export default function AdminQuestionEditPage() {
               <>
                 {form.options.map((opt, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => update('answer', String(i + 1))}
-                      title="번호 클릭 = 정답 지정"
-                      className={[
-                        'w-6 h-6 rounded-full text-xs font-bold shrink-0 transition border',
-                        form.answer === String(i + 1)
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-white text-gray-400 border-gray-200 hover:border-indigo-300',
-                      ].join(' ')}
+                    <span
+                      title="보기 번호"
+                      className="w-6 h-6 rounded-full text-xs font-bold shrink-0 border bg-white text-gray-400 border-gray-200 flex items-center justify-center"
                     >
                       {i + 1}
-                    </button>
+                    </span>
                     <input
                       type="text"
                       value={opt}
@@ -604,9 +633,13 @@ export default function AdminQuestionEditPage() {
                     <button
                       type="button"
                       onClick={() => {
+                        const deletedNo = i + 1;
                         const next = form.options.filter((_, idx) => idx !== i);
                         update('options', next);
-                        if (form.answer === String(i + 1)) update('answer', '');
+                        if (!answerFallback) {
+                          // 삭제된 보기 번호를 쓰던 슬롯은 선택 해제, 더 큰 번호는 1 감소 보정
+                          commitSlots(slots.map((v) => (v === deletedNo ? 0 : v > deletedNo ? v - 1 : v)));
+                        }
                       }}
                       className="shrink-0 text-gray-300 hover:text-red-400 transition"
                       aria-label={`보기 ${i + 1} 삭제`}
@@ -627,6 +660,83 @@ export default function AdminQuestionEditPage() {
                   </button>
                 )}
               </>
+            )}
+
+            {/* ── 정답 슬롯(빈칸 순서대로) — 보기가 있을 때만 노출.
+                 기존 answer 파싱에 실패한 경우(레거시·손상 데이터) 원문 텍스트 입력으로 폴백. ── */}
+            {hasOptions(form.options) && (
+              answerFallback ? (
+                <div className="pt-3 mt-1 border-t border-gray-100 space-y-1.5">
+                  <label className="block text-xs font-medium text-gray-500">
+                    정답 <span className="text-amber-500 font-normal">— 기존 저장값을 자동 해석하지 못해 원문을 직접 수정합니다</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={form.answer}
+                    onChange={(e) => update('answer', e.target.value)}
+                    maxLength={2000}
+                    placeholder="예: 4,1,2,3"
+                    className="w-full px-3 py-1.5 rounded-lg border border-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 transition"
+                  />
+                </div>
+              ) : (
+                <div className="pt-3 mt-1 border-t border-gray-100 space-y-2">
+                  <label className="block text-xs font-medium text-gray-500">
+                    정답 (빈칸 순서대로) <span className="text-gray-300 font-normal">— 같은 번호를 중복 지정할 수 있습니다</span>
+                  </label>
+                  {slots.length === 0 ? (
+                    <button
+                      type="button"
+                      onClick={addSlot}
+                      className="text-xs text-indigo-500 hover:text-indigo-700 transition"
+                    >
+                      + 빈칸 추가
+                    </button>
+                  ) : (
+                    <>
+                      {slots.map((slotVal, si) => (
+                        <div key={si} className="flex items-center gap-2">
+                          <span className="text-xs text-gray-400 w-20 shrink-0">{si + 1}번째 빈칸</span>
+                          <div className="flex flex-wrap gap-1">
+                            {form.options.map((_, oi) => (
+                              <button
+                                key={oi}
+                                type="button"
+                                onClick={() => selectSlot(si, oi + 1)}
+                                className={[
+                                  'w-6 h-6 rounded-full text-xs font-bold shrink-0 transition border',
+                                  slotVal === oi + 1
+                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                    : 'bg-white text-gray-400 border-gray-200 hover:border-indigo-300',
+                                ].join(' ')}
+                              >
+                                {oi + 1}
+                              </button>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeSlot(si)}
+                            className="shrink-0 text-gray-300 hover:text-red-400 transition"
+                            aria-label={`${si + 1}번째 빈칸 삭제`}
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={addSlot}
+                        className="text-xs text-indigo-500 hover:text-indigo-700 transition"
+                      >
+                        + 빈칸 추가
+                      </button>
+                    </>
+                  )}
+                </div>
+              )
             )}
           </div>
 

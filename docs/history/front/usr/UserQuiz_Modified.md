@@ -1,3 +1,25 @@
+## HIST-20260710-001
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 풀이 — 보기 있는 문항 답안 입력 안내 문구 갱신
+- **수정 개요**: 백엔드 `AnswerGrader`가 보기(options) 있는 문항 채점을 "빈칸 순서 비교"(콤마 구분 다중 빈칸 지원, 상세는 `docs/history/back/adm/QuestionBank_Modified.md`의 HIST-20260710-001)로 재작성함에 따라, 답안 입력 input의 placeholder를 `'정답 보기 번호 입력'`에서 `'정답 보기 번호 입력 (빈칸이 여러 개면 순서대로 콤마 구분)'`으로 갱신했다. UI 구조(입력 필드 하나, `CodeAnswerInput` 분기 등)는 변경하지 않았다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | 답안 input의 `placeholder={optionsAvailable ? '...' : '...'}` 중 보기 있음 분기 문구 갱신 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `placeholder={optionsAvailable ? '정답 보기 번호 입력' : '답을 입력하고 Enter 또는 정답확인 버튼을 누르세요'}`
+- 변경 후: `placeholder={optionsAvailable ? '정답 보기 번호 입력 (빈칸이 여러 개면 순서대로 콤마 구분)' : '답을 입력하고 Enter 또는 정답확인 버튼을 누르세요'}`
+- 이유: 다중 빈칸 채점 지원에 맞춰 입력 방법 안내를 명확히 하기 위함.
+
+### 복원 방법
+이 ID(HIST-20260710-001)만으로 복원 시, `frontend/src/app/user/quiz/[categoryId]/page.tsx`의 해당 placeholder를 `'정답 보기 번호 입력'`으로 되돌린다.
+
 ## HIST-20260709-001
 
 - **날짜**: 2026-07-09

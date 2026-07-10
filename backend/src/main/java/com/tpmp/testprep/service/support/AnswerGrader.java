@@ -8,7 +8,14 @@ import java.util.stream.Collectors;
 /**
  * 문항 유형별 채점 공통 헬퍼.
  *
- * <p>보기(options)가 존재하면 유형과 무관하게 번호(인덱스) 문자열 비교로 채점한다.
+ * <p>보기(options)가 존재하면 유형과 무관하게 "빈칸 순서대로" 채점한다. 문제 본문에 빈칸이
+ * 여러 개 있고 각 빈칸을 보기에서 찾아 답하는 형식을 지원하기 위해, 정답·사용자 답안을 각각
+ * 콤마·슬래시로 분리한 뒤 같은 위치(순서)의 토큰끼리 비교한다(순서 보존 — Set 아님). 토큰 수가
+ * 다르면 오답이며, 전 위치가 일치해야만 정답(부분 점수 없음)이다. 각 토큰은 보기 번호(1-based
+ * 인덱스)와 보기 텍스트를 상호 인정한다 — 예: 정답 "4"와 사용자 입력 "pwd"가 4번 보기 텍스트라면
+ * 동일하게 취급한다. 같은 보기 번호를 여러 위치에 중복 지정할 수 있다.
+ * 알려진 한계: 보기 텍스트 자체에 콤마/슬래시가 포함되면 분리가 왜곡될 수 있음 — 이 경우
+ * 번호로 입력해야 한다.
  *
  * <p>SHORT_ANSWER 에서 정답·사용자 답안 모두 콤마/슬래시로 구분된 복수 정답을 지원한다.
  * 콤마·슬래시 분리 후 토큰을 trim·소문자화·공백 축약하고, 말미의 괄호 부연 설명
@@ -67,9 +74,14 @@ public final class AnswerGrader {
     /**
      * 채점 결과를 반환한다 (보기 유무에 따라 채점 방식을 분기).
      *
-     * <p>options에 유효한(trim 후 비어있지 않은) 항목이 1개 이상 있으면, 문항 유형과
-     * 무관하게 사용자가 입력한 보기 번호(인덱스) 문자열을 정답과 trim·대소문자 무시로
-     * 비교한다(MULTIPLE_CHOICE 채점과 동일 경로). options가 없으면 기존
+     * <p>options에 유효한(trim 후 비어있지 않은) 항목이 1개 이상 있으면, 문항 유형과 무관하게
+     * "빈칸 순서대로" 채점한다. 정답·사용자 답안을 각각 콤마(,)·슬래시(/)로 분리해 순서를
+     * 보존한 토큰 리스트를 만들고(빈 토큰 제거), 두 리스트의 토큰 수가 다르면 즉시 오답이다.
+     * 같은 위치의 토큰끼리 {@link #tokenEquals(String, String, List)} 로 비교하며, 각 토큰은
+     * 선행 열거 접두("1. ", "2) " 등)를 제거한 뒤 1..options.size() 범위의 순수 숫자면 그
+     * 위치의 보기 텍스트로, 아니면 정규화된 원문 그대로 취급해 번호·보기 텍스트를 상호
+     * 인정한다. 전 위치가 일치해야만 정답(부분 점수 없음)이며, 같은 보기 번호를 여러 위치에
+     * 중복 지정하는 것도 허용한다. options가 없으면 기존
      * {@link #isCorrect(String, String, String)} 3-인자 오버로드로 위임하여
      * 유형별 채점 로직(SHORT_ANSWER 다중정답, CODE 정규화 비교 등)을 그대로 따른다.
      *
@@ -84,7 +96,17 @@ public final class AnswerGrader {
             if (correctAnswer == null || userAnswer == null) {
                 return false;
             }
-            return correctAnswer.trim().equalsIgnoreCase(userAnswer.trim());
+            List<String> correctTokens = tokenizeOrdered(correctAnswer);
+            List<String> userTokens    = tokenizeOrdered(userAnswer);
+            if (correctTokens.isEmpty() || userTokens.isEmpty() || correctTokens.size() != userTokens.size()) {
+                return false;
+            }
+            for (int i = 0; i < correctTokens.size(); i++) {
+                if (!tokenEquals(correctTokens.get(i), userTokens.get(i), options)) {
+                    return false;
+                }
+            }
+            return true;
         }
         return isCorrect(questionType, correctAnswer, userAnswer);
     }
@@ -102,6 +124,56 @@ public final class AnswerGrader {
             return false;
         }
         return options.stream().anyMatch(o -> o != null && !o.trim().isEmpty());
+    }
+
+    /**
+     * options 채점(빈칸별 순서 비교) 전용 토큰화. 콤마·슬래시로 분리 후 각 토큰을 trim만
+     * 적용하고 빈 토큰은 제거한다. Set이 아닌 순서 보존 List를 반환한다.
+     */
+    private static List<String> tokenizeOrdered(String raw) {
+        if (raw == null) {
+            return List.of();
+        }
+        return Arrays.stream(raw.split("[,/]"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * options 채점용 단일 토큰 정규화: trim → 소문자화 → 내부 연속 공백 단일화 → 선행 열거
+     * 접두(예: "1. ", "2) ") 제거 → 재trim. SHORT_ANSWER용 {@link #normalizeToken(String)}과
+     * 달리 괄호 부연 설명은 건드리지 않고, 대신 열거 접두를 제거한다는 점이 다르다.
+     */
+    private static String normalizeOptionToken(String raw) {
+        String s = raw.trim().toLowerCase();
+        s = s.replaceAll("\\s+", " ");
+        s = s.replaceAll("^\\d+\\s*[.)]\\s*", "");
+        return s.trim();
+    }
+
+    /**
+     * 단일 토큰을 options 기준으로 "정규화된 비교 가능 형태"로 변환한다. 정규화 결과가
+     * 1..options.size() 범위의 순수 숫자면 해당 보기 텍스트(동일 정규화 적용)로 치환하고,
+     * 아니면 정규화된 원문을 그대로 반환한다.
+     */
+    private static String resolveOptionToken(String raw, List<String> options) {
+        String normalized = normalizeOptionToken(raw);
+        if (normalized.matches("^\\d+$")) {
+            int n = Integer.parseInt(normalized);
+            if (n >= 1 && n <= options.size()) {
+                return normalizeOptionToken(options.get(n - 1));
+            }
+        }
+        return normalized;
+    }
+
+    /**
+     * 같은 위치의 정답·사용자 토큰이 동일한 보기를 가리키는지 비교한다(번호↔보기 텍스트
+     * 상호 인정).
+     */
+    private static boolean tokenEquals(String correctTok, String userTok, List<String> options) {
+        return resolveOptionToken(correctTok, options).equals(resolveOptionToken(userTok, options));
     }
 
     /**

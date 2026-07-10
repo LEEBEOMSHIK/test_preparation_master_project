@@ -1,3 +1,28 @@
+## HIST-20260710-001
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 백엔드 공통(`AnswerGrader`) — 보기(options) 있는 문항 채점을 "빈칸 순서 비교"로 재작성
+- **수정 개요**: `AnswerGrader.isCorrect(type, correct, user, options)` 4-인자 오버로드가 options 존재 시 정답·사용자 답안 전체를 통문자열 1회 비교(`trim().equalsIgnoreCase`)만 하던 것을, 문제 본문에 빈칸이 여러 개 있고 각 빈칸을 보기에서 찾아 답하는 형식(예: QuestionBank id=23, `options=["ls","cd","cp","pwd"]`, `answer="1. pwd / 2. ls / 3. cd / 4. cp"`)을 지원하도록 재작성했다. 정답·사용자 답안을 각각 콤마(,)·슬래시(/)로 분리해 **순서를 보존한** 토큰 리스트로 만들고(Set이 아닌 List), 토큰 수가 다르면 즉시 오답 처리한다. 같은 위치의 토큰끼리 비교하며, 각 토큰은 선행 열거 접두("1. ", "2) " 등)를 제거한 뒤 1..options.size() 범위의 순수 숫자면 해당 위치 보기 텍스트로, 아니면 정규화된 원문 그대로 취급해 **번호와 보기 텍스트를 상호 인정**한다(`"4"` == `"pwd"` == `"4. pwd"`). 전 위치가 일치해야만 정답(부분 점수 없음)이며, 같은 보기 번호를 여러 위치에 **중복 지정**하는 것도 허용한다. 알려진 한계: 보기 텍스트 자체에 콤마/슬래시가 포함되면 분리가 왜곡될 수 있음(이 경우 번호로 입력해야 함) — Javadoc에 명시.
+- 신규 private 헬퍼: `tokenizeOrdered(raw)`(순서 보존 토큰화), `normalizeOptionToken(raw)`(trim·소문자화·공백축약·열거 접두 제거 — 기존 SHORT_ANSWER용 `normalizeToken`과 별개), `resolveOptionToken(raw, options)`(번호→보기 텍스트 치환 또는 원문 정규화), `tokenEquals(correctTok, userTok, options)`.
+- 프론트엔드 `frontend/src/lib/answer.ts`의 `parseAnswerToSlots`/`slotsToAnswer`가 동일한 정규화 규칙을 사용하므로 두 구현이 어긋나지 않도록 유지해야 한다(어긋나면 화면상 정답으로 보이는 답이 백엔드에서 오답 처리되는 문제 발생).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | 4-인자 오버로드의 options 분기를 "빈칸 순서 비교"로 재작성, 신규 private 헬퍼 4개 추가, 클래스/메서드 Javadoc 갱신 |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 추가 | 빈칸 순서 비교 신규 테스트 13종 추가(단일 번호 회귀, 번호↔텍스트 혼용, 다중 빈칸 정순/오순, 열거 접두 레거시 호환, 중복 정답, 토큰 수 불일치 등). 기존 테스트(전체) 그대로 유지, 전부 통과 확인 |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java`
+- 변경 전: `isCorrect(String, String, String, List<String>)`가 options 존재 시 `correctAnswer.trim().equalsIgnoreCase(userAnswer.trim())` 통문자열 1회 비교만 수행.
+- 변경 후: 순서 보존 토큰 리스트로 분리 → 토큰 수 일치 확인 → 위치별 `tokenEquals`(번호↔텍스트 상호 인정) 비교 → 전 위치 일치 시에만 true.
+- 이유: 빈칸이 여러 개인 문항(예: id=23)에서 사용자 안내("정답 보기 번호 입력")와 실제 채점 로직이 모순되던 버그 수정.
+
+### 복원 방법
+이 ID(HIST-20260710-001)만으로 복원 시, `isCorrect(String, String, String, List<String>)`의 options 분기를 다시 `correctAnswer.trim().equalsIgnoreCase(userAnswer.trim())` 단일 비교로 되돌리고, 신규 private 헬퍼 4개(`tokenizeOrdered`, `normalizeOptionToken`, `resolveOptionToken`, `tokenEquals`)와 관련 테스트 13종을 제거한다.
+
 ## HIST-20260709-002
 
 - **날짜**: 2026-07-09

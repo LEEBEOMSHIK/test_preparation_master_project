@@ -15,7 +15,7 @@ import { emptySchedulingDraft, toSchedulingDataPayload, type SchedulingDataDraft
 import { SqlProblemEditor } from '@/components/ui/SqlProblemEditor';
 import { emptySqlDraft, toSqlDataPayload, type SqlDataDraft } from '@/lib/sql';
 import { stripHtml } from '@/lib/html';
-import { hasOptions } from '@/lib/answer';
+import { hasOptions, parseAnswerToSlots, slotsToAnswer } from '@/lib/answer';
 import { isBlankOrPositiveIntegerText, toOptionalPositiveInteger } from '@/lib/questionNumber';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -193,6 +193,20 @@ function ManualQuestionCard({
   const isScheduling = draft.questionType === 'SCHEDULING';
   const isSql = draft.questionType === 'SQL';
 
+  // ── 정답 슬롯(빈칸 순서대로) — options가 있을 때만 사용. 0 = 아직 미선택.
+  // 마운트 시 1회만 draft.answer를 파싱해 초기화하고, 이후로는 이 로컬 상태가
+  // 진실 원천이며 변경될 때마다 draft.answer(콤마 조인 문자열)로 반영한다.
+  const [slots, setSlots] = useState<number[]>(() => parseAnswerToSlots(draft.answer, draft.options) ?? []);
+
+  const commitSlots = (next: number[]) => {
+    setSlots(next);
+    onChange('answer', slotsToAnswer(next));
+  };
+  const addSlot = () => commitSlots([...slots, 0]);
+  const removeSlot = (slotIdx: number) => commitSlots(slots.filter((_, idx) => idx !== slotIdx));
+  const selectSlot = (slotIdx: number, optionNo: number) =>
+    commitSlots(slots.map((v, idx) => (idx === slotIdx ? optionNo : v)));
+
   const examTypeName   = examTypeSlaves.find((s) => s.id === draft.examTypeId)?.name ?? '';
   const categoryName   = questionTypeSlaves.find((s) => s.id === draft.categoryId)?.name ?? '';
   const titleSuggestion = [
@@ -309,7 +323,11 @@ function ManualQuestionCard({
                 type="button"
                 onClick={() => {
                   onChange('questionType', t.value);
-                  onChange('answer', t.value === 'OX' ? 'O' : '');
+                  if (hasOptions(draft.options)) {
+                    commitSlots([]);
+                  } else {
+                    onChange('answer', t.value === 'OX' ? 'O' : '');
+                  }
                   if (t.value === 'CODE') onChange('language', 'javascript');
                 }}
                 title={t.desc}
@@ -538,19 +556,12 @@ function ManualQuestionCard({
             <>
               {draft.options.map((opt, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onChange('answer', String(i + 1))}
-                    title="번호 클릭 = 정답 지정"
-                    className={[
-                      'w-6 h-6 rounded-full text-xs font-bold shrink-0 transition border',
-                      draft.answer === String(i + 1)
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-white text-gray-400 border-gray-200 hover:border-indigo-300',
-                    ].join(' ')}
+                  <span
+                    title="보기 번호"
+                    className="w-6 h-6 rounded-full text-xs font-bold shrink-0 border bg-white text-gray-400 border-gray-200 flex items-center justify-center"
                   >
                     {i + 1}
-                  </button>
+                  </span>
                   <input
                     type="text"
                     value={opt}
@@ -566,10 +577,11 @@ function ManualQuestionCard({
                   <button
                     type="button"
                     onClick={() => {
+                      const deletedNo = i + 1;
                       const next = draft.options.filter((_, idx) => idx !== i);
                       onChange('options', next);
-                      // 삭제된 보기가 정답으로 지정되어 있었으면 정답 선택 해제
-                      if (draft.answer === String(i + 1)) onChange('answer', '');
+                      // 삭제된 보기 번호를 쓰던 슬롯은 선택 해제, 더 큰 번호는 1 감소 보정
+                      commitSlots(slots.map((v) => (v === deletedNo ? 0 : v > deletedNo ? v - 1 : v)));
                     }}
                     className="shrink-0 text-gray-300 hover:text-red-400 transition"
                     aria-label={`보기 ${i + 1} 삭제`}
@@ -590,6 +602,66 @@ function ManualQuestionCard({
                 </button>
               )}
             </>
+          )}
+
+          {/* ── 정답 슬롯(빈칸 순서대로) — 보기가 있을 때만 노출 ── */}
+          {hasOptions(draft.options) && (
+            <div className="pt-3 mt-1 border-t border-gray-100 space-y-2">
+              <label className="block text-xs font-medium text-gray-500">
+                정답 (빈칸 순서대로) <span className="text-gray-300 font-normal">— 같은 번호를 중복 지정할 수 있습니다</span>
+              </label>
+              {slots.length === 0 ? (
+                <button
+                  type="button"
+                  onClick={addSlot}
+                  className="text-xs text-indigo-500 hover:text-indigo-700 transition"
+                >
+                  + 빈칸 추가
+                </button>
+              ) : (
+                <>
+                  {slots.map((slotVal, si) => (
+                    <div key={si} className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400 w-20 shrink-0">{si + 1}번째 빈칸</span>
+                      <div className="flex flex-wrap gap-1">
+                        {draft.options.map((_, oi) => (
+                          <button
+                            key={oi}
+                            type="button"
+                            onClick={() => selectSlot(si, oi + 1)}
+                            className={[
+                              'w-6 h-6 rounded-full text-xs font-bold shrink-0 transition border',
+                              slotVal === oi + 1
+                                ? 'bg-indigo-600 text-white border-indigo-600'
+                                : 'bg-white text-gray-400 border-gray-200 hover:border-indigo-300',
+                            ].join(' ')}
+                          >
+                            {oi + 1}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeSlot(si)}
+                        className="shrink-0 text-gray-300 hover:text-red-400 transition"
+                        aria-label={`${si + 1}번째 빈칸 삭제`}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addSlot}
+                    className="text-xs text-indigo-500 hover:text-indigo-700 transition"
+                  >
+                    + 빈칸 추가
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </div>
 

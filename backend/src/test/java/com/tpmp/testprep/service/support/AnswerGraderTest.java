@@ -341,4 +341,95 @@ class AnswerGraderTest {
     void withOptions_nullList_fallsBackToLegacyBehavior() {
         assertThat(AnswerGrader.isCorrect("MULTIPLE_CHOICE", "1", "1", null)).isTrue();
     }
+
+    // -----------------------------------------------------------------------
+    // 4-인자 오버로드 — 빈칸 순서 비교(신규 규칙): 번호↔텍스트 상호 인정, 중복 허용
+    // -----------------------------------------------------------------------
+
+    private static final List<String> PWD_OPTIONS = Arrays.asList("ls", "cd", "cp", "pwd");
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 단일 번호 정답 회귀 — 일치")
+    void withOptions_ordered_singleNumber_correct() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "2", "2", PWD_OPTIONS)).isTrue();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 단일 번호 정답 회귀 — 불일치")
+    void withOptions_ordered_singleNumber_incorrect() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "2", "3", PWD_OPTIONS)).isFalse();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 단일 번호 정답에 보기 텍스트로 입력해도 정답")
+    void withOptions_ordered_singleNumber_textInput_correct() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "2", "cd", PWD_OPTIONS)).isTrue();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 빈칸 4개 정순 — 정답")
+    void withOptions_ordered_fourBlanks_correctOrder() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "4,1,2,3", "4,1,2,3", PWD_OPTIONS)).isTrue();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 빈칸 4개 + 공백 포함 — 정답")
+    void withOptions_ordered_fourBlanks_withSpaces_correct() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "4,1,2,3", "4, 1, 2, 3", PWD_OPTIONS)).isTrue();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 빈칸 4개 순서 틀림 — 오답")
+    void withOptions_ordered_fourBlanks_wrongOrder_incorrect() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "4,1,2,3", "1,4,2,3", PWD_OPTIONS)).isFalse();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 번호↔텍스트 혼용 — 정답")
+    void withOptions_ordered_mixedNumberAndText_correct() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "4,1,2,3", "pwd, ls, cd, cp", PWD_OPTIONS)).isTrue();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 기존 데이터 호환 — 열거 접두 포함 정답 + 번호 입력 — 정답")
+    void withOptions_ordered_legacyEnumeratedAnswer_numberInput_correct() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "1. pwd / 2. ls / 3. cd / 4. cp", "4,1,2,3", PWD_OPTIONS
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 기존 데이터 호환 — 열거 접두 포함 정답 + 텍스트 입력 — 정답")
+    void withOptions_ordered_legacyEnumeratedAnswer_textInput_correct() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "1. pwd / 2. ls / 3. cd / 4. cp", "pwd,ls,cd,cp", PWD_OPTIONS
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 기존 데이터 호환 — 같은 정답에 순서만 다른 번호 입력은 오답")
+    void withOptions_ordered_legacyEnumeratedAnswer_wrongOrderNumbers_incorrect() {
+        // 정답 순서: pwd, ls, cd, cp / 사용자 입력 "1,2,3,4" → options 기준 ls, cd, cp, pwd 로 해석되어 불일치
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "1. pwd / 2. ls / 3. cd / 4. cp", "1,2,3,4", PWD_OPTIONS
+        )).isFalse();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 중복 정답 허용 — 동일 순서면 정답")
+    void withOptions_ordered_duplicateAnswers_correct() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "2,2,1", "2,2,1", PWD_OPTIONS)).isTrue();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 중복 정답 허용 — 순서가 다르면 오답")
+    void withOptions_ordered_duplicateAnswers_wrongOrder_incorrect() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "2,2,1", "2,1,2", PWD_OPTIONS)).isFalse();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 토큰 수 불일치 — 오답")
+    void withOptions_ordered_tokenCountMismatch_incorrect() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "4,1,2,3", "4,1,2", PWD_OPTIONS)).isFalse();
+    }
 }

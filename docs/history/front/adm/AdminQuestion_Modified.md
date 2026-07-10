@@ -1,4 +1,38 @@
-﻿## HIST-20260709-002
+﻿## HIST-20260710-001
+
+- **날짜**: 2026-07-10
+- **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정 — 보기(options) 있는 문항의 정답을 "빈칸 순서대로" 슬롯 UI로 지정
+- **수정 개요**: 백엔드 `AnswerGrader`가 options 채점을 "빈칸 순서 비교"(HIST-20260710-001, back/adm/QuestionBank_Modified.md)로 재작성함에 따라, 관리자 등록(`new/page.tsx`)·수정(`[id]/edit/page.tsx`) 화면의 정답 지정 UI를 단일 번호 클릭 방식에서 "빈칸별 정답 슬롯" 방식으로 교체했다. 보기 목록 아래에 "정답 (빈칸 순서대로)" 섹션을 신설해, 각 슬롯(빈칸)마다 보기 번호 선택 버튼 그룹 + 슬롯 삭제 버튼을 배치하고 "+ 빈칸 추가" 버튼으로 슬롯을 늘릴 수 있다. 같은 보기 번호를 여러 슬롯에 중복 지정할 수 있다. 저장 payload의 `answer`는 슬롯 번호들의 콤마 조인 문자열(예: `"4,1,2,3"`)이며, 슬롯 0개면 빈 값(정답 없는 등록 허용, 기존 동작 유지). 보기 항목 왼쪽 원형 번호 버튼은 클릭 시 단일 정답을 덮어쓰던 기존 동작을 제거하고 순번 표시 전용 `<span>`으로 변경했다(`title="보기 번호"`). 보기 항목 삭제 시 그 번호를 쓰던 슬롯은 선택 해제(0 — 미선택 sentinel)되고, 더 큰 번호를 쓰던 슬롯은 1 감소 보정된다.
+- **슬롯 상태 관리**: 슬롯 배열은 `draft.answer`/`form.answer` 문자열에서 완전히 파생시키지 않고(부분 선택 중 슬롯이 사라지는 문제 방지), 컴포넌트 로컬 `useState<number[]>`를 진실 원천으로 두고 변경 시마다 `slotsToAnswer()`로 직렬화해 `answer` 필드에 반영한다. 각 슬롯 값은 1-based 보기 번호이며 `0`은 "아직 미선택" sentinel(스펙에 명시되지 않아 자체 판단으로 도입 — 보기 삭제로 인한 "선택 해제" 상태를 표현할 방법이 필요했음).
+  - 등록 화면(`new/page.tsx`, `ManualQuestionCard`): 카드 마운트 시 1회 `parseAnswerToSlots(draft.answer, draft.options) ?? []`로 초기화. 새 문항은 손상된 레거시 데이터가 없으므로 원문 텍스트 폴백 없이 항상 슬롯 UI만 노출.
+  - 수정 화면(`[id]/edit/page.tsx`): 문항 로드(fetch) 완료 시 1회 `parseAnswerToSlots(loadedAnswer, loadedOptions)`를 시도 — 매칭 실패(레거시·손상 데이터) 시 `answerFallback=true`로 전환해 슬롯 UI 대신 원문 텍스트 입력 필드(값 훼손·비움 없이 그대로 노출·수정 가능)로 폴백한다.
+  - 문항 유형 전환 버튼 클릭 시(`handleTypeChange`/new 페이지의 유형 버튼 onClick), 보기가 있는 상태였다면 슬롯을 초기화(`[]`)하고 `answerFallback`도 `false`로 리셋한다(스펙 미명시 — 유형 전환 후 이전 유형의 슬롯 선택이 그대로 남는 것을 방지하기 위한 자체 판단).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/answer.ts` | 수정 | `slotsToAnswer(slots)`, `parseAnswerToSlots(answer, options)` 신규 export 추가, `hasOptions` JSDoc을 새 채점 기준으로 갱신 |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | `ManualQuestionCard`에 로컬 슬롯 상태(`slots`/`commitSlots`/`addSlot`/`removeSlot`/`selectSlot`) 추가, 보기 번호 버튼의 정답 지정 클릭 제거(순번 표시 전용 `<span>`), 보기 삭제 시 슬롯 재매핑, "정답 (빈칸 순서대로)" 슬롯 UI 섹션 신설, 유형 전환 시 슬롯 초기화 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | 동일 슬롯 상태 관리 + `answerFallback` 상태 추가, 문항 로드 시 `parseAnswerToSlots`로 초기 슬롯/폴백 여부 결정, 보기 번호 버튼 정답 지정 클릭 제거, 보기 삭제 시 슬롯 재매핑(폴백 모드 시 생략), 슬롯 UI/원문 텍스트 폴백 UI 분기 렌더, 유형 전환 시 슬롯·폴백 초기화 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에서 `hasOptions` 설명을 새 채점 기준으로 갱신, `slotsToAnswer`/`parseAnswerToSlots` 행 신규 추가 |
+
+### 수정 상세
+
+#### `frontend/src/lib/answer.ts`
+- 변경 전: `hasOptions`만 존재.
+- 변경 후: `slotsToAnswer(slots: number[]): string`(콤마 조인, 빈 배열이면 빈 문자열), `parseAnswerToSlots(answer, options): number[] | null`(콤마/슬래시 분리 → 각 토큰을 번호 또는 보기 텍스트 매칭으로 슬롯 번호 복원, 매칭 실패·빈 문자열이면 null) 신규 추가. 정규화 규칙(`normalizeOptionToken`: trim→소문자화→공백축약→열거 접두 제거)은 백엔드 `AnswerGrader`의 `normalizeOptionToken`과 동일하게 유지.
+- 이유: 관리자 UI의 슬롯 ↔ 저장 문자열 상호 변환을 위한 공용 헬퍼, 백엔드 채점 규칙과 반드시 동기화되어야 함.
+
+#### `frontend/src/app/admin/exams/questions/new/page.tsx`, `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx`
+- 변경 전: 보기 항목 왼쪽 원형 번호 버튼 클릭 시 `onChange('answer', String(i+1))`로 단일 정답을 덮어씀. 복수 빈칸·중복 정답 표현 불가.
+- 변경 후: 원형 번호는 순번 표시 전용(클릭 무동작), "정답 (빈칸 순서대로)" 섹션에서 슬롯 단위로 보기 번호를 지정.
+- 이유: 문제 본문에 빈칸이 여러 개 있고 각 빈칸을 보기에서 찾아 답하는 문항(QuestionBank id=23 등) 지원.
+
+### 복원 방법
+이 ID(HIST-20260710-001)만으로 복원 시, `frontend/src/lib/answer.ts`에서 `slotsToAnswer`/`parseAnswerToSlots`를 제거하고, `new/page.tsx`·`[id]/edit/page.tsx`의 보기 번호 버튼을 다시 `onClick={() => onChange('answer', String(i+1))}` 클릭형 `<button>`으로 되돌리며, "정답 (빈칸 순서대로)" 슬롯 UI 섹션과 관련 로컬 상태(`slots`, `answerFallback`, `commitSlots` 등)를 제거한다.
+
+## HIST-20260709-002
 
 - **날짜**: 2026-07-09
 - **수정 범위**: 관리자 프론트엔드 / 문항 등록·수정 — SQL 문항 페이로드 변환 정적 검증 Low 결함 수정

@@ -548,7 +548,7 @@ function QuizPlayContent() {
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSubmitAnswer()}
-                placeholder={optionsAvailable ? '정답 보기 번호 입력' : '답을 입력하고 Enter 또는 정답확인 버튼을 누르세요'}
+                placeholder={optionsAvailable ? '정답 보기 번호 입력 (빈칸이 여러 개면 순서대로 콤마 구분)' : '답을 입력하고 Enter 또는 정답확인 버튼을 누르세요'}
                 disabled={!!answerState?.submitted}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-50"
               />
