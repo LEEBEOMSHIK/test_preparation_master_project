@@ -451,18 +451,23 @@ export default function AdminQuestionsPage() {
                         ) : (
                           <p className="truncate text-gray-500">{stripHtml(q.content)}</p>
                         )}
-                        {(q.examYear != null || q.examRound != null || q.questionNo != null) ? (
+                        {/* AI 커스텀 판정은 연도·회차 없음 기준 — 문항번호는 AI 커스텀도 정렬용으로 가질 수 있다 */}
+                        {(q.examYear != null || q.examRound != null) ? (
                           <p className="text-xs text-slate-400 mt-0.5">
                             {q.examYear != null ? `${q.examYear}년` : ''}
                             {q.examYear != null && q.examRound != null ? ' ' : ''}
                             {q.examRound != null ? `제${q.examRound}회` : ''}
-                            {(q.examYear != null || q.examRound != null) && q.questionNo != null ? ' ' : ''}
-                            {q.questionNo != null ? `${q.questionNo}번` : ''}
+                            {q.questionNo != null ? ` ${q.questionNo}번` : ''}
                           </p>
                         ) : (
-                          <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600 border border-amber-100">
-                            AI 커스텀
-                          </span>
+                          <p className="mt-0.5 flex items-center gap-1.5">
+                            <span className="inline-block px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600 border border-amber-100">
+                              AI 커스텀
+                            </span>
+                            {q.questionNo != null && (
+                              <span className="text-xs text-slate-400">{q.questionNo}번</span>
+                            )}
+                          </p>
                         )}
                       </div>
                     </td>
