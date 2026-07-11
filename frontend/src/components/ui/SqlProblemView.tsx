@@ -106,6 +106,40 @@ export function SqlProblemView({ data, className = '' }: Props) {
       ) : (
         <CodeBlock code={buildDdl(data.tables)} language="sql" size="xs" />
       )}
+
+      {/* 결과 테이블 정답 — 관리자 응답에만 포함됨(퀴즈 노출 DTO는 정답 유출 방지를 위해 항상 제거) */}
+      {data.expectedResult && (
+        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+          <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
+            결과 테이블 정답
+            {data.expectedResult.orderedRows && (
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-50 text-cyan-600 border border-cyan-100">
+                순서 채점
+              </span>
+            )}
+          </p>
+          <div className="overflow-x-auto rounded-lg border border-cyan-200 dark:border-cyan-800">
+            <table className="w-full text-sm min-w-[280px]">
+              <thead>
+                <tr className="bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300">
+                  {data.expectedResult.columns.map((col, cIdx) => (
+                    <th key={cIdx} className="px-3 py-2 text-left font-medium font-mono">{col}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {data.expectedResult.rows.map((row, rIdx) => (
+                  <tr key={rIdx} className="text-gray-800 dark:text-gray-200">
+                    {row.map((cell, cIdx) => (
+                      <td key={cIdx} className="px-3 py-2 font-mono">{cell}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

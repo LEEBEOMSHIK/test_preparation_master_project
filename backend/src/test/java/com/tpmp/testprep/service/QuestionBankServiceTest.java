@@ -269,6 +269,78 @@ class QuestionBankServiceTest {
         verify(questionBankRepository).save(any(QuestionBank.class));
     }
 
+    // ── SQL 결과 테이블 정답(expectedResult) 검증 ──────────────────────────────
+
+    @Test
+    @DisplayName("SQL: expectedResult의 컬럼 목록이 비어있으면 SQL_DATA_INVALID 예외")
+    void sqlExpectedResult_emptyColumns_throws() {
+        SqlData.SqlExpectedResult expected = new SqlData.SqlExpectedResult(
+                List.of(), List.of(List.of("1")), false);
+        SqlData data = new SqlData(List.of(new SqlData.SqlTable(
+                "employees",
+                List.of(new SqlData.SqlColumn("id", "INT", true)),
+                null)), expected);
+        QuestionBankRequest req = requestOfSql(data);
+
+        assertThatThrownBy(() -> service.createQuestion(req, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.SQL_DATA_INVALID));
+    }
+
+    @Test
+    @DisplayName("SQL: expectedResult의 행이 비어있으면 SQL_DATA_INVALID 예외 (0행 정답 미지원)")
+    void sqlExpectedResult_emptyRows_throws() {
+        SqlData.SqlExpectedResult expected = new SqlData.SqlExpectedResult(
+                List.of("id"), List.of(), false);
+        SqlData data = new SqlData(List.of(new SqlData.SqlTable(
+                "employees",
+                List.of(new SqlData.SqlColumn("id", "INT", true)),
+                null)), expected);
+        QuestionBankRequest req = requestOfSql(data);
+
+        assertThatThrownBy(() -> service.createQuestion(req, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.SQL_DATA_INVALID));
+    }
+
+    @Test
+    @DisplayName("SQL: expectedResult의 행 길이가 컬럼 수와 다르면 SQL_DATA_INVALID 예외")
+    void sqlExpectedResult_rowLengthMismatch_throws() {
+        SqlData.SqlExpectedResult expected = new SqlData.SqlExpectedResult(
+                List.of("id", "name"), List.of(List.of("1", "Alice", "extra")), false);
+        SqlData data = new SqlData(List.of(new SqlData.SqlTable(
+                "employees",
+                List.of(new SqlData.SqlColumn("id", "INT", true), new SqlData.SqlColumn("name", "VARCHAR(50)", false)),
+                null)), expected);
+        QuestionBankRequest req = requestOfSql(data);
+
+        assertThatThrownBy(() -> service.createQuestion(req, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.SQL_DATA_INVALID));
+    }
+
+    @Test
+    @DisplayName("SQL: 유효한 expectedResult이면 정상 저장되고 sqlData에 그대로 반영")
+    void sqlExpectedResult_valid_savesSuccessfully() {
+        SqlData.SqlExpectedResult expected = new SqlData.SqlExpectedResult(
+                List.of("id", "name"), List.of(List.of("1", "Alice")), true);
+        SqlData data = new SqlData(List.of(new SqlData.SqlTable(
+                "employees",
+                List.of(new SqlData.SqlColumn("id", "INT", true), new SqlData.SqlColumn("name", "VARCHAR(50)", false)),
+                List.of(List.of("1", "Alice")))), expected);
+        QuestionBankRequest req = requestOfSql(data);
+
+        service.createQuestion(req, ADMIN_EMAIL);
+
+        ArgumentCaptor<QuestionBank> captor = ArgumentCaptor.forClass(QuestionBank.class);
+        verify(questionBankRepository).save(captor.capture());
+        assertThat(captor.getValue().getSqlData()).isEqualTo(data);
+        assertThat(captor.getValue().getSqlData().expectedResult()).isEqualTo(expected);
+    }
+
     // ── 회귀 확인: SQL이 아닌 유형은 sqlData 검증을 타지 않음 ──────────────────
 
     @Test

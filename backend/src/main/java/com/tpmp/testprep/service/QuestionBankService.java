@@ -327,6 +327,8 @@ public class QuestionBankService {
      *   <li>questionType == SQL 인데 sqlData 가 없으면 오류</li>
      *   <li>테이블 목록이 비어있으면 오류</li>
      *   <li>테이블의 rows가 존재할 때, 각 행의 셀 수가 columns 개수와 다르면 오류</li>
+     *   <li>expectedResult(결과 테이블 정답)가 있으면: columns 비어있으면 오류, rows 비어있으면
+     *       오류(0행 정답은 지원하지 않음), 각 행의 셀 수가 columns 개수와 다르면 오류</li>
      * </ul>
      * 등록(단건/일괄) · 수정 3개 경로 모두에서 호출한다.
      */
@@ -347,6 +349,30 @@ public class QuestionBankService {
             if (invalidRow) {
                 throw new BusinessException(ErrorCode.SQL_DATA_INVALID);
             }
+        }
+        validateSqlExpectedResult(data.expectedResult());
+    }
+
+    /**
+     * SQL 결과 테이블 정답(expectedResult) 정합성 검증. expectedResult가 없으면(선택 필드) 통과.
+     * columns 비어있으면 오류, rows 비어있으면 오류(0행 정답은 범위 제외), 각 행의 셀 수가
+     * columns 개수와 다르면 오류.
+     */
+    private void validateSqlExpectedResult(SqlData.SqlExpectedResult expected) {
+        if (expected == null) {
+            return;
+        }
+        if (expected.columns() == null || expected.columns().isEmpty()) {
+            throw new BusinessException(ErrorCode.SQL_DATA_INVALID);
+        }
+        if (expected.rows() == null || expected.rows().isEmpty()) {
+            throw new BusinessException(ErrorCode.SQL_DATA_INVALID);
+        }
+        int columnCount = expected.columns().size();
+        boolean invalidRow = expected.rows().stream()
+                .anyMatch(row -> row == null || row.size() != columnCount);
+        if (invalidRow) {
+            throw new BusinessException(ErrorCode.SQL_DATA_INVALID);
         }
     }
 

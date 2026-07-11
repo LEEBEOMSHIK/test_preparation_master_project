@@ -15,8 +15,10 @@ export interface QuizQuestion {
   examRound?: number;
   /** CPU 스케줄링 구조화 데이터 (SCHEDULING 유형에서만 존재) */
   schedulingData?: SchedulingData;
-  /** SQL 구조화 데이터 (SQL 유형에서만 존재) */
+  /** SQL 구조화 데이터 (SQL 유형에서만 존재, 정답 유출 방지를 위해 expectedResult는 항상 제거됨) */
   sqlData?: SqlData;
+  /** SQL 결과 테이블 정답의 컬럼명만 — 있으면 결과 테이블 입력 그리드 UI를 사용 (없으면 기존 텍스트/코드 입력) */
+  sqlResultColumns?: string[];
 }
 
 export interface CheckResult {

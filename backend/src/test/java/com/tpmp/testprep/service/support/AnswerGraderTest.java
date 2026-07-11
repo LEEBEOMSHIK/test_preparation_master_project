@@ -1,5 +1,6 @@
 package com.tpmp.testprep.service.support;
 
+import com.tpmp.testprep.entity.support.SqlData;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -431,5 +432,139 @@ class AnswerGraderTest {
     @DisplayName("빈칸 순서 비교: 토큰 수 불일치 — 오답")
     void withOptions_ordered_tokenCountMismatch_incorrect() {
         assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "4,1,2,3", "4,1,2", PWD_OPTIONS)).isFalse();
+    }
+
+    // -----------------------------------------------------------------------
+    // isSqlResultTableCorrect — SQL 결과 테이블(컬럼×튜플) 정답 채점
+    // -----------------------------------------------------------------------
+
+    private static SqlData.SqlExpectedResult expectedResult(List<String> columns, List<List<String>> rows, boolean orderedRows) {
+        return new SqlData.SqlExpectedResult(columns, rows, orderedRows);
+    }
+
+    @Test
+    @DisplayName("SQL 결과 테이블: orderedRows=false — 행 순서가 달라도 원소가 같으면 정답")
+    void sqlResultTable_unordered_reversedRows_correct() {
+        SqlData.SqlExpectedResult expected = expectedResult(
+                List.of("id", "name"),
+                List.of(List.of("1", "Alice"), List.of("2", "Bob")),
+                false);
+        String userAnswer = "2 | Bob\n1 | Alice";
+        assertThat(AnswerGrader.isSqlResultTableCorrect(expected, userAnswer)).isTrue();
+    }
+
+    @Test
+    @DisplayName("SQL 결과 테이블: orderedRows=true인데 순서가 뒤바뀌면 오답")
+    void sqlResultTable_ordered_reversedRows_incorrect() {
+        SqlData.SqlExpectedResult expected = expectedResult(
+                List.of("id", "name"),
+                List.of(List.of("1", "Alice"), List.of("2", "Bob")),
+                true);
+        String userAnswer = "2 | Bob\n1 | Alice";
+        assertThat(AnswerGrader.isSqlResultTableCorrect(expected, userAnswer)).isFalse();
+    }
+
+    @Test
+    @DisplayName("SQL 결과 테이블: orderedRows=true이고 순서까지 일치하면 정답")
+    void sqlResultTable_ordered_sameOrder_correct() {
+        SqlData.SqlExpectedResult expected = expectedResult(
+                List.of("id", "name"),
+                List.of(List.of("1", "Alice"), List.of("2", "Bob")),
+                true);
+        String userAnswer = "1 | Alice\n2 | Bob";
+        assertThat(AnswerGrader.isSqlResultTableCorrect(expected, userAnswer)).isTrue();
+    }
+
+    @Test
+    @DisplayName("SQL 결과 테이블: 셀 수가 컬럼 수와 다르면 오답")
+    void sqlResultTable_cellCountMismatch_incorrect() {
+        SqlData.SqlExpectedResult expected = expectedResult(
+                List.of("id", "name"),
+                List.of(List.of("1", "Alice")),
+                false);
+        String userAnswer = "1 | Alice | extra";
+        assertThat(AnswerGrader.isSqlResultTableCorrect(expected, userAnswer)).isFalse();
+    }
+
+    @Test
+    @DisplayName("SQL 결과 테이블: 행 수가 다르면 오답")
+    void sqlResultTable_rowCountMismatch_incorrect() {
+        SqlData.SqlExpectedResult expected = expectedResult(
+                List.of("id"),
+                List.of(List.of("1"), List.of("2")),
+                false);
+        String userAnswer = "1";
+        assertThat(AnswerGrader.isSqlResultTableCorrect(expected, userAnswer)).isFalse();
+    }
+
+    @Test
+    @DisplayName("SQL 결과 테이블: 숫자 동치 — 3.0과 3은 같은 값으로 처리")
+    void sqlResultTable_numericEquivalence_correct() {
+        SqlData.SqlExpectedResult expected = expectedResult(
+                List.of("avg"),
+                List.of(List.of("3.0")),
+                false);
+        assertThat(AnswerGrader.isSqlResultTableCorrect(expected, "3")).isTrue();
+    }
+
+    @Test
+    @DisplayName("SQL 결과 테이블: NULL 문자열은 대소문자 무시 동치")
+    void sqlResultTable_nullCaseInsensitive_correct() {
+        SqlData.SqlExpectedResult expected = expectedResult(
+                List.of("dept"),
+                List.of(List.of("NULL")),
+                false);
+        assertThat(AnswerGrader.isSqlResultTableCorrect(expected, "null")).isTrue();
+    }
+
+    @Test
+    @DisplayName("SQL 결과 테이블: orderedRows=false — 중복 행도 다중집합으로 정확히 비교")
+    void sqlResultTable_unordered_duplicateRows_correct() {
+        SqlData.SqlExpectedResult expected = expectedResult(
+                List.of("dept"),
+                List.of(List.of("IT"), List.of("IT"), List.of("HR")),
+                false);
+        // 정답과 동일한 다중집합 (IT 2개, HR 1개) — 순서만 다름
+        assertThat(AnswerGrader.isSqlResultTableCorrect(expected, "HR\nIT\nIT")).isTrue();
+        // 다중집합이 다르면(IT 1개, HR 2개) 오답
+        assertThat(AnswerGrader.isSqlResultTableCorrect(expected, "HR\nHR\nIT")).isFalse();
+    }
+
+    @Test
+    @DisplayName("SQL 결과 테이블: orderedRows=false — 셀 경계가 다르면 이어붙인 값이 같아도 오답 (다중집합 키 충돌 방지 회귀)")
+    void sqlResultTable_unordered_cellBoundaryCollision_incorrect() {
+        // 정답 행 ["12", "3"] — 셀을 구분자 없이 이어붙이면 "123"이 되어
+        // 사용자가 실수로 입력한 ["1", "23"](역시 이어붙이면 "123")과 같은 키로 오판될 수 있다.
+        // 셀 사이에 사람이 입력할 수 없는 구분자를 써서 키를 만들어야 이 충돌을 방지한다.
+        SqlData.SqlExpectedResult expected = expectedResult(
+                List.of("a", "b"),
+                List.of(List.of("12", "3")),
+                false);
+        assertThat(AnswerGrader.isSqlResultTableCorrect(expected, "1 | 23")).isFalse();
+        // 회귀 확인: 정확히 일치하는 셀 경계는 여전히 정답이어야 함
+        assertThat(AnswerGrader.isSqlResultTableCorrect(expected, "12 | 3")).isTrue();
+    }
+
+    @Test
+    @DisplayName("SQL 결과 테이블: 공백·대소문자 정규화 후 일치하면 정답")
+    void sqlResultTable_whitespaceAndCaseNormalization_correct() {
+        SqlData.SqlExpectedResult expected = expectedResult(
+                List.of("name"),
+                List.of(List.of("Alice   Smith")),
+                false);
+        assertThat(AnswerGrader.isSqlResultTableCorrect(expected, "  alice smith  ")).isTrue();
+    }
+
+    @Test
+    @DisplayName("SQL 결과 테이블: expected가 null이면 오답")
+    void sqlResultTable_nullExpected_false() {
+        assertThat(AnswerGrader.isSqlResultTableCorrect(null, "1 | Alice")).isFalse();
+    }
+
+    @Test
+    @DisplayName("SQL 결과 테이블: userAnswer가 null이면 오답")
+    void sqlResultTable_nullUserAnswer_false() {
+        SqlData.SqlExpectedResult expected = expectedResult(List.of("id"), List.of(List.of("1")), false);
+        assertThat(AnswerGrader.isSqlResultTableCorrect(expected, null)).isFalse();
     }
 }

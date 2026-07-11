@@ -10,6 +10,7 @@ import com.tpmp.testprep.entity.DomainSlave;
 import com.tpmp.testprep.entity.QuestionBank;
 import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.entity.UserQuestionBookmark;
+import com.tpmp.testprep.entity.support.SqlData;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.DomainMasterRepository;
@@ -125,14 +126,29 @@ public class UserQuizService {
      * 저장 실패 시 내부 트랜잭션만 롤백되고 현재 readOnly 트랜잭션은 영향받지 않으므로
      * UnexpectedRollbackException 없이 채점 결과를 정상 반환할 수 있다.
      * (메서드 레벨 @Transactional 쓰기 어노테이션 제거 — 저장은 REQUIRES_NEW 컴포넌트 담당)
+     *
+     * <p>채점 우선순위: 보기(options)가 있으면(유형 무관) 항상 기존 4-인자 번호 채점을 그대로
+     * 유지한다(전역 불변식). 보기가 없고 SQL 유형이며 sqlData.expectedResult가 존재하면 결과
+     * 테이블 채점({@link AnswerGrader#isSqlResultTableCorrect})으로 분기한다. 그 외에는 기존
+     * 텍스트 비교 채점을 그대로 따른다.
      */
     public CheckResult checkAnswer(CheckRequest request, String email) {
         QuestionBank qb = questionBankRepository.findById(request.questionId())
                 .filter(q -> "N".equals(q.getDelYn()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
 
-        boolean correct = AnswerGrader.isCorrect(
-                qb.getQuestionType().name(), qb.getAnswer(), request.userAnswer(), qb.getOptions());
+        SqlData sqlData = qb.getSqlData();
+        SqlData.SqlExpectedResult sqlExpectedResult =
+                qb.getQuestionType() == QuestionBank.QuestionType.SQL && sqlData != null
+                        ? sqlData.expectedResult() : null;
+
+        boolean correct;
+        if (sqlExpectedResult != null && !AnswerGrader.hasMeaningfulOptions(qb.getOptions())) {
+            correct = AnswerGrader.isSqlResultTableCorrect(sqlExpectedResult, request.userAnswer());
+        } else {
+            correct = AnswerGrader.isCorrect(
+                    qb.getQuestionType().name(), qb.getAnswer(), request.userAnswer(), qb.getOptions());
+        }
 
         // 스칼라 값 먼저 추출 — readOnly tx 내에서 LAZY 접근 가능, recorder에는 id만 전달
         Long userId = userRepository.findByEmail(email)

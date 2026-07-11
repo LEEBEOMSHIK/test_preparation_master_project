@@ -1,7 +1,12 @@
 package com.tpmp.testprep.service.support;
 
+import com.tpmp.testprep.entity.support.SqlData;
+
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -33,6 +38,10 @@ import java.util.stream.Collectors;
  * 무시한다. 줄 내부 연속 공백(들여쓰기)은 정답의 일부이므로 절대 건드리지 않는다.
  *
  * <p>MULTIPLE_CHOICE·OX 는 기존과 동일하게 trim·equalsIgnoreCase 비교한다.
+ *
+ * <p>SQL 유형 중 "실행 결과를 쓰시오"류 문항(문항의 {@code SqlData.expectedResult}가 존재)은
+ * 위 dispatch 경로를 타지 않고 별도의 {@link #isSqlResultTableCorrect(SqlData.SqlExpectedResult, String)}
+ * 로 채점한다 — 호출부(UserQuizService)가 옵션 유무·expectedResult 존재 여부를 먼저 판단해 분기한다.
  */
 public final class AnswerGrader {
 
@@ -111,6 +120,64 @@ public final class AnswerGrader {
         return isCorrect(questionType, correctAnswer, userAnswer);
     }
 
+    /**
+     * SQL "결과 테이블(컬럼×튜플)" 정답 채점.
+     *
+     * <p>사용자 답안을 줄바꿈(CRLF/CR/LF 모두 허용)으로 행 분리(공백 행 제거)한 뒤, 각 행을
+     * {@code |}로 셀 분리한다. 셀은 trim → 소문자화 → 연속 공백 단일화로 정규화하며, 정규화된
+     * 셀이 숫자로 파싱되면 수치로 재정규화하므로 "3.0"과 "3"은 동일하게 취급되고, "null"
+     * 문자열은 대소문자 무시로 동치 처리된다(소문자화가 이미 포함하므로 별도 처리 불필요).
+     *
+     * <p>사용자 행 수가 {@code expected.rows().size()}와 다르거나, 어느 한 행이라도 셀 수가
+     * {@code expected.columns().size()}와 다르면 즉시 오답이다. {@code orderedRows=true}면
+     * 위치별로 정규화된 행을 순서대로 비교하고, {@code false}면 정규화된 행을 canonical 키로
+     * 만들어 다중집합(중복 행 카운트 포함) 비교한다.
+     *
+     * <p>알려진 한계: 셀 값 자체에 {@code |} 문자가 포함되면 셀 분리가 왜곡된다(등록 화면에서
+     * 경고 문구로 안내).
+     *
+     * @param expected   관리자가 등록한 결과 테이블 정답(null이면 이 메서드를 호출하면 안 됨)
+     * @param userAnswer 사용자가 제출한 결과 테이블 문자열(행=줄바꿈, 셀={@code |} 구분)
+     * @return 정답이면 true, expected·userAnswer가 null이거나 형식이 다르면 false
+     */
+    public static boolean isSqlResultTableCorrect(SqlData.SqlExpectedResult expected, String userAnswer) {
+        if (expected == null || userAnswer == null) {
+            return false;
+        }
+        List<String> expectedColumns = expected.columns();
+        List<List<String>> expectedRows = expected.rows();
+        if (expectedColumns == null || expectedColumns.isEmpty() || expectedRows == null || expectedRows.isEmpty()) {
+            return false;
+        }
+        int columnCount = expectedColumns.size();
+
+        String normalizedInput = userAnswer.replace("\r\n", "\n").replace("\r", "\n");
+        List<String> userLines = Arrays.stream(normalizedInput.split("\n"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+        if (userLines.size() != expectedRows.size()) {
+            return false;
+        }
+
+        List<List<String>> userRows = new ArrayList<>();
+        for (String line : userLines) {
+            String[] cells = line.split("\\|", -1);
+            if (cells.length != columnCount) {
+                return false;
+            }
+            userRows.add(Arrays.asList(cells));
+        }
+
+        List<List<String>> normalizedExpected = normalizeSqlRows(expectedRows);
+        List<List<String>> normalizedUser = normalizeSqlRows(userRows);
+
+        if (expected.orderedRows()) {
+            return normalizedExpected.equals(normalizedUser);
+        }
+        return toCanonicalMultiset(normalizedExpected).equals(toCanonicalMultiset(normalizedUser));
+    }
+
     // -----------------------------------------------------------------------
     // Private helpers
     // -----------------------------------------------------------------------
@@ -118,8 +185,9 @@ public final class AnswerGrader {
     /**
      * options가 null이거나 비어있지 않고, trim 후 비어있지 않은 항목이 1개 이상 존재하면 true.
      * (예: {@code ["", "", "", ""]} 은 false)
+     * UserQuizService가 SQL 결과 테이블 채점 분기 여부를 판단할 때도 재사용하므로 public.
      */
-    private static boolean hasMeaningfulOptions(List<String> options) {
+    public static boolean hasMeaningfulOptions(List<String> options) {
         if (options == null || options.isEmpty()) {
             return false;
         }
@@ -245,5 +313,62 @@ public final class AnswerGrader {
         s = s.replaceAll("\\([^)]*\\)", "");
         s = s.replaceAll("[\\s,/]", "");
         return s;
+    }
+
+    // -----------------------------------------------------------------------
+    // SQL 결과 테이블(expectedResult) 채점 전용 helper
+    // -----------------------------------------------------------------------
+
+    /**
+     * canonical 다중집합 키를 만들 때 셀 사이에 넣는 구분자(U+0001, 제어문자) — 명시적 이스케이프
+     * 상수로 선언한다. 사용자가 정상적으로 입력할 수 없는 문자이므로 셀 경계가 뭉개지지 않는다
+     * (예: 행 ["12","3"]과 ["1","23"]을 구분자 없이 이어붙이면 둘 다 "123"이 되어 서로 다른 행이
+     * 같은 키로 충돌할 수 있다 — 반드시 이 상수를 통해서만 join한다).
+     */
+    private static final String CANONICAL_ROW_DELIMITER = "\u0001";
+
+    /** 행 목록의 각 셀을 {@link #normalizeSqlCell(String)}로 정규화한 새 행 목록을 반환한다. */
+    private static List<List<String>> normalizeSqlRows(List<List<String>> rows) {
+        return rows.stream()
+                .map(row -> row.stream().map(AnswerGrader::normalizeSqlCell).collect(Collectors.toList()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 이미 정규화된 행 목록을 canonical 문자열(셀을 {@link #CANONICAL_ROW_DELIMITER}로 join)
+     * → 등장 횟수 맵으로 변환한다. 다중집합(중복 행 허용) 비교에 사용한다.
+     */
+    private static Map<String, Integer> toCanonicalMultiset(List<List<String>> normalizedRows) {
+        Map<String, Integer> counts = new HashMap<>();
+        for (List<String> row : normalizedRows) {
+            String key = String.join(CANONICAL_ROW_DELIMITER, row);
+            counts.merge(key, 1, Integer::sum);
+        }
+        return counts;
+    }
+
+    /**
+     * SQL 결과 테이블 셀 정규화: trim → 소문자화 → 연속 공백 단일화 → 숫자로 파싱 가능하면
+     * {@code Double} 재정규화(예: "3.0"·"3"·"03" 모두 "3.0"으로 통일되어 수치 동치 처리됨).
+     */
+    private static String normalizeSqlCell(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String s = raw.trim().toLowerCase();
+        s = s.replaceAll("\\s+", " ");
+        Double numeric = tryParseDouble(s);
+        return numeric != null ? String.valueOf(numeric) : s;
+    }
+
+    private static Double tryParseDouble(String s) {
+        if (s.isEmpty()) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(s);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

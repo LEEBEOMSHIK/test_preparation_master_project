@@ -109,8 +109,20 @@ export interface SqlTable {
   rows?: string[][];
 }
 
+/** SQL "결과 테이블(컬럼×튜플)" 정답 — "실행 결과를 쓰시오"류 문항 채점용 (선택) */
+export interface SqlExpectedResult {
+  columns: string[];
+  rows: string[][];
+  /** true면 행 순서까지 그대로 채점(ORDER BY 문제), false면 행 순서 무관(다중집합) 채점 */
+  orderedRows: boolean;
+}
+
 export interface SqlData {
   tables: SqlTable[];
+  /** 결과 테이블 정답 (선택) — 있으면 퀴즈 채점 시 텍스트 정답 대신 이 값 기준으로 채점됨.
+   *  퀴즈 문제 노출용 응답(QuizQuestion)에는 정답 유출 방지를 위해 절대 포함되지 않는다
+   *  (대신 컬럼명만 sqlResultColumns로 노출). 관리자 응답(QuestionSummary)에는 그대로 포함됨. */
+  expectedResult?: SqlExpectedResult;
 }
 
 export interface ExamSummary {

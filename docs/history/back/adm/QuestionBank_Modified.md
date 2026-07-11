@@ -1,3 +1,63 @@
+## HIST-20260711-001
+
+- **날짜**: 2026-07-11
+- **수정 범위**: 백엔드 / 문항은행(QuestionBank) — SQL 유형 "결과 테이블(컬럼×튜플) 정답" 채점 지원
+- **수정 개요**: SQL 유형(QuestionBank 전용) 중 "실행 결과를 쓰시오"류 문항을 채점할 수 있도록 `SqlData`에 선택 필드 `expectedResult { columns: List<String>, rows: List<List<String>>, orderedRows: boolean }`를 추가했다(JSONB 컬럼 내부 필드라 DB 마이그레이션 불필요). 등록 검증(`QuestionBankService.validateSqlData`)에 expectedResult 규칙(컬럼 비어있으면 오류, rows 비어있으면 오류(0행 정답 미지원), 각 행 길이=컬럼 수 검증)을 추가했다. 채점은 `AnswerGrader.isSqlResultTableCorrect(expected, userAnswer)` 신설 — 사용자 답안을 줄바꿈(행)·`\|`(셀)로 파싱해 trim·소문자화·공백축약·숫자 동치(3.0=3)·NULL 대소문자 무시로 정규화한 뒤, `orderedRows=false`면 다중집합(중복 행 카운트 포함) 비교, `true`면 위치별 비교한다. `UserQuizService.checkAnswer`는 **보기(options)가 없고** SQL 유형이며 `sqlData.expectedResult`가 존재할 때만 이 신규 채점으로 분기하고, 그 외(보기 있음 등)는 기존 4-인자 `AnswerGrader.isCorrect` 경로를 그대로 유지해 "보기 있으면 번호 채점" 전역 불변식을 깨지 않는다.
+- **정답 유출 방지(핵심)**: 퀴즈 문제 노출 DTO `QuizQuestionView`는 `sqlData`를 `SqlData.withoutExpectedResult()`(expectedResult를 null로 치환한 사본)로 매핑하고, 대신 컬럼명만 담은 `sqlResultColumns` 필드를 신설해 FE 그리드 헤더용으로 노출한다. 관리자 응답 `QuestionBankResponse`는 기존 그대로 `qb.getSqlData()`를 매핑하므로 expectedResult 전체(정답 포함)가 노출된다 — 이 비대칭이 정답 유출 방지의 핵심이다.
+- `SqlData`는 record 컴포넌트가 하나 늘어나 canonical 생성자가 2-인자(`tables, expectedResult`)로 바뀌므로, 하위 호환용 1-인자 편의 생성자(`SqlData(List<SqlTable> tables)` → `this(tables, null)`)를 추가해 기존 `new SqlData(List.of(...))` 호출부(테스트 포함)를 그대로 컴파일되게 했다.
+- `AnswerGrader.hasMeaningfulOptions(options)`를 private → public으로 변경해 `UserQuizService`가 "보기 있음" 판정을 동일 기준으로 재사용하도록 했다(로직 중복 없이 판단 순서를 통일).
+- **(코드 리뷰 반영)** `toCanonicalMultiset`이 다중집합 키를 만들 때 셀들을 구분자 없이 `String.join`으로 이어붙이면, 서로 다른 셀 경계를 가진 행(예: `["12","3"]`과 `["1","23"]`)이 둘 다 `"123"`으로 뭉개져 오답을 정답으로 오판할 수 있는 정합성 결함이 있었다. 실제로는 구분자 파라미터 자리에 사람이 입력할 수 없는 제어문자(U+0001)를 이미 쓰고 있어 이 충돌은 발생하지 않는 상태였지만, 소스에 리터럴 제어문자가 그대로 박혀 있어 코드 리뷰(육안·grep)로는 "빈 문자열 구분자"처럼 보여 실제로 두 개의 별도 세션에서 버그로 오인되는 혼동이 있었다. 재발 방지를 위해 이 구분자를 `CANONICAL_ROW_DELIMITER`라는 명시적 이스케이프 상수로 선언해 가독성을 확보했다(동작 자체는 기존과 동일, U+0001 구분자 유지). 셀 경계 충돌을 정확히 잡아내는 회귀 테스트도 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/entity/support/SqlData.java` | 수정 | 중첩 record `SqlExpectedResult(columns, rows, orderedRows)` 추가, `SqlData`에 `expectedResult` 필드 추가, 1-인자 하위호환 생성자 추가, `withoutExpectedResult()` 헬퍼 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/QuestionBankService.java` | 수정 | `validateSqlData`에서 `validateSqlExpectedResult` 호출 추가, 신규 private 메서드 `validateSqlExpectedResult` 추가(컬럼/행 비어있음·행 길이 불일치 시 `SQL_DATA_INVALID`) |
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | `isSqlResultTableCorrect(expected, userAnswer)` 신규 public 메서드 추가(정규화·다중집합/순서 비교 helper 포함), `hasMeaningfulOptions`를 public으로 변경, 클래스 Javadoc에 SQL 결과 테이블 채점 경로 설명 추가. **(코드 리뷰 반영)** `toCanonicalMultiset`의 행 join 구분자를 `CANONICAL_ROW_DELIMITER`(U+0001) 명시적 상수로 선언(가독성 개선, 동작 동일) |
+| `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java` | 수정 | `checkAnswer`에서 보기 없음+SQL+expectedResult 존재 시 `isSqlResultTableCorrect`로 분기, 그 외 기존 4-인자 `isCorrect` 유지 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuizQuestionView.java` | 수정 | `sqlResultColumns: List<String>` 필드 추가, `sqlData`는 `withoutExpectedResult()` 사본으로 매핑 |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 추가 | `isSqlResultTableCorrect` 단위 테스트 12종 추가(순서무관 일치, 순서 채점 오답/정답, 셀 수 불일치, 행 수 불일치, 숫자 동치, NULL 대소문자 무시, 다중집합 중복 행, **다중집합 셀 경계 충돌 회귀**, 공백·대소문자 정규화, expected/userAnswer null) |
+| `backend/src/test/java/com/tpmp/testprep/service/QuestionBankServiceTest.java` | 추가 | `expectedResult` 검증 테스트 4종 추가(빈 컬럼/빈 행/행 길이 불일치/유효 저장) |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/entity/support/SqlData.java`
+- 변경 전: `public record SqlData(List<SqlTable> tables) { ... }` (tables만 보유, SqlExpectedResult 없음)
+- 변경 후: `public record SqlData(List<SqlTable> tables, SqlExpectedResult expectedResult) { public SqlData(List<SqlTable> tables) { this(tables, null); } public SqlData withoutExpectedResult() {...} public record SqlExpectedResult(List<String> columns, List<List<String>> rows, boolean orderedRows) {} }`
+- 이유: "실행 결과를 쓰시오"류 SQL 문항의 정답을 컬럼×튜플 표 형태로 저장·채점하기 위함. 기존 answer 텍스트 비교로는 표현·채점이 불가능했음.
+
+#### `backend/src/main/java/com/tpmp/testprep/service/QuestionBankService.java`
+- 변경 전: `validateSqlData`가 tables·rows 길이만 검증
+- 변경 후: `validateSqlData` 말미에 `validateSqlExpectedResult(data.expectedResult())` 호출 추가. 신규 메서드가 expectedResult != null일 때 columns/rows 비어있음·행 길이 불일치를 `SQL_DATA_INVALID`로 거부
+- 이유: 결과 테이블 정답 저장 시에도 기존 SQL 데이터와 동일한 정합성 보장 필요.
+
+#### `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java`
+- 변경 전: SQL 유형은 3-인자 `isCorrect`에서 SHORT_ANSWER와 동일한 콤마 다중값 Set 비교만 지원
+- 변경 후: `isSqlResultTableCorrect(SqlData.SqlExpectedResult, String)` 신규 public 메서드 추가 — 줄바꿈으로 행 분리, `\|`로 셀 분리, 셀 정규화(trim·소문자·공백축약·숫자 재정규화), orderedRows 여부에 따라 위치 비교/다중집합 비교. `hasMeaningfulOptions`를 public으로 변경
+- 이유: 결과 테이블 형태 정답을 정확히 채점하기 위한 별도 채점 경로 필요. 기존 dispatch(`isCorrect`)는 이 신규 메서드로 라우팅하지 않고 호출부(`UserQuizService`)가 직접 분기.
+- **(코드 리뷰 반영, 추가 수정)** `toCanonicalMultiset`의 `String.join(구분자, row)` 호출부 — 구분자가 소스에 리터럴 제어문자(U+0001)로 박혀 있어 육안·grep으로는 빈 문자열처럼 보임. `private static final String CANONICAL_ROW_DELIMITER = "";` 상수를 선언하고 `String.join(CANONICAL_ROW_DELIMITER, row)`로 변경해 구분자의 존재와 의도를 코드에서 명시적으로 드러냈다. 다중집합 키 충돌(셀 경계 뭉개짐)을 검증하는 회귀 테스트 `sqlResultTable_unordered_cellBoundaryCollision_incorrect`를 추가.
+- 이유: 동일 로직을 서로 다른 세션이 코드 리뷰했을 때 "구분자가 없다(버그)"와 "구분자가 있다(정상)"로 상반되게 판단하는 혼동이 실제로 발생했다. 상수화로 이런 오판 가능성 자체를 제거.
+
+#### `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java`
+- 변경 전: `boolean correct = AnswerGrader.isCorrect(qb.getQuestionType().name(), qb.getAnswer(), request.userAnswer(), qb.getOptions());` 단일 경로
+- 변경 후: SQL 유형이고 `qb.getSqlData().expectedResult() != null`이고 보기가 없을 때만 `isSqlResultTableCorrect`로 분기, 그 외는 기존 4-인자 `isCorrect` 그대로 호출
+- 이유: "보기 있으면 번호 채점" 전역 불변식을 유지하면서, expectedResult가 있는 SQL 결과 테이블 문항만 신규 채점 경로를 타도록 하기 위함.
+
+#### `backend/src/main/java/com/tpmp/testprep/dto/response/QuizQuestionView.java`
+- 변경 전: `sqlData` 필드에 `qb.getSqlData()`를 그대로 매핑(expectedResult 포함 시 정답이 그대로 노출됨)
+- 변경 후: `sqlData`는 `qb.getSqlData().withoutExpectedResult()` 사본으로 매핑, 신규 `sqlResultColumns` 필드에 `expectedResult.columns()`만 노출
+- 이유: 퀴즈 풀이 화면에 정답(expectedResult.rows)이 유출되지 않도록 하기 위함 — 컬럼명(문제 구조)만 필요.
+
+### 복원 방법
+이 ID(HIST-20260711-001)만으로 복원 시:
+1. `SqlData.java`를 `public record SqlData(List<SqlTable> tables) { public record SqlTable(...) {} public record SqlColumn(...) {} }` (expectedResult·withoutExpectedResult·SqlExpectedResult 전부 제거)로 되돌린다.
+2. `QuestionBankService.validateSqlData`에서 `validateSqlExpectedResult` 호출과 해당 private 메서드를 제거한다.
+3. `AnswerGrader.java`에서 `isSqlResultTableCorrect`, `CANONICAL_ROW_DELIMITER` 상수, 관련 private helper(`normalizeSqlRows`/`toCanonicalMultiset`/`normalizeSqlCell`/`tryParseDouble`)를 제거하고, `hasMeaningfulOptions`를 다시 private으로 되돌린다.
+4. `UserQuizService.checkAnswer`를 `AnswerGrader.isCorrect(qb.getQuestionType().name(), qb.getAnswer(), request.userAnswer(), qb.getOptions())` 단일 호출로 되돌린다.
+5. `QuizQuestionView`에서 `sqlResultColumns` 필드를 제거하고 `sqlData`를 `qb.getSqlData()`로 직접 매핑한다.
+6. 위 테스트 추가분(`AnswerGraderTest`의 SQL 결과 테이블 12종, `QuestionBankServiceTest`의 expectedResult 4종)을 제거한다.
+
 ## HIST-20260710-001
 
 - **날짜**: 2026-07-10

@@ -13,7 +13,7 @@ import { QuestionAnalysisPanel } from '@/components/ui/QuestionAnalysisPanel';
 import { SchedulingProblemEditor } from '@/components/ui/SchedulingProblemEditor';
 import { emptySchedulingDraft, toSchedulingDataPayload, type SchedulingDataDraft } from '@/lib/scheduling';
 import { SqlProblemEditor } from '@/components/ui/SqlProblemEditor';
-import { emptySqlDraft, toSqlDataPayload, type SqlDataDraft } from '@/lib/sql';
+import { emptySqlDraft, isExpectedResultEnabled, serializeSqlResult, toSqlDataPayload, type SqlDataDraft } from '@/lib/sql';
 import { stripHtml } from '@/lib/html';
 import { hasOptions, parseAnswerToSlots, slotsToAnswer } from '@/lib/answer';
 import { isBlankOrPositiveIntegerText, toOptionalPositiveInteger } from '@/lib/questionNumber';
@@ -521,8 +521,8 @@ function ManualQuestionCard({
               value={draft.sqlData}
               onChange={(next) => onChange('sqlData', next)}
             />
-            {/* 정답 (선택) — 보기가 있으면 번호 선택 UI로 대체되므로 숨김 */}
-            {!hasOptions(draft.options) && (
+            {/* 정답 (선택) — 보기가 있거나 결과 테이블 정답이 활성화되어 있으면 숨김 */}
+            {!hasOptions(draft.options) && !isExpectedResultEnabled(draft.sqlData.expectedResult) && (
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">정답 (선택)</label>
                 <input
@@ -534,6 +534,11 @@ function ManualQuestionCard({
                   className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-cyan-400 transition"
                 />
               </div>
+            )}
+            {!hasOptions(draft.options) && isExpectedResultEnabled(draft.sqlData.expectedResult) && (
+              <p className="text-xs text-cyan-600 bg-cyan-50 border border-cyan-100 rounded-lg px-3 py-2">
+                결과 테이블 정답으로 채점됩니다.
+              </p>
             )}
           </div>
         )}
@@ -865,28 +870,34 @@ export default function AdminQuestionNewPage() {
     setLoading(true);
     try {
       await examService.adminCreateQuestionsBulk(
-        all.map((q) => ({
-          title:        q.title.trim() || undefined,
-          examYear:     q.examYear ? Number(q.examYear) : undefined,
-          examRound:    q.examRound ? Number(q.examRound) : undefined,
-          questionNo:   toOptionalPositiveInteger(q.questionNo),
-          instruction:  q.instruction.trim() || undefined,
-          content:      q.content.trim(),
-          questionType: q.questionType,
-          categoryId:   q.categoryId ?? undefined,
-          examTypeId:   q.examTypeId ?? undefined,
-          options:      q.options.length ? q.options.filter(Boolean) : undefined,
-          answer:       q.answer || undefined,
-          code:         q.code   || undefined,
-          language:     q.language || undefined,
-          schedulingData: q.questionType === 'SCHEDULING' ? toSchedulingDataPayload(q.schedulingData) : undefined,
-          sqlData:      q.questionType === 'SQL' ? toSqlDataPayload(q.sqlData) : undefined,
-          // aiAnalysis는 ManualQuestionDraft에만 존재; ImportedDraft는 null로 전송
-          aiKeywords:   q.aiAnalysis?.keywords,
-          aiDomains:    q.aiAnalysis?.domains,
-          aiDifficulty: q.aiAnalysis?.difficulty,
-          aiSummary:    q.aiAnalysis?.summary,
-        })),
+        all.map((q) => {
+          const sqlDataPayload = q.questionType === 'SQL' ? toSqlDataPayload(q.sqlData) : undefined;
+          return {
+            title:        q.title.trim() || undefined,
+            examYear:     q.examYear ? Number(q.examYear) : undefined,
+            examRound:    q.examRound ? Number(q.examRound) : undefined,
+            questionNo:   toOptionalPositiveInteger(q.questionNo),
+            instruction:  q.instruction.trim() || undefined,
+            content:      q.content.trim(),
+            questionType: q.questionType,
+            categoryId:   q.categoryId ?? undefined,
+            examTypeId:   q.examTypeId ?? undefined,
+            options:      q.options.length ? q.options.filter(Boolean) : undefined,
+            // 결과 테이블 정답이 있으면 텍스트 정답 대신 직렬화된 문자열을 자동 세팅
+            answer:       sqlDataPayload?.expectedResult
+              ? serializeSqlResult(sqlDataPayload.expectedResult)
+              : (q.answer || undefined),
+            code:         q.code   || undefined,
+            language:     q.language || undefined,
+            schedulingData: q.questionType === 'SCHEDULING' ? toSchedulingDataPayload(q.schedulingData) : undefined,
+            sqlData:      sqlDataPayload,
+            // aiAnalysis는 ManualQuestionDraft에만 존재; ImportedDraft는 null로 전송
+            aiKeywords:   q.aiAnalysis?.keywords,
+            aiDomains:    q.aiAnalysis?.domains,
+            aiDifficulty: q.aiAnalysis?.difficulty,
+            aiSummary:    q.aiAnalysis?.summary,
+          };
+        }),
       );
       router.push('/admin/exams/questions');
     } catch {

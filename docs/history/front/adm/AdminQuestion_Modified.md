@@ -1,4 +1,49 @@
-﻿## HIST-20260710-004
+﻿## HIST-20260711-001
+
+- **날짜**: 2026-07-11
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리(등록·수정) — SQL 유형 "결과 테이블(컬럼×튜플) 정답" 입력 지원
+- **수정 개요**: `SqlProblemEditor`에 "결과 테이블 정답 (선택)" 섹션을 추가했다. 기본 비활성 상태이며 "+ 결과 테이블 정답 추가" 버튼으로 활성화된다(이름 있는 컬럼이 1개 이상이면 활성 상태로 판정, `lib/sql.ts`의 `isExpectedResultEnabled`). 활성화되면 컬럼명 입력 행 + 정답 튜플(행) 그리드(기존 `TableCard`의 컬럼/행 추가·삭제 UX 패턴 재사용)와 "행 순서까지 채점(ORDER BY 문제)" 체크박스, "섹션 제거" 버튼이 나타난다. 셀 값에 `\|` 문자가 포함되면(채점 시 셀 구분자로 쓰이므로) 경고 문구를 표시한다. 등록/수정 페이지는 SQL 유형이고 expectedResult가 활성 상태면 기존 "정답 (선택)" 텍스트 입력란을 숨기고 "결과 테이블 정답으로 채점됩니다." 안내 문구로 대체하며, 제출 시 payload의 `answer` 필드를 `serializeSqlResult(expectedResult)`(`"c1 \| c2\nv1 \| v2"` 형식)로 자동 세팅한다 — 백엔드 `CheckResult.correctAnswer` 표시 호환을 위함.
+- `lib/sql.ts`의 `SqlDataDraft`에 `expectedResult: SqlExpectedResultDraft` 필드를 추가했다. `toSqlDataPayload`는 기존 테이블 keepIndices 방식과 동일한 규칙(이름 있는 컬럼의 원본 인덱스 기준 셀 선별)으로 expectedResult도 함께 변환하며, 유효 컬럼이 0개거나 유효 행이 0개면 expectedResult를 payload에서 생략한다. `fromSqlData`도 expectedResult 역변환을 지원(컬럼 수에 맞춰 각 행 패딩/자르기).
+- `SqlProblemView`(관리자 상세 모달·퀴즈 풀이 화면 공용)에 `data.expectedResult`가 있으면 하단에 "결과 테이블 정답" 표를 추가로 렌더링하도록 확장했다. 퀴즈 풀이 화면에 전달되는 `sqlData`는 백엔드가 `withoutExpectedResult()`로 항상 제거하므로, 이 렌더 분기는 자연히 관리자 화면(문항 상세/등록/수정 미리보기)에서만 동작한다 — 컴포넌트 자체는 정답 유출을 신경 쓸 필요 없이 "받은 데이터를 그대로 그린다"는 기존 원칙을 유지.
+- `frontend/src/types/index.ts`에 `SqlExpectedResult` 타입을 추가하고 `SqlData`에 `expectedResult?` 필드를 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `SqlExpectedResult` 인터페이스 추가, `SqlData`에 `expectedResult?` 필드 추가 |
+| `frontend/src/lib/sql.ts` | 수정 | `SqlExpectedResultDraft` 타입, `emptyExpectedResultDraft`/`activateExpectedResultDraft`/`isExpectedResultEnabled`/`toSqlExpectedResultPayload`/`serializeSqlResult` 추가, `SqlDataDraft`에 `expectedResult` 필드 추가, `toSqlDataPayload`/`fromSqlData`가 expectedResult를 함께 변환하도록 확장 |
+| `frontend/src/components/ui/SqlProblemEditor.tsx` | 수정 | `ExpectedResultSection` 신규 하위 컴포넌트 추가(컬럼명·정답 행 그리드, orderedRows 체크박스, `\|` 경고, 섹션 추가/제거) |
+| `frontend/src/components/ui/SqlProblemView.tsx` | 수정 | `data.expectedResult`가 있으면 표/스키마 토글 아래에 "결과 테이블 정답" 표 추가 렌더(orderedRows면 "순서 채점" 배지) |
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | expectedResult 활성 시 정답 텍스트 입력 숨김 + 안내 문구, 제출 payload의 `answer`를 `serializeSqlResult`로 자동 세팅 |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | new/page.tsx와 동일 패턴 적용(정답 입력 숨김 + 안내 문구 + answer 자동 세팅) |
+
+### 수정 상세
+
+#### `frontend/src/lib/sql.ts`
+- 변경 전: `SqlDataDraft { tables: SqlTableDraft[] }`, `emptySqlDraft()`가 `{ tables: [...] }`만 반환
+- 변경 후: `SqlDataDraft { tables: SqlTableDraft[]; expectedResult: SqlExpectedResultDraft }`, `emptySqlDraft()`가 `{ tables: [...], expectedResult: emptyExpectedResultDraft() }` 반환. `toSqlDataPayload`/`fromSqlData`가 expectedResult 변환 로직 포함하도록 확장
+- 이유: 결과 테이블 정답 입력 폼 상태를 기존 Draft 패턴과 동일하게 관리하기 위함.
+
+#### `frontend/src/components/ui/SqlProblemEditor.tsx`
+- 변경 전: 테이블 카드 반복 + "+ 테이블 추가" 버튼만 존재
+- 변경 후: 테이블 목록 아래에 `ExpectedResultSection` 추가 — 비활성 시 "+ 결과 테이블 정답 추가" 버튼만, 활성 시 컬럼명/행 그리드 + orderedRows 체크박스 + 섹션 제거 버튼
+- 이유: "실행 결과를 쓰시오"류 문항의 정답을 관리자가 표 형태로 직접 입력할 수 있어야 함.
+
+#### `frontend/src/app/admin/exams/questions/new/page.tsx`, `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx`
+- 변경 전: SQL 섹션에서 보기 없으면 항상 "정답 (선택)" 텍스트 입력 노출, 제출 시 `answer: q.answer || undefined`
+- 변경 후: `isExpectedResultEnabled(sqlData.expectedResult)`가 true면 텍스트 입력 숨기고 안내 문구 노출, 제출 시 `sqlDataPayload?.expectedResult`가 있으면 `answer: serializeSqlResult(sqlDataPayload.expectedResult)`, 없으면 기존 로직
+- 이유: 결과 테이블 정답을 쓸 때 별도 텍스트 정답 입력은 혼란을 줄 뿐 아니라 실제 채점에 쓰이지도 않으므로 숨기고, 대신 백엔드 `CheckResult.correctAnswer` 표시 호환을 위해 answer 필드에 직렬화 문자열을 자동으로 채워 넣음.
+
+### 복원 방법
+이 ID(HIST-20260711-001)만으로 복원 시:
+1. `types/index.ts`에서 `SqlExpectedResult` 인터페이스와 `SqlData.expectedResult?` 필드를 제거한다.
+2. `lib/sql.ts`를 expectedResult 관련 타입·함수(`SqlExpectedResultDraft`/`emptyExpectedResultDraft`/`activateExpectedResultDraft`/`isExpectedResultEnabled`/`toSqlExpectedResultPayload`/`serializeSqlResult`/`fromSqlExpectedResult`) 전부 제거하고 `SqlDataDraft`를 `{ tables: SqlTableDraft[] }`로, `emptySqlDraft`를 `{ tables: [emptyTableDraft()] }`로 되돌린다.
+3. `SqlProblemEditor.tsx`에서 `ExpectedResultSection` 호출과 정의를 제거한다.
+4. `SqlProblemView.tsx`에서 `data.expectedResult` 렌더 블록을 제거한다.
+5. 등록/수정 두 페이지에서 expectedResult 관련 조건부 렌더와 `serializeSqlResult` 기반 answer 자동 세팅을 제거하고 기존 `answer: q.answer || undefined` / `answer: form.answer || undefined`로 되돌린다.
+
+## HIST-20260710-004
 
 - **날짜**: 2026-07-10
 - **수정 범위**: 관리자 프론트엔드 / 문항 관리(목록) — 조회조건 세션 유지(등록/수정 다녀와도 복원)

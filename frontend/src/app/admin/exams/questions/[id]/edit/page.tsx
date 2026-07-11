@@ -13,7 +13,7 @@ import { QuestionAnalysisPanel } from '@/components/ui/QuestionAnalysisPanel';
 import { SchedulingProblemEditor } from '@/components/ui/SchedulingProblemEditor';
 import { emptySchedulingDraft, fromSchedulingData, toSchedulingDataPayload, type SchedulingDataDraft } from '@/lib/scheduling';
 import { SqlProblemEditor } from '@/components/ui/SqlProblemEditor';
-import { emptySqlDraft, fromSqlData, toSqlDataPayload, type SqlDataDraft } from '@/lib/sql';
+import { emptySqlDraft, fromSqlData, isExpectedResultEnabled, serializeSqlResult, toSqlDataPayload, type SqlDataDraft } from '@/lib/sql';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { stripHtml } from '@/lib/html';
 import { hasOptions, parseAnswerToSlots, slotsToAnswer } from '@/lib/answer';
@@ -235,6 +235,7 @@ export default function AdminQuestionEditPage() {
     setError('');
     setLoading(true);
     try {
+      const sqlDataPayload = isSql ? toSqlDataPayload(form.sqlData) : undefined;
       await examService.adminUpdateQuestion(id, {
         title:        form.title.trim() || undefined,
         examYear:     form.examYear ? Number(form.examYear) : undefined,
@@ -246,12 +247,15 @@ export default function AdminQuestionEditPage() {
         categoryId:   form.categoryId ?? undefined,
         examTypeId:   form.examTypeId ?? undefined,
         options:      form.options.length ? form.options.filter(Boolean) : undefined,
-        answer:       form.answer || undefined,
+        // 결과 테이블 정답이 있으면 텍스트 정답 대신 직렬화된 문자열을 자동 세팅
+        answer:       sqlDataPayload?.expectedResult
+          ? serializeSqlResult(sqlDataPayload.expectedResult)
+          : (form.answer || undefined),
         code:         form.code   || undefined,
         language:     form.language || undefined,
         explanation:  form.explanation || undefined,
         schedulingData: isScheduling ? toSchedulingDataPayload(form.schedulingData) : undefined,
-        sqlData:      isSql ? toSqlDataPayload(form.sqlData) : undefined,
+        sqlData:      sqlDataPayload,
         aiKeywords:   form.aiAnalysis?.keywords,
         aiDomains:    form.aiAnalysis?.domains,
         aiDifficulty: form.aiAnalysis?.difficulty,
@@ -578,8 +582,8 @@ export default function AdminQuestionEditPage() {
                 value={form.sqlData}
                 onChange={(next) => update('sqlData', next)}
               />
-              {/* 정답 (선택) — 보기가 있으면 번호 선택 UI로 대체되므로 숨김 */}
-              {!hasOptions(form.options) && (
+              {/* 정답 (선택) — 보기가 있거나 결과 테이블 정답이 활성화되어 있으면 숨김 */}
+              {!hasOptions(form.options) && !isExpectedResultEnabled(form.sqlData.expectedResult) && (
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1.5">정답 (선택)</label>
                   <input
@@ -591,6 +595,11 @@ export default function AdminQuestionEditPage() {
                     className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-cyan-400 transition"
                   />
                 </div>
+              )}
+              {!hasOptions(form.options) && isExpectedResultEnabled(form.sqlData.expectedResult) && (
+                <p className="text-xs text-cyan-600 bg-cyan-50 border border-cyan-100 rounded-lg px-3 py-2">
+                  결과 테이블 정답으로 채점됩니다.
+                </p>
               )}
             </div>
           )}

@@ -1,3 +1,31 @@
+## HIST-20260711-001
+
+- **날짜**: 2026-07-11
+- **수정 범위**: 사용자 프론트엔드 / 퀴즈 플레이 — SQL 유형 "결과 테이블(컬럼×튜플) 정답" 입력 UI
+- **수정 개요**: 문항에 `sqlResultColumns`(SQL 결과 테이블 정답의 컬럼명만, 백엔드가 정답 유출 방지를 위해 컬럼명만 노출)가 존재하면 기존 `CodeAnswerInput` 대신 신규 `SqlResultAnswerInput`(열=컬럼명 고정, "+ 행 추가"/행 삭제 그리드)을 렌더링하도록 답안 입력 분기를 확장했다. 그리드 입력은 제출 시 `셀 \| 셀` + 줄바꿈으로 직렬화해 기존 `quizService.checkAnswer(questionId, userAnswer)` 문자열 계약을 그대로 사용한다(백엔드 API 변경 없음). 문항 전환 시 그리드를 초기화해야 하므로 `key={q.id}`로 컴포넌트를 리마운트한다. 오답일 때 "정답:" 표시 영역도 `q.sqlResultColumns`가 있으면 `font-mono whitespace-pre-wrap`으로 표시해 여러 행짜리 직렬화 문자열의 가독성을 확보했다(기존 CodeAnswerInput·CodeBlock의 monospace 컨벤션을 재사용).
+- `quizService.ts`의 `QuizQuestion`에 `sqlResultColumns?: string[]` 필드를 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/SqlResultAnswerInput.tsx` | 추가 | SQL 결과 테이블 정답 입력 그리드 컴포넌트 신규 작성(컬럼 고정 헤더 + 행 추가/삭제, `셀 \| 셀` + 줄바꿈 직렬화) |
+| `frontend/src/services/quizService.ts` | 수정 | `QuizQuestion`에 `sqlResultColumns?: string[]` 필드 추가 |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | `(isCode \|\| isSql) && !optionsAvailable` 분기 내부에서 `q.sqlResultColumns` 존재 시 `SqlResultAnswerInput`(key={q.id})을, 없으면 기존 `CodeAnswerInput`을 렌더. "정답:" 표시 영역에 SQL 결과 테이블 문항 전용 monospace/pre-wrap 스타일 분기 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `(isCode || isSql) && !optionsAvailable`이면 항상 `CodeAnswerInput` 렌더
+- 변경 후: 위 조건이 참이고 `q.sqlResultColumns && q.sqlResultColumns.length > 0`이면 `<SqlResultAnswerInput key={q.id} columns={q.sqlResultColumns} value={inputValue} onChange={setInputValue} disabled={...} />`, 그 외는 기존 `CodeAnswerInput` 그대로
+- 이유: SQL "결과 테이블(컬럼×튜플) 정답" 채점을 지원하는 문항은 자유 텍스트/코드 입력보다 컬럼이 고정된 표 입력이 사용성·정확도 모두에서 우월하기 때문.
+
+### 복원 방법
+이 ID(HIST-20260711-001)만으로 복원 시:
+1. `frontend/src/app/user/quiz/[categoryId]/page.tsx`에서 `SqlResultAnswerInput` import와 조건부 렌더 분기를 제거하고 `(isCode || isSql) && !optionsAvailable`이면 항상 `CodeAnswerInput`을 렌더하도록 되돌린다. "정답:" 표시 영역의 monospace/pre-wrap 분기도 제거한다.
+2. `quizService.ts`에서 `QuizQuestion.sqlResultColumns` 필드를 제거한다.
+3. `frontend/src/components/ui/SqlResultAnswerInput.tsx` 파일을 삭제한다.
+
 ## HIST-20260710-001
 
 - **날짜**: 2026-07-10

@@ -13,6 +13,7 @@ import { CodeBlock } from '@/components/ui/CodeBlock';
 import { SchedulingProblemTable } from '@/components/ui/SchedulingProblemTable';
 import { SqlProblemView } from '@/components/ui/SqlProblemView';
 import { CodeAnswerInput } from '@/components/ui/CodeAnswerInput';
+import { SqlResultAnswerInput } from '@/components/ui/SqlResultAnswerInput';
 import { ScratchPadPanel } from '@/components/ui/ScratchPadPanel';
 import { stripHtml } from '@/lib/html';
 import { hasOptions } from '@/lib/answer';
@@ -576,13 +577,23 @@ function QuizPlayContent() {
               </div>
             )}
             {(isCode || isSql) && !optionsAvailable ? (
-              <CodeAnswerInput
-                value={inputValue}
-                onChange={setInputValue}
-                disabled={!!answerState?.submitted}
-                placeholder={isSql ? 'SQL 답안을 입력하세요' : '코드 답안을 입력하세요'}
-                onCtrlEnter={handleSubmitAnswer}
-              />
+              q.sqlResultColumns && q.sqlResultColumns.length > 0 ? (
+                <SqlResultAnswerInput
+                  key={q.id}
+                  columns={q.sqlResultColumns}
+                  value={inputValue}
+                  onChange={setInputValue}
+                  disabled={!!answerState?.submitted}
+                />
+              ) : (
+                <CodeAnswerInput
+                  value={inputValue}
+                  onChange={setInputValue}
+                  disabled={!!answerState?.submitted}
+                  placeholder={isSql ? 'SQL 답안을 입력하세요' : '코드 답안을 입력하세요'}
+                  onCtrlEnter={handleSubmitAnswer}
+                />
+              )
             ) : (
               <input
                 value={inputValue}
@@ -617,7 +628,16 @@ function QuizPlayContent() {
               {answerState.result?.correct ? '정답입니다!' : '오답입니다.'}
             </p>
             {!answerState.result?.correct && (
-              <p className="text-gray-700 dark:text-gray-200">정답: <span className="font-medium">{answerState.result?.answer}</span></p>
+              <p className="text-gray-700 dark:text-gray-200">
+                정답:{' '}
+                <span className={
+                  q.sqlResultColumns && q.sqlResultColumns.length > 0
+                    ? 'font-medium font-mono whitespace-pre-wrap block mt-1'
+                    : 'font-medium'
+                }>
+                  {answerState.result?.answer}
+                </span>
+              </p>
             )}
             {answerState.result?.explanation && (
               <p className="text-gray-600 dark:text-gray-300 mt-1">{answerState.result.explanation}</p>
