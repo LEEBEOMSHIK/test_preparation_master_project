@@ -6,7 +6,7 @@
 
 ## Current Goal
 
-- SQL 문항 "결과 테이블(컬럼×튜플) 정답" 지원 — **구현·검증·E2E 완료, 커밋 대기.**
+- SQL 문항 "결과 테이블(컬럼×튜플) 정답" 지원 — **완료, `8bfdb3b`로 커밋·푸시됨.**
 
 ## 메인 검증 결과 (완료)
 
@@ -43,8 +43,7 @@
 
 - 백엔드 변경 후 반드시 dev 서버 재시작 + E2E(관리자 등록→퀴즈 채점, sqlData.expectedResult가 퀴즈 응답에 절대 안 실리는지 network 탭으로 재확인) — 메인이 수행.
 - 히스토리 prepend만, `npm run build` 금지, `references/` 미추적 유지.
-- 아직 git add/commit 되지 않음 — 사용자 승인 후 커밋 필요.
 
 ## Last Commit
 
-- `bea6f43 [FE] feat: 문항 관리 출처 조회조건 추가 및 조회조건 세션 유지` (이번 SQL 결과 테이블 작업은 아직 미커밋)
+- `8bfdb3b [FE|BE] feat: SQL 문항 결과 테이블(컬럼x튜플) 정답 채점 지원` — main 푸시 완료
