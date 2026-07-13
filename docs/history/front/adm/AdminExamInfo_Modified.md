@@ -1,3 +1,38 @@
+## HIST-20260713-001
+
+- **날짜**: 2026-07-13
+- **수정 범위**: 관리자 프론트엔드 / 시험 정보 관리
+- **수정 개요**: 시험 정보 등록/수정 폼의 시험 유형 셀렉트 옆에 "+ 유형 추가" 버튼을 붙여, 도메인 관리 화면에 가지 않고도 EXAM_TYPE 마스터에 슬레이브(유형)를 즉시 추가할 수 있도록 함
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/exam-info/page.tsx` | 수정 | EXAM_TYPE 마스터 id·슬레이브 목록 상태 보관, 시험 유형 셀렉트 옆 "+ 유형 추가" 인라인 입력 UI 추가, `domainService.createSlave` 호출로 신규 유형 등록 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exam-info/page.tsx`
+- 변경 전:
+  - `examTypeOptions: string[]` 상태만 보관(`domainService.getDomains()` 응답에서 EXAM_TYPE 마스터의 슬레이브 `name`만 추출).
+  - 시험 유형 `<select>`만 존재, 새 유형 추가 수단 없음(도메인 관리 화면에서만 가능).
+- 변경 후:
+  - `examTypeMasterId: number | null`, `examTypeSlaves: DomainSlave[]` 상태 추가, `examTypeOptions`는 `useMemo`로 `examTypeSlaves.map(s => s.name)` 파생.
+  - `useEffect`에서 EXAM_TYPE 마스터의 `id`와 슬레이브 전체(`displayOrder` 포함)를 저장하도록 확장.
+  - `addingType`/`newTypeName`/`addTypeError`/`addingTypeSaving` 상태와 `openAddType`/`cancelAddType`/`handleAddType` 핸들러 추가. `openCreate`/`openEdit`/`cancelEdit` 호출 시 `cancelAddType()`으로 인라인 입력 상태 초기화.
+  - 시험 유형 `<select>` 오른쪽에 "+ 유형 추가" 버튼 배치. 클릭 시 입력창 + 추가/취소 버튼으로 구성된 인라인 UI 토글(네이티브 `prompt` 미사용).
+  - `handleAddType`: trim 후 빈 값 무시, 기존 옵션과 trim 기준 중복 시 "이미 존재하는 시험 유형입니다." 에러 표시. `examTypeSlaves`의 최대 `displayOrder + 1`(없으면 1)로 `domainService.createSlave(masterId, name, displayOrder)` 호출. 성공 시 `examTypeSlaves`에 반영해 옵션 갱신, 폼의 `examType`을 새 값으로 선택, 인라인 입력 닫음. 실패 시 "시험 유형 추가에 실패했습니다." 인라인 에러 표시. 저장 중에는 추가 버튼 disabled.
+- 이유: 관심 시험 유형(EXAM_TYPE) 추가를 위해 `/admin/tables/domains` 화면까지 이동해야 하는 접근성 문제 해소 — 기존 도메인 슬레이브 생성 API를 재사용해 새 화면·API 추가 없이 시험 정보 화면에서 바로 처리.
+
+### 복원 방법
+HIST-20260713-001 복원 시 `frontend/src/app/admin/exam-info/page.tsx`에서:
+- `examTypeMasterId`/`examTypeSlaves`/`addingType`/`newTypeName`/`addTypeError`/`addingTypeSaving` 상태와 `openAddType`/`cancelAddType`/`handleAddType` 함수 제거
+- `useEffect`를 `examTypeOptions: string[]` 상태에 슬레이브 `name` 배열만 저장하는 원래 형태로 되돌림
+- `renderFormFields`의 시험 유형 `<select>`를 "+ 유형 추가" 버튼·인라인 입력 UI 없이 셀렉트 단독으로 되돌림
+- `openCreate`/`openEdit`/`cancelEdit`의 `cancelAddType()` 호출 제거
+
+---
+
 ## HIST-20260624-001
 
 - **날짜**: 2026-06-24

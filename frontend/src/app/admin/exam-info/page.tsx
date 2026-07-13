@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { examInfoService } from '@/services/examInfoService';
 import { domainService } from '@/services/domainService';
-import type { ExamInfo } from '@/types';
+import type { ExamInfo, DomainSlave } from '@/types';
 
 const EMPTY_FORM = {
   examType: '',
@@ -62,12 +62,20 @@ export default function AdminExamInfoPage() {
   const [items, setItems] = useState<ExamInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [examTypeOptions, setExamTypeOptions] = useState<string[]>([]);
+  const [examTypeMasterId, setExamTypeMasterId] = useState<number | null>(null);
+  const [examTypeSlaves, setExamTypeSlaves] = useState<DomainSlave[]>([]);
+  const examTypeOptions = useMemo(() => examTypeSlaves.map(s => s.name), [examTypeSlaves]);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+
+  // 시험 유형 인라인 추가
+  const [addingType, setAddingType] = useState(false);
+  const [newTypeName, setNewTypeName] = useState('');
+  const [addTypeError, setAddTypeError] = useState('');
+  const [addingTypeSaving, setAddingTypeSaving] = useState(false);
 
   const [keyword, setKeyword]               = useState('');
   const [appliedKeyword, setAppliedKeyword] = useState('');
@@ -98,10 +106,11 @@ export default function AdminExamInfoPage() {
       .then(res => {
         const masters = res.data.data ?? [];
         const examTypeMaster = masters.find(m => m.code === 'EXAM_TYPE');
-        const names = examTypeMaster?.slaves?.map(s => s.name) ?? [];
-        setExamTypeOptions(names);
-        if (names.length > 0) {
-          setForm(prev => ({ ...prev, examType: prev.examType || names[0] }));
+        const slaves = examTypeMaster?.slaves ?? [];
+        setExamTypeMasterId(examTypeMaster?.id ?? null);
+        setExamTypeSlaves(slaves);
+        if (slaves.length > 0) {
+          setForm(prev => ({ ...prev, examType: prev.examType || slaves[0].name }));
         }
       })
       .catch(() => {});
@@ -111,10 +120,12 @@ export default function AdminExamInfoPage() {
     setEditingId(null);
     setForm({ ...EMPTY_FORM, examType: examTypeOptions[0] ?? '' });
     setShowCreateForm(true);
+    cancelAddType();
   };
 
   const openEdit = (item: ExamInfo) => {
     setShowCreateForm(false);
+    cancelAddType();
     const appRange = parseRange(item.applicationPeriod);
     const schRange = parseRange(item.examSchedule);
     // resultDate는 단일 날짜; 기존 range 포맷이면 start 날짜만 추출
@@ -139,10 +150,50 @@ export default function AdminExamInfoPage() {
   const cancelEdit = () => {
     setEditingId(null);
     setShowCreateForm(false);
+    cancelAddType();
   };
 
   const set = (field: keyof FormState, value: string | boolean | number) => {
     setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const openAddType = () => {
+    setNewTypeName('');
+    setAddTypeError('');
+    setAddingType(true);
+  };
+
+  const cancelAddType = () => {
+    setAddingType(false);
+    setNewTypeName('');
+    setAddTypeError('');
+  };
+
+  const handleAddType = async () => {
+    const trimmed = newTypeName.trim();
+    if (!trimmed) return;
+    if (examTypeOptions.some(t => t.trim() === trimmed)) {
+      setAddTypeError('이미 존재하는 시험 유형입니다.');
+      return;
+    }
+    if (examTypeMasterId === null) {
+      setAddTypeError('시험 유형 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+    setAddingTypeSaving(true);
+    setAddTypeError('');
+    try {
+      const maxOrder = examTypeSlaves.reduce((max, s) => Math.max(max, s.displayOrder ?? 0), 0);
+      const res = await domainService.createSlave(examTypeMasterId, trimmed, maxOrder + 1);
+      const created = res.data.data;
+      setExamTypeSlaves(prev => (created ? [...prev, created] : prev));
+      set('examType', trimmed);
+      cancelAddType();
+    } catch {
+      setAddTypeError('시험 유형 추가에 실패했습니다.');
+    } finally {
+      setAddingTypeSaving(false);
+    }
   };
 
   const handleSave = async () => {
@@ -192,14 +243,56 @@ export default function AdminExamInfoPage() {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs text-gray-500 mb-1">시험 유형 *</label>
-          <select
-            value={form.examType}
-            onChange={e => set('examType', e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-          >
-            {examTypeOptions.length === 0 && <option value="">-- 도메인 로딩 중 --</option>}
-            {examTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              value={form.examType}
+              onChange={e => set('examType', e.target.value)}
+              className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            >
+              {examTypeOptions.length === 0 && <option value="">-- 도메인 로딩 중 --</option>}
+              {examTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={() => (addingType ? cancelAddType() : openAddType())}
+              className="shrink-0 px-3 py-2 rounded-lg border border-indigo-200 text-indigo-600 text-xs font-semibold hover:bg-indigo-50 transition"
+            >
+              + 유형 추가
+            </button>
+          </div>
+          {addingType && (
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="text"
+                value={newTypeName}
+                onChange={e => { setNewTypeName(e.target.value); if (addTypeError) setAddTypeError(''); }}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddType(); } }}
+                placeholder="새 시험 유형명"
+                maxLength={100}
+                autoFocus
+                className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <button
+                type="button"
+                onClick={handleAddType}
+                disabled={addingTypeSaving || !newTypeName.trim()}
+                className="shrink-0 px-3 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+              >
+                {addingTypeSaving ? '추가 중...' : '추가'}
+              </button>
+              <button
+                type="button"
+                onClick={cancelAddType}
+                disabled={addingTypeSaving}
+                className="shrink-0 px-3 py-2 rounded-lg border border-gray-200 text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition"
+              >
+                취소
+              </button>
+            </div>
+          )}
+          {addTypeError && (
+            <p className="mt-1 text-xs text-red-500">{addTypeError}</p>
+          )}
         </div>
         <div>
           <label className="block text-xs text-gray-500 mb-1">시험명 *</label>
