@@ -6,44 +6,29 @@
 
 ## Current Goal
 
-- SQL 문항 "결과 테이블(컬럼×튜플) 정답" 지원 — **완료, `8bfdb3b`로 커밋·푸시됨.**
+- 2026-07-13 세션 작업 3건 — **모두 완료, 커밋·푸시됨.**
+  1. 관리자 시험 정보 화면 "+ 유형 추가" 인라인 버튼 (`e155922`)
+  2. SQL "+ 결과 테이블 정답 추가" 버튼 클릭 무반응 버그 수정 (`9130c22`)
+  3. 텍스트 정답 채점 따옴표 종류 무시 — 홑/쌍/타이포그래피 (`960d259`)
 
-## 메인 검증 결과 (완료)
+## 완료 요약
 
-- canonical 다중집합 키 구분자: 구현 중 원시 U+0001 제어문자가 소스에 박혀 두 세션이 다르게 판단하는 혼선 발생 → 명시적 U+0001 (backslash-u0001 escape) 이스케이프로 최종 통일(기능 동일), 셀 경계 충돌 회귀 테스트(["12","3"] vs ["1","23"]) 존재 확인.
-- `./gradlew test --rerun` 전체 통과(AnswerGraderTest 69·QuestionBankServiceTest 26), `npx tsc --noEmit` 0 에러.
-- 백엔드 재기동 후 E2E (테스트 문항 112 등록→검증→삭제 완료):
-  - 관리자 응답: expectedResult 포함 / 퀴즈 응답: expectedResult·answer 미노출 + sqlResultColumns만 노출 ✅
-  - 채점 6케이스: 정순·역순(순서무관)·대소문자+숫자동치(100.0=100) true / 값 틀림·행 부족·셀 수 불일치 false ✅
+- **유형 추가 버튼**: `admin/exam-info/page.tsx` — EXAM_TYPE 마스터 id·슬레이브 상태 보관, 셀렉트 옆 인라인 입력으로 `domainService.createSlave` 호출. 중복/빈값 검증, 성공 시 자동 선택.
+- **SQL 에디터 버그**: `SqlProblemEditor` 섹션 표시 판정을 `isExpectedResultEnabled`(이름 있는 컬럼 필요) → `columns.length > 0`으로 변경. `isExpectedResultEnabled`(채점 활성 판정)는 유지 — 두 판정의 용도 차이를 `lib/sql.ts` 주석에 명시.
+- **따옴표 정규화**: `AnswerGrader.normalizeQuotes` 신설(`" “ ” ‘ ’` → `'`), `normalizeToken`·`normalizeLoose`에만 적용. CODE·객관식/OX·options 채점·SQL 결과 테이블 채점은 무변경. 테스트 4건 추가.
+- **데이터 작업**(커밋 대상 아님, 운영 DB): AI 커스텀 문항 113(관계대수 결과 튜플, expectedResult 채점)·114(셀렉션 조건 빈칸, 텍스트 채점) 등록 — 카테고리 "관계형 DB 이론"(31)·시험 유형 "정보처리기사 실기"(7)·연도/회차 null. 정답 없는 중복 문항 111 소프트 삭제.
 
-## 승인된 설계
+## 검증 결과
 
-1. **데이터 모델**: `sql_data` JSONB 안에 선택 필드 `expectedResult { columns: string[], rows: string[][], orderedRows: boolean }` (마이그레이션 불필요). rows 비어있으면 저장 불가(0행 정답은 범위 제외), 각 행 길이=컬럼 수 검증.
-2. **채점 우선순위**: 보기(options) 있으면 기존 번호 채점 유지(전역 불변식 보존) → 그 외 expectedResult 있으면 결과 테이블 채점 → 그 외 기존 텍스트 채점. 결과 테이블 채점: userAnswer를 줄(행)·`|`(셀)로 파싱, 셀 정규화(trim·대소문자·공백축약·숫자 동치 3.0=3·NULL 대소문자 무시), 컬럼 수 불일치 오답, 행 비교는 orderedRows=false면 다중집합(중복 행 카운트), true면 위치 비교.
-3. **정답 유출 방지 (핵심)**: QuizQuestionView는 sqlData에서 expectedResult를 **제거**하고, 대신 `sqlResultColumns`(컬럼명만)를 노출해 FE 그리드 헤더로 사용. 관리자 응답(QuestionBankResponse)은 전체 포함.
-4. **관리자 에디터**: SqlProblemEditor에 "결과 테이블 정답 (선택)" 섹션(컬럼/행 그리드 + orderedRows 체크박스). expectedResult 입력 시 등록/수정 페이지의 정답 텍스트 입력 숨김, payload의 answer는 expectedResult 직렬화 문자열("c1 | c2\nv1 | v2")로 자동 세팅(채점 후 CheckResult.correctAnswer 표시 호환).
-5. **사용자 입력**: 퀴즈 풀이에서 sqlResultColumns 있으면 표 그리드 입력(열=컬럼명 고정, 행 추가/삭제) → 제출 시 `셀|셀` + 줄바꿈 직렬화(기존 check API 문자열 계약 유지).
-6. **하위 호환**: expectedResult 없는 기존 SQL 문항은 기존 채점 그대로.
-7. **알려진 한계(문서화)**: 셀 값에 `|` 포함 시 왜곡, 0행 정답 미지원, 컬럼명 헤더 항상 노출(힌트 옵션은 후속).
-
-## 구현 완료 내역 (미커밋)
-
-- 백엔드: `SqlData`에 `expectedResult`(선택) 추가 + 1-인자 하위호환 생성자 + `withoutExpectedResult()`, `QuestionBankService.validateSqlExpectedResult` 신설, `AnswerGrader.isSqlResultTableCorrect` 신설(+ `hasMeaningfulOptions` public화), `UserQuizService.checkAnswer` 분기 추가, `QuizQuestionView.sqlResultColumns` 필드 추가(expectedResult는 항상 제거). `QuestionBankResponse`는 무변경(관리자는 expectedResult 전체 노출 유지).
-- 프론트엔드: `types/index.ts`(`SqlExpectedResult` 타입), `lib/sql.ts`(Draft 확장 + `serializeSqlResult`), `SqlProblemEditor.tsx`(결과 테이블 정답 섹션), `SqlProblemView.tsx`(expectedResult 표 렌더 추가), 신규 `SqlResultAnswerInput.tsx`, 관리자 등록/수정 페이지 2곳(정답 입력 숨김+answer 자동 세팅), 퀴즈 풀이 페이지(`user/quiz/[categoryId]/page.tsx`) 그리드 입력 분기.
-- 문서: `CLAUDE.md` Shared Utilities 표 갱신(SqlProblemEditor/SqlProblemView/lib/sql.ts 행 + SqlResultAnswerInput 신규 행). `AGENTS.md`는 해당 SQL 관련 행 자체가 없어(이미 CLAUDE.md와 불일치 상태) 갱신 대상에서 제외 — 별도 정리 필요 시 후속 작업.
-- 히스토리(prepend 확인 완료, git diff --numstat 전부 순증가만): `docs/history/back/adm/QuestionBank_Modified.md`(HIST-20260711-001), `docs/history/front/adm/AdminQuestion_Modified.md`(HIST-20260711-001), `docs/history/front/usr/UserQuiz_Modified.md`(HIST-20260711-001).
-
-## 검증 (webapp-developer 직접 수행)
-
-- `./gradlew test` 전체 통과 (AnswerGraderTest 68건, QuestionBankServiceTest 26건 포함 — SQL 결과 테이블 채점 11종 + expectedResult 검증 4종 신규).
-- `npx tsc --noEmit` 0 에러.
-- `npm run build`·dev 서버 재시작은 수행하지 않음(정책) — **다음 세션/메인이 dev 서버 재시작 후 E2E(관리자 SQL 결과 테이블 정답 등록 → 퀴즈 풀이에서 그리드 채점 → 정답 유출 안 되는지 네트워크 탭 확인) 수행 필요.**
+- `AnswerGraderTest` 대상 실행 BUILD SUCCESSFUL, `npx tsc --noEmit` 0 에러 (작업별 수행).
+- E2E: 퀴즈 화면에서 113 그리드 입력→정답 채점, 114 쌍따옴표 입력 정답 인정, 113 결과 테이블 채점 회귀 5케이스 통과 (백엔드 재시작 후 채점 API + 브라우저 확인).
+- 관리자 등록 화면에서 "+ 결과 테이블 정답 추가" 클릭 시 편집 그리드 열림 브라우저 확인.
 
 ## Warnings / Notes
 
-- 백엔드 변경 후 반드시 dev 서버 재시작 + E2E(관리자 등록→퀴즈 채점, sqlData.expectedResult가 퀴즈 응답에 절대 안 실리는지 network 탭으로 재확인) — 메인이 수행.
-- 히스토리 prepend만, `npm run build` 금지, `references/` 미추적 유지.
+- 히스토리 파일 prepend만, dev 서버 가동 중 `npm run build` 금지(`npx tsc --noEmit` 사용), `references/` 미추적 유지.
+- 로컬 dev 서버 2개 백그라운드 가동 중이었음(3000/8080) — 새 세션은 포트 확인 후 기동.
 
 ## Last Commit
 
-- `8bfdb3b [FE|BE] feat: SQL 문항 결과 테이블(컬럼x튜플) 정답 채점 지원` — main 푸시 완료
+- `960d259 [BE] feat: 텍스트 정답 채점 시 따옴표 종류 차이 무시 (홑/쌍/타이포그래피)` — main 푸시 완료
