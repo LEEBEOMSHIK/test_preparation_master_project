@@ -13,7 +13,6 @@ import {
   emptyColumnDraft,
   emptyExpectedResultDraft,
   emptyTableDraft,
-  isExpectedResultEnabled,
   type SqlColumnDraft,
   type SqlDataDraft,
   type SqlExpectedResultDraft,
@@ -72,7 +71,9 @@ function ExpectedResultSection({
   value:    SqlExpectedResultDraft;
   onChange: (next: SqlExpectedResultDraft) => void;
 }) {
-  const enabled = isExpectedResultEnabled(value);
+  // 섹션 표시 여부는 "컬럼 배열이 존재하는가"만 본다(이름 입력 전 활성화 직후 상태도 열려 있어야 함).
+  // 채점 활성 여부(이름 있는 컬럼 1개 이상)는 isExpectedResultEnabled가 별도로 판정한다.
+  const enabled = value.columns.length > 0;
 
   if (!enabled) {
     return (

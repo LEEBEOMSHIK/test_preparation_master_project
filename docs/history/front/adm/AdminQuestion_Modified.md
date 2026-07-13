@@ -1,4 +1,34 @@
-﻿## HIST-20260711-001
+﻿## HIST-20260713-001
+
+- **날짜**: 2026-07-13
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리(등록·수정) — SQL 유형 "결과 테이블 정답 추가" 버튼 무반응 버그 수정
+- **수정 개요**: `SqlProblemEditor`의 `ExpectedResultSection`이 섹션 표시 여부를 `isExpectedResultEnabled(value)`(이름 있는 컬럼 1개 이상)로 판정하고 있었는데, "+ 결과 테이블 정답 추가" 클릭 직후 `activateExpectedResultDraft()`가 반환하는 초기값은 컬럼 이름이 모두 빈 문자열(`['', '']`)이라 곧바로 false로 판정되어 편집 그리드가 열리지 않고 버튼만 다시 렌더링되는 버그가 있었다. 표시 판정 기준을 `value.columns.length > 0`(컬럼 배열 존재 여부)으로 변경해 활성화 직후에도 그리드가 즉시 열리도록 수정했다. `isExpectedResultEnabled`는 등록/수정 페이지에서 "정답 텍스트 입력 숨김 + answer 자동 직렬화" 판정 기준으로 계속 사용되므로 함수 자체는 변경하지 않았고, 이 구분을 `lib/sql.ts`의 함수 주석에 명시했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/SqlProblemEditor.tsx` | 수정 | `ExpectedResultSection`의 `enabled` 판정을 `isExpectedResultEnabled(value)`에서 `value.columns.length > 0`으로 변경, 더 이상 쓰지 않는 `isExpectedResultEnabled` import 제거 |
+| `frontend/src/lib/sql.ts` | 수정 | `isExpectedResultEnabled` 함수 주석에 "섹션 표시 여부 판정에는 쓰이지 않는다"는 설명 추가(동작 자체는 변경 없음) |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/SqlProblemEditor.tsx`
+- 변경 전: `const enabled = isExpectedResultEnabled(value);` (import: `activateExpectedResultDraft, emptyColumnDraft, emptyExpectedResultDraft, emptyTableDraft, isExpectedResultEnabled, ...` from `@/lib/sql`)
+- 변경 후: `const enabled = value.columns.length > 0;` (import에서 `isExpectedResultEnabled` 제거)
+- 이유: 활성화 직후 컬럼 이름이 비어 있는 초기 상태에서도 편집 그리드가 열려야 사용자가 컬럼명을 입력할 수 있음. 기존 판정 기준은 채점 활성 여부(이름 있는 컬럼 존재)를 섹션 표시 여부와 혼동하고 있었음.
+
+#### `frontend/src/lib/sql.ts`
+- 변경 전: `isExpectedResultEnabled` 함수 위 주석이 "결과 테이블 정답 섹션이 '사용 중'인지"로만 설명되어 에디터의 섹션 표시 판정에도 쓰이는 것처럼 오인될 수 있었음
+- 변경 후: 주석에 "등록/수정 페이지의 정답 텍스트 입력 숨김·answer 자동 직렬화 판정 전용이며, `SqlProblemEditor`의 섹션 표시 여부는 `columns.length > 0`으로 별도 판정한다"는 설명 추가
+- 이유: 두 판정 기준이 의도적으로 다르다는 점을 명확히 해 향후 재혼동을 방지.
+
+### 복원 방법
+이 ID(HIST-20260713-001)만으로 복원 시:
+1. `SqlProblemEditor.tsx`의 `enabled` 판정을 `isExpectedResultEnabled(value)`로 되돌리고 import에 `isExpectedResultEnabled`를 다시 추가한다.
+2. `lib/sql.ts`의 `isExpectedResultEnabled` 주석을 원래 한 줄 설명으로 되돌린다(단, 이 경우 버그가 재발한다).
+
+## HIST-20260711-001
 
 - **날짜**: 2026-07-11
 - **수정 범위**: 관리자 프론트엔드 / 문항 관리(등록·수정) — SQL 유형 "결과 테이블(컬럼×튜플) 정답" 입력 지원

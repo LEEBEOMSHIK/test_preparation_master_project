@@ -57,7 +57,12 @@ export function activateExpectedResultDraft(): SqlExpectedResultDraft {
   return { columns: ['', ''], rows: [['', '']], orderedRows: false };
 }
 
-/** 결과 테이블 정답 섹션이 "사용 중"인지 — trim 후 이름이 있는 컬럼이 1개 이상이면 true */
+/**
+ * 결과 테이블 정답이 "채점에 사용 중"인지 — trim 후 이름이 있는 컬럼이 1개 이상이면 true.
+ * 등록/수정 페이지에서 정답 텍스트 입력 숨김 여부·answer 자동 직렬화 여부 판정에 사용한다.
+ * (SqlProblemEditor의 섹션 표시 여부는 이 함수가 아니라 `columns.length > 0`으로 별도 판정 —
+ *  "+ 결과 테이블 정답 추가" 클릭 직후에는 컬럼 이름이 아직 비어 있어도 편집 그리드가 열려 있어야 하기 때문)
+ */
 export function isExpectedResultEnabled(draft: SqlExpectedResultDraft): boolean {
   return draft.columns.some((c) => c.trim() !== '');
 }
