@@ -1,3 +1,33 @@
+## HIST-20260713-004
+
+- **날짜**: 2026-07-13
+- **수정 범위**: 사용자 백엔드 / 채점 공통 유틸 — 대체 정답(`||`) 지원
+- **수정 개요**: `AnswerGrader`에 대체 정답 계층을 추가했다. DB에 저장된 정답 문자열에 `" || "` 구분자로 여러 후보를 나열하면(예: `"팩토리 메서드 || 팩토리 메소드 || factory method"`), 사용자 답안이 그중 하나와만 일치해도 정답으로 인정한다. 기존 콤마·슬래시 다중값 비교(모든 값을 다 입력해야 정답)와는 완전히 별도의 상위 계층으로, `isCorrect` 3-인자·4-인자 오버로드 진입부에서 정답 문자열을 `\s*\|\|\s*` 정규식으로 먼저 분리한 뒤 각 후보에 기존 유형별·보기 채점 로직을 그대로 적용해 하나라도 true면 true를 반환한다. 대체 정답이 1개뿐이면(구분자 없음) 기존과 완전히 동일하게 동작하며, 단일 `|` 문자(SQL 결과 테이블 셀 구분자 등)는 이 구분자와 무관해 전혀 영향받지 않는다. `isSqlResultTableCorrect`(SQL 결과 테이블 채점)는 별도 경로라 변경하지 않았다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | `splitAlternatives(correctAnswer)` 신규 private 헬퍼 추가(`\s*\|\|\s*` split → trim → 빈 항목 제거). 3-인자 `isCorrect`는 기존 유형별 dispatch 본체를 `isCorrectSingle`로 추출 후, 대체 정답 목록을 순회하며 하나라도 true면 true 반환하도록 재구성. 4-인자 `isCorrect`의 options 분기도 동일하게 본체를 `isCorrectWithOptionsSingle`로 추출 후 대체 정답 순회 적용(non-options 분기는 3-인자로 위임하므로 자동으로 대체 정답 지원됨). 클래스 javadoc에 "대체 정답(`\|\|`)" 단락 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 수정 | "대체 정답 (\|\|)" 섹션 신규 추가 — SHORT_ANSWER 대체 정답 중 1개 일치/모두 불일치, CODE 유형 대체 정답, 단일 `\|` 포함 정답이 기존처럼 통째로 비교되는 회귀 확인, 대체 정답이 1개뿐일 때 기존 동작과 동일함, 대체 정답 안에 콤마 다중값 조합(`a, b \|\| c, d`), 4-인자(options 있음) 대체 정답 — 총 7개 테스트 추가 |
+
+### 수정 상세
+
+#### `service/support/AnswerGrader.java`
+- 변경 전: 3-인자 `isCorrect`는 correctAnswer를 그대로 유형별 dispatch 로직에 전달. 4-인자 `isCorrect`의 options 분기도 correctAnswer를 그대로 `tokenizeOrdered`에 전달.
+- 변경 후: 두 오버로드 모두 진입부에서 `splitAlternatives(correctAnswer)`로 대체 정답 목록을 만든 뒤 각 후보를 기존 로직(각각 `isCorrectSingle`, `isCorrectWithOptionsSingle`로 추출)에 적용해 하나라도 true면 true.
+- 이유: 같은 의미의 정답을 여러 표기로 인정해야 하는 SHORT_ANSWER류 문항(동의어·번역어 등)에서 관리자가 콤마 구분(모든 값 요구)이 아닌 "OR" 의미의 대체 정답을 입력할 수 있어야 함.
+
+### 검증 결과
+- `./gradlew test --tests "com.tpmp.testprep.service.support.AnswerGraderTest"`: 통과 (80 tests, 0 failures, 0 errors)
+
+### 복원 방법
+이 ID(HIST-20260713-004)만으로 복원 시:
+1. `AnswerGrader.java`에서 `splitAlternatives` 메서드를 제거한다.
+2. 3-인자 `isCorrect`를 `isCorrectSingle`의 본문 그대로 되돌리고(대체 정답 순회 제거) `isCorrectSingle`을 삭제한다.
+3. 4-인자 `isCorrect`의 options 분기를 `isCorrectWithOptionsSingle`의 본문 그대로 되돌리고(대체 정답 순회 제거) `isCorrectWithOptionsSingle`을 삭제한다.
+4. 클래스 javadoc의 "대체 정답(`\|\|`)" 단락을 제거한다.
+
 ## HIST-20260713-003
 
 - **날짜**: 2026-07-13

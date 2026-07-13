@@ -44,13 +44,25 @@ import java.util.stream.Collectors;
  * <p>SQL 유형 중 "실행 결과를 쓰시오"류 문항(문항의 {@code SqlData.expectedResult}가 존재)은
  * 위 dispatch 경로를 타지 않고 별도의 {@link #isSqlResultTableCorrect(SqlData.SqlExpectedResult, String)}
  * 로 채점한다 — 호출부(UserQuizService)가 옵션 유무·expectedResult 존재 여부를 먼저 판단해 분기한다.
+ *
+ * <p><b>대체 정답({@code ||})</b> — DB에 저장된 정답 문자열에 {@code " || "}(공백-파이프 2개-공백,
+ * 공백은 없어도 됨) 구분자로 여러 후보를 나열하면, 그중 어느 하나와만 일치해도 정답으로
+ * 인정한다(예: {@code "팩토리 메서드 || 팩토리 메소드 || factory method"}). 콤마·슬래시 다중값
+ * 비교(위 SHORT_ANSWER 단락 — 모든 값을 다 입력해야 정답)와는 완전히 별도의 상위 계층으로,
+ * {@code isCorrect} 3-인자·4-인자 오버로드 진입부에서 정답 문자열을 이 구분자로 먼저 분리한 뒤
+ * 각 대체 정답에 대해 기존 유형별·보기 채점 로직을 동일하게 적용한다(하나라도 true면 true).
+ * 대체 정답이 1개뿐이면(즉 {@code ||}가 없으면) 기존과 완전히 동일하게 동작한다. 사용자 답안은
+ * 분리하지 않으므로, 사용자가 {@code ||}를 실제로 입력한 경우는 리터럴 문자로 취급된다. 단일
+ * {@code |} 문자(SQL 결과 테이블 셀 구분자 등)는 이 구분자와 무관하며 전혀 영향받지 않는다.
  */
 public final class AnswerGrader {
 
     private AnswerGrader() {}
 
     /**
-     * 채점 결과를 반환한다.
+     * 채점 결과를 반환한다. correctAnswer에 {@code ||} 대체 정답 구분자가 있으면(클래스 javadoc
+     * "대체 정답" 참고) 각 후보에 대해 {@link #isCorrectSingle(String, String, String)}을 적용해
+     * 하나라도 true면 true를 반환한다.
      *
      * @param questionType  문항 유형 이름 (QuestionBank.QuestionType 또는 Question.QuestionType 의 name())
      * @param correctAnswer DB에 저장된 정답 문자열
@@ -61,6 +73,19 @@ public final class AnswerGrader {
         if (correctAnswer == null || userAnswer == null) {
             return false;
         }
+        for (String alternative : splitAlternatives(correctAnswer)) {
+            if (isCorrectSingle(questionType, alternative, userAnswer)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 대체 정답 분리 없이 단일 정답 문자열 기준으로 채점하는 유형별 dispatch 본체.
+     * {@link #isCorrect(String, String, String)}이 {@code ||} 대체 정답 각 후보마다 호출한다.
+     */
+    private static boolean isCorrectSingle(String questionType, String correctAnswer, String userAnswer) {
         // SHORT_ANSWER, SCHEDULING, SQL — 콤마·슬래시 다중 정답 Set 비교
         // (SCHEDULING·SQL은 자동 계산·SQL 실행 없이 수동 정답을 동일 방식으로 채점)
         if ("SHORT_ANSWER".equals(questionType) || "SCHEDULING".equals(questionType) || "SQL".equals(questionType)) {
@@ -96,6 +121,9 @@ public final class AnswerGrader {
      * {@link #isCorrect(String, String, String)} 3-인자 오버로드로 위임하여
      * 유형별 채점 로직(SHORT_ANSWER 다중정답, CODE 정규화 비교 등)을 그대로 따른다.
      *
+     * options가 있는 경우도 correctAnswer에 {@code ||} 대체 정답 구분자가 있으면(클래스 javadoc
+     * "대체 정답" 참고) 각 후보에 대해 빈칸 순서 비교를 적용해 하나라도 true면 true를 반환한다.
+     *
      * @param questionType  문항 유형 이름 (options가 없을 때만 사용)
      * @param correctAnswer DB에 저장된 정답 문자열
      * @param userAnswer    사용자가 제출한 답안 문자열
@@ -107,19 +135,32 @@ public final class AnswerGrader {
             if (correctAnswer == null || userAnswer == null) {
                 return false;
             }
-            List<String> correctTokens = tokenizeOrdered(correctAnswer);
-            List<String> userTokens    = tokenizeOrdered(userAnswer);
-            if (correctTokens.isEmpty() || userTokens.isEmpty() || correctTokens.size() != userTokens.size()) {
-                return false;
-            }
-            for (int i = 0; i < correctTokens.size(); i++) {
-                if (!tokenEquals(correctTokens.get(i), userTokens.get(i), options)) {
-                    return false;
+            for (String alternative : splitAlternatives(correctAnswer)) {
+                if (isCorrectWithOptionsSingle(alternative, userAnswer, options)) {
+                    return true;
                 }
             }
-            return true;
+            return false;
         }
         return isCorrect(questionType, correctAnswer, userAnswer);
+    }
+
+    /**
+     * 대체 정답 분리 없이 단일 정답 문자열 기준으로 빈칸 순서 비교를 수행하는 본체.
+     * {@link #isCorrect(String, String, String, List)}이 {@code ||} 대체 정답 각 후보마다 호출한다.
+     */
+    private static boolean isCorrectWithOptionsSingle(String correctAnswer, String userAnswer, List<String> options) {
+        List<String> correctTokens = tokenizeOrdered(correctAnswer);
+        List<String> userTokens    = tokenizeOrdered(userAnswer);
+        if (correctTokens.isEmpty() || userTokens.isEmpty() || correctTokens.size() != userTokens.size()) {
+            return false;
+        }
+        for (int i = 0; i < correctTokens.size(); i++) {
+            if (!tokenEquals(correctTokens.get(i), userTokens.get(i), options)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -183,6 +224,22 @@ public final class AnswerGrader {
     // -----------------------------------------------------------------------
     // Private helpers
     // -----------------------------------------------------------------------
+
+    /**
+     * 정답 문자열을 {@code ||} 대체 정답 구분자(클래스 javadoc "대체 정답" 참고) 기준으로 분리한다.
+     * 정규식 {@code \s*\|\|\s*}로 split → 각 항목 trim → 빈 항목 제거. {@code ||}가 없으면
+     * (구분자가 매치되지 않으면) 원문 전체를 유일한 원소로 하는 1개짜리 리스트를 반환하므로,
+     * 이 경우 호출부의 동작은 기존과 완전히 동일하다. correctAnswer가 null이면 빈 리스트.
+     */
+    private static List<String> splitAlternatives(String correctAnswer) {
+        if (correctAnswer == null) {
+            return List.of();
+        }
+        return Arrays.stream(correctAnswer.split("\\s*\\|\\|\\s*"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+    }
 
     /**
      * options가 null이거나 비어있지 않고, trim 후 비어있지 않은 항목이 1개 이상 존재하면 true.

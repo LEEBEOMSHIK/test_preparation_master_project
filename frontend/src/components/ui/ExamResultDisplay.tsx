@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { RichContent } from '@/components/ui/RichContent';
 import { CodeBlock } from '@/components/ui/CodeBlock';
 import { stripHtml } from '@/lib/html';
-import { hasOptions } from '@/lib/answer';
+import { hasOptions, formatAnswerAlternatives } from '@/lib/answer';
 import type { ExamResultData } from '@/types';
 
 interface Props {
@@ -270,7 +270,7 @@ export function ExamResultDisplay({
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-500 dark:text-gray-400 shrink-0 w-14">정답</span>
                                 <span className="font-medium text-green-700 dark:text-green-300">
-                                  {item.correctAnswer ?? '—'}
+                                  {item.correctAnswer ? formatAnswerAlternatives(item.correctAnswer) : '—'}
                                 </span>
                               </div>
                             </>

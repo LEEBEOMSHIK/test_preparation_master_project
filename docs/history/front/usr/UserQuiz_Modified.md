@@ -1,3 +1,43 @@
+## HIST-20260713-003
+
+- **날짜**: 2026-07-13
+- **수정 범위**: 사용자 프론트엔드 / 퀴즈 풀이 + 시험 결과 표시 — 대체 정답(`||`) 노출 포맷
+- **수정 개요**: 백엔드 `AnswerGrader`에 추가된 대체 정답(`||`) 채점 지원(`docs/history/back/usr/UserQuiz_Modified.md` HIST-20260713-004)에 맞춰, 오답 시 "정답:" 표시에서도 `" || "` 구분자를 사람이 읽기 좋은 `"A 또는 B"` 형태로 보여주도록 공용 포맷 함수를 추가했다. `src/lib/answer.ts`에 `formatAnswerAlternatives(answer)`를 신설하고, 퀴즈 풀이 화면(`user/quiz/[categoryId]/page.tsx`)의 오답 시 "정답:" 표시와 `ExamResultDisplay.tsx`의 시험 결과 상세(보기 없는 유형)의 "정답" 표시에 적용했다. 관리자 화면(문항 상세/목록)은 원문 정답 문자열을 그대로 노출해야 하므로 변경하지 않았다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/answer.ts` | 수정 | `formatAnswerAlternatives(answer: string): string` 신규 추가 — `\s*\|\|\s*` 기준 분리 후 각 항목 trim, 항목이 1개면(구분자 없음) 원문 그대로 반환, 2개 이상이면 `' 또는 '`로 join |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | 오답 시 "정답:" 표시부(`answerState.result?.answer`)를 `formatAnswerAlternatives(answerState.result?.answer ?? '')`로 감쌈. `hasOptions` import 라인에 `formatAnswerAlternatives` 추가 |
+| `frontend/src/components/ui/ExamResultDisplay.tsx` | 수정 | 보기 없는 유형(CODE 제외)의 "정답" 표시부(`item.correctAnswer ?? '—'`)를 `item.correctAnswer ? formatAnswerAlternatives(item.correctAnswer) : '—'`로 변경. `hasOptions` import 라인에 `formatAnswerAlternatives` 추가. CODE 유형(CodeBlock 렌더)과 보기(options) 있는 유형(번호별 하이라이트 표시)은 원문 정답 문자열을 직접 노출하지 않으므로 대상 아님 |
+
+### 수정 상세
+
+#### `frontend/src/lib/answer.ts`
+- 변경 전: `formatAnswerAlternatives` 없음.
+- 변경 후: 함수 신규 추가(위 설명 참고). 순수 함수, 부수효과 없음.
+- 이유: 백엔드 대체 정답 채점과 짝을 이루는 사용자 노출용 포맷터가 필요했고, 오답 표시가 여러 화면에 있으므로 공용 유틸로 추출.
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `{answerState.result?.answer}` — 백엔드가 반환한 정답 문자열을 `||` 구분자 포함 원문 그대로 표시.
+- 변경 후: `{formatAnswerAlternatives(answerState.result?.answer ?? '')}`.
+- 이유: 사용자에게 `||`라는 내부 구분자 대신 "A 또는 B" 형태로 자연스럽게 노출하기 위함.
+
+#### `frontend/src/components/ui/ExamResultDisplay.tsx`
+- 변경 전: `{item.correctAnswer ?? '—'}`.
+- 변경 후: `{item.correctAnswer ? formatAnswerAlternatives(item.correctAnswer) : '—'}`.
+- 이유: 위와 동일.
+
+### 검증 결과
+- `npx tsc --noEmit`: 통과 (오류 없음, dev 서버 가동 중이라 `npm run build`는 실행하지 않음)
+
+### 복원 방법
+이 ID(HIST-20260713-003)만으로 복원 시:
+1. `frontend/src/lib/answer.ts`에서 `formatAnswerAlternatives` 함수를 제거한다.
+2. `quiz/[categoryId]/page.tsx`의 "정답:" 표시부를 `{answerState.result?.answer}`로, import 라인을 `import { hasOptions } from '@/lib/answer';`로 되돌린다.
+3. `ExamResultDisplay.tsx`의 "정답" 표시부를 `{item.correctAnswer ?? '—'}`로, import 라인을 `import { hasOptions } from '@/lib/answer';`로 되돌린다.
+
 ## HIST-20260713-002
 
 - **날짜**: 2026-07-13

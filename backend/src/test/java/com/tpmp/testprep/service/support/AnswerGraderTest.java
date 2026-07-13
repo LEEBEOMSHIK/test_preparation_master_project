@@ -463,6 +463,66 @@ class AnswerGraderTest {
     }
 
     // -----------------------------------------------------------------------
+    // 대체 정답 (||) — 여러 후보 중 하나만 일치해도 정답
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("대체 정답: SHORT_ANSWER — 여러 후보 중 하나와 일치하면 정답")
+    void alternatives_shortAnswer_oneMatches_correct() {
+        String correct = "팩토리 메서드 || 팩토리 메소드 || factory method";
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", correct, "팩토리 메소드")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", correct, "factory method")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", correct, "Factory Method")).isTrue();
+    }
+
+    @Test
+    @DisplayName("대체 정답: SHORT_ANSWER — 모든 후보와 불일치하면 오답")
+    void alternatives_shortAnswer_noneMatches_incorrect() {
+        String correct = "팩토리 메서드 || 팩토리 메소드 || factory method";
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", correct, "싱글턴")).isFalse();
+    }
+
+    @Test
+    @DisplayName("대체 정답: CODE — 후보 코드 중 하나와 일치하면 정답")
+    void alternatives_code_oneMatches_correct() {
+        String correct = "return a + b; || return b + a;";
+        assertThat(AnswerGrader.isCorrect("CODE", correct, "return b + a;")).isTrue();
+        assertThat(AnswerGrader.isCorrect("CODE", correct, "return a - b;")).isFalse();
+    }
+
+    @Test
+    @DisplayName("대체 정답: 단일 파이프(|)는 구분자가 아니므로 영향 없음(기존처럼 통째로 비교되어 오답)")
+    void alternatives_singlePipe_notSeparator() {
+        // "||"가 아닌 단일 "|"는 대체 정답 구분자가 아니므로 문자열 그대로 유지된 채 채점된다.
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "a | b", "a")).isFalse();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "a | b", "a | b")).isTrue();
+    }
+
+    @Test
+    @DisplayName("대체 정답: 후보가 1개뿐이면(구분자 없음) 기존과 완전히 동일하게 동작")
+    void alternatives_singleCandidate_sameAsLegacy() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "정답", "정답")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "정답", "오답")).isFalse();
+    }
+
+    @Test
+    @DisplayName("대체 정답: 콤마 다중값 조합 — 후보 중 하나가 전부 일치하면 정답")
+    void alternatives_withCommaGroups_correct() {
+        String correct = "a, b || c, d";
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", correct, "b, a")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", correct, "d, c")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", correct, "a, c")).isFalse();
+    }
+
+    @Test
+    @DisplayName("대체 정답: 4-인자(options 있음) — 후보 중 하나의 번호와 일치하면 정답")
+    void alternatives_withOptions_oneMatches_correct() {
+        List<String> options = Arrays.asList("보기1", "보기2", "보기3");
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "1 || 3", "3", options)).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "1 || 3", "2", options)).isFalse();
+    }
+
+    // -----------------------------------------------------------------------
     // isSqlResultTableCorrect — SQL 결과 테이블(컬럼×튜플) 정답 채점
     // -----------------------------------------------------------------------
 

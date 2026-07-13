@@ -16,7 +16,7 @@ import { CodeAnswerInput } from '@/components/ui/CodeAnswerInput';
 import { SqlResultAnswerInput } from '@/components/ui/SqlResultAnswerInput';
 import { ScratchPadPanel } from '@/components/ui/ScratchPadPanel';
 import { stripHtml } from '@/lib/html';
-import { hasOptions } from '@/lib/answer';
+import { hasOptions, formatAnswerAlternatives } from '@/lib/answer';
 import type { ConceptNote, ExamResultData, QuestionResult, QuestionType } from '@/types';
 
 type Phase = 'loading' | 'quiz' | 'continue' | 'result' | 'empty' | 'exhausted';
@@ -691,7 +691,7 @@ function QuizPlayContent() {
                     ? 'font-medium font-mono whitespace-pre-wrap block mt-1'
                     : 'font-medium'
                 }>
-                  {answerState.result?.answer}
+                  {formatAnswerAlternatives(answerState.result?.answer ?? '')}
                 </span>
               </p>
             )}
