@@ -150,6 +150,12 @@ class AnswerGraderTest {
         assertThat(AnswerGrader.isCorrect("CODE", "Return X", "return x")).isTrue();
     }
 
+    @Test
+    @DisplayName("CODE: 따옴표 종류 차이는 정규화 대상이 아니므로 여전히 오답")
+    void code_quoteStyleDiff_stillIncorrect() {
+        assertThat(AnswerGrader.isCorrect("CODE", "print('a')", "print(\"a\")")).isFalse();
+    }
+
     // ── 정규화 케이스 (보수안 검증) ─────────────────────────────────────────
 
     @Test
@@ -254,6 +260,28 @@ class AnswerGraderTest {
     @DisplayName("SQL: 단일 정답 불일치")
     void sql_singleToken_incorrect() {
         assertThat(AnswerGrader.isCorrect("SQL", "Alice", "Bob")).isFalse();
+    }
+
+    // -----------------------------------------------------------------------
+    // SHORT_ANSWER · SCHEDULING · SQL — 따옴표 종류 차이 무시 (정규화 강화)
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("SQL: 정답은 작은따옴표, 사용자는 큰따옴표를 써도 정답")
+    void sql_quoteStyleDiff_straightDoubleVsSingle_correct() {
+        assertThat(AnswerGrader.isCorrect("SQL", "과목코드='DB'", "과목코드=\"DB\"")).isTrue();
+    }
+
+    @Test
+    @DisplayName("SQL: 모바일 IME 타이포그래피 따옴표(‘ ’)를 써도 정답")
+    void sql_quoteStyleDiff_typographicQuote_correct() {
+        assertThat(AnswerGrader.isCorrect("SQL", "과목코드='DB'", "과목코드=’DB’")).isTrue();
+    }
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 따옴표 종류 차이는 무시하고 정답 인정")
+    void shortAnswer_quoteStyleDiff_correct() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "'DB'", "\"DB\"")).isTrue();
     }
 
     // -----------------------------------------------------------------------

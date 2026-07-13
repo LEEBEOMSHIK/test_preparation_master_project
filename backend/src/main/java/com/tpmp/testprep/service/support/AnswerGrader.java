@@ -27,6 +27,8 @@ import java.util.stream.Collectors;
  * (예: "워터링 홀 (Watering Hole)" → "워터링 홀")을 제거하여 Set 비교하므로
  * 순서·공백·부연설명 차이는 무시된다. SCHEDULING · SQL 유형도 정답을 관리자가 수동으로
  * 입력하며(자동 계산·SQL 실행 없음) SHORT_ANSWER와 동일하게 다중값 비교로 채점한다.
+ * 따옴표 종류(작은따옴표 · 큰따옴표 · 모바일 IME 타이포그래피 따옴표 ‘ ’ “ ”)는 모두 작은따옴표로
+ * 통일하여 비교하므로 {@code 과목코드='DB'} 와 {@code 과목코드="DB"} 는 동일하게 취급된다.
  *
  * <p>위 Set 비교(multiSetMatch)가 실패하면, 느슨한 폴백으로 양쪽 문자열의 괄호 부연·
  * 공백·콤마·슬래시를 모두 제거한 뒤 동등 비교한다. 이는 사용자가 구분자 없이
@@ -287,14 +289,26 @@ public final class AnswerGrader {
     }
 
     /**
-     * 단일 토큰 정규화: trim → 소문자화 → 내부 연속 공백을 단일 공백으로 축약
-     * → 말미 괄호 부연 설명 제거(예: "워터링 홀 (Watering Hole)" → "워터링 홀") → 재-trim.
+     * 단일 토큰 정규화: trim → 소문자화 → 따옴표 종류 통일(작은따옴표로) → 내부 연속 공백을
+     * 단일 공백으로 축약 → 말미 괄호 부연 설명 제거(예: "워터링 홀 (Watering Hole)" → "워터링 홀")
+     * → 재-trim.
      */
     private static String normalizeToken(String raw) {
         String s = raw.trim().toLowerCase();
+        s = normalizeQuotes(s);
         s = s.replaceAll("\\s+", " ");
         s = s.replaceAll("\\s*\\([^)]*\\)\\s*$", "");
         return s.trim();
+    }
+
+    /**
+     * 큰따옴표({@code "})와 모바일 IME 타이포그래피 따옴표(‘ ’ “ ”)를 모두 작은따옴표({@code '})로
+     * 통일한다. SHORT_ANSWER · SCHEDULING · SQL 텍스트 정답 채점에서 따옴표 종류 차이를 무시하기
+     * 위함이다(예: {@code 과목코드='DB'} ↔ {@code 과목코드="DB"}). CODE 유형(통문자열 비교)과
+     * options 채점({@link #normalizeOptionToken(String)})에는 적용하지 않는다.
+     */
+    private static String normalizeQuotes(String s) {
+        return s.replaceAll("[\"“”‘’]", "'");
     }
 
     /**
@@ -310,6 +324,7 @@ public final class AnswerGrader {
 
     private static String normalizeLoose(String raw) {
         String s = raw.toLowerCase();
+        s = normalizeQuotes(s);
         s = s.replaceAll("\\([^)]*\\)", "");
         s = s.replaceAll("[\\s,/]", "");
         return s;

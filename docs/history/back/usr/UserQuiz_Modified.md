@@ -1,3 +1,26 @@
+## HIST-20260713-001
+
+- **날짜**: 2026-07-13
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈·시험 채점 공통 — SHORT_ANSWER·SCHEDULING·SQL 텍스트 정답 따옴표 정규화
+- **수정 개요**: SHORT_ANSWER·SCHEDULING·SQL 유형의 텍스트 정답 채점에서 작은따옴표(`'`)·큰따옴표(`"`)·모바일 IME 타이포그래피 따옴표(`‘` `’` `“` `”`) 차이를 무시하도록 `AnswerGrader`의 토큰 정규화 로직을 강화했다. 예: 정답 `과목코드='DB'`에 사용자가 `과목코드="DB"`로 입력해도 정답 처리된다. `AnswerGrader`는 데일리 퀴즈(`UserQuizService`)와 시험 채점(`UserExaminationService`) 양쪽에서 공용으로 쓰이므로 두 채점 경로 모두에 영향을 준다. CODE 유형(통문자열 비교)·MULTIPLE_CHOICE/OX·options 채점(`normalizeOptionToken`)·SQL 결과 테이블 채점(`normalizeSqlCell`)은 변경하지 않았다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | `normalizeToken`·`normalizeLoose`에 신규 `normalizeQuotes` 호출 추가, 클래스 상단 javadoc에 따옴표 정규화 설명 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 수정 | SQL 2건(직선 따옴표 혼용, 타이포그래피 따옴표) + SHORT_ANSWER 1건 정답 인정 테스트, CODE 1건 따옴표 차이는 여전히 오답인 회귀 테스트 추가 |
+
+### 수정 상세
+
+#### `service/support/AnswerGrader.java`
+- 변경 전: `normalizeToken`은 trim→소문자화→공백축약→괄호제거, `normalizeLoose`는 소문자화→괄호제거→구분자제거. 따옴표 종류 차이는 정규화되지 않아 `'DB'`와 `"DB"`가 다른 토큰으로 취급됨.
+- 변경 후: 두 메서드 모두 소문자화 직후 신규 `private static String normalizeQuotes(String s)`(`s.replaceAll("[\"“”‘’]", "'")`)를 호출해 `"` `“` `”` `‘` `’`를 전부 `'`로 통일. 클래스 상단 javadoc(25~29행 부근)에 이 정규화를 설명하는 문단 추가. `normalizeOptionToken`·`normalizeCode`·`normalizeSqlCell`은 변경하지 않음(options 채점은 프론트 `parseAnswerToSlots`와 정규화 규칙 동기화 계약이 있어 의도적으로 미적용, CODE는 따옴표가 코드 문법의 일부이므로 미적용).
+- 이유: 사용자가 SQL/단답형 정답에서 작은따옴표 대신 큰따옴표나 모바일 IME 자동 변환 따옴표를 입력해도 오답 처리되던 문제를 해소하기 위함.
+
+### 복원 방법
+이 ID(HIST-20260713-001)만으로 복원 시 `AnswerGrader.java`에서 `normalizeQuotes` 메서드를 제거하고 `normalizeToken`·`normalizeLoose` 내 `normalizeQuotes(s)` 호출 줄을 삭제하며, 클래스 상단 javadoc의 따옴표 정규화 설명 문단을 제거한다. `AnswerGraderTest.java`의 신규 따옴표 관련 테스트 4건(`sql_quoteStyleDiff_straightDoubleVsSingle_correct`, `sql_quoteStyleDiff_typographicQuote_correct`, `shortAnswer_quoteStyleDiff_correct`, `code_quoteStyleDiff_stillIncorrect`)을 삭제한다.
+
 ## HIST-20260710-002
 
 - **날짜**: 2026-07-10
