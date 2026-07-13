@@ -27,8 +27,9 @@ function normalizeOptionToken(raw: string): string {
 
 /**
  * 정답 문자열에 백엔드 AnswerGrader의 {@code ||} 대체 정답 구분자(공백-파이프 2개-공백, 공백은
- * 없어도 됨)가 있으면 사용자 노출용으로 " 또는 "로 join해 반환한다. 구분자가 없으면(후보 1개)
- * 원문 그대로 반환한다. 예: `"팩토리 메서드 || factory method"` → `"팩토리 메서드 또는 factory method"`.
+ * 없어도 됨)가 있으면 대표 정답(첫 번째 비어있지 않은 항목) 1개만 반환한다. 대체 정답이 많은
+ * 문항(예: 수십 개)에서 표시가 지나치게 길어지는 것을 막기 위함이다. 구분자가 없으면(후보 1개)
+ * 원문 그대로 반환한다. 예: `"팩토리 메서드 || factory method"` → `"팩토리 메서드"`.
  * 오답 시 "정답:" 표시 등 사용자 화면에서만 사용하고, 관리자 화면(문항 상세/목록)은 원문을
  * 그대로 노출한다.
  */
@@ -39,7 +40,7 @@ export function formatAnswerAlternatives(answer: string): string {
     .map((s) => s.trim())
     .filter((s) => s !== '');
   if (alternatives.length <= 1) return answer;
-  return alternatives.join(' 또는 ');
+  return alternatives[0];
 }
 
 /** 슬롯 번호 배열(1-based, 보기 인덱스)을 answer 저장 문자열로 변환. 빈 배열이면 빈 문자열. */

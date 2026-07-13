@@ -1,3 +1,25 @@
+## HIST-20260713-004
+
+- **날짜**: 2026-07-13
+- **수정 범위**: 사용자 프론트엔드 / 퀴즈 풀이 + 시험 결과 표시 — 대체 정답(`||`) 노출 축약
+- **수정 개요**: HIST-20260713-003에서 추가한 `formatAnswerAlternatives`가 대체 정답 전체를 `"A 또는 B"`로 join하다 보니 대체 정답이 많은 문항(예: 36개)에서 표시가 지나치게 길어지는 문제가 있어, 첫 번째 대체 정답(대표 정답) 1개만 반환하도록 동작을 변경했다. 호출부(`user/quiz/[categoryId]/page.tsx`, `ExamResultDisplay.tsx`)는 함수 시그니처·호출 방식이 그대로라 수정하지 않았다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/answer.ts` | 수정 | `formatAnswerAlternatives(answer)`가 `alternatives.join(' 또는 ')` 대신 `alternatives[0]`(첫 번째 비어있지 않은 대체 정답)만 반환하도록 변경. JSDoc도 새 동작에 맞게 수정 |
+
+### 수정 상세
+
+#### `frontend/src/lib/answer.ts`
+- 변경 전: `if (alternatives.length <= 1) return answer; return alternatives.join(' 또는 ');` — 모든 대체 정답을 `"A 또는 B 또는 C..."` 형태로 join.
+- 변경 후: `if (alternatives.length <= 1) return answer; return alternatives[0];` — 대표 정답(첫 항목) 1개만 반환.
+- 이유: 대체 정답 개수가 많은 문항에서 "정답:" 표시가 지나치게 길어지는 것을 방지하기 위함. 분리 기준(`\s*\|\|\s*`)과 구분자 없을 때 원문 그대로 반환하는 동작은 기존과 동일하게 유지.
+
+### 복원 방법
+이 ID(HIST-20260713-004)만으로 복원 시 `frontend/src/lib/answer.ts`의 `formatAnswerAlternatives`를 `return alternatives.join(' 또는 ');`로 되돌리고 JSDoc을 HIST-20260713-003 시점 내용으로 복원한다.
+
 ## HIST-20260713-003
 
 - **날짜**: 2026-07-13
