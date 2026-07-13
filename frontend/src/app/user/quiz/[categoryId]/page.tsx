@@ -71,7 +71,10 @@ function QuizPlayContent() {
   const rawCategoryId = String(params.categoryId);
   // 복습 표시(북마크) 재풀이 모드 — route param이 'bookmarks'면 카테고리 대신 북마크 문항 전체를 로드
   const isBookmarkMode = rawCategoryId === 'bookmarks';
-  const categoryId = Number(rawCategoryId);
+  // AI 커스텀 통합 출제 모드 — route param이 'all'이면 카테고리 구분 없이 전체 AI 커스텀 문항을 로드
+  // (categoryId 없이 API 호출, source='AI_CUSTOM'은 쿼리스트링으로 그대로 전달됨)
+  const isAllAiCustomMode = rawCategoryId === 'all';
+  const categoryId = isAllAiCustomMode ? undefined : Number(rawCategoryId);
   const categoryName = searchParams.get('name') ?? (isBookmarkMode ? '복습 표시' : '퀴즈');
   // CODE(프로그래밍 언어) 카테고리에서 선택한 언어 필터 — 없으면 전체(필터 없음)
   const language = searchParams.get('language') ?? undefined;

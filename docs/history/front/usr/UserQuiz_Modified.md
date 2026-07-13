@@ -1,3 +1,43 @@
+## HIST-20260713-001
+
+- **날짜**: 2026-07-13
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 홈 + 퀴즈 플레이 — "AI 커스텀" 통합 카드 신규 추가
+- **수정 개요**: 데일리 퀴즈 홈(`/user/quiz`)에 "AI 커스텀" 섹션과 카드 1개("AI 커스텀 전체")를 문제 유형 섹션 위에 추가했다. QUESTION_TYPE 슬레이브 중 `hasAiCustomQuestions`가 하나라도 true일 때만 노출되며, 클릭 시 모달 없이 `/user/quiz/all?name=AI+커스텀+전체&source=AI_CUSTOM`으로 바로 이동해 카테고리 구분 없이 전체 AI 커스텀 문항(exam_year·exam_round 모두 null)을 랜덤 연속 출제한다. 퀴즈 플레이 라우트(`[categoryId]/page.tsx`)에 route param `'all'`을 특수값으로 인식하는 `isAllAiCustomMode`를 추가해 이 경우 `categoryId`를 `undefined`로 취급하고 `quizService.getQuestions`를 categoryId 없이 호출한다(source 쿼리스트링은 그대로 유지). `quizService.getQuestions`의 `categoryId` 파라미터를 `number | undefined`로 확장해 미전달 시 쿼리 파라미터 자체를 보내지 않도록 했다(백엔드 신규 지원: `docs/history/back/usr/UserQuiz_Modified.md` HIST-20260713-002 참고).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/quizService.ts` | 수정 | `getQuestions`의 `categoryId` 파라미터를 `number \| undefined`로 확장, undefined면 params에서 제외 |
+| `frontend/src/app/user/quiz/page.tsx` | 수정 | "AI 커스텀" 섹션 + "AI 커스텀 전체" 카드 1개 추가(문제 유형 섹션 위), `hasAnyAiCustomQuestions` 노출 판정, 클릭 시 `/user/quiz/all?...` 이동 핸들러 추가 |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | route param이 `'all'`이면 `isAllAiCustomMode=true`, `categoryId=undefined`로 분기해 `quizService.getQuestions(categoryId, ...)` 호출 시 categoryId 없이 요청 |
+
+### 수정 상세
+
+#### `frontend/src/services/quizService.ts`
+- 변경 전: `getQuestions: (categoryId: number, limit = 10, language?: string, source?: string) => ... params: { categoryId, limit, ... }`
+- 변경 후: `getQuestions: (categoryId: number | undefined, limit = 10, language?: string, source?: string) => ... params: { ...(categoryId !== undefined ? { categoryId } : {}), limit, ... }`
+- 이유: AI 커스텀 통합 카드는 categoryId 없이 전체 문항을 대상으로 하므로, 서비스 레이어가 categoryId 생략을 지원해야 함.
+
+#### `frontend/src/app/user/quiz/page.tsx`
+- 변경 전: "문제 유형"/"시험 유형" 마스터 카드 그리드만 렌더.
+- 변경 후: `visibleMasters` 렌더 블록 위에 `hasAnyAiCustomQuestions`(QUESTION_TYPE 슬레이브 중 `hasAiCustomQuestions` true가 하나라도 있는지) 조건부로 "AI 커스텀" 섹션 + 카드 1개("AI 커스텀 전체" / "랜덤 연속 출제") 추가. 클릭 시 `handleSelectAiCustomAll`이 `/user/quiz/all?name=AI 커스텀 전체&source=AI_CUSTOM`으로 즉시 이동(언어/출처 선택 모달 없음).
+- 이유: 기존 AI 커스텀 문항은 카테고리별로 흩어져 있어 통합 출제 진입점이 없었음. 카테고리 무관 전체 AI 커스텀 문항을 한 번에 풀 수 있는 카드를 신설.
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `const categoryId = Number(rawCategoryId);` — route param이 항상 숫자 카테고리 ID 또는 `'bookmarks'`(NaN, 미사용)였음.
+- 변경 후: `const isAllAiCustomMode = rawCategoryId === 'all'; const categoryId = isAllAiCustomMode ? undefined : Number(rawCategoryId);` — `'all'`이면 categoryId를 undefined로 취급해 `quizService.getQuestions(categoryId, 10, language, source)` 호출 시 categoryId 파라미터가 아예 전송되지 않음. source는 기존처럼 `searchParams.get('source')`로 그대로 전달.
+- 이유: 홈 화면의 "AI 커스텀 전체" 카드에서 이동한 라우트가 카테고리 조건 없이 전체 AI 커스텀 문항을 요청할 수 있어야 함.
+
+### 검증 결과
+- `npx tsc --noEmit`: 통과 (오류 없음)
+
+### 복원 방법
+이 ID(HIST-20260713-001)만으로 복원 시:
+1. `quizService.ts`의 `getQuestions` 시그니처를 `categoryId: number`로 되돌리고 params에서 `categoryId`를 항상 포함하도록 복원.
+2. `quiz/page.tsx`에서 "AI 커스텀" 섹션 블록, `handleSelectAiCustomAll`, `hasAnyAiCustomQuestions` 계산 코드를 제거.
+3. `quiz/[categoryId]/page.tsx`에서 `isAllAiCustomMode` 분기를 제거하고 `const categoryId = Number(rawCategoryId);`로 되돌린다.
+
 ## HIST-20260711-001
 
 - **날짜**: 2026-07-11

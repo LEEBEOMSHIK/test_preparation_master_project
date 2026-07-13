@@ -1,3 +1,44 @@
+## HIST-20260713-002
+
+- **날짜**: 2026-07-13
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈 — 카테고리 구분 없는 AI 커스텀 통합 출제 지원
+- **수정 개요**: 데일리 퀴즈 홈의 신규 "AI 커스텀 전체" 카드(프론트 변경: `docs/history/front/usr/UserQuiz_Modified.md` HIST-20260713-001)가 카테고리 구분 없이 전체 AI 커스텀 문항(exam_year·exam_round 모두 null)을 랜덤 연속 출제할 수 있도록 `GET /api/user/quiz/questions`의 `categoryId`를 optional로 열었다. categoryId가 null인 nullable Long native query 파라미터는 PostgreSQL 타입 추론 오류 위험이 있어, category 조건 자체를 제거한 별도 리포지토리 메서드(`findRandomBySourceOnly`)로 분리했다. 서비스 계층에는 categoryId가 null인데 source도 필터 없음(null)이면 전체 문항 무제한 랜덤 출제가 되어버리는 것을 막기 위해 `BusinessException(ErrorCode.INVALID_INPUT)`을 던지는 가드를 추가했다(이 진입은 AI 커스텀 전용이므로 정상 흐름에서는 프론트가 항상 `source=AI_CUSTOM`을 함께 보낸다).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/QuestionBankRepository.java` | 수정 | 신규 `findRandomBySourceOnly(limit, language, source)` native query 메서드 추가 — category_id/exam_type_id 조건 없이 del_yn·language·source만 필터 |
+| `backend/src/main/java/com/tpmp/testprep/controller/UserQuizController.java` | 수정 | `getQuizQuestions`의 `categoryId` 파라미터를 `@RequestParam(required = false) Long categoryId`로 변경 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java` | 수정 | `getQuizQuestions`에서 categoryId null이면 `findRandomBySourceOnly` 호출로 분기, 이때 normalizedSource도 null이면 `BusinessException(ErrorCode.INVALID_INPUT)` throw |
+
+### 수정 상세
+
+#### `repository/QuestionBankRepository.java`
+- 변경 전: `findRandomByCategory(categoryId, limit, language, source)` 단일 메서드만 존재, categoryId는 필수(non-null) 전제.
+- 변경 후: 기존 메서드는 그대로 유지하고, category_id/exam_type_id 조건이 없는 `findRandomBySourceOnly(limit, language, source)`를 신규 추가(del_yn='N', language·source 조건은 기존 쿼리와 동일 패턴 재사용).
+- 이유: nullable Long 파라미터를 `(:categoryId IS NULL OR category_id = :categoryId OR exam_type_id = :categoryId)` 형태로 native query에 남기면 PostgreSQL이 파라미터 타입을 추론하지 못해 오류가 날 수 있어, categoryId 조건 자체가 없는 별도 메서드로 안전하게 분리.
+
+#### `controller/UserQuizController.java`
+- 변경 전: `@RequestParam Long categoryId` (필수)
+- 변경 후: `@RequestParam(required = false) Long categoryId` (선택, 미전달 시 null)
+- 이유: 프론트에서 "AI 커스텀 전체" 카드 클릭 시 categoryId 없이 요청을 보낼 수 있어야 함.
+
+#### `service/UserQuizService.java`
+- 변경 전: `getQuizQuestions`는 항상 `findRandomByCategory(categoryId, ...)` 호출.
+- 변경 후: `categoryId == null`이면 `normalizedSource == null`일 때 `BusinessException(ErrorCode.INVALID_INPUT)`을 던지고, 그렇지 않으면 `findRandomBySourceOnly(limit, normalizedLanguage, normalizedSource)` 호출. `categoryId != null`이면 기존 `findRandomByCategory` 그대로.
+- 이유: categoryId·source 둘 다 없는 진입을 허용하면 전체 문항(수천 건 규모) 무제한 랜덤 출제가 되어버려 AI 커스텀 전용이라는 의도를 벗어남 — 명시적으로 차단.
+
+### 검증 결과
+- `./gradlew compileJava`: 통과
+- `./gradlew test --tests "com.tpmp.testprep.service.UserQuizServiceTest"`: 통과 (11 tests, 0 failures, 0 errors)
+
+### 복원 방법
+이 ID(HIST-20260713-002)만으로 복원 시:
+1. `UserQuizService.java`의 `getQuizQuestions`를 categoryId 분기 없이 항상 `findRandomByCategory(categoryId, ...)`를 호출하도록 되돌린다.
+2. `UserQuizController.java`의 `getQuizQuestions`에서 `@RequestParam(required = false) Long categoryId`를 `@RequestParam Long categoryId`로 되돌린다.
+3. `QuestionBankRepository.java`에서 `findRandomBySourceOnly` 메서드를 제거한다.
+
 ## HIST-20260713-001
 
 - **날짜**: 2026-07-13

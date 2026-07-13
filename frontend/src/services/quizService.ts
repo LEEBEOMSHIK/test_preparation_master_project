@@ -35,9 +35,15 @@ export const quizService = {
         : undefined,
     }),
 
-  getQuestions: (categoryId: number, limit = 10, language?: string, source?: string) =>
+  /** categoryId를 생략(undefined)하면 카테고리 구분 없는 전체 랜덤 출제 — AI 커스텀 통합 카드 전용 */
+  getQuestions: (categoryId: number | undefined, limit = 10, language?: string, source?: string) =>
     apiClient.get<ApiResponse<QuizQuestion[]>>('/user/quiz/questions', {
-      params: { categoryId, limit, ...(language ? { language } : {}), ...(source ? { source } : {}) },
+      params: {
+        ...(categoryId !== undefined ? { categoryId } : {}),
+        limit,
+        ...(language ? { language } : {}),
+        ...(source ? { source } : {}),
+      },
     }),
 
   checkAnswer: (questionId: number, userAnswer: string) =>

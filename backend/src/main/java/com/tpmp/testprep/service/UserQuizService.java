@@ -87,14 +87,26 @@ public class UserQuizService {
     }
 
     /** 카테고리별 랜덤 퀴즈 문항 (최대 30개)
+     *  categoryId가 null이면 카테고리 구분 없는 AI 커스텀 통합 출제 진입이다 — 이때 normalizedSource가
+     *  null(=필터 없음)이면 전체 문항 무제한 랜덤 출제가 되어버리므로 반드시 거부한다.
      *  language: CODE 유형 문항만 대상으로 하는 언어 필터(java/python/c 등, 소문자 코드).
      *  source: 문항 출처 필터 — "EXAM"(기출) 또는 "AI_CUSTOM"(AI 커스텀). 그 외 값·null·공백·"ALL"(대소문자 무시)이면 필터 없이 전체 반환. */
     public List<QuizQuestionView> getQuizQuestions(Long categoryId, int limit, String language, String source) {
         String normalizedLanguage = (language == null || language.isBlank() || "ALL".equalsIgnoreCase(language))
                 ? null : language.trim();
         String normalizedSource = normalizeSource(source);
-        List<QuestionBank> questions =
-                questionBankRepository.findRandomByCategory(categoryId, Math.min(limit, 30), normalizedLanguage, normalizedSource);
+
+        List<QuestionBank> questions;
+        if (categoryId == null) {
+            if (normalizedSource == null) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT);
+            }
+            questions = questionBankRepository.findRandomBySourceOnly(
+                    Math.min(limit, 30), normalizedLanguage, normalizedSource);
+        } else {
+            questions = questionBankRepository.findRandomByCategory(
+                    categoryId, Math.min(limit, 30), normalizedLanguage, normalizedSource);
+        }
         return questions.stream().map(QuizQuestionView::from).toList();
     }
 

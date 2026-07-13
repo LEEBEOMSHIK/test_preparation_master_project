@@ -29,11 +29,13 @@ public class UserQuizController {
     }
 
     /** 카테고리별 랜덤 퀴즈 문항 (기본 10개)
+     *  categoryId: 미전달(null)이면 카테고리 구분 없는 전체 랜덤 출제 — AI 커스텀 통합 카드 전용 진입이며,
+     *              서비스 계층에서 source='AI_CUSTOM'이 아니면 오류를 반환한다.
      *  language: CODE 유형 문항 대상 프로그래밍 언어 필터(java/python/c 등). 미전달·"ALL"이면 전체 반환
      *  source: 문항 출처 필터("EXAM"/"AI_CUSTOM"). 미전달·"ALL"·정의되지 않은 값이면 전체 반환 */
     @GetMapping("/questions")
     public ResponseEntity<ApiResponse<List<QuizQuestionView>>> getQuizQuestions(
-            @RequestParam Long categoryId,
+            @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(required = false) String language,
             @RequestParam(required = false) String source) {

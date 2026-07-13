@@ -82,6 +82,24 @@ public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long
             @Param("language") String language,
             @Param("source") String source);
 
+    /** 카테고리 구분 없는 전체 랜덤 문항 조회 (AI 커스텀 통합 출제 전용).
+     *  category_id/exam_type_id 조건 없이 전체 문항을 대상으로 하므로, 호출부(서비스 계층)에서
+     *  반드시 source='AI_CUSTOM'을 강제해 AI 커스텀 문항(exam_year·exam_round 모두 null)만
+     *  나오도록 가드해야 한다 — 그렇지 않으면 무제한 전체 랜덤 출제가 되어버린다.
+     *  categoryId nullable 파라미터를 native query에 그대로 남기면 PostgreSQL이 파라미터 타입을
+     *  추론하지 못해 오류가 날 수 있어, categoryId 조건 자체를 제거한 별도 메서드로 분리했다. */
+    @Query(
+        value = "SELECT * FROM question_bank " +
+            "WHERE del_yn = 'N' " +
+            "AND (:language IS NULL OR (question_type = 'CODE' AND LOWER(language) = LOWER(:language))) " +
+            "AND (:source IS NULL OR (:source = 'AI_CUSTOM' AND exam_year IS NULL AND exam_round IS NULL) OR (:source = 'EXAM' AND (exam_year IS NOT NULL OR exam_round IS NOT NULL))) " +
+            "ORDER BY RANDOM() LIMIT :limit",
+        nativeQuery = true)
+    java.util.List<QuestionBank> findRandomBySourceOnly(
+            @Param("limit") int limit,
+            @Param("language") String language,
+            @Param("source") String source);
+
     /** 주어진 시험 유형 ID들에 문항이 존재하는 문제 유형(category) ID 목록 조회 */
     @Query(
         "SELECT DISTINCT qb.category.id FROM QuestionBank qb WHERE qb.examType.id IN :examTypeIds AND qb.delYn = 'N' AND qb.category IS NOT NULL")
