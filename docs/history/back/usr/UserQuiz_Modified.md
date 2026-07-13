@@ -1,3 +1,46 @@
+## HIST-20260713-003
+
+- **날짜**: 2026-07-13
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈 — 세션 내 라운드 간 문항 중복 출제 방지
+- **수정 개요**: 데일리 퀴즈는 10문제 단위 라운드로 `GET /api/user/quiz/questions`를 반복 호출하는데, 매 라운드 독립 랜덤 추출이라 직전 라운드와 문항이 자주 중복되는 문제가 있었다. `getQuizQuestions`에 `excludeIds`(콤마 구분 문항 ID 목록) 파라미터를 추가해 프론트가 세션 동안 이미 출제된 문항 ID를 누적 전송하면 다음 라운드 랜덤 추출에서 제외하도록 했다. native query에서 빈 리스트 `IN ()` 문법 오류를 피하기 위해, excludeIds가 있을 때만 사용하는 `...Excluding` 오버로드 리포지토리 메서드를 별도로 추가하고 서비스 계층에서 빈 목록이면 기존 메서드를 그대로 호출하도록 분기했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/QuestionBankRepository.java` | 수정 | `findRandomByCategoryExcluding`, `findRandomBySourceOnlyExcluding` 신규 추가 — 기존 쿼리에 `AND id NOT IN (:excludeIds)` 조건만 더한 오버로드, excludeIds가 비어있으면 호출 금지(빈 IN() 오류) |
+| `backend/src/main/java/com/tpmp/testprep/controller/UserQuizController.java` | 수정 | `getQuizQuestions`에 `@RequestParam(required = false) String excludeIds`(콤마 구분) 추가, 서비스로 그대로 전달 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java` | 수정 | `getQuizQuestions`에 `excludeIds` 파라미터 추가, `parseExcludeIds`로 문자열→`List<Long>` 파싱(공백·비정상 토큰 무시, 중복 제거, 최대 500개), 빈 목록이면 기존 `findRandomByCategory`/`findRandomBySourceOnly` 호출, 있으면 `...Excluding` 오버로드 호출로 분기 |
+| `backend/src/test/java/com/tpmp/testprep/service/UserQuizServiceTest.java` | 수정 | 시그니처 변경(`getQuizQuestions(..., excludeIds)`)에 맞춰 기존 헬퍼 호출부에 `null` 인자 추가, `excludeIds` 있을 때 `findRandomByCategoryExcluding` 호출 + 토큰 파싱(공백·비정상값 무시·중복제거) 검증 테스트, `excludeIds` 공백일 때 기존 `findRandomByCategory` 호출 검증 테스트 신규 추가 |
+
+### 수정 상세
+
+#### `repository/QuestionBankRepository.java`
+- 변경 전: `findRandomByCategory(categoryId, limit, language, source)`, `findRandomBySourceOnly(limit, language, source)`만 존재.
+- 변경 후: 각각에 `excludeIds` 파라미터를 추가한 `findRandomByCategoryExcluding`, `findRandomBySourceOnlyExcluding`을 신규 메서드로 추가(`AND id NOT IN (:excludeIds)` 조건만 더함). 기존 두 메서드는 시그니처 변경 없이 그대로 유지.
+- 이유: Spring Data JPA는 List 파라미터를 `IN` 절로 확장해주지만, 빈 리스트를 그대로 바인딩하면 native query에서 `IN ()` 문법 오류가 발생한다. excludeIds가 없는 경우와 있는 경우를 메서드 자체로 분리해 항상 안전하게 호출하도록 했다.
+
+#### `controller/UserQuizController.java`
+- 변경 전: `getQuizQuestions(categoryId, limit, language, source)`.
+- 변경 후: `excludeIds`(`@RequestParam(required = false) String`) 파라미터 추가, `userQuizService.getQuizQuestions(categoryId, limit, language, source, excludeIds)` 호출.
+- 이유: 프론트가 세션 내 누적 출제 ID 목록을 콤마 구분 문자열로 전달할 수 있어야 함.
+
+#### `service/UserQuizService.java`
+- 변경 전: `getQuizQuestions(Long categoryId, int limit, String language, String source)` — 항상 `findRandomByCategory`/`findRandomBySourceOnly` 호출.
+- 변경 후: `excludeIds` 파라미터 추가, `parseExcludeIds(excludeIds)`로 `List<Long>` 변환(공백·비정상 토큰 무시, `distinct()`, `limit(500)`) 후 목록이 비어있으면 기존 메서드, 비어있지 않으면 `...Excluding` 오버로드로 분기 호출.
+- 이유: 매 라운드 독립 랜덤 추출로 인한 직전 라운드와의 문항 중복을 세션 단위로 방지하되, 무제한 ID 목록 전달로 인한 쿼리 성능 저하나 파싱 오류로 인한 500 에러를 막기 위해 상한과 방어적 파싱을 둠.
+
+### 검증 결과
+- `./gradlew compileJava compileTestJava`: 통과
+- `./gradlew test --tests "com.tpmp.testprep.service.UserQuizServiceTest"`: 통과 (13 tests, 0 failures, 0 errors)
+
+### 복원 방법
+이 ID(HIST-20260713-003)만으로 복원 시:
+1. `UserQuizService.java`의 `getQuizQuestions`에서 `excludeIds` 파라미터·`parseExcludeIds`/`parseLongOrNull` 메서드를 제거하고 항상 `findRandomByCategory`/`findRandomBySourceOnly`만 호출하도록 되돌린다.
+2. `UserQuizController.java`의 `getQuizQuestions`에서 `excludeIds` 파라미터를 제거한다.
+3. `QuestionBankRepository.java`에서 `findRandomByCategoryExcluding`, `findRandomBySourceOnlyExcluding` 메서드를 제거한다.
+4. `UserQuizServiceTest.java`에서 `capturedLanguage`/`capturedSource`의 `getQuizQuestions` 호출 인자에서 마지막 `null`을 제거하고, `excludeIds_withValues_usesExcludingMethod_andParsesTokens`·`excludeIds_blank_usesFindRandomByCategory` 테스트를 제거한다.
+
 ## HIST-20260713-002
 
 - **날짜**: 2026-07-13

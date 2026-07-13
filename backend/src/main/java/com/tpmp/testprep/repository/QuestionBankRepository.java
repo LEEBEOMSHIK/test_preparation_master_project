@@ -82,6 +82,25 @@ public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long
             @Param("language") String language,
             @Param("source") String source);
 
+    /** 카테고리별 랜덤 문항 조회 (출제 제외 ID 목록 포함 — 데일리 퀴즈 세션 내 라운드 간 문항 중복 방지용).
+     *  excludeIds는 반드시 비어있지 않아야 한다(native query에서 빈 리스트 IN() 문법 오류 발생) —
+     *  호출부(서비스 계층)에서 excludeIds가 비어있으면 이 메서드 대신 {@link #findRandomByCategory}를 호출해야 한다. */
+    @Query(
+        value = "SELECT * FROM question_bank " +
+            "WHERE (category_id = :categoryId OR exam_type_id = :categoryId) " +
+            "AND del_yn = 'N' " +
+            "AND (:language IS NULL OR (question_type = 'CODE' AND LOWER(language) = LOWER(:language))) " +
+            "AND (:source IS NULL OR (:source = 'AI_CUSTOM' AND exam_year IS NULL AND exam_round IS NULL) OR (:source = 'EXAM' AND (exam_year IS NOT NULL OR exam_round IS NOT NULL))) " +
+            "AND id NOT IN (:excludeIds) " +
+            "ORDER BY RANDOM() LIMIT :limit",
+        nativeQuery = true)
+    java.util.List<QuestionBank> findRandomByCategoryExcluding(
+            @Param("categoryId") Long categoryId,
+            @Param("limit") int limit,
+            @Param("language") String language,
+            @Param("source") String source,
+            @Param("excludeIds") java.util.List<Long> excludeIds);
+
     /** 카테고리 구분 없는 전체 랜덤 문항 조회 (AI 커스텀 통합 출제 전용).
      *  category_id/exam_type_id 조건 없이 전체 문항을 대상으로 하므로, 호출부(서비스 계층)에서
      *  반드시 source='AI_CUSTOM'을 강제해 AI 커스텀 문항(exam_year·exam_round 모두 null)만
@@ -99,6 +118,23 @@ public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long
             @Param("limit") int limit,
             @Param("language") String language,
             @Param("source") String source);
+
+    /** 카테고리 구분 없는 전체 랜덤 문항 조회 (AI 커스텀 통합 출제 전용, 출제 제외 ID 목록 포함).
+     *  excludeIds는 반드시 비어있지 않아야 한다(native query에서 빈 리스트 IN() 문법 오류 발생) —
+     *  호출부(서비스 계층)에서 excludeIds가 비어있으면 이 메서드 대신 {@link #findRandomBySourceOnly}를 호출해야 한다. */
+    @Query(
+        value = "SELECT * FROM question_bank " +
+            "WHERE del_yn = 'N' " +
+            "AND (:language IS NULL OR (question_type = 'CODE' AND LOWER(language) = LOWER(:language))) " +
+            "AND (:source IS NULL OR (:source = 'AI_CUSTOM' AND exam_year IS NULL AND exam_round IS NULL) OR (:source = 'EXAM' AND (exam_year IS NOT NULL OR exam_round IS NOT NULL))) " +
+            "AND id NOT IN (:excludeIds) " +
+            "ORDER BY RANDOM() LIMIT :limit",
+        nativeQuery = true)
+    java.util.List<QuestionBank> findRandomBySourceOnlyExcluding(
+            @Param("limit") int limit,
+            @Param("language") String language,
+            @Param("source") String source,
+            @Param("excludeIds") java.util.List<Long> excludeIds);
 
     /** 주어진 시험 유형 ID들에 문항이 존재하는 문제 유형(category) ID 목록 조회 */
     @Query(

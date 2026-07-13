@@ -90,22 +90,32 @@ public class UserQuizService {
      *  categoryId가 null이면 카테고리 구분 없는 AI 커스텀 통합 출제 진입이다 — 이때 normalizedSource가
      *  null(=필터 없음)이면 전체 문항 무제한 랜덤 출제가 되어버리므로 반드시 거부한다.
      *  language: CODE 유형 문항만 대상으로 하는 언어 필터(java/python/c 등, 소문자 코드).
-     *  source: 문항 출처 필터 — "EXAM"(기출) 또는 "AI_CUSTOM"(AI 커스텀). 그 외 값·null·공백·"ALL"(대소문자 무시)이면 필터 없이 전체 반환. */
-    public List<QuizQuestionView> getQuizQuestions(Long categoryId, int limit, String language, String source) {
+     *  source: 문항 출처 필터 — "EXAM"(기출) 또는 "AI_CUSTOM"(AI 커스텀). 그 외 값·null·공백·"ALL"(대소문자 무시)이면 필터 없이 전체 반환.
+     *  excludeIds: 쉼표 구분 문항 ID 목록 — 세션 내 이전 라운드 출제 문항을 다음 라운드에서 제외(데일리 퀴즈
+     *              라운드 간 중복 방지). 비정상 토큰은 무시하고 최대 500개까지만 반영, 빈 목록이면 기존 경로 그대로. */
+    public List<QuizQuestionView> getQuizQuestions(Long categoryId, int limit, String language, String source, String excludeIds) {
         String normalizedLanguage = (language == null || language.isBlank() || "ALL".equalsIgnoreCase(language))
                 ? null : language.trim();
         String normalizedSource = normalizeSource(source);
+        List<Long> excludeIdList = parseExcludeIds(excludeIds);
+        int normalizedLimit = Math.min(limit, 30);
 
         List<QuestionBank> questions;
         if (categoryId == null) {
             if (normalizedSource == null) {
                 throw new BusinessException(ErrorCode.INVALID_INPUT);
             }
-            questions = questionBankRepository.findRandomBySourceOnly(
-                    Math.min(limit, 30), normalizedLanguage, normalizedSource);
+            questions = excludeIdList.isEmpty()
+                    ? questionBankRepository.findRandomBySourceOnly(
+                            normalizedLimit, normalizedLanguage, normalizedSource)
+                    : questionBankRepository.findRandomBySourceOnlyExcluding(
+                            normalizedLimit, normalizedLanguage, normalizedSource, excludeIdList);
         } else {
-            questions = questionBankRepository.findRandomByCategory(
-                    categoryId, Math.min(limit, 30), normalizedLanguage, normalizedSource);
+            questions = excludeIdList.isEmpty()
+                    ? questionBankRepository.findRandomByCategory(
+                            categoryId, normalizedLimit, normalizedLanguage, normalizedSource)
+                    : questionBankRepository.findRandomByCategoryExcluding(
+                            categoryId, normalizedLimit, normalizedLanguage, normalizedSource, excludeIdList);
         }
         return questions.stream().map(QuizQuestionView::from).toList();
     }
@@ -117,6 +127,28 @@ public class UserQuizService {
         if ("AI_CUSTOM".equalsIgnoreCase(trimmed)) return "AI_CUSTOM";
         if ("EXAM".equalsIgnoreCase(trimmed)) return "EXAM";
         return null; // 그 외 값은 무시(필터 없음)
+    }
+
+    /** "1,2,3" 형태의 쉼표 구분 ID 문자열을 List&lt;Long&gt;으로 파싱 — 공백·빈 토큰·숫자가 아닌 토큰은
+     *  무시, 중복 제거 후 최대 500개까지만 반영(과도한 IN 절 길이로 인한 쿼리 성능 저하 방지). */
+    private List<Long> parseExcludeIds(String excludeIds) {
+        if (excludeIds == null || excludeIds.isBlank()) return List.of();
+        return Arrays.stream(excludeIds.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(this::parseLongOrNull)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .limit(500)
+                .collect(Collectors.toList());
+    }
+
+    private Long parseLongOrNull(String s) {
+        try {
+            return Long.parseLong(s);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /** 사용자가 복습 표시(북마크)한 문항 전체를 퀴즈 재풀이용으로 반환 — 정답 미노출, 최신순, 상한 100 */

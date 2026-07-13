@@ -32,14 +32,17 @@ public class UserQuizController {
      *  categoryId: 미전달(null)이면 카테고리 구분 없는 전체 랜덤 출제 — AI 커스텀 통합 카드 전용 진입이며,
      *              서비스 계층에서 source='AI_CUSTOM'이 아니면 오류를 반환한다.
      *  language: CODE 유형 문항 대상 프로그래밍 언어 필터(java/python/c 등). 미전달·"ALL"이면 전체 반환
-     *  source: 문항 출처 필터("EXAM"/"AI_CUSTOM"). 미전달·"ALL"·정의되지 않은 값이면 전체 반환 */
+     *  source: 문항 출처 필터("EXAM"/"AI_CUSTOM"). 미전달·"ALL"·정의되지 않은 값이면 전체 반환
+     *  excludeIds: 쉼표 구분 문항 ID 목록 — 세션 내 이전 라운드에서 이미 출제된 문항을 다음 라운드에서
+     *              제외하기 위한 파라미터(데일리 퀴즈 라운드 간 중복 방지). 미전달·공백이면 필터 없음 */
     @GetMapping("/questions")
     public ResponseEntity<ApiResponse<List<QuizQuestionView>>> getQuizQuestions(
             @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(required = false) String language,
-            @RequestParam(required = false) String source) {
-        return ResponseEntity.ok(ApiResponse.success(userQuizService.getQuizQuestions(categoryId, limit, language, source)));
+            @RequestParam(required = false) String source,
+            @RequestParam(required = false) String excludeIds) {
+        return ResponseEntity.ok(ApiResponse.success(userQuizService.getQuizQuestions(categoryId, limit, language, source, excludeIds)));
     }
 
     /** 퀴즈 정답 확인 (단건 채점 + 이력 저장) */

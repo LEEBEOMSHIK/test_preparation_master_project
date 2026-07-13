@@ -26,14 +26,16 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * UserQuizService — 데일리 퀴즈 CODE(프로그래밍 언어) 카테고리 언어 필터 및 출처(EXAM/AI_CUSTOM) 필터
  * 정규화 로직 단위 테스트 + 복습 표시(북마크) 재풀이용 문항 조회 단위 테스트.
- * getQuizQuestions(categoryId, limit, language, source)가 findRandomByCategory에 넘기는 language/source
- * 파라미터가 각각의 정규화 규칙(공백·"ALL"·정의되지 않은 값 → null)을 따르는지 검증한다.
+ * getQuizQuestions(categoryId, limit, language, source, excludeIds)가 findRandomByCategory에 넘기는 language/source
+ * 파라미터가 각각의 정규화 규칙(공백·"ALL"·정의되지 않은 값 → null)을 따르는지 검증하고,
+ * excludeIds 유무에 따라 findRandomByCategory / findRandomByCategoryExcluding으로 올바르게 분기하는지 검증한다.
  */
 @ExtendWith(MockitoExtension.class)
 class UserQuizServiceTest {
@@ -67,7 +69,7 @@ class UserQuizServiceTest {
      * language 값을 반환한다.
      */
     private String capturedLanguage(Long categoryId, int limit, String language) {
-        service.getQuizQuestions(categoryId, limit, language, null);
+        service.getQuizQuestions(categoryId, limit, language, null, null);
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(questionBankRepository, atLeastOnce()).findRandomByCategory(anyLong(), anyInt(), captor.capture(), any());
         return captor.getValue();
@@ -75,7 +77,7 @@ class UserQuizServiceTest {
 
     /** capturedLanguage와 동일 패턴 — language는 null 고정, source만 캡처 */
     private String capturedSource(Long categoryId, int limit, String source) {
-        service.getQuizQuestions(categoryId, limit, null, source);
+        service.getQuizQuestions(categoryId, limit, null, source, null);
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(questionBankRepository, atLeastOnce()).findRandomByCategory(anyLong(), anyInt(), any(), captor.capture());
         return captor.getValue();
@@ -140,6 +142,31 @@ class UserQuizServiceTest {
     @DisplayName("source가 정의되지 않은 값이면 필터 없이 null로 전달")
     void source_invalidValue_normalizesToNull() {
         assertThat(capturedSource(1L, 10, "INVALID")).isNull();
+    }
+
+    @Test
+    @DisplayName("excludeIds가 있으면 findRandomByCategoryExcluding을 호출하고, 공백/비정상 토큰은 무시하며 중복은 제거해서 전달(최대 500개)")
+    void excludeIds_withValues_usesExcludingMethod_andParsesTokens() {
+        when(questionBankRepository.findRandomByCategoryExcluding(anyLong(), anyInt(), any(), any(), any()))
+                .thenReturn(Collections.<QuestionBank>emptyList());
+
+        service.getQuizQuestions(1L, 10, null, null, " 1, 2,abc,2, ,3 ");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<Long>> captor = ArgumentCaptor.forClass(List.class);
+        verify(questionBankRepository).findRandomByCategoryExcluding(anyLong(), anyInt(), any(), any(), captor.capture());
+        assertThat(captor.getValue()).containsExactlyInAnyOrder(1L, 2L, 3L);
+        verify(questionBankRepository, never()).findRandomByCategory(anyLong(), anyInt(), any(), any());
+    }
+
+    @Test
+    @DisplayName("excludeIds가 비어있거나 공백뿐이면 기존 findRandomByCategory를 그대로 호출(빈 리스트 IN() 오류 회피)")
+    void excludeIds_blank_usesFindRandomByCategory() {
+        service.getQuizQuestions(1L, 10, null, null, "   ");
+
+        verify(questionBankRepository, atLeastOnce()).findRandomByCategory(anyLong(), anyInt(), any(), any());
+        verify(questionBankRepository, never())
+                .findRandomByCategoryExcluding(anyLong(), anyInt(), any(), any(), any());
     }
 
     @Test

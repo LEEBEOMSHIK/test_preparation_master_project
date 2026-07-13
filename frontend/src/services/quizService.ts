@@ -35,14 +35,16 @@ export const quizService = {
         : undefined,
     }),
 
-  /** categoryId를 생략(undefined)하면 카테고리 구분 없는 전체 랜덤 출제 — AI 커스텀 통합 카드 전용 */
-  getQuestions: (categoryId: number | undefined, limit = 10, language?: string, source?: string) =>
+  /** categoryId를 생략(undefined)하면 카테고리 구분 없는 전체 랜덤 출제 — AI 커스텀 통합 카드 전용
+   *  excludeIds: 세션 내 이전 라운드에서 이미 출제된 문항 ID 목록 — 있으면 다음 라운드 출제에서 제외(콤마 조인 전송) */
+  getQuestions: (categoryId: number | undefined, limit = 10, language?: string, source?: string, excludeIds?: number[]) =>
     apiClient.get<ApiResponse<QuizQuestion[]>>('/user/quiz/questions', {
       params: {
         ...(categoryId !== undefined ? { categoryId } : {}),
         limit,
         ...(language ? { language } : {}),
         ...(source ? { source } : {}),
+        ...(excludeIds && excludeIds.length > 0 ? { excludeIds: excludeIds.join(',') } : {}),
       },
     }),
 

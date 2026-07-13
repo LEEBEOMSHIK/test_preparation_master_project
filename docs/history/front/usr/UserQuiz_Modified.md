@@ -1,3 +1,39 @@
+## HIST-20260713-002
+
+- **날짜**: 2026-07-13
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 플레이 — 세션 내 라운드 간 문항 중복 출제 방지 + 안내 문구
+- **수정 개요**: 데일리 퀴즈는 10문제 단위 라운드로 반복 요청하는데, 매 라운드 독립 랜덤 추출이라 직전 라운드와 문항이 자주 중복되던 문제를 세션 단위로 방지했다. 세션 동안 출제된 문항 ID를 `seenIds`(Set)에 누적하고, 라운드 요청 시 백엔드 신규 지원(`docs/history/back/usr/UserQuiz_Modified.md` HIST-20260713-003)인 `excludeIds`로 누적분을 전송한다. `excludeIds`를 보냈는데 응답이 빈 배열이면(세션 내 해당 조건의 모든 문항 소진) 기존처럼 홈으로 강제 이동시키는 alert 대신 신규 `exhausted` phase로 전환해 세션 누계 요약과 함께 [결과 보기]/[처음부터 다시] 버튼을 보여준다(excludeIds 없이 첫 요청부터 빈 배열이면 기존 alert 동작 그대로 유지). "라운드 N 완료" 화면에는 "계속하기를 누르면 아직 풀지 않은 문제가 이어서 출제됩니다." 안내 문구를 추가했다. 북마크 재풀이 모드(`isBookmarkMode`)는 이 로직 대상에서 제외했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/quizService.ts` | 수정 | `getQuestions`에 `excludeIds?: number[]` 파라미터 추가 — 있으면 콤마 조인해 쿼리스트링 전송 |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | `seenIds` state 추가(라운드별 출제 ID 누적), `loadBatch`가 `overrideExcludeIds` 옵션 인자를 받아 excludeIds 계산·전송 및 응답 성공 시 `seenIds`에 누적, `excludeIds` 전송 후 빈 응답이면 신규 `exhausted` phase(`Phase` 유니언에 추가)로 전환, `handleRetake`에서 `seenIds` 초기화(+ `loadBatch(new Set())`로 즉시 반영), "라운드 완료" 화면에 안내 문구 추가 |
+
+### 수정 상세
+
+#### `frontend/src/services/quizService.ts`
+- 변경 전: `getQuestions: (categoryId, limit = 10, language?, source?) => ... params: { ...categoryId, limit, ...language, ...source }`
+- 변경 후: `getQuestions: (categoryId, limit = 10, language?, source?, excludeIds?: number[]) => ... params: { ..., ...(excludeIds && excludeIds.length > 0 ? { excludeIds: excludeIds.join(',') } : {}) }`
+- 이유: 세션 내 누적 출제 ID를 백엔드 신규 `excludeIds` 쿼리 파라미터로 전달해야 함.
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `Phase = 'loading' | 'quiz' | 'continue' | 'result' | 'empty'`. `loadBatch`는 인자 없이 `categoryId/language/source`만으로 요청하고, 응답이 빈 배열이면(북마크 모드가 아닌 한) 항상 `alert('이 카테고리에 등록된 문항이 없습니다.')` 후 `/user/quiz`로 이동. `handleRetake`는 세션 카운터·`sessionResults`·`roundNum`만 초기화 후 `loadBatch()` 호출. "라운드 N 완료" 화면에는 세션 누계 텍스트만 존재.
+- 변경 후: `Phase`에 `'exhausted'` 추가. `seenIds: Set<number>` state 신설. `loadBatch(overrideExcludeIds?: Set<number>)`로 시그니처 확장 — `excludeSet = overrideExcludeIds ?? seenIds`, 북마크 모드가 아니고 `excludeSet.size > 0`이면 `Array.from(excludeSet)`을 `excludeIds`로 전송. 응답 성공 시(북마크 모드 아니면) 반환된 문항 ID를 `setSeenIds`에 누적. 응답이 빈 배열이면: 북마크 모드는 기존 `empty` 그대로, `excludeIdsParam`을 보냈던 경우(=세션 내 모든 문항 소진)는 `exhausted` phase로 전환, 그 외(첫 요청부터 빈 배열)는 기존 alert+이동 유지. `handleRetake`에 `setSeenIds(new Set())` + `loadBatch(new Set())` 추가(setState 비동기라 override 인자로 명시적 빈 Set을 넘겨야 정확한 excludeIds로 요청됨). "라운드 완료" 화면에 `계속하기를 누르면 아직 풀지 않은 문제가 이어서 출제됩니다.` 문구(`text-xs text-gray-400`, `!isBookmarkMode`일 때만) 추가. 신규 `exhausted` phase 렌더 블록 추가(세션 누계 + [결과 보기]/[처음부터 다시] 버튼).
+- 이유: 매 라운드 독립 랜덤 추출로 인해 직전 라운드와 문항이 자주 중복되는 사용자 경험 문제를 세션 단위로 해소하고, 모든 문항을 소진했을 때 강제로 홈으로 내보내는 대신 세션 결과를 확인하거나 처음부터 다시 풀 수 있는 선택지를 제공하기 위함.
+
+### 검증 결과
+- `npx tsc --noEmit`: 통과 (오류 없음, dev 서버 가동 중이라 `npm run build`는 실행하지 않음)
+
+### 복원 방법
+이 ID(HIST-20260713-002)만으로 복원 시:
+1. `quizService.ts`의 `getQuestions`에서 `excludeIds` 파라미터와 params 확장 부분을 제거한다.
+2. `quiz/[categoryId]/page.tsx`에서 `seenIds` state, `loadBatch`의 `overrideExcludeIds` 인자·excludeIds 계산·`setSeenIds` 누적 로직을 제거하고 `loadBatch()`를 인자 없는 원래 형태로 되돌린다.
+3. `Phase` 유니언에서 `'exhausted'`를 제거하고 해당 phase 렌더 블록을 삭제한다.
+4. `handleRetake`에서 `setSeenIds(new Set())`와 `loadBatch(new Set())` 대신 `loadBatch()`로 되돌린다.
+5. "라운드 완료" 화면에서 추가한 안내 문구 `<p>`를 제거한다.
+
 ## HIST-20260713-001
 
 - **날짜**: 2026-07-13

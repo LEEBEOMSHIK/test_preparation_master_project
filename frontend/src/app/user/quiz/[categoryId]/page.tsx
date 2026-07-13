@@ -19,7 +19,7 @@ import { stripHtml } from '@/lib/html';
 import { hasOptions } from '@/lib/answer';
 import type { ConceptNote, ExamResultData, QuestionResult, QuestionType } from '@/types';
 
-type Phase = 'loading' | 'quiz' | 'continue' | 'result' | 'empty';
+type Phase = 'loading' | 'quiz' | 'continue' | 'result' | 'empty' | 'exhausted';
 
 /** 언어 코드(소문자) → 표시 라벨 — CodeLanguageModal의 CODE_LANGUAGES 라벨과 동일 컨벤션 */
 const LANGUAGE_LABELS: Record<string, string> = {
@@ -96,6 +96,10 @@ function QuizPlayContent() {
   // 세션 내 채점 완료 문항 누적 (결과 화면용)
   const [sessionResults, setSessionResults] = useState<SessionResultItem[]>([]);
 
+  // 세션 동안 출제된 문항 ID 누적 — 다음 라운드 요청 시 excludeIds로 전송해 중복 출제 방지
+  // (북마크 재풀이 모드는 대상 아님, loadBatch 내부에서 isBookmarkMode일 때는 사용하지 않음)
+  const [seenIds, setSeenIds] = useState<Set<number>>(new Set());
+
   // 북마크 상태
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set());
   const [togglingBookmarkId, setTogglingBookmarkId] = useState<number | null>(null);
@@ -108,14 +112,26 @@ function QuizPlayContent() {
   const correctCount = Object.values(answers).filter(a => a.result?.correct).length;
   const answeredCount = Object.values(answers).filter(a => a.submitted).length;
 
-  const loadBatch = useCallback(() => {
+  // overrideExcludeIds: "처음부터 다시" 등 seenIds를 초기화하면서 즉시 다음 배치를 요청해야 하는 경우,
+  // setSeenIds(new Set())가 비동기라 이 함수 클로저의 seenIds가 아직 갱신되지 않은 상태이므로
+  // 명시적으로 빈 Set을 넘겨 정확한 excludeIds로 요청하기 위한 파라미터.
+  const loadBatch = useCallback((overrideExcludeIds?: Set<number>) => {
     setPhase('loading');
+    const excludeSet = overrideExcludeIds ?? seenIds;
+    const excludeIdsParam = !isBookmarkMode && excludeSet.size > 0 ? Array.from(excludeSet) : undefined;
     const request = isBookmarkMode
       ? quizService.getBookmarkedQuestions()
-      : quizService.getQuestions(categoryId, 10, language, source);
+      : quizService.getQuestions(categoryId, 10, language, source, excludeIdsParam);
     request.then(res => {
       if (res.data.success && res.data.data && res.data.data.length > 0) {
         setQuestions(res.data.data);
+        if (!isBookmarkMode) {
+          setSeenIds(prev => {
+            const next = new Set(prev);
+            res.data.data!.forEach(item => next.add(item.id));
+            return next;
+          });
+        }
         setAnswers({});
         setCurrent(0);
         setInputValue('');
@@ -123,12 +139,15 @@ function QuizPlayContent() {
       } else if (isBookmarkMode) {
         setQuestions([]);
         setPhase('empty');
+      } else if (excludeIdsParam) {
+        // excludeIds를 보냈는데 빈 배열 응답 — 세션 내 해당 조건의 모든 문항을 소진함
+        setPhase('exhausted');
       } else {
         alert('이 카테고리에 등록된 문항이 없습니다.');
         router.push('/user/quiz');
       }
     });
-  }, [categoryId, language, source, router, isBookmarkMode]);
+  }, [categoryId, language, source, router, isBookmarkMode, seenIds]);
 
   useEffect(() => {
     loadBatch();
@@ -207,7 +226,8 @@ function QuizPlayContent() {
     setSessionCorrect(0);
     setSessionResults([]);
     setRoundNum(1);
-    loadBatch();
+    setSeenIds(new Set());
+    loadBatch(new Set());
   };
 
   const handleNext = () => {
@@ -306,6 +326,34 @@ function QuizPlayContent() {
     );
   }
 
+  // ── Exhausted (excludeIds 전송했는데 응답이 빈 배열 — 세션 내 모든 문항 소진) ──────────
+  if (phase === 'exhausted') {
+    return (
+      <div className="max-w-lg mx-auto py-16 text-center space-y-4">
+        <p className="text-gray-700 dark:text-gray-200 font-semibold text-lg">
+          이 조건의 모든 문항을 풀었습니다
+        </p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          세션 누계: {sessionAnswered}문제 풀이 · {sessionCorrect}문제 정답
+        </p>
+        <div className="flex gap-3 justify-center pt-2">
+          <button
+            onClick={() => setPhase('result')}
+            className="px-5 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+          >
+            결과 보기
+          </button>
+          <button
+            onClick={handleRetake}
+            className="px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition"
+          >
+            처음부터 다시
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ── Continue (end of batch) ────────────────────────────────────────────────
   if (phase === 'continue') {
     const roundScore = questions.length > 0
@@ -355,6 +403,11 @@ function QuizPlayContent() {
             </button>
           )}
         </div>
+        {!isBookmarkMode && (
+          <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+            계속하기를 누르면 아직 풀지 않은 문제가 이어서 출제됩니다.
+          </p>
+        )}
       </div>
     );
   }
