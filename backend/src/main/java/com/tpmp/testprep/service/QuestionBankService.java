@@ -208,13 +208,11 @@ public class QuestionBankService {
             validateQuestionNoDuplicate(request, excludeQuestionId);
             return request.questionNo();
         }
-        if (!hasCompleteQuestionNoGroup(request)) {
+        QuestionNoGroup group = resolveGroupOrNull(request);
+        if (group == null) {
             return null;
         }
-        QuestionNoGroup group = QuestionNoGroup.from(request);
-        Integer maxQuestionNo = questionBankRepository.findMaxQuestionNo(
-                group.examTypeId(), group.examYear(), group.examRound());
-        return (maxQuestionNo == null ? 0 : maxQuestionNo) + 1;
+        return loadNextQuestionNo(group);
     }
 
     private List<Integer> resolveQuestionNosForBulk(List<QuestionBankRequest> requests) {
@@ -223,11 +221,11 @@ public class QuestionBankService {
 
         for (QuestionBankRequest request : requests) {
             validateQuestionNoPositive(request.questionNo());
-            if (request.questionNo() == null || !hasCompleteQuestionNoGroup(request)) {
+            QuestionNoGroup group = resolveGroupOrNull(request);
+            if (request.questionNo() == null || group == null) {
                 continue;
             }
 
-            QuestionNoGroup group = QuestionNoGroup.from(request);
             QuestionNoKey key = new QuestionNoKey(group, request.questionNo());
             if (!explicitKeys.add(key)) {
                 throw new BusinessException(ErrorCode.QUESTION_NO_DUPLICATE);
@@ -243,12 +241,12 @@ public class QuestionBankService {
                 resolved.add(request.questionNo());
                 continue;
             }
-            if (!hasCompleteQuestionNoGroup(request)) {
+            QuestionNoGroup group = resolveGroupOrNull(request);
+            if (group == null) {
                 resolved.add(null);
                 continue;
             }
 
-            QuestionNoGroup group = QuestionNoGroup.from(request);
             Set<Integer> usedNumbers = usedNumbersByGroup.computeIfAbsent(group, unused -> new HashSet<>());
             int nextNumber = nextAutoNumberByGroup.computeIfAbsent(group, this::loadNextQuestionNo);
             while (usedNumbers.contains(nextNumber)) {
@@ -261,9 +259,28 @@ public class QuestionBankService {
         return resolved;
     }
 
+    /**
+     * 문항번호 자동 채번 그룹 판정. 두 그룹 중 하나에 해당하면 그룹을, 아니면 null을 반환한다.
+     * <ul>
+     *   <li>기출 그룹: examTypeId·examYear·examRound 모두 존재</li>
+     *   <li>AI 커스텀 그룹: examYear·examRound 모두 null이고 categoryId가 존재
+     *       (한쪽만 null인 어중간한 경우는 어느 그룹에도 속하지 않아 자동 채번하지 않는다)</li>
+     * </ul>
+     */
+    private QuestionNoGroup resolveGroupOrNull(QuestionBankRequest request) {
+        if (hasCompleteQuestionNoGroup(request)) {
+            return QuestionNoGroup.examGroup(request);
+        }
+        if (isAiCustomGroup(request)) {
+            return QuestionNoGroup.aiCustomGroup(request);
+        }
+        return null;
+    }
+
     private int loadNextQuestionNo(QuestionNoGroup group) {
-        Integer maxQuestionNo = questionBankRepository.findMaxQuestionNo(
-                group.examTypeId(), group.examYear(), group.examRound());
+        Integer maxQuestionNo = group.aiCustom()
+                ? questionBankRepository.findMaxAiCustomQuestionNo(group.categoryId())
+                : questionBankRepository.findMaxQuestionNo(group.examTypeId(), group.examYear(), group.examRound());
         return (maxQuestionNo == null ? 0 : maxQuestionNo) + 1;
     }
 
@@ -274,21 +291,41 @@ public class QuestionBankService {
     }
 
     private void validateQuestionNoDuplicate(QuestionBankRequest request, Long excludeQuestionId) {
-        if (!hasCompleteQuestionNoGroup(request) || request.questionNo() == null) {
+        if (request.questionNo() == null) {
             return;
         }
-        boolean exists = excludeQuestionId == null
-                ? questionBankRepository.existsActiveQuestionNo(
-                    request.examTypeId(), request.examYear(), request.examRound(), request.questionNo())
-                : questionBankRepository.existsActiveQuestionNoExcludingId(
-                    excludeQuestionId, request.examTypeId(), request.examYear(), request.examRound(), request.questionNo());
-        if (exists) {
-            throw new BusinessException(ErrorCode.QUESTION_NO_DUPLICATE);
+        if (hasCompleteQuestionNoGroup(request)) {
+            boolean exists = excludeQuestionId == null
+                    ? questionBankRepository.existsActiveQuestionNo(
+                        request.examTypeId(), request.examYear(), request.examRound(), request.questionNo())
+                    : questionBankRepository.existsActiveQuestionNoExcludingId(
+                        excludeQuestionId, request.examTypeId(), request.examYear(), request.examRound(), request.questionNo());
+            if (exists) {
+                throw new BusinessException(ErrorCode.QUESTION_NO_DUPLICATE);
+            }
+            return;
+        }
+        if (isAiCustomGroup(request)) {
+            boolean exists = excludeQuestionId == null
+                    ? questionBankRepository.existsActiveAiCustomQuestionNo(request.categoryId(), request.questionNo())
+                    : questionBankRepository.existsActiveAiCustomQuestionNoExcludingId(
+                        excludeQuestionId, request.categoryId(), request.questionNo());
+            if (exists) {
+                throw new BusinessException(ErrorCode.QUESTION_NO_DUPLICATE);
+            }
         }
     }
 
     private boolean hasCompleteQuestionNoGroup(QuestionBankRequest request) {
         return request.examTypeId() != null && request.examYear() != null && request.examRound() != null;
+    }
+
+    /**
+     * AI 커스텀 문항번호 채번 그룹 판정. examYear·examRound 둘 다 null이고 categoryId가 있을 때만 해당.
+     * (기출/AI 커스텀 분류 기준인 "examYear·examRound 모두 null"과 동일 기준을 사용한다.)
+     */
+    private boolean isAiCustomGroup(QuestionBankRequest request) {
+        return request.examYear() == null && request.examRound() == null && request.categoryId() != null;
     }
 
     /**
@@ -389,9 +426,17 @@ public class QuestionBankService {
         }
     }
 
-    private record QuestionNoGroup(Long examTypeId, Integer examYear, Integer examRound) {
-        private static QuestionNoGroup from(QuestionBankRequest request) {
-            return new QuestionNoGroup(request.examTypeId(), request.examYear(), request.examRound());
+    /**
+     * 문항번호 자동 채번 그룹 키. 기출 그룹(examTypeId+examYear+examRound)과 AI 커스텀 그룹(categoryId)을
+     * {@code aiCustom} 플래그로 함께 표현한다 — 두 그룹은 채번 방식(조회 쿼리)만 다르고 나머지 처리 흐름은 동일하다.
+     */
+    private record QuestionNoGroup(Long examTypeId, Integer examYear, Integer examRound, Long categoryId, boolean aiCustom) {
+        private static QuestionNoGroup examGroup(QuestionBankRequest request) {
+            return new QuestionNoGroup(request.examTypeId(), request.examYear(), request.examRound(), null, false);
+        }
+
+        private static QuestionNoGroup aiCustomGroup(QuestionBankRequest request) {
+            return new QuestionNoGroup(null, null, null, request.categoryId(), true);
         }
     }
 

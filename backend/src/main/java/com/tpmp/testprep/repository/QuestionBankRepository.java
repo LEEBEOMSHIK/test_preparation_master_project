@@ -64,6 +64,48 @@ public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long
             @Param("examRound") Integer examRound,
             @Param("questionNo") Integer questionNo);
 
+    /** 활성 AI 커스텀 문항(examYear·examRound 모두 null) 중 동일 카테고리의 최대 문항번호 조회 */
+    @Query("""
+            SELECT MAX(qb.questionNo)
+            FROM QuestionBank qb
+            WHERE qb.category.id = :categoryId
+              AND qb.examYear IS NULL
+              AND qb.examRound IS NULL
+              AND qb.delYn = 'N'
+              AND qb.questionNo IS NOT NULL
+            """)
+    Integer findMaxAiCustomQuestionNo(@Param("categoryId") Long categoryId);
+
+    /** 활성 AI 커스텀 문항(examYear·examRound 모두 null) 중 동일 카테고리/문항번호 존재 여부 */
+    @Query("""
+            SELECT CASE WHEN COUNT(qb) > 0 THEN true ELSE false END
+            FROM QuestionBank qb
+            WHERE qb.delYn = 'N'
+              AND qb.category.id = :categoryId
+              AND qb.examYear IS NULL
+              AND qb.examRound IS NULL
+              AND qb.questionNo = :questionNo
+            """)
+    boolean existsActiveAiCustomQuestionNo(
+            @Param("categoryId") Long categoryId,
+            @Param("questionNo") Integer questionNo);
+
+    /** 활성 AI 커스텀 문항(examYear·examRound 모두 null) 중 동일 카테고리/문항번호 존재 여부 (수정 시 자기 자신 제외) */
+    @Query("""
+            SELECT CASE WHEN COUNT(qb) > 0 THEN true ELSE false END
+            FROM QuestionBank qb
+            WHERE qb.delYn = 'N'
+              AND qb.id <> :questionId
+              AND qb.category.id = :categoryId
+              AND qb.examYear IS NULL
+              AND qb.examRound IS NULL
+              AND qb.questionNo = :questionNo
+            """)
+    boolean existsActiveAiCustomQuestionNoExcludingId(
+            @Param("questionId") Long questionId,
+            @Param("categoryId") Long categoryId,
+            @Param("questionNo") Integer questionNo);
+
     /** 카테고리별 랜덤 문항 조회 (데일리 퀴즈용)
      *  language가 null이면 조건을 무시(=전체) — CODE 유형이면서 language가 대소문자 무시 일치하는 문항만 필터링.
      *  (관리자 등록 폼 버그로 CODE가 아닌 문항에도 language 값이 실릴 수 있어 question_type = 'CODE' 조건을 반드시 함께 건다)

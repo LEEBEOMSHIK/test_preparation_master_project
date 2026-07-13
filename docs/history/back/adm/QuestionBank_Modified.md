@@ -1,3 +1,35 @@
+## HIST-20260713-001
+
+- **날짜**: 2026-07-13
+- **수정 범위**: 백엔드 / 문항은행(QuestionBank) — AI 커스텀 문항 문항번호(questionNo) 자동 채번 지원
+- **수정 개요**: 문항 등록/수정/일괄등록 시 questionNo를 비워두면 기출 문항(examTypeId+examYear+examRound 완전)뿐 아니라 **AI 커스텀 문항(examYear·examRound 모두 null, categoryId 존재)** 도 "같은 카테고리의 AI 커스텀 문항" 그룹 내 최대 questionNo + 1로 자동 채번되도록 확장했다. 한쪽만 null인 어중간한 경우(예: examYear만 null)는 기존처럼 어느 그룹에도 속하지 않아 자동 채번 없이 null을 유지한다(기출/AI 커스텀 분류 기준인 "examYear·examRound 모두 null"과 동일 기준을 사용).
+- `QuestionBankService`의 채번 그룹 키 `QuestionNoGroup` record를 `(examTypeId, examYear, examRound, categoryId, aiCustom)`으로 확장하고, 정적 팩토리 `examGroup`/`aiCustomGroup` 두 개로 분리했다. 그룹 판정을 `resolveGroupOrNull(request)` 단일 메서드로 통일해 `resolveQuestionNo`(단건)·`resolveQuestionNosForBulk`(일괄) 양쪽이 동일한 판정 로직을 재사용하도록 리팩토링했다 — 기출 그룹 판정(`hasCompleteQuestionNoGroup`)과 그 채번 쿼리(`findMaxQuestionNo`)는 전혀 건드리지 않아 기존 기출 자동채번 동작은 100% 동일하게 유지된다.
+- `validateQuestionNoDuplicate`도 두 그룹을 모두 처리하도록 확장 — questionNo를 명시한 경우 기출 그룹이면 기존 `existsActiveQuestionNo(ExcludingId)`, AI 커스텀 그룹이면 신규 `existsActiveAiCustomQuestionNo(ExcludingId)`로 같은 카테고리의 AI 커스텀 문항 내 중복만 검사한다(수정 시 자기 자신 제외 규칙 동일 유지).
+- 수정(`updateQuestion`) 경로는 기존과 동일하게 `resolveQuestionNo(request, id)`를 그대로 호출하므로 이번 확장이 자동으로 적용된다 — 별도 코드 변경 없이 동작 확인만 수행(테스트로 커버).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/QuestionBankRepository.java` | 수정 | `findMaxAiCustomQuestionNo(categoryId)`, `existsActiveAiCustomQuestionNo(categoryId, questionNo)`, `existsActiveAiCustomQuestionNoExcludingId(questionId, categoryId, questionNo)` 3개 JPQL 쿼리 메서드 추가(모두 `examYear IS NULL AND examRound IS NULL AND delYn = 'N'` 조건) |
+| `backend/src/main/java/com/tpmp/testprep/service/QuestionBankService.java` | 수정 | `QuestionNoGroup` record에 `categoryId`·`aiCustom` 필드 추가(`examGroup`/`aiCustomGroup` 팩토리 분리), `resolveGroupOrNull` 신규 private 메서드 추가, `resolveQuestionNo`·`resolveQuestionNosForBulk`·`loadNextQuestionNo`·`validateQuestionNoDuplicate`가 두 그룹을 함께 처리하도록 수정, `isAiCustomGroup` 신규 판정 메서드 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/QuestionBankServiceTest.java` | 추가 | AI 커스텀 채번 테스트 6종 추가(최대+1 부여, 기존 번호 없으면 1번, 명시 번호 중복 거부, 수정 시 자기 자신 제외, 일괄등록 순차 증가, 일괄등록에서 기출·AI 커스텀 그룹 혼재 시 독립 채번) |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/repository/QuestionBankRepository.java`
+- 변경 전: AI 커스텀 문항 전용 최대번호/중복조회 쿼리 없음(기출 그룹 전용 `findMaxQuestionNo`·`existsActiveQuestionNo(ExcludingId)`만 존재)
+- 변경 후: 카테고리+`examYear IS NULL AND examRound IS NULL`+`delYn='N'` 조건의 `findMaxAiCustomQuestionNo`/`existsActiveAiCustomQuestionNo`/`existsActiveAiCustomQuestionNoExcludingId` 3개 메서드 추가
+- 이유: AI 커스텀 문항 그룹의 최대 문항번호 조회·중복 검증을 위한 전용 쿼리 필요.
+
+#### `backend/src/main/java/com/tpmp/testprep/service/QuestionBankService.java`
+- 변경 전: `QuestionNoGroup(examTypeId, examYear, examRound)` — 기출 그룹만 표현, `hasCompleteQuestionNoGroup`이 아니면 questionNo는 항상 null
+- 변경 후: `QuestionNoGroup(examTypeId, examYear, examRound, categoryId, aiCustom)`으로 확장, `resolveGroupOrNull(request)`가 기출 그룹 우선 판정 후 AI 커스텀 그룹(`isAiCustomGroup`: examYear·examRound 모두 null && categoryId 존재)을 판정. `resolveQuestionNo`/`resolveQuestionNosForBulk`/`loadNextQuestionNo`/`validateQuestionNoDuplicate` 모두 이 통일된 판정을 사용하도록 리팩토링
+- 이유: AI 커스텀 문항도 카테고리 단위로 자동 채번되도록 지원하되, 기출 채번 로직과 판정 흐름을 하나의 메서드로 통일해 중복 없이 안전하게 확장하기 위함.
+
+### 복원 방법
+이 ID(HIST-20260713-001)만으로 복원 시: `QuestionBankRepository`에서 3개 AI 커스텀 전용 쿼리 메서드를 제거하고, `QuestionBankService`의 `QuestionNoGroup`을 `(examTypeId, examYear, examRound)` 3-필드로 되돌리며 `from(request)` 팩토리 하나로 복원, `resolveQuestionNo`/`resolveQuestionNosForBulk`/`loadNextQuestionNo`를 `hasCompleteQuestionNoGroup` 기준 단일 분기로 되돌리고 `validateQuestionNoDuplicate`의 AI 커스텀 분기 제거, `isAiCustomGroup`/`resolveGroupOrNull` 메서드 삭제, `QuestionBankServiceTest`에 추가된 AI 커스텀 채번 테스트 6종 제거.
+
 ## HIST-20260711-001
 
 - **날짜**: 2026-07-11

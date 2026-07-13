@@ -452,6 +452,107 @@ class QuestionBankServiceTest {
         verify(questionBankRepository, never()).saveAll(any());
     }
 
+    // ── 문항번호 자동 부여 (AI 커스텀: examYear·examRound 모두 null) ─────────────
+
+    @Test
+    @DisplayName("문항번호: AI 커스텀(examYear·examRound null) + 명시 번호 없으면 카테고리 내 최대+1 부여")
+    void createQuestion_aiCustomWithoutQuestionNo_assignsMaxPlusOne() {
+        QuestionBankRequest req = questionNoRequest(null, null, null);
+        when(questionBankRepository.findMaxAiCustomQuestionNo(10L)).thenReturn(5);
+
+        service.createQuestion(req, ADMIN_EMAIL);
+
+        ArgumentCaptor<QuestionBank> captor = ArgumentCaptor.forClass(QuestionBank.class);
+        verify(questionBankRepository).save(captor.capture());
+        assertThat(captor.getValue().getQuestionNo()).isEqualTo(6);
+    }
+
+    @Test
+    @DisplayName("문항번호: AI 커스텀 + 명시 번호 없고 기존 번호도 없으면 1번 부여")
+    void createQuestion_aiCustomWithoutQuestionNoAndNoExisting_assignsFirstQuestionNo() {
+        QuestionBankRequest req = questionNoRequest(null, null, null);
+        when(questionBankRepository.findMaxAiCustomQuestionNo(10L)).thenReturn(null);
+
+        service.createQuestion(req, ADMIN_EMAIL);
+
+        ArgumentCaptor<QuestionBank> captor = ArgumentCaptor.forClass(QuestionBank.class);
+        verify(questionBankRepository).save(captor.capture());
+        assertThat(captor.getValue().getQuestionNo()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("문항번호: AI 커스텀 + 명시 번호가 같은 카테고리의 AI 커스텀 문항과 중복이면 등록 거부")
+    void createQuestion_aiCustomWithDuplicateQuestionNo_throws() {
+        QuestionBankRequest req = questionNoRequest(3, null, null);
+        when(questionBankRepository.existsActiveAiCustomQuestionNo(10L, 3)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.createQuestion(req, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.QUESTION_NO_DUPLICATE));
+        verify(questionBankRepository, never()).save(any(QuestionBank.class));
+    }
+
+    @Test
+    @DisplayName("문항번호: AI 커스텀 + 수정 시 자기 자신은 중복 검사에서 제외")
+    void updateQuestion_aiCustomSameQuestionNoOnSameEntity_savesSuccessfully() {
+        QuestionBank existing = QuestionBank.builder()
+                .title("기존")
+                .examYear(null)
+                .examRound(null)
+                .questionNo(3)
+                .content("기존 문항")
+                .questionType(QuestionBank.QuestionType.SHORT_ANSWER)
+                .category(categorySlave)
+                .examType(examTypeSlave)
+                .createdByUno(1L)
+                .build();
+        QuestionBankRequest req = questionNoRequest(3, null, null);
+        when(questionBankRepository.findById(99L)).thenReturn(Optional.of(existing));
+        when(questionBankRepository.existsActiveAiCustomQuestionNoExcludingId(99L, 10L, 3)).thenReturn(false);
+
+        service.updateQuestion(99L, req, ADMIN_EMAIL);
+
+        assertThat(existing.getQuestionNo()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("문항번호: 일괄 등록에서 AI 커스텀 여러 건 자동 채번이 같은 카테고리 내에서 순차 증가")
+    void createQuestionsBulk_aiCustomWithoutQuestionNo_assignsSequentialQuestionNos() {
+        QuestionBankRequest first = questionNoRequest(null, null, null);
+        QuestionBankRequest second = questionNoRequest(null, null, null);
+        when(questionBankRepository.findMaxAiCustomQuestionNo(10L)).thenReturn(2);
+
+        service.createQuestionsBulk(new com.tpmp.testprep.dto.request.QuestionBankBulkRequest(List.of(first, second)), ADMIN_EMAIL);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<QuestionBank>> captor = ArgumentCaptor.forClass(List.class);
+        verify(questionBankRepository).saveAll(captor.capture());
+        assertThat(captor.getValue())
+                .extracting(QuestionBank::getQuestionNo)
+                .containsExactly(3, 4);
+    }
+
+    @Test
+    @DisplayName("문항번호: 일괄 등록에서 기출·AI 커스텀 그룹이 섞여도 각자 그룹 기준으로 독립 채번")
+    void createQuestionsBulk_mixedExamAndAiCustomGroups_assignsIndependentlyPerGroup() {
+        QuestionBankRequest examReq = questionNoRequest(null, 2024, 1);
+        QuestionBankRequest aiCustomReq = questionNoRequest(null, null, null);
+        when(questionBankRepository.findMaxQuestionNo(20L, 2024, 1)).thenReturn(3);
+        when(questionBankRepository.findMaxAiCustomQuestionNo(10L)).thenReturn(1);
+
+        service.createQuestionsBulk(
+                new com.tpmp.testprep.dto.request.QuestionBankBulkRequest(List.of(examReq, aiCustomReq)),
+                ADMIN_EMAIL);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<QuestionBank>> captor = ArgumentCaptor.forClass(List.class);
+        verify(questionBankRepository).saveAll(captor.capture());
+        assertThat(captor.getValue())
+                .extracting(QuestionBank::getQuestionNo)
+                .containsExactly(4, 2);
+    }
+
     // ── 발문(instruction)·문항 내용(content) 필수 규칙 검증 ─────────────────────
 
     @Test
