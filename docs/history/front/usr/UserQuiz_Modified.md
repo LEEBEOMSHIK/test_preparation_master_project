@@ -1,3 +1,31 @@
+## HIST-20260714-001
+
+- **날짜**: 2026-07-14
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 풀이 — 문항별 카테고리 배지 표시
+- **수정 개요**: "AI 커스텀 전체" 모드는 여러 카테고리 문항이 섞여 출제되는데 문항 카드에서 어느 카테고리인지 알 수 없었다. 백엔드 `QuizQuestionView`에 추가된 `categoryName`을 `QuizQuestion` 타입에 반영하고, 문제 카드 상단(제목 헤더 위, 우측 연도/AI커스텀 배지와 겹치지 않는 `pr-24` 영역)에 회색 pill 배지로 카테고리명을 표시했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| src/services/quizService.ts | 수정 | `QuizQuestion` 인터페이스에 `categoryName?: string;` 필드 추가 |
+| src/app/user/quiz/[categoryId]/page.tsx | 수정 | 문제 카드에 `q.categoryName` 배지(회색 pill, 다크모드 대응) 렌더 추가 |
+
+### 수정 상세
+
+#### `src/services/quizService.ts`
+- 변경 전: `QuizQuestion`에 `sqlResultColumns?: string[];`까지만 존재
+- 변경 후: 그 아래에 `categoryName?: string;` 필드 추가
+- 이유: 백엔드 `QuizQuestionView.categoryName`을 프론트 타입에 반영
+
+#### `src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: 문제 카드에 제목 헤더(`q.title`)만 있고 카테고리 표시 없음
+- 변경 후: 제목 헤더 바로 위에 `q.categoryName`이 있을 때만 렌더되는 회색 pill 배지(`text-xs font-medium rounded-full px-2 py-0.5 bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300`) 추가
+- 이유: AI 커스텀 전체 모드에서 문항별 카테고리 구분 필요
+
+### 복원 방법
+이 ID(HIST-20260714-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다.
+
 ## HIST-20260713-004
 
 - **날짜**: 2026-07-13

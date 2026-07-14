@@ -1,3 +1,59 @@
+## HIST-20260714-002
+
+- **날짜**: 2026-07-14
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈 — 문항별 카테고리명 응답 추가
+- **수정 개요**: "AI 커스텀 전체" 모드에서 여러 카테고리 문항이 섞여 출제될 때 프론트가 문항별 카테고리를 배지로 표시할 수 있도록, `QuizQuestionView`에 `categoryName` 필드를 추가하고 `from(QuestionBank qb)`에서 `qb.getCategory()`(DomainSlave, 없으면 null)의 이름으로 채웠다. `getQuizQuestions`가 `@Transactional(readOnly=true)` 안에서 호출되므로 지연 로딩 문제 없음.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| src/main/java/com/tpmp/testprep/dto/response/QuizQuestionView.java | 수정 | record에 `String categoryName` 필드 추가, `from()`에서 `qb.getCategory().getName()`으로 채움 |
+
+### 수정 상세
+
+#### `src/main/java/com/tpmp/testprep/dto/response/QuizQuestionView.java`
+- 변경 전: record 필드가 `sqlResultColumns`까지, 생성자도 그에 맞춤
+- 변경 후: 필드 목록 끝에 `String categoryName` 추가, 생성자 마지막 인자로 `qb.getCategory() != null ? qb.getCategory().getName() : null` 전달
+- 이유: 프론트 문항 카드에 카테고리 배지를 표시하기 위한 응답 필드 필요
+
+### 복원 방법
+이 ID(HIST-20260714-002)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다.
+
+## HIST-20260714-001
+
+- **날짜**: 2026-07-14
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈 — CODE 프로그래밍 언어 선택창 노출 대상에서 SQL 전용 카테고리 제외
+- **수정 개요**: 데일리 퀴즈는 카테고리에 CODE 유형 문항이 있으면 프로그래밍 언어(전체/Java/Python/C) 선택창을 띄운다. 곧 SQL 카테고리에 `language='sql'`인 CODE 유형(SQL 빈칸 채우기) 문항이 추가될 예정인데, 기존 로직은 CODE 유형 존재 여부만 보고 언어 선택창 노출 대상 카테고리를 판별해 SQL 카테고리에도 Java/Python/C 선택창이 뜨는 부작용이 있었다. `QuestionBankRepository.findDistinctCategoryIdsByQuestionType`의 JPQL에 `language`가 NULL이거나 `SQL`이 아닌 경우로 조건을 추가해, language='sql'인 CODE 문항만 있는 카테고리는 이 메서드의 반환 목록(→ `UserQuizService.getCategories`의 `codeCategoryIds` → `DomainSlaveResponse.hasCodeQuestions`)에서 제외되도록 했다. language가 NULL·java·python·c인 CODE 문항은 기존과 동일하게 카테고리를 flag한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/QuestionBankRepository.java` | 수정 | `findDistinctCategoryIdsByQuestionType`의 JPQL WHERE 절에 `AND (qb.language IS NULL OR UPPER(qb.language) <> 'SQL')` 조건 추가. 메서드 상단 주석에 "language='sql'인 CODE 문항은 제외(언어 선택창 미대상)" 취지 보강 |
+| `backend/src/test/java/com/tpmp/testprep/service/UserQuizServiceTest.java` | 수정 | `getCategories_sqlOnlyCodeCategory_hasCodeQuestionsFalse` 테스트 추가 — `findDistinctCategoryIdsByQuestionType(CODE)`가 sql 전용 카테고리(id=2)를 제외하고 java 등 일반 언어 카테고리(id=1)만 반환한다고 스터빙한 뒤, `getCategories`가 이를 각각 `hasCodeQuestions=false`/`true`로 올바르게 매핑하는지 검증(리포지토리 JPQL 자체가 아닌 서비스 매핑 로직 검증). `DomainMasterResponse`/`DomainSlaveResponse`/`DomainMaster`/`DomainSlave`/`ReflectionTestUtils` import 추가(엔티티 id는 `@GeneratedValue`라 빌더로 세팅 불가해 `ReflectionTestUtils.setField`로 주입) |
+
+### 수정 상세
+
+#### `repository/QuestionBankRepository.java`
+- 변경 전: `SELECT DISTINCT qb.category.id FROM QuestionBank qb WHERE qb.questionType = :questionType AND qb.delYn = 'N' AND qb.category IS NOT NULL`
+- 변경 후: `SELECT DISTINCT qb.category.id FROM QuestionBank qb WHERE qb.questionType = :questionType AND qb.delYn = 'N' AND qb.category IS NOT NULL AND (qb.language IS NULL OR UPPER(qb.language) <> 'SQL')`
+- 이유: SQL 전용 CODE 카테고리에 Java/Python/C 언어 선택창이 뜨는 부작용을 막기 위해, 언어 선택창 노출 판별용 카테고리 목록에서 language='sql' CODE 문항을 제외해야 함.
+
+#### `service/UserQuizServiceTest.java`
+- 변경 전: `getCategories`/`hasCodeQuestions` 관련 테스트 없음.
+- 변경 후: sql 전용 카테고리와 일반 언어 카테고리가 섞인 상황에서 `hasCodeQuestions` 플래그가 리포지토리 반환값을 올바르게 반영하는지 검증하는 테스트 1건 추가.
+- 이유: 리포지토리 쿼리 변경이 서비스 응답(DomainSlaveResponse.hasCodeQuestions)에 올바르게 반영되는지 회귀 방지.
+
+### 검증 결과
+- `./gradlew compileJava`: 통과
+- `./gradlew test --tests "com.tpmp.testprep.service.UserQuizServiceTest"`: 통과 (14 tests, 0 failures, 0 errors)
+
+### 복원 방법
+이 ID(HIST-20260714-001)만으로 복원 시:
+1. `QuestionBankRepository.java`의 `findDistinctCategoryIdsByQuestionType` JPQL에서 `AND (qb.language IS NULL OR UPPER(qb.language) <> 'SQL')` 조건과 보강된 주석을 제거해 원래 쿼리로 되돌린다.
+2. `UserQuizServiceTest.java`에서 `getCategories_sqlOnlyCodeCategory_hasCodeQuestionsFalse` 테스트 메서드와 관련 import(`DomainMasterResponse`, `DomainSlaveResponse`, `DomainMaster`, `DomainSlave`, `ReflectionTestUtils`)를 제거한다.
+
 ## HIST-20260713-004
 
 - **날짜**: 2026-07-13

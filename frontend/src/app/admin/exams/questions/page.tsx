@@ -259,9 +259,8 @@ export default function AdminQuestionsPage() {
 
     const base = allQuestions.filter((q) => {
       if (kw) {
-        const inTitle   = q.title?.toLowerCase().includes(kw) ?? false;
-        const inContent = q.content.toLowerCase().includes(kw);
-        if (!inTitle && !inContent) return false;
+        const inTitle = q.title?.toLowerCase().includes(kw) ?? false;
+        if (!inTitle) return false;
       }
       if (appliedTypeFilter && q.questionType !== appliedTypeFilter) return false;
       if (appliedCategoryFilter !== '') {
@@ -332,7 +331,7 @@ export default function AdminQuestionsPage() {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="검색어를 입력하세요"
+              placeholder="문항 제목 검색"
               className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
             />
           </div>

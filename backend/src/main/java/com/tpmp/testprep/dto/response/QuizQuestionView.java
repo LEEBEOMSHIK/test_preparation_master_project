@@ -25,7 +25,9 @@ public record QuizQuestionView(
         SqlData sqlData,
         /** SQL 결과 테이블 정답의 컬럼명만 — 퀴즈 풀이 화면에서 결과 테이블 입력 그리드 헤더로 사용.
          *  sqlData.expectedResult가 없으면 null(기존 텍스트/코드 입력 UI를 그대로 사용). */
-        List<String> sqlResultColumns) {
+        List<String> sqlResultColumns,
+        /** 문항 카테고리명 — "AI 커스텀 전체" 등 여러 카테고리가 섞여 출제되는 모드에서 배지 표시용 (없으면 null) */
+        String categoryName) {
 
     public static QuizQuestionView from(QuestionBank qb) {
         SqlData sqlData = qb.getSqlData();
@@ -43,6 +45,7 @@ public record QuizQuestionView(
                 qb.getExamRound(),
                 qb.getSchedulingData(),
                 sqlData != null ? sqlData.withoutExpectedResult() : null,
-                expectedResult != null ? expectedResult.columns() : null);
+                expectedResult != null ? expectedResult.columns() : null,
+                qb.getCategory() != null ? qb.getCategory().getName() : null);
     }
 }

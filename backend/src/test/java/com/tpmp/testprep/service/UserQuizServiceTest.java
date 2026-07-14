@@ -1,6 +1,10 @@
 package com.tpmp.testprep.service;
 
+import com.tpmp.testprep.dto.response.DomainMasterResponse;
+import com.tpmp.testprep.dto.response.DomainSlaveResponse;
 import com.tpmp.testprep.dto.response.QuizQuestionView;
+import com.tpmp.testprep.entity.DomainMaster;
+import com.tpmp.testprep.entity.DomainSlave;
 import com.tpmp.testprep.entity.QuestionBank;
 import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.entity.UserQuestionBookmark;
@@ -15,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -167,6 +172,50 @@ class UserQuizServiceTest {
         verify(questionBankRepository, atLeastOnce()).findRandomByCategory(anyLong(), anyInt(), any(), any());
         verify(questionBankRepository, never())
                 .findRandomByCategoryExcluding(anyLong(), anyInt(), any(), any(), any());
+    }
+
+    /**
+     * getCategories의 hasCodeQuestions 플래그는 questionBankRepository.findDistinctCategoryIdsByQuestionType(CODE)가
+     * 반환한 카테고리 ID 집합을 그대로 반영한다. language='sql'인 CODE 문항만 있는 카테고리는 해당 리포지토리
+     * 메서드가 이제 제외하고 반환하므로(QuestionBankRepository 수정), 그 결과를 서비스가 올바르게
+     * hasCodeQuestions=false로 소비하는지 검증한다(리포지토리 JPQL 자체는 이 단위 테스트 범위 밖 — 여기서는
+     * 수정된 리포지토리 동작을 시뮬레이션한 반환값을 스터빙해 서비스 매핑 로직만 검증한다).
+     */
+    @Test
+    @DisplayName("getCategories: sql 전용 CODE 카테고리는 hasCodeQuestions=false, 일반 언어 CODE 카테고리는 true")
+    void getCategories_sqlOnlyCodeCategory_hasCodeQuestionsFalse() {
+        DomainMaster questionTypeMaster = DomainMaster.builder().code("QUESTION_TYPE").name("문제 유형").build();
+        ReflectionTestUtils.setField(questionTypeMaster, "id", 100L);
+
+        DomainSlave javaCodeSlave = DomainSlave.builder().master(questionTypeMaster).name("자료구조").displayOrder(1).build();
+        ReflectionTestUtils.setField(javaCodeSlave, "id", 1L);
+        DomainSlave sqlOnlySlave = DomainSlave.builder().master(questionTypeMaster).name("SQL").displayOrder(2).build();
+        ReflectionTestUtils.setField(sqlOnlySlave, "id", 2L);
+        ReflectionTestUtils.setField(questionTypeMaster, "slaves", List.of(javaCodeSlave, sqlOnlySlave));
+
+        when(domainMasterRepository.findAllWithSlaves()).thenReturn(List.of(questionTypeMaster));
+        // 수정된 findDistinctCategoryIdsByQuestionType은 language='sql'인 CODE 문항만 있는 카테고리(id=2)를 제외하고
+        // id=1(java 등 일반 언어 CODE 문항 보유 카테고리)만 반환한다고 가정
+        when(questionBankRepository.findDistinctCategoryIdsByQuestionType(QuestionBank.QuestionType.CODE))
+                .thenReturn(List.of(1L));
+        when(questionBankRepository.findDistinctCategoryIdsWithAiCustomQuestions())
+                .thenReturn(Collections.<Long>emptyList());
+
+        List<DomainMasterResponse> result = service.getCategories(null);
+
+        DomainMasterResponse questionTypeResponse = result.stream()
+                .filter(r -> "QUESTION_TYPE".equals(r.code()))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(questionTypeResponse.slaves())
+                .filteredOn(s -> s.id().equals(1L))
+                .extracting(DomainSlaveResponse::hasCodeQuestions)
+                .containsExactly(true);
+        assertThat(questionTypeResponse.slaves())
+                .filteredOn(s -> s.id().equals(2L))
+                .extracting(DomainSlaveResponse::hasCodeQuestions)
+                .containsExactly(false);
     }
 
     @Test

@@ -184,9 +184,9 @@ public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long
     java.util.List<Long> findDistinctCategoryIdsByExamTypeIds(
             @Param("examTypeIds") java.util.List<Long> examTypeIds);
 
-    /** CODE 유형 문항이 존재하는 문제 유형(category) ID 목록 조회 — 프로그래밍 언어 필터 노출 대상 카테고리 판별용 */
+    /** CODE 유형 문항이 존재하는 문제 유형(category) ID 목록 조회 — 프로그래밍 언어 필터 노출 대상 카테고리 판별용. language='sql'인 CODE 문항은 제외(언어 선택창 미대상) */
     @Query(
-        "SELECT DISTINCT qb.category.id FROM QuestionBank qb WHERE qb.questionType = :questionType AND qb.delYn = 'N' AND qb.category IS NOT NULL")
+        "SELECT DISTINCT qb.category.id FROM QuestionBank qb WHERE qb.questionType = :questionType AND qb.delYn = 'N' AND qb.category IS NOT NULL AND (qb.language IS NULL OR UPPER(qb.language) <> 'SQL')")
     java.util.List<Long> findDistinctCategoryIdsByQuestionType(
             @Param("questionType") QuestionBank.QuestionType questionType);
 

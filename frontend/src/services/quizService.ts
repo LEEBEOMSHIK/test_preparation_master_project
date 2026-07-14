@@ -19,6 +19,8 @@ export interface QuizQuestion {
   sqlData?: SqlData;
   /** SQL 결과 테이블 정답의 컬럼명만 — 있으면 결과 테이블 입력 그리드 UI를 사용 (없으면 기존 텍스트/코드 입력) */
   sqlResultColumns?: string[];
+  /** 문항 카테고리명 — "AI 커스텀 전체" 등 여러 카테고리가 섞여 출제되는 모드에서 배지 표시용 */
+  categoryName?: string;
 }
 
 export interface CheckResult {

@@ -522,6 +522,15 @@ function QuizPlayContent() {
             AI 커스텀
           </span>
         )}
+        {/* 문항 카테고리 배지 — AI 커스텀 전체 등 여러 카테고리가 섞여 출제되는 모드에서 구분용 */}
+        {q.categoryName && (
+          <div className="pr-24">
+            <span className="inline-block text-xs font-medium rounded-full px-2 py-0.5 bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+              {q.categoryName}
+            </span>
+          </div>
+        )}
+
         {/* 문항 관리 제목 헤더 (title이 있을 때만) */}
         {q.title && q.title.trim() !== '' && (
           <div className="pr-24 pb-3 mb-2 border-b border-gray-200">
