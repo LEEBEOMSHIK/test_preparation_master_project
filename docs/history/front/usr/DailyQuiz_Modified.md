@@ -1,3 +1,27 @@
+## HIST-20260714-002
+
+- **날짜**: 2026-07-14
+- **수정 범위**: 사용자 프론트엔드 / 풀이 스크래치패드 - 스케줄링 간트차트
+- **수정 개요**: 간트차트 시간축을 셀 중앙 인덱스에서 셀 경계 눈금 방식으로 변경
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/SchedulingSolveTool.tsx` | 수정 | 간트차트 시간축 렌더링을 table 헤더 중앙 인덱스에서 셀 경계 눈금(flex 구조)으로 변경 |
+
+### 수정 상세
+
+#### `components/ui/SchedulingSolveTool.tsx`
+- 변경 전: `<table>` 구조. `<thead>`의 `<th>`마다 `normalizedGantt.map((_, c) => <th>{c}</th>)`로 셀 폭(`w-12`)과 동일한 `<th>`에 인덱스 `c`(0-based)를 셀 위 중앙 정렬로 표시. `<tbody>`의 `<td>`에 `hashLabelToColorClass(cell)` 배경색을 적용한 `<input>` 배치.
+- 변경 후: `<table>`을 `flex pt-4 w-max` 컨테이너로 교체. 각 셀을 `relative w-12 -ml-px first:ml-0` div로 감싸 인접 셀 border를 겹쳐 붙이고, 셀 왼쪽 상단에 `absolute -top-4 left-0 -translate-x-1/2`로 시작 경계 숫자 `c`를 표시. 마지막 셀에는 오른쪽 상단에 `absolute -top-4 right-0 translate-x-1/2`로 종료 경계 숫자 `c+1`(=총 시간)을 추가로 표시. `<input>`은 첫 셀에 `rounded-l`, 마지막 셀에 `rounded-r`을 조건부 적용하고 `focus:z-10`을 추가해 border 겹침 시 포커스 링이 인접 셀에 가려지지 않도록 함. `value`/`onChange={handleGanttCellChange}`/`spellCheck={false}`/색상 로직(`hashLabelToColorClass`)/다크모드 클래스/`w-12`/focus ring 스타일은 그대로 유지. `totalTime === 0` 안내 분기와 `normalizedGantt`/`resizeGantt` 로직은 미변경.
+- 이유: 셀 위 중앙 인덱스 표기는 완료시간을 한 칸 오해하게 만들 수 있어(P1이 셀 0·1을 채워도 마지막 라벨이 1로 보여 완료시간을 1로 오인), 경계선 위에 눈금을 표시하는 교과서 표준 간트차트 방식으로 정합성 개선.
+
+### 복원 방법
+이 ID(HIST-20260714-002)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다.
+
+---
+
 ## HIST-20260714-001
 
 - **날짜**: 2026-07-14

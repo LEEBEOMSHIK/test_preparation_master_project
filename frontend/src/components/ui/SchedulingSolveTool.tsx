@@ -373,38 +373,37 @@ export function SchedulingSolveTool({ value, onChange }: SchedulingSolveToolProp
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-400 dark:text-gray-500">간트 차트</label>
           <div className="overflow-x-auto">
-            <table className="border-separate border-spacing-1 w-max">
-              <thead>
-                <tr>
-                  {normalizedGantt.map((_, c) => (
-                    <th key={c} className="text-center text-[10px] font-normal text-gray-400 dark:text-gray-500 w-12">
+            <div className="flex pt-4 w-max">
+              {normalizedGantt.map((cell, c) => {
+                const colorClass = hashLabelToColorClass(cell);
+                const isFirst = c === 0;
+                const isLast = c === normalizedGantt.length - 1;
+                return (
+                  <div key={c} className="relative w-12 -ml-px first:ml-0">
+                    <span className="absolute -top-4 left-0 -translate-x-1/2 text-[10px] font-normal text-gray-400 dark:text-gray-500 font-mono">
                       {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  {normalizedGantt.map((cell, c) => {
-                    const colorClass = hashLabelToColorClass(cell);
-                    return (
-                      <td key={c}>
-                        <input
-                          value={cell}
-                          onChange={e => handleGanttCellChange(c, e.target.value)}
-                          spellCheck={false}
-                          className={[
-                            'w-12 text-center rounded border text-xs font-mono px-1 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors',
-                            colorClass ||
-                              'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100',
-                          ].join(' ')}
-                        />
-                      </td>
-                    );
-                  })}
-                </tr>
-              </tbody>
-            </table>
+                    </span>
+                    {isLast && (
+                      <span className="absolute -top-4 right-0 translate-x-1/2 text-[10px] font-normal text-gray-400 dark:text-gray-500 font-mono">
+                        {c + 1}
+                      </span>
+                    )}
+                    <input
+                      value={cell}
+                      onChange={e => handleGanttCellChange(c, e.target.value)}
+                      spellCheck={false}
+                      className={[
+                        'relative z-0 focus:z-10 w-12 text-center border text-xs font-mono px-1 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors',
+                        isFirst ? 'rounded-l' : '',
+                        isLast ? 'rounded-r' : '',
+                        colorClass ||
+                          'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100',
+                      ].join(' ')}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
