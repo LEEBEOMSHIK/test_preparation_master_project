@@ -1,3 +1,26 @@
+## HIST-20260714-001
+
+- **날짜**: 2026-07-14
+- **수정 범위**: 사용자 프론트엔드 / 풀이 스크래치패드(공용 `ScratchPadPanel`) — 계산기 이력 보관 개수 5 → 10 확대
+- **수정 개요**: 스크래치패드 계산기 탭의 "최근 계산" 이력이 최대 5개까지만 보관·표시되던 것을 10개로 늘렸다. 이력 개수를 결정하는 상수 `MAX_CALC_HISTORY`(계산 성공 시 `calcHistory` 배열을 `slice(0, MAX_CALC_HISTORY)`로 자름)의 값만 변경했으며, "최근 계산" 라벨·렌더 로직에는 하드코딩된 숫자가 없어(`data.calcHistory`를 전체 map) 추가 수정이 필요 없었다. localStorage에 이미 저장된 기존 이력에는 영향 없음(다음 계산부터 최대 10개로 누적).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정(공용) | 상수 `MAX_CALC_HISTORY` 값 `5` → `10` |
+
+### 수정 상세
+
+#### `components/ui/ScratchPadPanel.tsx`
+- 변경 전: `const MAX_CALC_HISTORY = 5;`
+- 변경 후: `const MAX_CALC_HISTORY = 10;`
+
+### 복원 방법
+이 ID(HIST-20260714-001)만으로 복원 시: `ScratchPadPanel.tsx`의 `MAX_CALC_HISTORY`를 다시 `5`로 되돌린다.
+
+---
+
 ## HIST-20260710-002
 
 - **날짜**: 2026-07-10

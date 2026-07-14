@@ -66,7 +66,7 @@ const EMPTY_DATA: ScratchPadData = {
   scheduling: EMPTY_SCHEDULING_SOLVE_DATA,
 };
 const SAVE_DEBOUNCE_MS = 500;
-const MAX_CALC_HISTORY = 5;
+const MAX_CALC_HISTORY = 10;
 
 const PANEL_WIDTH_STORAGE_KEY = 'tpmp:scratchpad:panel-width';
 const DEFAULT_PANEL_WIDTH = 320;
