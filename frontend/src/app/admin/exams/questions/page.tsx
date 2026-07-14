@@ -325,7 +325,7 @@ export default function AdminQuestionsPage() {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-48">
-            <label className="block text-xs font-medium text-gray-500 mb-1">문항 내용</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">문항 제목</label>
             <input
               type="text"
               value={keyword}
