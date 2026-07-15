@@ -34,10 +34,15 @@ import java.util.stream.Collectors;
  * 공백·콤마·슬래시를 모두 제거한 뒤 동등 비교한다. 이는 사용자가 구분자 없이
  * 답을 나열한 경우(예: "1. pwd 2. ls 3. cd 4. cp" ↔ 정답 "1. pwd / 2. ls / 3. cd / 4. cp")를
  * 정답 처리하기 위함이다. 폴백은 정규화 후 어느 한쪽이라도 빈 문자열이면 적용하지 않는다.
+ * 또한 콤마·슬래시가 전혀 없어도 {@code 1.}·{@code 2)} 등 번호 매김으로만 항목을 나열한
+ * 정답(예: "1. FCFS 2. SJF 3. SRT")은 Set 비교 단계에서부터 번호 매김을 구분자로 인식해
+ * 항목별로 분리한다(소수점은 영향 없음).
  *
  * <p>CODE 유형은 콤마가 코드 문법의 일부일 수 있으므로 절대 분리하지 않고
  * 통문자열 비교한다. 단, 줄 끝 trailing 공백·CRLF 차이·앞뒤 빈 줄은 정규화하여
  * 무시한다. 줄 내부 연속 공백(들여쓰기)은 정답의 일부이므로 절대 건드리지 않는다.
+ * 엄격 비교가 실패하면, 구조 구분자({@code : , ; { } [ ] ( )}) 주변의 가로 공백 차이만
+ * 무시하는 느슨 폴백을 추가로 적용한다(줄바꿈은 보존).
  *
  * <p>MULTIPLE_CHOICE·OX 는 기존과 동일하게 trim·equalsIgnoreCase 비교한다.
  *
@@ -101,7 +106,14 @@ public final class AnswerGrader {
             // - 각 줄 끝 trailing 공백 제거
             // - 전체 앞뒤 빈 줄/공백 제거
             // - 줄 내부 연속 공백(들여쓰기)은 건드리지 않음
-            return normalizeCode(correctAnswer).equalsIgnoreCase(normalizeCode(userAnswer));
+            if (normalizeCode(correctAnswer).equalsIgnoreCase(normalizeCode(userAnswer))) {
+                return true;
+            }
+            // 느슨 폴백: 구조 구분자(: , ; { } [ ] ( )) 주변의 가로 공백(스페이스·탭) 차이를
+            // 무시하고 비교한다. 코드 트레이싱 출력값에서 콜론·콤마 뒤 공백 유무 등 표기
+            // 차이를 흡수하기 위함(예: "{2:1, 4:3}" ↔ "{2: 1, 4: 3}"). 줄바꿈은 보존하므로
+            // 줄 구조·들여쓰기는 그대로 검사된다.
+            return normalizeCodeLoose(correctAnswer).equalsIgnoreCase(normalizeCodeLoose(userAnswer));
         }
         // MULTIPLE_CHOICE, OX — 통문자열 비교
         return correctAnswer.trim().equalsIgnoreCase(userAnswer.trim());
@@ -254,6 +266,17 @@ public final class AnswerGrader {
     }
 
     /**
+     * 콤마·슬래시가 없어도 "1. A 2. B 3. C" 처럼 번호 매김({@code 1.}·{@code 2)} …)으로만
+     * 나열된 정답을 항목별로 분리할 수 있도록, 열거 마커(문자열 선두 또는 공백 뒤의 1~2자리
+     * 숫자 + {@code .}/{@code )} + 공백 1개 이상)를 슬래시 구분자로 치환한다. 소수점(3.14·11.75)
+     * 이나 항목 내부 숫자는 "숫자 + 구두점 + 공백" 조건에 해당하지 않으므로 영향받지 않는다.
+     * (예: "1. FCFS 2. SJF 3. SRT" → "/FCFS /SJF /SRT" → split 후 [FCFS, SJF, SRT])
+     */
+    private static String enumerationToSeparators(String raw) {
+        return raw.replaceAll("(^|\\s)\\d{1,2}[.)]\\s+", "$1/");
+    }
+
+    /**
      * options 채점(빈칸별 순서 비교) 전용 토큰화. 콤마·슬래시로 분리 후 각 토큰을 trim만
      * 적용하고 빈 토큰은 제거한다. Set이 아닌 순서 보존 List를 반환한다.
      */
@@ -261,7 +284,7 @@ public final class AnswerGrader {
         if (raw == null) {
             return List.of();
         }
-        return Arrays.stream(raw.split("[,/]"))
+        return Arrays.stream(enumerationToSeparators(raw).split("[,/]"))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());
@@ -329,6 +352,16 @@ public final class AnswerGrader {
     }
 
     /**
+     * CODE 느슨 폴백 정규화: {@link #normalizeCode(String)} 결과에서 구조 구분자
+     * ({@code : , ; { } [ ] ( )}) 주변의 가로 공백(스페이스·탭)만 제거한다. 줄바꿈(\n)은
+     * {@code [ \t]}에 포함되지 않으므로 줄 구조가 보존되고, 딕셔너리·리스트 출력의
+     * 콜론/콤마 뒤 공백 표기 차이만 흡수한다.
+     */
+    private static String normalizeCodeLoose(String s) {
+        return normalizeCode(s).replaceAll("[ \\t]*([:,;{}\\[\\]()])[ \\t]*", "$1");
+    }
+
+    /**
      * 양쪽 문자열을 콤마·슬래시로 분리 → 토큰 정규화(trim·소문자화·공백 축약·괄호 부연 제거)
      * → 빈 토큰 제거 → Set 동일성 검사. 두 Set이 비어있거나 다르면 false.
      */
@@ -339,7 +372,7 @@ public final class AnswerGrader {
     }
 
     private static Set<String> tokenize(String raw) {
-        return Arrays.stream(raw.split("[,/]"))
+        return Arrays.stream(enumerationToSeparators(raw).split("[,/]"))
                 .map(AnswerGrader::normalizeToken)
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toSet());
