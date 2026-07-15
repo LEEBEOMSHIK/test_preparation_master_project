@@ -1,3 +1,33 @@
+## HIST-20260716-001
+
+- **날짜**: 2026-07-16
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 풀이 — "이미 본 문항"(seenIds) localStorage 영속화
+- **수정 개요**: 데일리 퀴즈 풀이 중 세션 내 출제된 문항 ID(`seenIds`)가 메모리에만 있어 새로고침·재접속하면 이미 본 문항이 다시 출제되던 문제를 해결했다. `seenIds`를 카테고리·출처·언어별 localStorage 키(`tpmp:quiz:seen:{categoryId}:{source}:{language}`)에 저장해, 마운트 시 저장값을 복원하고 첫 배치 요청부터 excludeIds로 반영하도록 했다. "처음부터 다시" 시에는 저장값을 삭제해 전체 문항이 다시 출제되도록 했다. 서버·계정 이력(QuizHistory)은 전혀 건드리지 않았고, 북마크 재풀이 모드(`isBookmarkMode`)는 읽기/쓰기/삭제 모두 완전히 스킵해 기존 동작을 그대로 유지했다. 단일 파일 전용 헬퍼이므로 별도 lib 유틸로 추출하지 않고 파일 내부에 인라인으로 두었다(공용 유틸리티 표 갱신 대상 아님).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | `buildSeenIdsStorageKey`/`readSeenIdsFromStorage`/`writeSeenIdsToStorage`/`removeSeenIdsFromStorage` 인라인 헬퍼 추가, 마운트 effect에서 저장값 복원 후 `loadBatch(restored)` 호출, `seenIds` 변경 시 저장하는 신규 effect 추가, `handleRetake`에서 저장값 삭제 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전:
+  - `seenIds`는 `useState<Set<number>>(new Set())`로만 존재, 마운트 시 항상 빈 Set에서 시작
+  - 마운트 effect: `useEffect(() => { loadBatch(); }, [categoryId, language, source, isBookmarkMode]);`
+  - `seenIds` 변경을 저장하는 로직 없음
+  - `handleRetake`: `setSeenIds(new Set()); loadBatch(new Set());`만 수행
+- 변경 후:
+  - 모듈 레벨 순수 헬퍼 4개 추가(`buildSeenIdsStorageKey`, `readSeenIdsFromStorage`, `writeSeenIdsToStorage`, `removeSeenIdsFromStorage`) — 모두 try/catch + `typeof window === 'undefined'` SSR 가드
+  - 마운트 effect: `isBookmarkMode`면 기존처럼 `loadBatch()`만 호출하고 종료(북마크 모드는 완전 스킵). 그 외에는 저장 키로 `readSeenIdsFromStorage` 후 `setSeenIds(restored)` + `loadBatch(restored)`를 명시적으로 호출(useCallback 클로저의 비동기 setState 갱신 지연 문제를 override 파라미터로 회피)
+  - 신규 `useEffect(() => { if (isBookmarkMode) return; writeSeenIdsToStorage(key, seenIds); }, [seenIds, categoryId, source, language, isBookmarkMode]);` 추가로 `seenIds` 갱신마다 저장
+  - `handleRetake`에 `if (!isBookmarkMode) removeSeenIdsFromStorage(key);` 추가
+- 이유: 데일리 퀴즈의 "언제든 가볍게 반복" 성격을 유지하면서(서버 이력 미사용) 새로고침·재접속 시에도 이미 푼 문항을 건너뛰게 해 사용성 개선
+
+### 복원 방법
+이 ID(HIST-20260716-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다.
+
 ## HIST-20260714-001
 
 - **날짜**: 2026-07-14

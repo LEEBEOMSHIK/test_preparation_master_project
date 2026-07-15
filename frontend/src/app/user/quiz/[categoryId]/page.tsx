@@ -62,6 +62,46 @@ function mapSessionResultsToExamResultData(items: SessionResultItem[]): ExamResu
   return { total, correct, score, results };
 }
 
+/** 세션 seenIds localStorage 키 생성 (이 파일 전용, 북마크 모드는 호출부에서 가드하고 사용하지 않음) */
+function buildSeenIdsStorageKey(categoryId: number | undefined, source?: string, language?: string): string {
+  const categoryKey = categoryId != null && !Number.isNaN(categoryId) ? categoryId : 'all';
+  return `tpmp:quiz:seen:${categoryKey}:${source ?? 'all'}:${language ?? 'all'}`;
+}
+
+/** localStorage에서 seenIds 복원 — SSR·파싱 실패 시 빈 Set으로 안전 폴백 */
+function readSeenIdsFromStorage(key: string): Set<number> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((v): v is number => typeof v === 'number'));
+  } catch {
+    return new Set();
+  }
+}
+
+/** seenIds를 localStorage에 저장 — 접근 실패(프라이빗 모드 등)는 조용히 무시 */
+function writeSeenIdsToStorage(key: string, ids: Set<number>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(Array.from(ids)));
+  } catch {
+    // 무시
+  }
+}
+
+/** localStorage의 seenIds 항목 제거 — "처음부터 다시" 시 사용 */
+function removeSeenIdsFromStorage(key: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // 무시
+  }
+}
+
 // ── Inner component (useSearchParams 사용) ────────────────────────────────────
 function QuizPlayContent() {
   const params = useParams();
@@ -150,8 +190,23 @@ function QuizPlayContent() {
   }, [categoryId, language, source, router, isBookmarkMode, seenIds]);
 
   useEffect(() => {
-    loadBatch();
+    if (isBookmarkMode) {
+      loadBatch();
+      return;
+    }
+    // localStorage에 저장된 이전 세션의 seenIds를 복원해, 새로고침·재접속해도 이어서 훑을 수 있게 함
+    const key = buildSeenIdsStorageKey(categoryId, source, language);
+    const restored = readSeenIdsFromStorage(key);
+    setSeenIds(restored);
+    loadBatch(restored);
   }, [categoryId, language, source, isBookmarkMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // seenIds 변경 시 localStorage에 영속 (북마크 재풀이 모드는 대상 아님)
+  useEffect(() => {
+    if (isBookmarkMode) return;
+    const key = buildSeenIdsStorageKey(categoryId, source, language);
+    writeSeenIdsToStorage(key, seenIds);
+  }, [seenIds, categoryId, source, language, isBookmarkMode]);
 
   // 마운트 시 북마크 ID 목록 초기화 — 실패해도 퀴즈 진행 막지 않음
   useEffect(() => {
@@ -227,6 +282,10 @@ function QuizPlayContent() {
     setSessionResults([]);
     setRoundNum(1);
     setSeenIds(new Set());
+    if (!isBookmarkMode) {
+      // exhausted 상태 이후에도 "처음부터 다시"를 누르면 전체 문항이 다시 나오도록 저장값 삭제
+      removeSeenIdsFromStorage(buildSeenIdsStorageKey(categoryId, source, language));
+    }
     loadBatch(new Set());
   };
 
