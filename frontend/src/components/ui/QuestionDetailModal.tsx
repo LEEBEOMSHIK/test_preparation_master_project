@@ -212,7 +212,7 @@ export function QuestionDetailModal({ question, onClose, hideEditLink = false, h
           {question.questionType !== 'MULTIPLE_CHOICE' && question.answer && showAnswer && (
             <div>
               <p className="text-xs font-medium text-gray-400 mb-1.5">정답</p>
-              <p className="px-3 py-2 bg-green-50 border border-green-200 text-green-800 text-sm rounded-lg font-medium">
+              <p className="px-3 py-2 bg-green-50 border border-green-200 text-green-800 text-sm rounded-lg font-medium whitespace-pre-wrap leading-relaxed">
                 {question.answer}
               </p>
             </div>

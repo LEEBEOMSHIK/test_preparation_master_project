@@ -1,4 +1,36 @@
-﻿## HIST-20260714-002
+﻿## HIST-20260717-001
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리 — 문항 상세 모달 정답 표시 줄바꿈 처리 (관리자·사용자 공용 컴포넌트)
+- **수정 개요**: 정답 문자열에 줄바꿈(`\n`)이 포함된 경우(예: 코드 트레이싱 실행 결과 "10 38\n23\n15")에도 상세 모달의 "정답 (객관식 외)" `<p>`에 `whitespace-pre-wrap`이 없어 줄바꿈이 공백으로 뭉개져 한 줄로 보이는 문제를 수정했다. 바로 아래 '해설' `<p>`와 동일하게 `whitespace-pre-wrap leading-relaxed`를 추가했다. `QuestionDetailModal`은 관리자 문항 상세(`admin/exams/questions/page.tsx`)와 사용자 복습/북마크/개념노트에서 공용으로 쓰이므로 모든 화면에 동일하게 적용된다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/QuestionDetailModal.tsx` | 수정 | "정답 (객관식 외)" 블록의 정답 `<p>` className에 `whitespace-pre-wrap leading-relaxed` 추가 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/QuestionDetailModal.tsx`
+- 변경 전:
+  ```tsx
+  <p className="px-3 py-2 bg-green-50 border border-green-200 text-green-800 text-sm rounded-lg font-medium">
+    {question.answer}
+  </p>
+  ```
+- 변경 후:
+  ```tsx
+  <p className="px-3 py-2 bg-green-50 border border-green-200 text-green-800 text-sm rounded-lg font-medium whitespace-pre-wrap leading-relaxed">
+    {question.answer}
+  </p>
+  ```
+- 이유: 다중 행 정답(코드 실행 결과 등)이 줄바꿈 없이 한 줄로 뭉쳐 보여 가독성이 떨어졌다. 해설 `<p>`는 이미 동일 스타일이 적용되어 있어 정합성 있게 맞췄다.
+
+### 복원 방법
+이 ID(HIST-20260717-001)만으로 복원 시 `frontend/src/components/ui/QuestionDetailModal.tsx`의 정답 `<p>` className에서 `whitespace-pre-wrap leading-relaxed`를 제거해 위 "변경 전" 상태로 되돌린다.
+
+## HIST-20260714-002
 
 - **날짜**: 2026-07-14
 - **수정 범위**: 관리자 프론트엔드 / 문항 관리 — 검색 입력창 라벨을 "문항 제목"으로 변경(HIST-20260714-001 후속)
