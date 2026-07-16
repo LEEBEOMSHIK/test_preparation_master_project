@@ -590,15 +590,6 @@ function QuizPlayContent() {
           </div>
         )}
 
-        {/* 문항 관리 제목 헤더 (title이 있을 때만) */}
-        {q.title && q.title.trim() !== '' && (
-          <div className="pr-24 pb-3 mb-2 border-b border-gray-200">
-            <span className="text-sm font-semibold text-gray-500 leading-tight">
-              {q.title}
-            </span>
-          </div>
-        )}
-
         {/* 발문(지시문) — 문항 내용 위에 강조 표시 */}
         {q.instruction && (
           <p className="text-gray-900 dark:text-gray-100 font-semibold text-base leading-snug whitespace-pre-wrap pr-24">
