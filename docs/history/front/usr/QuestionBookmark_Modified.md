@@ -1,3 +1,49 @@
+## HIST-20260717-001
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 프론트엔드 / 복습 표시(북마크) 목록 — 문항 제목 표시
+- **수정 개요**: 복습 표시 카드가 뱃지 + 본문 미리보기(`stripHtml(bq.content)`)만 노출해 "어떤 문제였는지 식별이 안 된다"는 문제가 있었다. `BookmarkQuestion.title`(백엔드 `BookmarkQuestionResponse`에 이미 포함, question_bank 259건 전수 title 존재 확인됨)을 카드의 주 텍스트로 새로 추가하고, 기존 본문 미리보기는 보조 텍스트로 격하했다. 백엔드·타입 변경 없이 프론트 표시만 수정.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/bookmarks/page.tsx` | 수정 | 카드 본문에 `bq.title`을 주 텍스트(`text-sm font-semibold text-gray-900 line-clamp-2`)로 추가, 기존 `preview`(`stripHtml(bq.content)`)는 보조 텍스트(`text-xs text-gray-500 line-clamp-1`)로 격하. `bq.title`이 없거나 공백뿐이면 기존과 동일하게 `preview`만 주 텍스트 자리에 표시(폴백) |
+
+### 수정 상세
+
+#### `app/user/bookmarks/page.tsx`
+- 변경 전:
+  ```tsx
+  {/* 문항 내용 미리보기 */}
+  <p className="text-sm text-gray-800 line-clamp-2 leading-relaxed">
+    {preview || '(내용 없음)'}
+  </p>
+  ```
+- 변경 후:
+  ```tsx
+  {/* 문항 제목 (주 텍스트) */}
+  {bq.title && bq.title.trim() ? (
+    <>
+      <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-relaxed">
+        {bq.title}
+      </p>
+      {/* 문항 내용 미리보기 (보조 텍스트) */}
+      <p className="text-xs text-gray-500 line-clamp-1 mt-1">
+        {preview || '(내용 없음)'}
+      </p>
+    </>
+  ) : (
+    <p className="text-sm text-gray-800 line-clamp-2 leading-relaxed">
+      {preview || '(내용 없음)'}
+    </p>
+  )}
+  ```
+- 이유: 카드에서 문항을 식별할 수 있는 정보(제목)가 없어 사용자가 어떤 문제인지 구분하기 어려웠음. 뱃지·북마크 해제 버튼·모달 오픈 동작 등 나머지 로직은 변경 없음
+
+### 복원 방법
+이 ID(HIST-20260717-001)만으로 복원 시: 위 "변경 전" 블록으로 문항 내용 미리보기 `<p>` 하나만 남기고, "변경 후"의 `bq.title` 조건부 렌더링 블록을 제거한다.
+
 ## HIST-20260710-001
 
 - **날짜**: 2026-07-10

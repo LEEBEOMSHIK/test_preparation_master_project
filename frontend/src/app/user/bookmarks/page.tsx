@@ -160,10 +160,22 @@ export default function BookmarksPage() {
                     )}
                   </div>
 
-                  {/* 문항 내용 미리보기 */}
-                  <p className="text-sm text-gray-800 line-clamp-2 leading-relaxed">
-                    {preview || '(내용 없음)'}
-                  </p>
+                  {/* 문항 제목 (주 텍스트) */}
+                  {bq.title && bq.title.trim() ? (
+                    <>
+                      <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-relaxed">
+                        {bq.title}
+                      </p>
+                      {/* 문항 내용 미리보기 (보조 텍스트) */}
+                      <p className="text-xs text-gray-500 line-clamp-1 mt-1">
+                        {preview || '(내용 없음)'}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-800 line-clamp-2 leading-relaxed">
+                      {preview || '(내용 없음)'}
+                    </p>
+                  )}
                 </div>
 
                 {/* 북마크 해제 버튼 */}
