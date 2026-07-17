@@ -12,6 +12,7 @@ import java.util.List;
  */
 public record QuestionResultResponse(
         Long questionId,
+        Long questionBankId,
         int seq,
         String instruction,
         String title,
@@ -37,6 +38,7 @@ public record QuestionResultResponse(
     public static QuestionResultResponse of(Question q, String userAnswer, boolean correct) {
         return new QuestionResultResponse(
                 q.getId(),
+                q.getSourceQuestionBankId(),
                 q.getSeq(),
                 q.getInstruction(),
                 q.getResultTitle(),
@@ -62,6 +64,7 @@ public record QuestionResultResponse(
     public static QuestionResultResponse of(ExamHistoryDetail detail) {
         return new QuestionResultResponse(
                 detail.getQuestionId(),
+                detail.getQuestionBankId(),
                 detail.getSeq(),
                 detail.getInstruction(),
                 detail.getTitle(),

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { RichContent } from '@/components/ui/RichContent';
 import { CodeBlock } from '@/components/ui/CodeBlock';
 import { stripHtml } from '@/lib/html';
@@ -8,6 +8,9 @@ import { hasOptions, formatAnswerAlternatives } from '@/lib/answer';
 import type { ExamResultData } from '@/types';
 import { SchedulingProblemTable } from '@/components/ui/SchedulingProblemTable';
 import { SqlProblemView } from '@/components/ui/SqlProblemView';
+import { bookmarkService } from '@/services/bookmarkService';
+
+const useCommittedLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 interface Props {
   result: ExamResultData;
@@ -39,6 +42,189 @@ export function ExamResultDisplay({
 }: Props) {
   const [resultFilter, setResultFilter] = useState<'all' | 'wrong'>('all');
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set());
+  const [pendingBookmarkIds, setPendingBookmarkIds] = useState<Set<number>>(new Set());
+  const [bookmarkError, setBookmarkError] = useState<string | null>(null);
+  const [canRetryBookmarkLoad, setCanRetryBookmarkLoad] = useState(false);
+  const [bookmarkLoadRetryKey, setBookmarkLoadRetryKey] = useState(0);
+  const [bookmarkLoadStatus, setBookmarkLoadStatus] = useState<{
+    result: ExamResultData | null;
+    retryKey: number;
+    loading: boolean;
+    known: boolean;
+  }>({ result: null, retryKey: -1, loading: false, known: false });
+  const pendingBookmarkIdsRef = useRef<Set<number>>(new Set());
+  const bookmarkMutationVersionsRef = useRef<Map<number, number>>(new Map());
+  const visibleQuestionBankIdsRef = useRef<Set<number>>(new Set());
+  const bookmarkGenerationRef = useRef(0);
+  const mountedRef = useRef(false);
+
+  const questionBankIds = useMemo(
+    () => Array.from(new Set(
+      result.results
+        .map(item => item.questionBankId)
+        .filter((id): id is number => id !== null && id !== undefined),
+    )),
+    [result.results],
+  );
+  const visibleQuestionBankIds = useMemo(() => new Set(questionBankIds), [questionBankIds]);
+
+  const isCurrentBookmarkLoad =
+    bookmarkLoadStatus.result === result && bookmarkLoadStatus.retryKey === bookmarkLoadRetryKey;
+  const isBookmarkListLoading =
+    questionBankIds.length > 0 && (!isCurrentBookmarkLoad || bookmarkLoadStatus.loading);
+  const isBookmarkStateUnknown =
+    questionBankIds.length > 0 && (!isCurrentBookmarkLoad || !bookmarkLoadStatus.known);
+  const isBookmarkInteractionBlocked = isBookmarkListLoading || isBookmarkStateUnknown;
+
+  useCommittedLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      visibleQuestionBankIdsRef.current = new Set();
+      bookmarkGenerationRef.current += 1;
+    };
+  }, []);
+
+  useCommittedLayoutEffect(() => {
+    visibleQuestionBankIdsRef.current = visibleQuestionBankIds;
+  }, [visibleQuestionBankIds]);
+
+  useEffect(() => {
+    const generation = ++bookmarkGenerationRef.current;
+    const idsForResult = new Set(
+      result.results
+        .map(item => item.questionBankId)
+        .filter((id): id is number => id !== null && id !== undefined),
+    );
+    const mutationVersionsAtLoad = new Map(
+      Array.from(
+        idsForResult,
+        id => [id, bookmarkMutationVersionsRef.current.get(id) ?? 0] as const,
+      ),
+    );
+    let active = true;
+
+    setBookmarkError(null);
+    setCanRetryBookmarkLoad(false);
+    setBookmarkLoadStatus({
+      result,
+      retryKey: bookmarkLoadRetryKey,
+      loading: idsForResult.size > 0,
+      known: idsForResult.size === 0,
+    });
+
+    if (idsForResult.size === 0) {
+      setBookmarkedIds(new Set());
+      return () => {
+        active = false;
+      };
+    }
+
+    bookmarkService.getBookmarkedIds()
+      .then((response) => {
+        if (!active || !mountedRef.current || bookmarkGenerationRef.current !== generation) return;
+        if (!response.data.success || !response.data.data) {
+          setBookmarkedIds(new Set());
+          setBookmarkError('복습 표시 정보를 불러오지 못했습니다.');
+          setCanRetryBookmarkLoad(true);
+          setBookmarkLoadStatus({
+            result,
+            retryKey: bookmarkLoadRetryKey,
+            loading: false,
+            known: false,
+          });
+          return;
+        }
+        const loadedIds = new Set(response.data.data);
+        setBookmarkedIds(prev => {
+          const next = new Set(Array.from(prev).filter(id => idsForResult.has(id)));
+          idsForResult.forEach(id => {
+            const versionAtLoad = mutationVersionsAtLoad.get(id) ?? 0;
+            const currentVersion = bookmarkMutationVersionsRef.current.get(id) ?? 0;
+            if (currentVersion !== versionAtLoad) return;
+            if (loadedIds.has(id)) {
+              next.add(id);
+            } else {
+              next.delete(id);
+            }
+          });
+          return next;
+        });
+        setBookmarkLoadStatus({
+          result,
+          retryKey: bookmarkLoadRetryKey,
+          loading: false,
+          known: true,
+        });
+      })
+      .catch(() => {
+        if (!active || !mountedRef.current || bookmarkGenerationRef.current !== generation) return;
+        setBookmarkedIds(new Set());
+        setBookmarkError('복습 표시 정보를 불러오지 못했습니다.');
+        setCanRetryBookmarkLoad(true);
+        setBookmarkLoadStatus({
+          result,
+          retryKey: bookmarkLoadRetryKey,
+          loading: false,
+          known: false,
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [result, bookmarkLoadRetryKey]);
+
+  const handleToggleBookmark = useCallback(async (questionBankId: number) => {
+    if (isBookmarkInteractionBlocked || pendingBookmarkIdsRef.current.has(questionBankId)) return;
+
+    const generation = bookmarkGenerationRef.current;
+    pendingBookmarkIdsRef.current.add(questionBankId);
+    bookmarkMutationVersionsRef.current.set(
+      questionBankId,
+      (bookmarkMutationVersionsRef.current.get(questionBankId) ?? 0) + 1,
+    );
+    setPendingBookmarkIds(new Set(pendingBookmarkIdsRef.current));
+    setBookmarkError(null);
+    setCanRetryBookmarkLoad(false);
+
+    try {
+      const response = await bookmarkService.toggle(questionBankId);
+      if (!response.data.success || !response.data.data) {
+        if (mountedRef.current && bookmarkGenerationRef.current === generation) {
+          setBookmarkError('복습 표시를 변경하지 못했습니다. 다시 시도해 주세요.');
+        }
+        return;
+      }
+      const bookmarked = response.data.data.bookmarked;
+      bookmarkMutationVersionsRef.current.set(
+        questionBankId,
+        (bookmarkMutationVersionsRef.current.get(questionBankId) ?? 0) + 1,
+      );
+
+      if (mountedRef.current && visibleQuestionBankIdsRef.current.has(questionBankId)) {
+        setBookmarkedIds(prev => {
+          const next = new Set(prev);
+          if (bookmarked) {
+            next.add(questionBankId);
+          } else {
+            next.delete(questionBankId);
+          }
+          return next;
+        });
+      }
+    } catch {
+      if (mountedRef.current && bookmarkGenerationRef.current === generation) {
+        setBookmarkError('복습 표시를 변경하지 못했습니다. 다시 시도해 주세요.');
+      }
+    } finally {
+      pendingBookmarkIdsRef.current.delete(questionBankId);
+      if (mountedRef.current) {
+        setPendingBookmarkIds(new Set(pendingBookmarkIdsRef.current));
+      }
+    }
+  }, [isBookmarkInteractionBlocked]);
 
   const allCorrect = result.results.every(r => r.correct);
   const displayResults =
@@ -128,6 +314,27 @@ export function ExamResultDisplay({
           </button>
         </div>
 
+        {bookmarkError && questionBankIds.length > 0 && (
+          <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+            <p role="alert">{bookmarkError}</p>
+            {canRetryBookmarkLoad && (
+              <button
+                type="button"
+                onClick={() => setBookmarkLoadRetryKey(key => key + 1)}
+                className="font-medium underline underline-offset-2"
+              >
+                다시 시도
+              </button>
+            )}
+          </div>
+        )}
+
+        {isBookmarkListLoading && (
+          <p role="status" className="text-sm text-gray-500 dark:text-gray-400">
+            복습 표시 상태를 불러오는 중입니다.
+          </p>
+        )}
+
         {/* 아코디언 목록 */}
         {allCorrect && resultFilter === 'wrong' ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center text-gray-500 dark:text-gray-400 text-sm">
@@ -141,6 +348,30 @@ export function ExamResultDisplay({
           <div className="space-y-2">
             {displayResults.map(item => {
               const isExpanded = expandedItems.has(item.seq);
+              const questionBankId = item.questionBankId;
+              const hasQuestionBankId = questionBankId !== null && questionBankId !== undefined;
+              const isBookmarked = hasQuestionBankId && bookmarkedIds.has(questionBankId);
+              const isBookmarkPending = hasQuestionBankId && pendingBookmarkIds.has(questionBankId);
+              const isBookmarkButtonDisabled =
+                isBookmarkInteractionBlocked || isBookmarkPending;
+              const bookmarkButtonLabel = isBookmarkListLoading
+                ? '복습 표시 상태 불러오는 중'
+                : isBookmarkStateUnknown
+                ? '복습 표시 상태 확인 필요'
+                : isBookmarkPending
+                ? '복습 표시 변경 중'
+                : isBookmarked
+                ? '복습 표시됨'
+                : '복습 표시';
+              const bookmarkButtonTitle = isBookmarkListLoading
+                ? '복습 표시 상태를 불러오는 중입니다'
+                : isBookmarkStateUnknown
+                ? '복습 표시 상태 확인이 필요합니다. 상단에서 다시 시도해 주세요'
+                : isBookmarkPending
+                ? '복습 표시 상태를 변경하는 중입니다'
+                : isBookmarked
+                ? '복습 표시 해제'
+                : '나중에 다시 풀 문제로 표시';
               const previewText =
                 item.title?.trim()
                 || stripHtml(item.instruction ?? '')
@@ -152,37 +383,78 @@ export function ExamResultDisplay({
                   className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
                 >
                   {/* 헤더 */}
-                  <button
-                    onClick={() => toggleExpand(item.seq)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
-                  >
-                    <span
-                      className={[
-                        'shrink-0 px-2 py-0.5 rounded-full text-xs font-bold',
-                        item.correct
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
-                          : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300',
-                      ].join(' ')}
+                  <div className="flex items-center hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                    <button
+                      onClick={() => toggleExpand(item.seq)}
+                      aria-expanded={isExpanded}
+                      className="min-w-0 flex-1 flex items-center gap-3 px-4 py-3 text-left"
                     >
-                      {item.correct ? '정답' : '오답'}
-                    </span>
-                    <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 shrink-0">
-                      Q{item.seq}
-                    </span>
-                    <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 truncate">{previewText}</span>
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      className={[
-                        'w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0 transition-transform',
-                        isExpanded ? 'rotate-180' : '',
-                      ].join(' ')}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
+                      <span
+                        className={[
+                          'shrink-0 px-2 py-0.5 rounded-full text-xs font-bold',
+                          item.correct
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300',
+                        ].join(' ')}
+                      >
+                        {item.correct ? '정답' : '오답'}
+                      </span>
+                      <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 shrink-0">
+                        Q{item.seq}
+                      </span>
+                      <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 truncate">{previewText}</span>
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        className={[
+                          'w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0 transition-transform',
+                          isExpanded ? 'rotate-180' : '',
+                        ].join(' ')}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {hasQuestionBankId && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleBookmark(questionBankId)}
+                        disabled={isBookmarkButtonDisabled}
+                        aria-busy={isBookmarkListLoading || isBookmarkPending}
+                        aria-pressed={isBookmarkStateUnknown ? undefined : isBookmarked}
+                        aria-label={bookmarkButtonLabel}
+                        title={bookmarkButtonTitle}
+                        className={[
+                          'shrink-0 mr-2 flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition disabled:opacity-50 disabled:cursor-not-allowed',
+                          isBookmarked
+                            ? 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300'
+                            : 'border-amber-200 text-amber-500 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/20',
+                        ].join(' ')}
+                      >
+                        {isBookmarked ? (
+                          <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-amber-500" aria-hidden="true">
+                            <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                          </svg>
+                        )}
+                        <span>
+                          {isBookmarkListLoading
+                            ? '불러오는 중'
+                            : isBookmarkStateUnknown
+                            ? '상태 확인 필요'
+                            : isBookmarkPending
+                            ? '변경 중'
+                            : isBookmarked
+                            ? '복습 표시됨'
+                            : '복습 표시'}
+                        </span>
+                      </button>
+                    )}
+                  </div>
 
                   {/* 펼침 내용 */}
                   {isExpanded && (

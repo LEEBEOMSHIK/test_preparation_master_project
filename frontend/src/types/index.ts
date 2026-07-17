@@ -454,6 +454,7 @@ export interface BookmarkQuestion {
 /** 채점 후 문항별 정오·정답·해설 */
 export interface QuestionResult {
   questionId: number | null;
+  questionBankId?: number | null;
   seq: number;
   title?: string | null;
   instruction?: string;

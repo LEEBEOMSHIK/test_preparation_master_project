@@ -1,3 +1,30 @@
+## HIST-20260718-001
+
+- **날짜**: 2026-07-18
+- **수정 범위**: 사용자 백엔드 / 시험 결과 복습 표시 원본 ID 스냅샷
+- **수정 개요**: 시험 제출 결과와 과거 이력에 nullable `questionBankId`를 제공하고, 제출 시점 원본 문제은행 ID를 FK 없이 이력 상세에 보존한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `backend/src/main/java/com/tpmp/testprep/entity/Question.java` | 수정 | 원본 문제은행 ID null-safe 접근자 추가 |
+| `backend/src/main/java/com/tpmp/testprep/entity/ExamHistoryDetail.java` | 수정 | `question_bank_id` nullable 스냅샷 매핑 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionResultResponse.java` | 수정 | 제출 직후·이력 결과에 `questionBankId` 응답 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserExaminationService.java` | 수정 | 제출 시 원본 문제은행 ID 저장 |
+| `backend/src/test/java/com/tpmp/testprep/service/UserExaminationSessionLifecycleTest.java` | 수정 | 원본 있음/없음·이력·저장 회귀 테스트 |
+| `docs/db-migration/20260718_01_add_exam_history_question_bank_id.sql` | 추가 | 컬럼 추가·NULL 한정 보강·검증·롤백 SQL |
+| `docs/db-guidelines.md` | 수정 | 이력 상세 스냅샷 컬럼 문서화 |
+
+### 수정 상세
+
+- `questionId`는 시험지 문항 ID이므로 문제은행 ID로 추정하지 않고, `Question.sourceQuestionBank.id`를 별도 필드로 전달한다.
+- 과거 데이터는 `exam_history_details.question_id → questions.source_question_bank_id`로 연결되는 NULL 행만 보강하며, 이후 원본 삭제·변경과 무관하게 제출 시점 값을 유지하도록 FK를 두지 않는다.
+- 마이그레이션 검증에서 보강 가능한 NULL 행이 하나라도 남으면 `RAISE EXCEPTION`으로 트랜잭션 전체를 롤백한다.
+- 원본 연결이 없는 수동 문항과 보강할 수 없는 기존 이력은 `questionBankId = null`로 정상 응답한다.
+
+---
+
 ## HIST-20260717-004
 
 - **날짜**: 2026-07-17

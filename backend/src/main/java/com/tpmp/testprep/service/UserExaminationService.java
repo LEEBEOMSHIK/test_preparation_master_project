@@ -118,7 +118,7 @@ public class UserExaminationService {
         Examination examination = examinationRepository.findByIdWithPaper(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EXAMINATION_NOT_FOUND));
 
-        // category·sourceQuestionBank LEFT JOIN FETCH — 카테고리/원본 제목 N+1 방지
+        // category·sourceQuestionBank LEFT JOIN FETCH — 카테고리/원본 제목·ID N+1 방지
         List<Question> questions = questionRepository.findByExamIdOrderBySeqAscWithCategory(
                 examination.getExamPaper().getId()
         );
@@ -155,6 +155,7 @@ public class UserExaminationService {
 
             ExamHistoryDetail detail = ExamHistoryDetail.builder()
                     .questionId(q.getId())
+                    .questionBankId(q.getSourceQuestionBankId())
                     .seq(q.getSeq())
                     .instruction(q.getInstruction())
                     .title(q.getResultTitle())

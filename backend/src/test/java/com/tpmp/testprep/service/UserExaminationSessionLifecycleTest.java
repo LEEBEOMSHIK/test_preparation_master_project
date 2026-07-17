@@ -52,6 +52,7 @@ class UserExaminationSessionLifecycleTest {
     @Mock private User user;
     @Mock private ExamSession session;
     @Mock private Question question;
+    @Mock private QuestionBank sourceQuestionBank;
 
     private UserExaminationService service;
 
@@ -138,6 +139,7 @@ class UserExaminationSessionLifecycleTest {
         when(question.getId()).thenReturn(10L);
         when(question.getSeq()).thenReturn(1);
         when(question.getResultTitle()).thenReturn("2025년 2회 19번 — TCP 취약점 공격");
+        when(question.getSourceQuestionBankId()).thenReturn(59L);
         when(question.getContent()).thenReturn("공격 명칭을 쓰시오.");
         when(question.getQuestionType()).thenReturn(Question.QuestionType.SHORT_ANSWER);
         when(question.getAnswer()).thenReturn("SYN Flooding");
@@ -151,16 +153,19 @@ class UserExaminationSessionLifecycleTest {
 
         assertThat(response.results().get(0).title())
                 .isEqualTo("2025년 2회 19번 — TCP 취약점 공격");
+        assertThat(response.results().get(0).questionBankId()).isEqualTo(59L);
         ArgumentCaptor<ExamHistory> historyCaptor = ArgumentCaptor.forClass(ExamHistory.class);
         verify(examHistoryRepository).save(historyCaptor.capture());
         assertThat(historyCaptor.getValue().getDetails().get(0).getTitle())
                 .isEqualTo("2025년 2회 19번 — TCP 취약점 공격");
+        assertThat(historyCaptor.getValue().getDetails().get(0).getQuestionBankId()).isEqualTo(59L);
     }
 
     @Test
     void questionResultUsesHistorySnapshotTitleAndAllowsLegacyNull() {
         ExamHistoryDetail titled = ExamHistoryDetail.builder()
                 .questionId(10L)
+                .questionBankId(59L)
                 .seq(1)
                 .title("저장된 제목")
                 .content("저장된 본문")
@@ -176,15 +181,14 @@ class UserExaminationSessionLifecycleTest {
                 .build();
 
         assertThat(QuestionResultResponse.of(titled).title()).isEqualTo("저장된 제목");
+        assertThat(QuestionResultResponse.of(titled).questionBankId()).isEqualTo(59L);
         assertThat(QuestionResultResponse.of(legacy).title()).isNull();
+        assertThat(QuestionResultResponse.of(legacy).questionBankId()).isNull();
 
-        QuestionBank source = QuestionBank.builder()
-                .title("원본 제목")
-                .content("원본 본문")
-                .questionType(QuestionBank.QuestionType.SHORT_ANSWER)
-                .build();
+        when(sourceQuestionBank.getTitle()).thenReturn("원본 제목");
+        when(sourceQuestionBank.getId()).thenReturn(59L);
         Question sourcedQuestion = Question.builder()
-                .sourceQuestionBank(source)
+                .sourceQuestionBank(sourceQuestionBank)
                 .seq(1)
                 .content("시험지 본문")
                 .questionType(Question.QuestionType.SHORT_ANSWER)
@@ -195,6 +199,10 @@ class UserExaminationSessionLifecycleTest {
                 .questionType(Question.QuestionType.SHORT_ANSWER)
                 .build();
         assertThat(sourcedQuestion.getResultTitle()).isEqualTo("원본 제목");
+        assertThat(sourcedQuestion.getSourceQuestionBankId()).isEqualTo(59L);
+        assertThat(QuestionResultResponse.of(sourcedQuestion, "", false).questionBankId()).isEqualTo(59L);
         assertThat(manualQuestion.getResultTitle()).isNull();
+        assertThat(manualQuestion.getSourceQuestionBankId()).isNull();
+        assertThat(QuestionResultResponse.of(manualQuestion, "", false).questionBankId()).isNull();
     }
 }

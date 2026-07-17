@@ -48,6 +48,7 @@ function mapSessionResultsToExamResultData(items: SessionResultItem[]): ExamResu
   const score = total > 0 ? Math.round((correct / total) * 100) : 0;
   const results: QuestionResult[] = items.map((item, i) => ({
     questionId: item.question.id,
+    questionBankId: item.question.id,
     seq: i + 1,
     content: item.question.content,
     questionType: item.question.questionType as QuestionType,

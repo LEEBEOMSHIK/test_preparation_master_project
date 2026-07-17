@@ -29,6 +29,10 @@ public class ExamHistoryDetail {
     @Column(name = "question_id")
     private Long questionId;
 
+    /** 제출 시점 원본 문제은행 ID 스냅샷 — DB FK 제약 없이 nullable Long 필드만 */
+    @Column(name = "question_bank_id")
+    private Long questionBankId;
+
     @Column(nullable = false)
     private int seq;
 

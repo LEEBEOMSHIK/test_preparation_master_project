@@ -1,3 +1,26 @@
+## HIST-20260718-001
+
+- **날짜**: 2026-07-18
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 완료 결과 복습 표시
+- **수정 개요**: 데일리 퀴즈 세션 결과에 명시적인 문제은행 ID를 전달해 공용 결과 화면에서 복습 표시를 추가·해제할 수 있게 했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | 세션 결과의 퀴즈 문항 ID를 `questionBankId`로 명시 매핑 |
+| `frontend/src/types/index.ts` | 수정 | 결과 문항의 nullable `questionBankId` 타입 추가 |
+| `frontend/src/components/ui/ExamResultDisplay.tsx` | 수정 | 공용 결과 복습 표시 조회·토글 UI |
+| `frontend/src/components/ui/ExamResultDisplay.test.tsx` | 수정 | 공용 결과 북마크 동작 회귀 테스트 |
+
+### 수정 상세
+
+- 데일리 퀴즈의 `QuizQuestion.id`는 문제은행 ID라는 계약을 결과 모델에 명시해, 시험 결과의 `questionId`와 혼용하지 않는다.
+- 완료 결과의 정답·오답 문항 모두에서 복습 표시를 사용할 수 있고 오답 필터에서도 버튼을 유지한다. 목록 상태를 확인하기 전에는 토글을 잠그고 모바일에서도 상태 텍스트를 항상 표시한다.
+- 공용 결과 컴포넌트는 커밋된 결과 ID만 비동기 토글 응답에 사용하고, 언마운트 뒤 늦은 목록·토글 응답과 현재 결과 밖 북마크 ID를 상태에 반영하지 않는다.
+
+---
+
 ## HIST-20260717-002
 
 - **날짜**: 2026-07-17

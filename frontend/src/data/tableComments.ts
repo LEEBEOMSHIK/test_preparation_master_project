@@ -144,6 +144,7 @@ export const TABLE_COMMENTS: TableComment[] = [
       id: 'PK',
       exam_history_id: 'FK → exam_history.id',
       question_id: '제출 시점 문항 ID',
+      question_bank_id: '제출 시점 원본 문제은행 ID 스냅샷 (FK 없음, 원본 연결이 없으면 NULL)',
       seq: '문항 순서',
       title: '제출 시점 원본 문항 제목 스냅샷 (원본 연결이 없으면 NULL)',
       instruction: '제출 시점 발문(지시문) 스냅샷',

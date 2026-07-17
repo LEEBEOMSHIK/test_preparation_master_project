@@ -139,6 +139,11 @@ public class Question {
         return sourceQuestionBank != null ? sourceQuestionBank.getTitle() : null;
     }
 
+    /** 제출 결과와 이력에 사용할 원본 문제은행 ID. 원본 연결이 없는 수동 문항은 null이다. */
+    public Long getSourceQuestionBankId() {
+        return sourceQuestionBank != null ? sourceQuestionBank.getId() : null;
+    }
+
     public enum QuestionType {
         MULTIPLE_CHOICE, SHORT_ANSWER, OX, CODE, SCHEDULING, SQL
     }
