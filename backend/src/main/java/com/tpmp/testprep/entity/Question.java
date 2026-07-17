@@ -134,6 +134,11 @@ public class Question {
         this.sqlData = source.getSqlData();
     }
 
+    /** 제출 결과와 이력에 사용할 원본 문항 제목. 원본 연결이 없는 수동 문항은 null이다. */
+    public String getResultTitle() {
+        return sourceQuestionBank != null ? sourceQuestionBank.getTitle() : null;
+    }
+
     public enum QuestionType {
         MULTIPLE_CHOICE, SHORT_ANSWER, OX, CODE, SCHEDULING, SQL
     }

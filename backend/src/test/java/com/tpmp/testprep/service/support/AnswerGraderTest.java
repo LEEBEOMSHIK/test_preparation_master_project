@@ -218,6 +218,81 @@ class AnswerGraderTest {
     }
 
     // -----------------------------------------------------------------------
+    // 실사용 2025년 2회 11·19·20번 — 명시적 대체답, dash, 구분자 직후 숫자 마커
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("2025년 2회 11번: canonical 경로와 기존 콤마·파이프 경로 표기를 대체 정답으로 인정")
+    void shortAnswer_q11_explicitPathAlternatives_correct() {
+        String correct = "1-2-3-4-5-6-7, 1-2-4-5-6-1"
+                + " || 1,2,3,4,5,6,7 | 1,2,4,5,6,1";
+        assertThat(AnswerGrader.isCorrect(
+                "SHORT_ANSWER", correct, "1-2-3-4-5-6-7, 1-2-4-5-6-1")).isTrue();
+        assertThat(AnswerGrader.isCorrect(
+                "SHORT_ANSWER", correct, "1,2,3,4,5,6,7 | 1,2,4,5,6,1")).isTrue();
+        assertThat(AnswerGrader.isCorrect(
+                "SHORT_ANSWER", correct, "1-2-3-4-5-6-7")).isFalse();
+        assertThat(AnswerGrader.isCorrect(
+                "SHORT_ANSWER", correct, "1-2-4-5-6-1, 1-2-3-4-5-6-7")).isFalse();
+        assertThat(AnswerGrader.isCorrect(
+                "SHORT_ANSWER", correct, "1-2-3-4-5-6-7, 1-2-4-5-1")).isFalse();
+        assertThat(AnswerGrader.isCorrect(
+                "SHORT_ANSWER", correct, "1,2,3,4,5,6,7 | 1")).isFalse();
+        assertThat(AnswerGrader.isCorrect(
+                "SHORT_ANSWER", correct, "1,2,4,5,6,1 | 1,2,3,4,5,6,7")).isFalse();
+        assertThat(AnswerGrader.isCorrect(
+                "SHORT_ANSWER", correct, "1,2,3,4,5,6,7 | 1,2,4,5,1")).isFalse();
+    }
+
+    @Test
+    @DisplayName("2025년 2회 19번: 영문 단어 사이 하이픈·대시는 공백과 동치")
+    void shortAnswer_q19_englishWordDash_correct() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "SYN Flooding", "SYN-Flooding")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "SYN Flooding", "SYN–Flooding")).isTrue();
+    }
+
+    @Test
+    @DisplayName("2025년 2회 20번: 콤마 직후 숫자 마커를 제거해 실제 답안을 채점")
+    void shortAnswer_q20_markerImmediatelyAfterComma_correct() {
+        String correct = "1. TTL,2. 부장, 3. 대리, 4. 과장, 5. 차장";
+        assertThat(AnswerGrader.isCorrect(
+                "SHORT_ANSWER", correct, "TTL, 부장, 대리, 과장, 차장")).isTrue();
+        assertThat(AnswerGrader.isCorrect(
+                "SHORT_ANSWER",
+                "1.TTL,2.부장,3.대리,4.과장,5.차장",
+                "TTL, 부장, 대리, 과장, 차장")).isTrue();
+    }
+
+    @Test
+    @DisplayName("다중값: 슬래시 직후 숫자 마커를 세 유형에서 동일하게 인식")
+    void multiValue_markerImmediatelyAfterSlash_allTypes_correct() {
+        String correct = "1. TTL/2. 부장/3) 대리";
+        String user = "TTL, 부장, 대리";
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", correct, user)).isTrue();
+        assertThat(AnswerGrader.isCorrect("SCHEDULING", correct, user)).isTrue();
+        assertThat(AnswerGrader.isCorrect("SQL", correct, user)).isTrue();
+    }
+
+    @Test
+    @DisplayName("dash 정규화 오탐 방지: 숫자·수식 하이픈과 무구분 영문은 보존")
+    void dashNormalization_strictNonMatches() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "1-2", "1 2")).isFalse();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "SYNFlooding", "SYN Flooding")).isFalse();
+    }
+
+    @Test
+    @DisplayName("열거 정규화 오탐 방지: 소수·IP·Q20 다른 항목은 오답")
+    void enumerationNormalization_strictNonMatches() {
+        assertThat(AnswerGrader.isCorrect("SCHEDULING", "11.75", "1175")).isFalse();
+        assertThat(AnswerGrader.isCorrect(
+                "SHORT_ANSWER", "192.168.10.0/23", "192.168.10.0/24")).isFalse();
+        assertThat(AnswerGrader.isCorrect(
+                "SHORT_ANSWER",
+                "1. TTL,2. 부장, 3. 대리, 4. 과장, 5. 차장",
+                "TTL, 부장, 대리, 과장, 사원")).isFalse();
+    }
+
+    // -----------------------------------------------------------------------
     // CODE — 콤마 분리 금지, 통문자열 비교
     // -----------------------------------------------------------------------
 
@@ -588,11 +663,11 @@ class AnswerGraderTest {
     }
 
     @Test
-    @DisplayName("대체 정답: 단일 파이프(|)는 구분자가 아니므로 영향 없음(기존처럼 통째로 비교되어 오답)")
-    void alternatives_singlePipe_notSeparator() {
-        // "||"가 아닌 단일 "|"는 대체 정답 구분자가 아니므로 문자열 그대로 유지된 채 채점된다.
+    @DisplayName("대체 정답: 단일 파이프(|) 그룹은 개수·순서를 보존해 비교")
+    void alternatives_singlePipe_preservesGroupStructure() {
         assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "a | b", "a")).isFalse();
         assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "a | b", "a | b")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "a | b", "b | a")).isFalse();
     }
 
     @Test

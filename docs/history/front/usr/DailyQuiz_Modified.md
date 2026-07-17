@@ -1,3 +1,24 @@
+## HIST-20260717-002
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 결과 문항 미리보기
+- **수정 개요**: 시험·퀴즈 공용 `ExamResultDisplay`의 접힌 문항 헤더에 제목 우선 4단계 fallback을 적용했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/components/ui/ExamResultDisplay.tsx` | 수정 | 제목·발문·본문·기본 문구 순 미리보기 |
+| `frontend/src/components/ui/ExamResultDisplay.test.tsx` | 추가 | HTML 제거와 fallback 우선순위 검증 |
+| `frontend/src/types/index.ts` | 수정 | 결과 문항 제목 nullable 선택 필드 |
+
+### 수정 상세
+
+- 제목이 없는 퀴즈 결과는 기존 데이터의 발문 또는 본문을 사용하므로 legacy 응답도 깨지지 않는다.
+- 빈 제목·빈 HTML 본문까지 모두 없으면 `문항 제목 없음`을 표시한다.
+
+---
+
 ## HIST-20260717-001
 
 - **날짜**: 2026-07-17

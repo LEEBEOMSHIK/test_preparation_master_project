@@ -214,50 +214,71 @@ function tryEvaluateFormula(rhs: string, env: ReadonlyMap<string, number>): Form
   return { value: result.value, formatted: formatComputedNumber(result.value) };
 }
 
-/**
- * s에서 인덱스 startIdx(반드시 '[')와 짝이 맞는 ']'의 인덱스를 반환한다.
- * 괄호 깊이가 음수가 되거나 끝까지 닫히지 않으면 null(불일치).
- */
-function findMatchingBracketEnd(s: string, startIdx: number): number | null {
-  let depth = 0;
-  for (let i = startIdx; i < s.length; i++) {
-    if (s[i] === '[') {
-      depth++;
-    } else if (s[i] === ']') {
-      depth--;
-      if (depth === 0) return i;
-      if (depth < 0) return null;
-    }
-  }
-  return null;
-}
-
-/** 최상위(depth 0) 콤마 기준으로 분리 — 중첩 대괄호 내부의 콤마는 분리하지 않는다 */
-function splitTopLevel(inner: string): string[] {
-  if (inner.trim().length === 0) return [];
-  const parts: string[] = [];
-  let depth = 0;
-  let start = 0;
-  for (let i = 0; i < inner.length; i++) {
-    const ch = inner[i];
-    if (ch === '[') depth++;
-    else if (ch === ']') depth--;
-    else if (ch === ',' && depth === 0) {
-      parts.push(inner.slice(start, i).trim());
-      start = i + 1;
-    }
-  }
-  parts.push(inner.slice(start).trim());
-  return parts;
-}
-
 /** `[...]`로 감싸인 값 하나를 최상위 원소 문자열 배열로 분리. 형태가 아니면 null */
 function parseBracketGroup(raw: string): string[] | null {
   const s = raw.trim();
   if (s.length < 2 || s[0] !== '[') return null;
-  const end = findMatchingBracketEnd(s, 0);
-  if (end === null || end !== s.length - 1) return null; // 닫는 괄호가 문자열 끝이 아니면 불일치
-  return splitTopLevel(s.slice(1, end));
+
+  const parts: string[] = [];
+  const stack: Array<'[' | '{' | '('> = ['['];
+  let quote: '"' | "'" | null = null;
+  let escaped = false;
+  let partStart = 1;
+
+  const expectedOpening = (closing: string): '[' | '{' | '(' | null => {
+    if (closing === ']') return '[';
+    if (closing === '}') return '{';
+    if (closing === ')') return '(';
+    return null;
+  };
+
+  for (let i = 1; i < s.length; i++) {
+    const ch = s[i];
+
+    if (quote !== null) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      continue;
+    }
+
+    if (ch === '[' || ch === '{' || ch === '(') {
+      stack.push(ch);
+      continue;
+    }
+
+    const opening = expectedOpening(ch);
+    if (opening !== null) {
+      if (stack[stack.length - 1] !== opening) return null;
+      stack.pop();
+
+      if (stack.length === 0) {
+        if (i !== s.length - 1) return null;
+        const lastPart = s.slice(partStart, i).trim();
+        if (lastPart.length > 0 || parts.length > 0) parts.push(lastPart);
+        return parts;
+      }
+      continue;
+    }
+
+    // 바깥 배열 바로 아래의 콤마만 원소 경계다. 중첩 그룹·문자열 내부 콤마는 보존한다.
+    if (ch === ',' && stack.length === 1) {
+      parts.push(s.slice(partStart, i).trim());
+      partStart = i + 1;
+    }
+  }
+
+  // 바깥 대괄호, 중첩 그룹 또는 따옴표가 닫히지 않은 입력은 배열로 오인하지 않는다.
+  return null;
 }
 
 type ArrayParseResult = { kind: 'array1d'; cells: string[] } | { kind: 'array2d'; grid: string[][] };

@@ -455,6 +455,7 @@ export interface BookmarkQuestion {
 export interface QuestionResult {
   questionId: number | null;
   seq: number;
+  title?: string | null;
   instruction?: string;
   content: string;
   questionType: QuestionType;

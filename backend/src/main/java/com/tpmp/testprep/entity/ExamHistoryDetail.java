@@ -32,6 +32,10 @@ public class ExamHistoryDetail {
     @Column(nullable = false)
     private int seq;
 
+    /** 제출 시점 원본 문항 제목 스냅샷. 원본 연결이 없는 수동 시험지 문항은 null. */
+    @Column(length = 200)
+    private String title;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 

@@ -37,11 +37,12 @@ interface ScratchPadData {
    */
   pageReplacement: PageReplacementData;
   /**
-   * 이진트리 시각화 도구(BinaryTreeTool)의 레벨오더 배열 표기 입력 원본 문자열.
-   * HIST-20260707-003에서 추가. 구버전 저장분에는 필드 자체가 없을 수 있어 loadData가
-   * 문자열 타입가드로 검증 후 없거나 손상된 경우 빈 문자열로 폴백한다.
+   * 이진트리 시각화 도구(BinaryTreeTool)의 레벨오더 배열 표기 입력 원본 문자열 목록.
+   * 항상 1개 이상, MAX_TREE_COUNT 이하로 정규화한다.
    */
-  treeInput: string;
+  treeInputs: string[];
+  /** treeInputs와 같은 인덱스의 안정적인 React key. 트리 추가/삭제 뒤에도 남은 항목의 ID를 보존한다. */
+  treeIds: string[];
   /**
    * 손입력 간트 차트 CPU 스케줄링 풀이 도구(SchedulingSolveTool) 데이터. HIST-20260710-002에서
    * 추가되었으며, 이전 저장분에는 필드 자체가 없을 수 있어 loadData가 타입가드
@@ -62,11 +63,13 @@ const EMPTY_DATA: ScratchPadData = {
   trace: '',
   calcHistory: [],
   pageReplacement: EMPTY_PAGE_REPLACEMENT_DATA,
-  treeInput: '',
+  treeInputs: [''],
+  treeIds: ['tree-1'],
   scheduling: EMPTY_SCHEDULING_SOLVE_DATA,
 };
 const SAVE_DEBOUNCE_MS = 500;
 const MAX_CALC_HISTORY = 10;
+export const MAX_TREE_COUNT = 20;
 
 const PANEL_WIDTH_STORAGE_KEY = 'tpmp:scratchpad:panel-width';
 const DEFAULT_PANEL_WIDTH = 320;
@@ -117,6 +120,46 @@ function savePanelWidth(width: number): void {
   }
 }
 
+interface LegacyTreeData {
+  treeInput?: unknown;
+  treeInputs?: unknown;
+  treeIds?: unknown;
+}
+
+function nextTreeId(ids: readonly string[]): string {
+  let sequence = 1;
+  while (ids.includes(`tree-${sequence}`)) sequence += 1;
+  return `tree-${sequence}`;
+}
+
+/**
+ * 현재/구버전 트리 저장값을 안전한 병렬 배열로 정규화한다.
+ * treeInputs가 존재하면 구형 treeInput보다 우선하며, 비문자 원소는 빈 입력으로 보존한다.
+ */
+export function normalizeTreeData(source: LegacyTreeData): { treeInputs: string[]; treeIds: string[] } {
+  const hasTreeInputs = Object.prototype.hasOwnProperty.call(source, 'treeInputs');
+  const rawInputs = hasTreeInputs
+    ? (Array.isArray(source.treeInputs) ? source.treeInputs : [])
+    : (typeof source.treeInput === 'string' ? [source.treeInput] : []);
+  const treeInputs = rawInputs
+    .slice(0, MAX_TREE_COUNT)
+    .map(input => typeof input === 'string' ? input : '');
+  if (treeInputs.length === 0) treeInputs.push('');
+
+  const rawIds = Array.isArray(source.treeIds) ? source.treeIds : [];
+  const treeIds: string[] = [];
+  treeInputs.forEach((_, index) => {
+    const candidate = rawIds[index];
+    if (typeof candidate === 'string' && candidate.trim().length > 0 && !treeIds.includes(candidate)) {
+      treeIds.push(candidate);
+      return;
+    }
+    treeIds.push(nextTreeId(treeIds));
+  });
+
+  return { treeInputs, treeIds };
+}
+
 /**
  * localStorage에서 스크래치패드 데이터 로드 — 파싱/접근 오류 시 빈 데이터로 폴백.
  * 구버전(HIST-20260706-001) traceBlocks가 남아있으면 표기법 텍스트로 1회 변환해
@@ -138,18 +181,18 @@ function loadData(key: string): ScratchPadData {
       return EMPTY_DATA;
     }
 
-    const p = parsed as ScratchPadData;
+    const p = parsed as ScratchPadData & LegacyTreeData;
     const pageReplacement = isPageReplacementData(p.pageReplacement) ? p.pageReplacement : EMPTY_PAGE_REPLACEMENT_DATA;
-    const treeInput = typeof p.treeInput === 'string' ? p.treeInput : '';
+    const { treeInputs, treeIds } = normalizeTreeData(p);
     const scheduling = isSchedulingSolveData(p.scheduling) ? p.scheduling : EMPTY_SCHEDULING_SOLVE_DATA;
 
     const legacyBlocks = sanitizeLegacyTraceBlocks(p.traceBlocks);
     if (legacyBlocks.length === 0) {
-      return { note: p.note, trace: p.trace, calcHistory: p.calcHistory, pageReplacement, treeInput, scheduling };
+      return { note: p.note, trace: p.trace, calcHistory: p.calcHistory, pageReplacement, treeInputs, treeIds, scheduling };
     }
     const migratedText = legacyTraceBlocksToNotation(legacyBlocks);
     const mergedTrace = [p.trace, migratedText].filter(s => s.trim().length > 0).join('\n');
-    return { note: p.note, trace: mergedTrace, calcHistory: p.calcHistory, pageReplacement, treeInput, scheduling };
+    return { note: p.note, trace: mergedTrace, calcHistory: p.calcHistory, pageReplacement, treeInputs, treeIds, scheduling };
   } catch {
     return EMPTY_DATA;
   }
@@ -329,6 +372,35 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
     updateData(prev => ({ ...prev, calcHistory: [] }));
   }, [updateData]);
 
+  const updateTreeInput = useCallback((index: number, next: string) => {
+    updateData(prev => ({
+      ...prev,
+      treeInputs: prev.treeInputs.map((input, inputIndex) => inputIndex === index ? next : input),
+    }));
+  }, [updateData]);
+
+  const addTree = useCallback(() => {
+    updateData(prev => {
+      if (prev.treeInputs.length >= MAX_TREE_COUNT) return prev;
+      return {
+        ...prev,
+        treeInputs: [...prev.treeInputs, ''],
+        treeIds: [...prev.treeIds, nextTreeId(prev.treeIds)],
+      };
+    });
+  }, [updateData]);
+
+  const removeTree = useCallback((index: number) => {
+    updateData(prev => {
+      if (prev.treeInputs.length <= 1) return prev;
+      return {
+        ...prev,
+        treeInputs: prev.treeInputs.filter((_, inputIndex) => inputIndex !== index),
+        treeIds: prev.treeIds.filter((_, idIndex) => idIndex !== index),
+      };
+    });
+  }, [updateData]);
+
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'note', label: '자유 메모' },
     ...(isCodeQuestion ? [{ key: 'trace' as TabKey, label: '코드 트레이싱' }] : []),
@@ -434,10 +506,59 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
         )}
 
         {tab === 'tree' && (
-          <BinaryTreeTool
-            value={data.treeInput}
-            onChange={next => updateData(prev => ({ ...prev, treeInput: next }))}
-          />
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                트리는 최대 {MAX_TREE_COUNT}개까지 추가할 수 있습니다.
+              </p>
+              <button
+                type="button"
+                onClick={addTree}
+                disabled={data.treeInputs.length >= MAX_TREE_COUNT}
+                aria-label="트리 추가"
+                title={data.treeInputs.length >= MAX_TREE_COUNT ? `트리는 최대 ${MAX_TREE_COUNT}개까지 추가할 수 있습니다.` : undefined}
+                className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-gray-700"
+              >
+                + 트리 추가
+              </button>
+            </div>
+
+            {data.treeInputs.length >= MAX_TREE_COUNT && (
+              <p role="status" className="text-xs text-amber-600 dark:text-amber-400">
+                트리는 최대 {MAX_TREE_COUNT}개까지 유지할 수 있습니다.
+              </p>
+            )}
+
+            {data.treeInputs.map((treeInput, index) => {
+              const isLastTree = data.treeInputs.length === 1;
+              const title = `트리 ${index + 1}`;
+              return (
+                <section
+                  key={data.treeIds[index]}
+                  aria-label={title}
+                  className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</h3>
+                    <button
+                      type="button"
+                      onClick={() => removeTree(index)}
+                      disabled={isLastTree}
+                      aria-label={`${title} 삭제`}
+                      title={isLastTree ? '트리는 최소 1개 이상 유지해야 합니다.' : `${title} 삭제`}
+                      className="rounded-md px-2 py-1 text-xs text-red-500 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:text-gray-300 dark:hover:bg-red-500/10 dark:disabled:text-gray-600"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                  <BinaryTreeTool
+                    value={treeInput}
+                    onChange={next => updateTreeInput(index, next)}
+                  />
+                </section>
+              );
+            })}
+          </div>
         )}
 
         {tab === 'calc' && (

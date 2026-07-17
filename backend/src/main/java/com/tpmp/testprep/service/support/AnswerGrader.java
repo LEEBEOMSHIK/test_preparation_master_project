@@ -36,13 +36,14 @@ import java.util.stream.Collectors;
  * 따옴표 종류(작은따옴표 · 큰따옴표 · 모바일 IME 타이포그래피 따옴표 ‘ ’ “ ”)는 모두 작은따옴표로
  * 통일하여 비교하므로 {@code 과목코드='DB'} 와 {@code 과목코드="DB"} 는 동일하게 취급된다.
  *
- * <p>위 Set 비교(multiSetMatch)가 실패하면, 느슨한 폴백으로 양쪽 문자열의 괄호 부연·
+ * <p>위 Set 비교(multiSetMatch)가 실패하고 양쪽 중 하나에 열거 마커가 있으면, 느슨한 폴백으로 양쪽 문자열의 괄호 부연·
  * 공백·콤마·슬래시를 모두 제거한 뒤 동등 비교한다. 이는 사용자가 구분자 없이
  * 답을 나열한 경우(예: "1. pwd 2. ls 3. cd 4. cp" ↔ 정답 "1. pwd / 2. ls / 3. cd / 4. cp")를
  * 정답 처리하기 위함이다. 폴백은 정규화 후 어느 한쪽이라도 빈 문자열이면 적용하지 않는다.
  * 또한 콤마·슬래시가 전혀 없어도 {@code 1.}·{@code 2)} 등 번호 매김으로만 항목을 나열한
  * 정답(예: "1. FCFS 2. SJF 3. SRT")은 Set 비교 단계에서부터 번호 매김을 구분자로 인식해
- * 항목별로 분리한다(소수점은 영향 없음).
+ * 항목별로 분리한다(소수점은 영향 없음). 일반 단일 구문에는 이 폴백을 적용하지 않아
+ * {@code SYNFlooding}과 {@code SYN Flooding}을 서로 다른 답으로 유지한다.
  *
  * <p><b>열거 마커 확장</b> — SHORT_ANSWER · SCHEDULING · SQL 의 다중값 비교와 느슨 폴백에서는
  * 숫자 번호 매김({@code 1.}·{@code 2)}) 외에 한글 자모({@code ㄱ.}·{@code ㄴ)}), 라틴 단일
@@ -51,8 +52,13 @@ import java.util.stream.Collectors;
  * "Bridge, Observer"는 정답이고, 정답 "a. 192.168.10.0/23 / b. 192.168.12.0/23"에 사용자
  * "192.168.10.0/23, 192.168.12.0/23"도 정답이다(CIDR의 {@code /}는 양쪽에서 동일하게
  * 분리되므로 결과가 대칭이다). 자모·라틴 마커는 뒤에 공백이 있어야 마커로 취급하므로
- * "a.b"·"i.e." 같은 본문 표기는 영향받지 않는다. options 채점(빈칸 순서 비교)은 프론트엔드
+ * "a.b"·"i.e." 같은 본문 표기는 영향받지 않는다. 숫자 마커는 문자열 시작·공백뿐 아니라
+ * 콤마·슬래시 직후({@code ,2. }·{@code /3) })도 인식한다. 번호 뒤 공백이 없어도
+ * 비숫자 본문이 바로 시작되면({@code 1.TTL}) 마커로 보되, 다음 문자가 숫자인
+ * {@code 11.75} 같은 소수는 제외한다. options 채점(빈칸 순서 비교)은 프론트엔드
  * {@code lib/answer.ts}와 규칙을 동기화해야 하므로 기존 숫자 마커만 유지한다.
+ * 영문자 사이의 하이픈·일반 dash는 단일 공백으로 정규화해 {@code SYN-Flooding}과
+ * {@code SYN Flooding}을 동치로 보되, 숫자·수식의 하이픈은 보존한다.
  *
  * <p>CODE 유형은 콤마가 코드 문법의 일부일 수 있으므로 절대 분리하지 않고
  * 통문자열 비교한다. 단, 줄 끝 trailing 공백·CRLF 차이·앞뒤 빈 줄은 정규화하여
@@ -73,8 +79,11 @@ import java.util.stream.Collectors;
  * {@code isCorrect} 3-인자·4-인자 오버로드 진입부에서 정답 문자열을 이 구분자로 먼저 분리한 뒤
  * 각 대체 정답에 대해 기존 유형별·보기 채점 로직을 동일하게 적용한다(하나라도 true면 true).
  * 대체 정답이 1개뿐이면(즉 {@code ||}가 없으면) 기존과 완전히 동일하게 동작한다. 사용자 답안은
- * 분리하지 않으므로, 사용자가 {@code ||}를 실제로 입력한 경우는 리터럴 문자로 취급된다. 단일
- * {@code |} 문자(SQL 결과 테이블 셀 구분자 등)는 이 구분자와 무관하며 전혀 영향받지 않는다.
+ * 분리하지 않으므로, 사용자가 {@code ||}를 실제로 입력한 경우는 리터럴 문자로 취급된다.
+ * SHORT_ANSWER 계열의 단일 {@code |}는 경로/그룹 경계로 인식하며, 그룹 수·그룹 순서와 각
+ * 그룹 내부 콤마/슬래시 토큰 순서가 모두 같아야 정답이다. 이 구조 비교는 일반 Set 비교보다
+ * 먼저 수행해 서로 다른 경로에 반복된 노드가 중복 제거되는 오탐을 막는다. 콤마로 구분된
+ * 숫자-하이픈 경로 목록도 동일하게 경로 수·경로 순서·노드 순서를 보존한다.
  */
 public final class AnswerGrader {
 
@@ -110,6 +119,12 @@ public final class AnswerGrader {
         // SHORT_ANSWER, SCHEDULING, SQL — 콤마·슬래시 다중 정답 Set 비교
         // (SCHEDULING·SQL은 자동 계산·SQL 실행 없이 수동 정답을 동일 방식으로 채점)
         if ("SHORT_ANSWER".equals(questionType) || "SCHEDULING".equals(questionType) || "SQL".equals(questionType)) {
+            if (containsSinglePipe(correctAnswer) || containsSinglePipe(userAnswer)) {
+                return orderedPipeGroupsMatch(correctAnswer, userAnswer);
+            }
+            if (isOrderedHyphenPathList(correctAnswer) || isOrderedHyphenPathList(userAnswer)) {
+                return orderedHyphenPathListMatch(correctAnswer, userAnswer);
+            }
             if (multiSetMatch(correctAnswer, userAnswer)) {
                 return true;
             }
@@ -307,9 +322,9 @@ public final class AnswerGrader {
      * </ul>
      */
     private static String extendedEnumerationToSeparators(String raw) {
-        return enumerationToSeparators(raw)
-                .replaceAll("(^|\\s)[ㄱ-ㅎA-Za-z][.)]\\s+", "$1/")
-                .replaceAll("(^|\\s)[①-⑳][.)]?\\s*", "$1/");
+        return raw.replaceAll("(^|[\\s,/])\\d{1,2}[.)](?:\\s+|(?=[^\\d\\s]))", "$1/")
+                .replaceAll("(^|[\\s,/])[ㄱ-ㅎA-Za-z][.)]\\s+", "$1/")
+                .replaceAll("(^|[\\s,/])[①-⑳][.)]?\\s*", "$1/");
     }
 
     /**
@@ -412,6 +427,71 @@ public final class AnswerGrader {
         return hasPerfectMatching(correct, user, 0, new boolean[user.size()], new int[]{MATCHING_STEP_LIMIT});
     }
 
+    /** 대체 정답 구분자 {@code ||}가 아닌 단일 pipe가 포함됐는지 확인한다. */
+    private static final Pattern SINGLE_PIPE = Pattern.compile("(?<!\\|)\\|(?!\\|)");
+
+    private static boolean containsSinglePipe(String raw) {
+        return SINGLE_PIPE.matcher(raw).find();
+    }
+
+    /** 콤마로 구분된 숫자-하이픈 경로가 2개 이상인지 판별한다. */
+    private static final Pattern HYPHEN_PATH = Pattern.compile("\\s*\\d+(?:\\s*-\\s*\\d+)+\\s*");
+
+    private static boolean isOrderedHyphenPathList(String raw) {
+        String[] paths = raw.split(",", -1);
+        return paths.length > 1 && Arrays.stream(paths).allMatch(path -> HYPHEN_PATH.matcher(path).matches());
+    }
+
+    /** 콤마로 나열한 하이픈 경로의 경로 수·경로 순서·노드 순서를 모두 보존한다. */
+    private static boolean orderedHyphenPathListMatch(String correctAnswer, String userAnswer) {
+        if (!isOrderedHyphenPathList(correctAnswer) || !isOrderedHyphenPathList(userAnswer)) {
+            return false;
+        }
+        String[] correctPaths = correctAnswer.split(",", -1);
+        String[] userPaths = userAnswer.split(",", -1);
+        if (correctPaths.length != userPaths.length) {
+            return false;
+        }
+        for (int index = 0; index < correctPaths.length; index++) {
+            if (!correctPaths[index].replaceAll("\\s+", "")
+                    .equals(userPaths[index].replaceAll("\\s+", ""))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 단일 pipe로 나뉜 그룹과 각 그룹 내부 콤마/슬래시 토큰을 모두 순서 보존 비교한다.
+     * 어느 그룹도 비어 있을 수 없으며, 토큰은 기존 괄호 대체·dash·공백 정규화를 재사용한다.
+     */
+    private static boolean orderedPipeGroupsMatch(String correctAnswer, String userAnswer) {
+        if (!containsSinglePipe(correctAnswer) || !containsSinglePipe(userAnswer)) {
+            return false;
+        }
+        String[] correctGroups = SINGLE_PIPE.split(correctAnswer, -1);
+        String[] userGroups = SINGLE_PIPE.split(userAnswer, -1);
+        if (correctGroups.length != userGroups.length) {
+            return false;
+        }
+        for (int groupIndex = 0; groupIndex < correctGroups.length; groupIndex++) {
+            List<String> correctTokens = tokenizeOrdered(correctGroups[groupIndex]);
+            List<String> userTokens = tokenizeOrdered(userGroups[groupIndex]);
+            if (correctTokens.isEmpty() || userTokens.isEmpty() || correctTokens.size() != userTokens.size()) {
+                return false;
+            }
+            for (int tokenIndex = 0; tokenIndex < correctTokens.size(); tokenIndex++) {
+                Set<String> correctVariants = tokenVariants(correctTokens.get(tokenIndex));
+                Set<String> userVariants = tokenVariants(userTokens.get(tokenIndex));
+                if (correctVariants.isEmpty() || userVariants.isEmpty()
+                        || Collections.disjoint(correctVariants, userVariants)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     /** 완전 매칭 백트래킹 탐색 상한 — 비정상적으로 크거나 악의적인 입력에서의 폭주 방지. */
     private static final int MATCHING_STEP_LIMIT = 100_000;
 
@@ -432,6 +512,12 @@ public final class AnswerGrader {
 
     /** 토큰 말미의 괄호 부연/대체 표기: 그룹 1이 괄호 내용. */
     private static final Pattern TRAILING_PARENTHETICAL = Pattern.compile("\\s*\\(([^)]*)\\)\\s*$");
+    private static final Pattern ENUMERATION_MARKER = Pattern.compile(
+            "(^|[\\s,/])\\d{1,2}[.)](?:\\s+|(?=[^\\d\\s]))"
+                    + "|(^|[\\s,/])[ㄱ-ㅎA-Za-z][.)]\\s+"
+                    + "|(^|[\\s,/])[①-⑳][.)]?\\s*");
+    private static final Pattern ENGLISH_WORD_DASH = Pattern.compile(
+            "(?<=[A-Za-z])[-‐‑‒–—−](?=[A-Za-z])");
 
     /**
      * 단일 토큰을 "인정 가능한 표기 집합"으로 변환한다. trim → 소문자화 → 따옴표 통일 →
@@ -441,6 +527,7 @@ public final class AnswerGrader {
     private static Set<String> tokenVariants(String rawToken) {
         String s = rawToken.trim().toLowerCase();
         s = normalizeQuotes(s);
+        s = normalizeEnglishWordDash(s);
         s = s.replaceAll("\\s+", " ").trim();
         Set<String> variants = new LinkedHashSet<>();
         Matcher m = TRAILING_PARENTHETICAL.matcher(s);
@@ -496,21 +583,36 @@ public final class AnswerGrader {
         return s.replaceAll("[\"“”‘’]", "'");
     }
 
+    /** 영문 단어 사이의 하이픈·대시만 단어 경계 공백으로 정규화한다. 숫자·수식 하이픈은 보존한다. */
+    private static String normalizeEnglishWordDash(String s) {
+        return ENGLISH_WORD_DASH.matcher(s).replaceAll(" ");
+    }
+
     /**
-     * 느슨 폴백 비교: 양쪽 문자열을 소문자화 → 괄호 부연 설명 전부 제거 → 확장 열거 마커
+     * 느슨 폴백 비교: 양쪽 중 하나에 열거 마커가 있을 때만 소문자화 → 괄호 부연 설명 전부 제거 → 확장 열거 마커
      * (숫자·자모·라틴·원문자) 제거 → 공백·콤마·슬래시 전부 제거한 뒤 동등 비교한다.
      * 두 정규화 결과 중 하나라도 빈 문자열이면 false.
      * 숫자·마침표는 보존하므로 "11.75" 같은 숫자 정답에는 영향이 없다.
      */
     private static boolean looseEqualsIgnoringPunctuation(String correctAnswer, String userAnswer) {
+        // 공백을 전부 제거하는 느슨 비교는 열거 답안에만 허용한다. 일반 구문에서
+        // "SYNFlooding"과 "SYN Flooding" 같은 서로 다른 표기를 오인하지 않게 한다.
+        if (!hasEnumerationMarker(correctAnswer) && !hasEnumerationMarker(userAnswer)) {
+            return false;
+        }
         String correct = normalizeLoose(correctAnswer);
         String user    = normalizeLoose(userAnswer);
         return !correct.isEmpty() && !user.isEmpty() && correct.equals(user);
     }
 
+    private static boolean hasEnumerationMarker(String raw) {
+        return ENUMERATION_MARKER.matcher(raw).find();
+    }
+
     private static String normalizeLoose(String raw) {
         String s = raw.toLowerCase();
         s = normalizeQuotes(s);
+        s = normalizeEnglishWordDash(s);
         s = s.replaceAll("\\([^)]*\\)", "");
         s = extendedEnumerationToSeparators(s);
         s = s.replaceAll("[\\s,/]", "");

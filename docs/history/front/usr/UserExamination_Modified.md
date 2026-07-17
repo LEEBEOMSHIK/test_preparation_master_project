@@ -1,3 +1,47 @@
+## HIST-20260717-007
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 프론트엔드 / 시험 결과 문항 제목 미리보기
+- **수정 개요**: 결과 아코디언의 접힌 헤더가 제출 시점 제목을 우선 표시하고 legacy 이력은 발문·본문으로 안전하게 폴백한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/types/index.ts` | 수정 | `QuestionResult.title` nullable 선택 필드 추가 |
+| `frontend/src/components/ui/ExamResultDisplay.tsx` | 수정 | 제목 → 발문 → 본문 → 기본 문구 4단계 미리보기 |
+| `frontend/src/components/ui/ExamResultDisplay.test.tsx` | 추가 | 우선순위·trim·HTML 제거 회귀 테스트 |
+| `frontend/src/data/tableComments.ts` | 수정 | 이력 제목 스냅샷 컬럼 설명 추가 |
+
+### 수정 상세
+
+- 제목은 trim 후 사용하고, 발문·본문 fallback은 `stripHtml`을 거쳐 HTML 태그 없이 표시한다.
+- 펼친 상태의 기존 발문·본문 렌더링은 변경하지 않았다.
+
+---
+
+## HIST-20260717-006
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 프론트엔드 / 풀이 스크래치패드 다중 트리
+- **수정 개요**: 트리 시각화 탭에서 여러 이진트리를 독립적으로 추가·입력·삭제하고 기존 단일 트리 저장값을 안전하게 이관하도록 개선했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/components/ui/ScratchPadPanel.tsx` | 수정 | 다중 트리 상태·영속화·마이그레이션 및 추가/삭제 UI |
+| `frontend/src/components/ui/ScratchPadPanel.test.tsx` | 추가 | 초기값·독립 입력·삭제·최대 개수·legacy 이관 회귀 테스트 |
+
+### 수정 상세
+
+- `treeInputs: string[]`와 같은 인덱스의 안정 ID 배열을 저장해 트리별 입력과 React key를 보존한다.
+- 구형 `treeInput`은 `treeInputs`가 없을 때만 첫 트리로 이관하며, 손상 원소·중복 ID·빈 배열은 최소 1개/최대 20개 규칙에 맞춰 정규화한다.
+- 트리 추가 버튼과 항목별 삭제 버튼에 접근 가능한 이름을 제공하고, 마지막 트리 삭제 및 20개 초과 추가를 비활성화하면서 사유를 안내한다.
+- 기존 `BinaryTreeTool`은 수정하지 않고 트리 항목마다 재사용한다.
+
+---
+
 ## HIST-20260717-005
 
 - **날짜**: 2026-07-17

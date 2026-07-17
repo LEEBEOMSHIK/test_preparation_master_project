@@ -1,3 +1,28 @@
+## HIST-20260717-004
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 백엔드 / 시험 결과 제목 스냅샷·주관식 재채점
+- **수정 개요**: 제출 결과와 과거 이력에 원본 문항 제목을 보존하고, 2025년 2회 Q11·Q19·Q20의 유효 답안을 엄격한 정규화와 명시적 대체 정답으로 채점·보정한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `backend/src/main/java/com/tpmp/testprep/entity/ExamHistoryDetail.java` 외 | 수정 | nullable 제목 스냅샷과 결과 DTO 전달 |
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | 구분자 직후 마커·영문 단어 dash 정규화와 느슨 비교 오탐 제한 |
+| `backend/src/test/java/com/tpmp/testprep/service/UserExaminationSessionLifecycleTest.java` 외 | 수정 | 즉시/과거 제목과 Q11·Q19·Q20 회귀 테스트 |
+| `docs/db-migration/20260717_04_add_exam_history_detail_title.sql` | 추가 | 제목 컬럼·기존 이력 백필 |
+| `docs/db-migration/20260717_05_regrade_2025_round2_q11_q19_q20.sql` | 추가 | Q11 정답 데이터 및 Q11·Q19·Q20 이력 제한 재채점 |
+
+### 수정 상세
+
+- `Question#getResultTitle()`을 즉시 응답과 이력 builder가 함께 사용하며 제출 쿼리가 원본을 fetch한다.
+- Q11은 올바른 두 분기 경로를 첫 canonical 후보로 두고 기존 콤마·파이프 표기를 `||` 대체답으로 한정 인정한다. 단일 `|` 그룹과 콤마로 나열한 숫자-하이픈 경로는 그룹/경로 수·순서와 내부 노드 순서를 모두 보존해 중복 노드 제거로 인한 부분 경로 오탐을 차단한다.
+- Q19는 영문자 사이 dash만 공백과 동치로, Q20은 숫자 열거 마커·공백 차이만 동치로 처리한다. `1.TTL` 같은 무공백 마커는 허용하지만 다음 문자가 숫자인 `11.75`는 마커로 보지 않으며, 숫자/수식 하이픈과 무구분 영문도 보존한다.
+- 재채점 SQL은 `EXAM_TYPE` 도메인의 `정보처리기사 실기` 연결과 연도·회차·문항번호로 식별하며 Q11/Q19/Q20 원본이 각각 정확히 1개인지 검증한다. 이후 대상 상한과 범위 외 변경을 확인하고 영향 이력의 정답 수·점수를 상세 합계로 재계산한다.
+
+---
+
 ## HIST-20260717-003
 
 - **날짜**: 2026-07-17

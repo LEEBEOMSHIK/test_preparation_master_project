@@ -141,7 +141,11 @@ export function ExamResultDisplay({
           <div className="space-y-2">
             {displayResults.map(item => {
               const isExpanded = expandedItems.has(item.seq);
-              const previewText = stripHtml(item.content) || '문항 내용 없음';
+              const previewText =
+                item.title?.trim()
+                || stripHtml(item.instruction ?? '')
+                || stripHtml(item.content)
+                || '문항 제목 없음';
               return (
                 <div
                   key={item.seq}

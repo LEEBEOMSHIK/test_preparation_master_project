@@ -1,3 +1,24 @@
+## HIST-20260717-002
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈 공용 주관식 채점
+- **수정 개요**: 시험과 데일리 퀴즈가 공유하는 `AnswerGrader`에 실사용 열거·dash 표기를 안전하게 반영했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | 콤마·슬래시 직후 숫자 마커와 영문 단어 dash 정규화 |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 수정 | 세 유형 공용 동치·오탐 방지와 Q11·Q19·Q20 회귀 테스트 |
+
+### 수정 상세
+
+- `,2. `·`/3) `와 `1.TTL` 같은 무공백 숫자 마커를 새 항목으로 인식하며 SHORT_ANSWER·SCHEDULING·SQL에 동일 적용한다. 무공백은 다음 문자가 비숫자일 때만 허용한다.
+- `SYN-Flooding`은 `SYN Flooding`과 동치지만 `SYNFlooding`, `1-2`와 `1 2`, 소수·IP·다른 항목은 동치로 오인하지 않는다.
+- 경로 문제는 전역 parser 대신 저장 정답의 명시적 `||` 후보로만 인정하며, 단일 `|` 그룹과 콤마 구분 숫자-하이픈 경로는 내부 토큰·경로 순서를 보존해 부분 경로·순서 변경을 오답으로 유지한다.
+
+---
+
 ## HIST-20260717-001
 
 - **날짜**: 2026-07-17
