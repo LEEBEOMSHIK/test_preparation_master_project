@@ -26,6 +26,10 @@
 
 - 운영·스테이징 DB에는 배포 시 동일 마이그레이션을 애플리케이션 기동 전에 적용해야 한다.
 
+## 완료 커밋
+
+- `cb667dc [FE|BE] feat: 시험 완료 문항 복습 표시 추가`
+
 ## 수정한 파일
 
 - `backend/src/main/java/com/tpmp/testprep/entity/ExamHistoryDetail.java`
