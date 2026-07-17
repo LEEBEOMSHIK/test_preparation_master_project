@@ -9,6 +9,7 @@
 
 ## 완료한 작업
 
+- 기능 커밋: `b94778d` (`[BE] feat: 전체 시험 문항 동기화 체계 구축`).
 - Question과 ExamHistoryDetail에 scheduling_data/sql_data JSONB 및 TEXT 답안 매핑 추가.
 - 관리자 생성·수정·동기화 경로에서 SCHEDULING/SQL 지원, 시험유형 ID를 후보 키에 추가.
 - 응시 전 SQL 기대결과 제거 및 결과 입력 컬럼 제공, 제출 시 SQL 결과 테이블 채점과 구조화 이력 저장.
