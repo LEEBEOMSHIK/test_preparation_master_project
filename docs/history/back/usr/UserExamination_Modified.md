@@ -1,3 +1,36 @@
+## HIST-20260717-001
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 백엔드 / 시험·퀴즈 채점 공통(`AnswerGrader`) — 열거 마커 확장 + 괄호 대체 표기 인정
+- **수정 개요**: 시험(exam_id=5) 오답 4건이 실제로는 정답인데 오답 처리되는 채점 버그 수정. 원인은 (1) 정답 문자열의 열거 마커 중 숫자(`1.`)만 인식하고 한글 자모(`ㄱ.`)·원문자(`①`)·라틴 문자(`a.`)는 미인식 → 마커가 토큰에 섞여 사용자 답안과 불일치, (2) 정답 값 내부의 `/`(CIDR `…/23`)와 슬래시 구분자 충돌, (3) 약어↔한글 명칭(`ABM`↔`비동기 균형 모드`)은 코드로 판단 불가. (1)(2)는 `AnswerGrader` 코드 수정으로, (3)은 괄호 대체 표기 기능 신설 + 문항 정답 데이터 수정으로 해결.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | `extendedEnumerationToSeparators` 신설(자모·라틴·원문자 마커), 괄호 대체 표기 1:1 완전 매칭(`tokenVariants`+백트래킹), 느슨 폴백에도 마커 제거 적용 |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 수정 | 이미지 사례 4건 재현 테스트 + 회귀 테스트 11건 추가, 기존 실패 테스트 1건(`code_commaSeparatedNotSplit_incorrect`)을 `10b44a5` 정책(구분자 주변 공백 허용)에 맞게 갱신 |
+| DB `questions` id=86·90, `question_bank` id=6·10 | 데이터 | HDLC 문항 정답에 `정보 프레임(정보)`·`비동기 균형 모드(ABM)` 등 괄호 대체 표기, 외래키 문항에 `FOREIGN(FOREIGN KEY)` 추가 |
+| `docs/sql/tpmp_content_data.sql` | 수정 | 위 데이터 변경을 공유용 덤프에도 동기화(4개 INSERT) |
+
+### 수정 상세
+
+#### 열거 마커 확장 (SHORT_ANSWER·SCHEDULING·SQL 다중값 비교 + 느슨 폴백 전용)
+- `ㄱ. `·`a. `(구두점+공백 필수 — `a.b`·`i.e.` 같은 본문 표기는 무영향), `①`~`⑳`(구두점·공백 불필요)을 구분자로 치환.
+- 예: 정답 `ㄱ. Bridge / ㄴ. Observer` + 사용자 `Bridge, Observer` → 정답. 정답 `a. 192.168.10.0/23 / b. 192.168.12.0/23` + 사용자 `192.168.10.0/23, 192.168.12.0/23` → 정답(CIDR `/`는 양쪽에서 대칭 분리).
+- options 채점(빈칸 순서 비교)은 프론트 `lib/answer.ts`와 규칙 동기화가 필요하므로 기존 숫자 마커만 유지(변경 없음).
+
+#### 괄호 대체 표기 (기존 "괄호 부연 제거" → "상호 인정"으로 의미 변경)
+- 정답 토큰 `비동기 균형 모드(ABM)`이면 사용자 입력 `비동기 균형 모드`·`ABM` 모두 인정. Set 동일성 비교를 "토큰별 표기 집합 + 1:1 완전 매칭(백트래킹, 10만 스텝 상한)"으로 재구성 — 괄호 없는 토큰끼리는 기존과 동일 동작.
+- 기존에도 정답 측 괄호는 제거되어 본체만 인정됐으므로 이 변경으로 오답이 되는 케이스 없음(인정 범위가 넓어지기만 함).
+
+### 검증 결과
+- `.\gradlew.bat test --tests "*.AnswerGraderTest"`: 통과
+- `.\gradlew.bat test` (전체): BUILD SUCCESSFUL — 기존 실패 1건(위 테스트 갱신)까지 포함 전부 통과
+
+### 복원 방법
+이 ID(HIST-20260717-001)로 복원 시 `AnswerGrader.java`의 `extendedEnumerationToSeparators`·`tokenVariants`·`hasPerfectMatching`을 제거하고 `multiSetMatch`를 Set 동일성 비교(`tokenize`/`normalizeToken`)로 되돌린다. DB 정답은 위 표의 4개 행에서 괄호 표기를 제거한다.
+
 ## HIST-20260707-001
 
 - **날짜**: 2026-07-07

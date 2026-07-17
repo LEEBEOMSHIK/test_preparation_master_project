@@ -4,10 +4,14 @@ import com.tpmp.testprep.entity.support.SqlData;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -23,10 +27,12 @@ import java.util.stream.Collectors;
  * 번호로 입력해야 한다.
  *
  * <p>SHORT_ANSWER 에서 정답·사용자 답안 모두 콤마/슬래시로 구분된 복수 정답을 지원한다.
- * 콤마·슬래시 분리 후 토큰을 trim·소문자화·공백 축약하고, 말미의 괄호 부연 설명
- * (예: "워터링 홀 (Watering Hole)" → "워터링 홀")을 제거하여 Set 비교하므로
- * 순서·공백·부연설명 차이는 무시된다. SCHEDULING · SQL 유형도 정답을 관리자가 수동으로
- * 입력하며(자동 계산·SQL 실행 없음) SHORT_ANSWER와 동일하게 다중값 비교로 채점한다.
+ * 콤마·슬래시 분리 후 토큰을 trim·소문자화·공백 축약하여 순서 무관(집합적) 비교하므로
+ * 순서·공백 차이는 무시된다. 말미의 괄호 부연 설명은 <b>대체 표기</b>로 상호 인정한다 —
+ * 정답 토큰이 "비동기 균형 모드(ABM)"이면 사용자가 "비동기 균형 모드" 또는 "ABM" 중
+ * 무엇을 입력해도 그 토큰과 일치로 처리한다(사용자 토큰의 괄호도 동일하게 해석).
+ * SCHEDULING · SQL 유형도 정답을 관리자가 수동으로 입력하며(자동 계산·SQL 실행 없음)
+ * SHORT_ANSWER와 동일하게 다중값 비교로 채점한다.
  * 따옴표 종류(작은따옴표 · 큰따옴표 · 모바일 IME 타이포그래피 따옴표 ‘ ’ “ ”)는 모두 작은따옴표로
  * 통일하여 비교하므로 {@code 과목코드='DB'} 와 {@code 과목코드="DB"} 는 동일하게 취급된다.
  *
@@ -37,6 +43,16 @@ import java.util.stream.Collectors;
  * 또한 콤마·슬래시가 전혀 없어도 {@code 1.}·{@code 2)} 등 번호 매김으로만 항목을 나열한
  * 정답(예: "1. FCFS 2. SJF 3. SRT")은 Set 비교 단계에서부터 번호 매김을 구분자로 인식해
  * 항목별로 분리한다(소수점은 영향 없음).
+ *
+ * <p><b>열거 마커 확장</b> — SHORT_ANSWER · SCHEDULING · SQL 의 다중값 비교와 느슨 폴백에서는
+ * 숫자 번호 매김({@code 1.}·{@code 2)}) 외에 한글 자모({@code ㄱ.}·{@code ㄴ)}), 라틴 단일
+ * 문자({@code a.}·{@code b)}), 원문자({@code ①}~{@code ⑳}, 뒤따르는 구두점·공백 불필요)도
+ * 항목 구분 마커로 인식해 제거한다. 예: 정답 "ㄱ. Bridge / ㄴ. Observer"에 사용자
+ * "Bridge, Observer"는 정답이고, 정답 "a. 192.168.10.0/23 / b. 192.168.12.0/23"에 사용자
+ * "192.168.10.0/23, 192.168.12.0/23"도 정답이다(CIDR의 {@code /}는 양쪽에서 동일하게
+ * 분리되므로 결과가 대칭이다). 자모·라틴 마커는 뒤에 공백이 있어야 마커로 취급하므로
+ * "a.b"·"i.e." 같은 본문 표기는 영향받지 않는다. options 채점(빈칸 순서 비교)은 프론트엔드
+ * {@code lib/answer.ts}와 규칙을 동기화해야 하므로 기존 숫자 마커만 유지한다.
  *
  * <p>CODE 유형은 콤마가 코드 문법의 일부일 수 있으므로 절대 분리하지 않고
  * 통문자열 비교한다. 단, 줄 끝 trailing 공백·CRLF 차이·앞뒤 빈 줄은 정규화하여
@@ -271,9 +287,29 @@ public final class AnswerGrader {
      * 숫자 + {@code .}/{@code )} + 공백 1개 이상)를 슬래시 구분자로 치환한다. 소수점(3.14·11.75)
      * 이나 항목 내부 숫자는 "숫자 + 구두점 + 공백" 조건에 해당하지 않으므로 영향받지 않는다.
      * (예: "1. FCFS 2. SJF 3. SRT" → "/FCFS /SJF /SRT" → split 후 [FCFS, SJF, SRT])
+     *
+     * <p>options 채점(빈칸 순서 비교)이 사용한다 — 프론트엔드 {@code lib/answer.ts}의
+     * 정규화 규칙과 동기화가 필요하므로 여기는 숫자 마커만 인식한다.
      */
     private static String enumerationToSeparators(String raw) {
         return raw.replaceAll("(^|\\s)\\d{1,2}[.)]\\s+", "$1/");
+    }
+
+    /**
+     * SHORT_ANSWER 계열(다중값 Set 비교·느슨 폴백) 전용 확장 열거 마커 치환. 숫자 마커에
+     * 더해 다음도 항목 구분 마커로 인식해 슬래시 구분자로 치환한다(클래스 javadoc
+     * "열거 마커 확장" 참고).
+     * <ul>
+     *   <li>한글 자모 + 구두점 + 공백: {@code ㄱ. }·{@code ㄴ) }</li>
+     *   <li>라틴 단일 문자 + 구두점 + 공백: {@code a. }·{@code B) } — 공백이 반드시 뒤따라야
+     *       하므로 "a.b"·"i.e." 같은 본문 표기는 영향받지 않는다</li>
+     *   <li>원문자 {@code ①}~{@code ⑳}: 구두점·공백 없이도 마커로 취급 ("①CONSTRAINT" 포함)</li>
+     * </ul>
+     */
+    private static String extendedEnumerationToSeparators(String raw) {
+        return enumerationToSeparators(raw)
+                .replaceAll("(^|\\s)[ㄱ-ㅎA-Za-z][.)]\\s+", "$1/")
+                .replaceAll("(^|\\s)[①-⑳][.)]?\\s*", "$1/");
     }
 
     /**
@@ -362,33 +398,92 @@ public final class AnswerGrader {
     }
 
     /**
-     * 양쪽 문자열을 콤마·슬래시로 분리 → 토큰 정규화(trim·소문자화·공백 축약·괄호 부연 제거)
-     * → 빈 토큰 제거 → Set 동일성 검사. 두 Set이 비어있거나 다르면 false.
+     * 양쪽 문자열을 확장 열거 마커 처리 후 콤마·슬래시로 분리 → 토큰별 대체 표기 집합
+     * (본체 + 말미 괄호 내용) 생성 → 중복 제거 → 개수가 같고 "정답 토큰 ↔ 사용자 토큰"의
+     * 1:1 완전 매칭(교집합 존재 시 매칭 가능)이 존재하면 true. 괄호 없는 토큰끼리는
+     * 단일 원소 집합의 교집합 검사가 곧 동등 비교이므로 기존 Set 동일성 검사와 같다.
      */
     private static boolean multiSetMatch(String correctAnswer, String userAnswer) {
-        Set<String> correct = tokenize(correctAnswer);
-        Set<String> user    = tokenize(userAnswer);
-        return !correct.isEmpty() && !user.isEmpty() && correct.equals(user);
+        List<Set<String>> correct = tokenizeVariantGroups(correctAnswer);
+        List<Set<String>> user    = tokenizeVariantGroups(userAnswer);
+        if (correct.isEmpty() || user.isEmpty() || correct.size() != user.size()) {
+            return false;
+        }
+        return hasPerfectMatching(correct, user, 0, new boolean[user.size()], new int[]{MATCHING_STEP_LIMIT});
     }
 
-    private static Set<String> tokenize(String raw) {
-        return Arrays.stream(enumerationToSeparators(raw).split("[,/]"))
-                .map(AnswerGrader::normalizeToken)
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toSet());
+    /** 완전 매칭 백트래킹 탐색 상한 — 비정상적으로 크거나 악의적인 입력에서의 폭주 방지. */
+    private static final int MATCHING_STEP_LIMIT = 100_000;
+
+    /**
+     * 콤마·슬래시(및 확장 열거 마커) 분리 후 각 토큰을 {@link #tokenVariants(String)} 집합으로
+     * 변환하고, 빈 집합 제거·동일 집합 중복 제거한 순서 보존 목록을 반환한다.
+     */
+    private static List<Set<String>> tokenizeVariantGroups(String raw) {
+        List<Set<String>> groups = new ArrayList<>();
+        for (String token : extendedEnumerationToSeparators(raw).split("[,/]")) {
+            Set<String> variants = tokenVariants(token);
+            if (!variants.isEmpty() && !groups.contains(variants)) {
+                groups.add(variants);
+            }
+        }
+        return groups;
+    }
+
+    /** 토큰 말미의 괄호 부연/대체 표기: 그룹 1이 괄호 내용. */
+    private static final Pattern TRAILING_PARENTHETICAL = Pattern.compile("\\s*\\(([^)]*)\\)\\s*$");
+
+    /**
+     * 단일 토큰을 "인정 가능한 표기 집합"으로 변환한다. trim → 소문자화 → 따옴표 통일 →
+     * 연속 공백 축약 후, 말미 괄호가 있으면 {본체, 괄호 내용} 두 표기를 모두 인정하고
+     * 없으면 토큰 자체 1개만 담는다(예: "비동기 균형 모드(ABM)" → {"비동기 균형 모드", "abm"}).
+     */
+    private static Set<String> tokenVariants(String rawToken) {
+        String s = rawToken.trim().toLowerCase();
+        s = normalizeQuotes(s);
+        s = s.replaceAll("\\s+", " ").trim();
+        Set<String> variants = new LinkedHashSet<>();
+        Matcher m = TRAILING_PARENTHETICAL.matcher(s);
+        if (m.find()) {
+            String base = s.substring(0, m.start()).trim();
+            String parenthetical = m.group(1).trim();
+            if (!base.isEmpty()) {
+                variants.add(base);
+            }
+            if (!parenthetical.isEmpty()) {
+                variants.add(parenthetical);
+            }
+        } else if (!s.isEmpty()) {
+            variants.add(s);
+        }
+        return variants;
     }
 
     /**
-     * 단일 토큰 정규화: trim → 소문자화 → 따옴표 종류 통일(작은따옴표로) → 내부 연속 공백을
-     * 단일 공백으로 축약 → 말미 괄호 부연 설명 제거(예: "워터링 홀 (Watering Hole)" → "워터링 홀")
-     * → 재-trim.
+     * 정답 토큰 그룹(idx번째부터)과 아직 사용되지 않은 사용자 토큰 그룹 사이에 1:1 완전
+     * 매칭이 존재하는지 백트래킹으로 검사한다. 두 그룹은 표기 집합의 교집합이 있으면 매칭
+     * 가능하다. remainingSteps 소진 시 false(실사용 답안 규모에서는 도달하지 않음).
      */
-    private static String normalizeToken(String raw) {
-        String s = raw.trim().toLowerCase();
-        s = normalizeQuotes(s);
-        s = s.replaceAll("\\s+", " ");
-        s = s.replaceAll("\\s*\\([^)]*\\)\\s*$", "");
-        return s.trim();
+    private static boolean hasPerfectMatching(List<Set<String>> correct, List<Set<String>> user,
+                                              int idx, boolean[] used, int[] remainingSteps) {
+        if (idx == correct.size()) {
+            return true;
+        }
+        for (int j = 0; j < user.size(); j++) {
+            if (used[j] || remainingSteps[0] <= 0) {
+                continue;
+            }
+            remainingSteps[0]--;
+            if (Collections.disjoint(correct.get(idx), user.get(j))) {
+                continue;
+            }
+            used[j] = true;
+            if (hasPerfectMatching(correct, user, idx + 1, used, remainingSteps)) {
+                return true;
+            }
+            used[j] = false;
+        }
+        return false;
     }
 
     /**
@@ -402,8 +497,9 @@ public final class AnswerGrader {
     }
 
     /**
-     * 느슨 폴백 비교: 양쪽 문자열을 소문자화 → 괄호 부연 설명 전부 제거 → 공백·콤마·슬래시
-     * 전부 제거한 뒤 동등 비교한다. 두 정규화 결과 중 하나라도 빈 문자열이면 false.
+     * 느슨 폴백 비교: 양쪽 문자열을 소문자화 → 괄호 부연 설명 전부 제거 → 확장 열거 마커
+     * (숫자·자모·라틴·원문자) 제거 → 공백·콤마·슬래시 전부 제거한 뒤 동등 비교한다.
+     * 두 정규화 결과 중 하나라도 빈 문자열이면 false.
      * 숫자·마침표는 보존하므로 "11.75" 같은 숫자 정답에는 영향이 없다.
      */
     private static boolean looseEqualsIgnoringPunctuation(String correctAnswer, String userAnswer) {
@@ -416,6 +512,7 @@ public final class AnswerGrader {
         String s = raw.toLowerCase();
         s = normalizeQuotes(s);
         s = s.replaceAll("\\([^)]*\\)", "");
+        s = extendedEnumerationToSeparators(s);
         s = s.replaceAll("[\\s,/]", "");
         return s;
     }

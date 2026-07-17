@@ -128,14 +128,111 @@ class AnswerGraderTest {
     }
 
     // -----------------------------------------------------------------------
+    // SHORT_ANSWER — 확장 열거 마커 (ㄱ.·①·a.) + 괄호 대체 표기
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 한글 자모 마커(ㄱ.·ㄴ.) 정답 + 마커 없는 사용자 입력 — 정답")
+    void shortAnswer_jamoMarker_userWithoutMarker_correct() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "ㄱ. Bridge / ㄴ. Observer", "Bridge, Observer"
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 한글 자모 마커 정답 — 일부만 입력하면 오답 유지")
+    void shortAnswer_jamoMarker_partialInput_incorrect() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "ㄱ. Bridge / ㄴ. Observer", "Bridge"
+        )).isFalse();
+    }
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 원문자 마커(①~⑤) 정답 + 마커 없는 사용자 입력 — 정답")
+    void shortAnswer_circledNumberMarker_userWithoutMarker_correct() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER",
+            "① CONSTRAINT / ② FOREIGN / ③ TEAM_ID / ④ REFERENCES / ⑤ TEAM_ID2",
+            "CONSTRAINT, FOREIGN, TEAM_ID, REFERENCES, TEAM_ID2"
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 라틴 문자 마커(a.·b.) 정답 + 값 내부 슬래시(CIDR) — 정답")
+    void shortAnswer_latinMarker_slashInsideValue_correct() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER",
+            "a. 192.168.10.0/23 / b. 192.168.12.0/23",
+            "192.168.10.0/23, 192.168.12.0/23"
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 라틴 마커 + CIDR — 프리픽스 길이가 다르면 오답 유지")
+    void shortAnswer_latinMarker_wrongCidrPrefix_incorrect() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER",
+            "a. 192.168.10.0/23 / b. 192.168.12.0/23",
+            "192.168.10.0/24, 192.168.12.0/24"
+        )).isFalse();
+    }
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 마커 뒤 공백이 없으면 본문 표기(a.b, i.e.)는 분리하지 않음")
+    void shortAnswer_letterDotWithoutSpace_notTreatedAsMarker() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "a.b", "a.b")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "a.b", "a, b")).isFalse();
+    }
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 괄호 대체 표기 — 정답 '본체(약어)'에 본체·약어 어느 쪽을 입력해도 정답")
+    void shortAnswer_parentheticalAlternative_eitherAccepted() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "비동기 균형 모드(ABM)", "ABM")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "비동기 균형 모드(ABM)", "비동기 균형 모드")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "비동기 균형 모드(ABM)", "NRM")).isFalse();
+    }
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 괄호 대체 표기 — 다중 정답에서 본체·약어 혼용 입력 — 정답")
+    void shortAnswer_parentheticalAlternative_multiValue_mixed_correct() {
+        String correct = "1. 정보 프레임(정보) / 2. 감독 프레임(감독) / 3. 비번호 프레임(비번호)"
+                + " / 4. 비동기 균형 모드(ABM) / 5. 비동기 응답 모드(ARM)";
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", correct, "정보 프레임, 감독 프레임, 비번호 프레임, ABM, ARM"
+        )).isTrue();
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", correct, "정보, 감독, 비번호, 비동기 균형 모드, 비동기 응답 모드"
+        )).isTrue();
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", correct, "정보 프레임, 감독 프레임, 비번호 프레임, ABM, NRM"
+        )).isFalse();
+    }
+
+    @Test
+    @DisplayName("SHORT_ANSWER: 괄호 대체 표기 — 1:1 매칭이므로 같은 표기를 두 빈칸에 재사용할 수 없음")
+    void shortAnswer_parentheticalAlternative_backtracking_oneToOne() {
+        // 정답 [ {a,b}, {b} ] 에 사용자 [b, a] — b를 {b}에, a를 {a,b}에 배정해야만 성립(백트래킹 검증)
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "a(b) / b", "b, a")).isTrue();
+        // 사용자 [b, b] 는 중복 제거되어 개수 불일치 → 오답
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "a(b) / b", "b, b")).isFalse();
+    }
+
+    // -----------------------------------------------------------------------
     // CODE — 콤마 분리 금지, 통문자열 비교
     // -----------------------------------------------------------------------
 
     @Test
-    @DisplayName("CODE: 공백 차이는 불일치 — 통문자열 비교이므로 분리 안 함")
-    void code_commaSeparatedNotSplit_incorrect() {
-        // "a,b" vs "a, b" — 공백 차이로 불일치여야 함
-        assertThat(AnswerGrader.isCorrect("CODE", "a,b", "a, b")).isFalse();
+    @DisplayName("CODE: 구조 구분자(콤마) 주변 공백 차이는 느슨 폴백으로 정답 처리")
+    void code_delimiterSpacingDiff_correct() {
+        // 10b44a5 — 구조 구분자(: , ; { } [ ] ( )) 주변 가로 공백만 무시하는 느슨 폴백 정책
+        assertThat(AnswerGrader.isCorrect("CODE", "a,b", "a, b")).isTrue();
+    }
+
+    @Test
+    @DisplayName("CODE: 콤마 다중값 분리를 하지 않음 — 순서가 다르면 오답")
+    void code_commaSeparatedNotSplit_orderMatters_incorrect() {
+        // SHORT_ANSWER였다면 순서 무관 정답이지만 CODE는 통문자열 비교이므로 오답
+        assertThat(AnswerGrader.isCorrect("CODE", "a,b", "b,a")).isFalse();
     }
 
     @Test
