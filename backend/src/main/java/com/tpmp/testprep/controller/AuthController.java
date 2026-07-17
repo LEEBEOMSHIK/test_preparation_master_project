@@ -49,6 +49,14 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(authService.refresh(refreshToken)));
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @RequestParam(name = "scope", defaultValue = "user") String scope,
+            HttpServletResponse response) {
+        authService.logout(scope, response);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponse>> me(
             @AuthenticationPrincipal String email) {

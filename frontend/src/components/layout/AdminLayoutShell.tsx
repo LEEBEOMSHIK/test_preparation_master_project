@@ -203,7 +203,11 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
       .catch(() => {});
   }, [router]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // API 실패해도 refresh 쿠키 삭제 실패일 뿐, 클라이언트 로그아웃(clearAuth+라우팅)은 반드시 수행한다.
+    try {
+      await authService.logout('admin');
+    } catch {}
     clearAuth();
     router.push('/admin/login');
   };

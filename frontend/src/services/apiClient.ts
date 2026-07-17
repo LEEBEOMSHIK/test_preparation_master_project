@@ -22,7 +22,7 @@ apiClient.interceptors.request.use((config) => {
 // Response interceptor: 401 → 토큰 갱신 시도, 403 → 권한 없음 팝업
 // 토큰 발급 계열(login/refresh/signup)만 갱신 재시도에서 제외해 갱신 루프를 방지한다.
 // /auth/me 처럼 인증이 필요한 엔드포인트는 401 시 정상적으로 Refresh→재시도 흐름을 탄다.
-const NO_RETRY_AUTH_ENDPOINTS = ['/auth/login', '/auth/refresh', '/auth/signup'];
+const NO_RETRY_AUTH_ENDPOINTS = ['/auth/login', '/auth/refresh', '/auth/signup', '/auth/logout'];
 
 // single-flight: 동시에 여러 요청이 401을 받아도 Refresh 요청은 1회만 보내고
 // 나머지는 동일한 진행 중 Promise를 공유한다. 완료 후 초기화하여 다음 만료 시 재발급 가능.

@@ -5,6 +5,7 @@
 ### JWT 토큰 전략
 - **Access Token**: 유효기간 15분, Authorization 헤더 (`Bearer {token}`)
 - **Refresh Token**: 유효기간 7일, HttpOnly Cookie — role별로 `refresh_token_user` / `refresh_token_admin`으로 분리(동일 브라우저에서 사용자·관리자 탭을 동시에 열어도 쿠키가 origin 단위로 공유되어 서로 덮어쓰며 세션이 다른 계정으로 전환되는 것을 방지하기 위함). 분리 이전 레거시 `refresh_token` 쿠키는 로그인 시 즉시 만료 처리되며 fallback으로 사용하지 않는다.
+- **로그아웃**: `POST /api/auth/logout?scope=user|admin` 호출 시 서버가 해당 role의 refresh 쿠키(+ 레거시 `refresh_token`)를 `maxAge=0`으로 즉시 만료시킨다. accessToken 만료 상태에서도 호출 가능(토큰 검증 예외 엔드포인트). Refresh Token은 stateless JWT라 서버 측 블랙리스트는 두지 않으며, 쿠키 삭제만으로 재발급 경로를 차단한다.
 - 시크릿 키: 환경변수 `JWT_SECRET` (최소 256bit)
 - 알고리즘: HS256
 

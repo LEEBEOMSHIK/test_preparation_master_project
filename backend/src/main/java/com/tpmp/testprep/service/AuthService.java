@@ -105,6 +105,17 @@ public class AuthService {
         return new LoginResponse(newAccessToken, UserResponse.from(user, interests));
     }
 
+    /**
+     * 로그아웃: role별 refresh 쿠키와 레거시 refresh_token 쿠키를 즉시 만료시킨다.
+     * Refresh Token은 stateless JWT이므로 서버 측 블랙리스트 처리는 하지 않는다(쿠키 삭제만으로 충분).
+     * accessToken이 이미 만료된 상태에서도 호출될 수 있으므로 인증 정보·DB 조회는 필요하지 않다.
+     */
+    public void logout(String scope, HttpServletResponse response) {
+        User.Role role = "admin".equals(scope) ? User.Role.ADMIN : User.Role.USER;
+        response.addCookie(refreshTokenCookieProvider.createExpiredCookie(role));
+        response.addCookie(refreshTokenCookieProvider.createLegacyExpiredCookie());
+    }
+
     public UserResponse me(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));

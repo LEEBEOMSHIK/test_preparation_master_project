@@ -1,3 +1,45 @@
+## HIST-20260717-001
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 관리자 프론트엔드 / 로그아웃 처리
+- **수정 개요**: `handleLogout`이 백엔드 `POST /api/auth/logout`을 실제로 호출하도록 변경. 기존에는 `clearAuth()`(accessToken 제거) 후 라우팅만 수행해, HttpOnly라 JS로 지울 수 없는 refresh 쿠키(`refresh_token_admin`)가 최대 7일 남아 있었다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/AdminLayoutShell.tsx` | 수정 | `handleLogout`을 `async`로 변경, `authService.logout('admin')` 호출 후 `clearAuth()`+라우팅 |
+
+### 수정 상세
+
+#### `AdminLayoutShell.tsx`
+- 변경 전:
+  ```ts
+  const handleLogout = () => {
+    clearAuth();
+    router.push('/admin/login');
+  };
+  ```
+- 변경 후:
+  ```ts
+  const handleLogout = async () => {
+    try {
+      await authService.logout('admin');
+    } catch {}
+    clearAuth();
+    router.push('/admin/login');
+  };
+  ```
+- 이유: 서버가 refresh 쿠키를 만료시키려면 로그아웃 API를 실제로 호출해야 함(백엔드 신설 엔드포인트는 같은 날짜 `docs/history/back/usr/Auth_Modified.md` HIST-20260717-002 참조). API 실패(네트워크 오류 등)로 관리자가 로그아웃조차 못 하는 상황을 막기 위해 `try/catch`로 감싸고 실패해도 `clearAuth()`+라우팅은 항상 수행
+
+### 검증
+- `npx tsc --noEmit` 통과 확인
+
+### 복원 방법
+이 ID(HIST-20260717-001)로 복원 시 `handleLogout`을 `clearAuth()` + 라우팅만 수행하는 동기 함수로 되돌린다.
+
+---
+
 ## HIST-20260615-001
 
 - **날짜**: 2026-06-15

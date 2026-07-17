@@ -37,9 +37,18 @@ public class RefreshTokenCookieProvider {
         return cookie;
     }
 
+    /** role에 해당하는 refresh 쿠키를 즉시 만료시키는 쿠키를 생성한다 (로그아웃 시 사용). */
+    public Cookie createExpiredCookie(User.Role role) {
+        return expiredCookie(cookieNameFor(role));
+    }
+
     /** 레거시 `refresh_token` 쿠키를 즉시 만료시키는 쿠키를 생성한다. */
     public Cookie createLegacyExpiredCookie() {
-        Cookie cookie = new Cookie(LEGACY_COOKIE_NAME, "");
+        return expiredCookie(LEGACY_COOKIE_NAME);
+    }
+
+    private Cookie expiredCookie(String name) {
+        Cookie cookie = new Cookie(name, "");
         cookie.setHttpOnly(true);
         cookie.setPath("/api/auth");
         cookie.setMaxAge(0);

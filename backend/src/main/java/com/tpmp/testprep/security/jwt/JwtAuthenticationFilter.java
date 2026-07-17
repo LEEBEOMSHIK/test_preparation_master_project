@@ -69,11 +69,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return path.startsWith("/api/oauth2/") || path.startsWith("/api/login/oauth2/");
     }
 
-    /** 토큰 없이/만료된 토큰으로도 접근 가능해야 하는 엔드포인트 (로그인·재발급·회원가입). */
+    /** 토큰 없이/만료된 토큰으로도 접근 가능해야 하는 엔드포인트 (로그인·재발급·회원가입·로그아웃). */
     private boolean isTokenOptionalEndpoint(String path) {
+        // 로그아웃은 accessToken이 이미 만료된 상태에서도 호출될 수 있으므로 토큰 만료를 이유로 막지 않는다.
         return path.equals("/api/auth/login")
                 || path.equals("/api/auth/refresh")
-                || path.equals("/api/auth/signup");
+                || path.equals("/api/auth/signup")
+                || path.equals("/api/auth/logout");
     }
 
     private String resolveToken(HttpServletRequest request) {

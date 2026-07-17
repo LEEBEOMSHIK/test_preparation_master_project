@@ -1,5 +1,38 @@
 # ApiClient 수정 이력
 
+## HIST-20260717-001
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 공통 프론트엔드 / API 클라이언트·인증 서비스 (로그아웃 엔드포인트 연동)
+- **수정 개요**: 백엔드에 신설된 `POST /api/auth/logout`을 프론트에서 실제로 호출하도록 연동. `NO_RETRY_AUTH_ENDPOINTS`에 `/auth/logout` 추가, `authService.logout`이 scope(`user`|`admin`)를 받도록 변경.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/apiClient.ts` | 수정 | `NO_RETRY_AUTH_ENDPOINTS`에 `'/auth/logout'` 추가 |
+| `frontend/src/services/authService.ts` | 수정 | `logout()` → `logout(scope: 'user' \| 'admin')`로 변경, 쿼리 파라미터로 scope 전달 |
+
+### 수정 상세
+
+#### `frontend/src/services/apiClient.ts`
+- 변경 전: `const NO_RETRY_AUTH_ENDPOINTS = ['/auth/login', '/auth/refresh', '/auth/signup'];`
+- 변경 후: `const NO_RETRY_AUTH_ENDPOINTS = ['/auth/login', '/auth/refresh', '/auth/signup', '/auth/logout'];`
+- 이유: 로그아웃 요청이 어떤 이유로든 401을 받으면 응답 인터셉터가 refresh를 시도해 로그아웃 흐름과 충돌하는 것을 방지
+
+#### `frontend/src/services/authService.ts`
+- 변경 전: `logout: () => apiClient.post<ApiResponse<void>>('/auth/logout')` — 정의만 되어 있고 호출부가 없던 죽은 코드
+- 변경 후: `logout: (scope: 'user' | 'admin') => apiClient.post<ApiResponse<void>>(\`/auth/logout?scope=${scope}\`)`
+- 이유: 백엔드 `/auth/refresh`와 동일하게 scope 쿼리 파라미터로 role별 refresh 쿠키를 지정해 만료시켜야 함. 호출부는 `UserLayoutShell.tsx`/`AdminLayoutShell.tsx`의 `handleLogout`(같은 날짜 `UserLayout_Modified.md`/`AdminLayout_Modified.md` HIST-20260717-001 참조)
+
+### 검증
+- `npx tsc --noEmit` 통과 확인
+
+### 복원 방법
+이 ID(HIST-20260717-001)로 복원 시 `NO_RETRY_AUTH_ENDPOINTS`에서 `'/auth/logout'`을 제거하고, `authService.logout`을 인자 없는 `() => apiClient.post<ApiResponse<void>>('/auth/logout')`로 되돌린다.
+
+---
+
 ## HIST-20260614-002
 
 - **날짜**: 2026-06-14

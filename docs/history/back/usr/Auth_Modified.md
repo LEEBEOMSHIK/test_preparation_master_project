@@ -1,3 +1,48 @@
+## HIST-20260717-002
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 백엔드 / 인증 (로그아웃 엔드포인트 신설)
+- **수정 개요**: `POST /api/auth/logout` 신설 — HttpOnly라 프론트에서 지울 수 없는 refresh 쿠키를 서버가 role별로 즉시 만료시킨다. 이전까지 프론트 `authService.logout()`은 정의만 되어 있고 아무도 호출하지 않는 죽은 코드였고, 로그아웃 시 `clearAuth()`로 accessToken만 지워질 뿐 refresh 쿠키(`refresh_token_user`/`refresh_token_admin`, path `/api/auth`)는 최대 7일 남아 있었다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/security/jwt/JwtAuthenticationFilter.java` | 수정 | `isTokenOptionalEndpoint`에 `/api/auth/logout` 추가 |
+| `backend/src/main/java/com/tpmp/testprep/security/jwt/RefreshTokenCookieProvider.java` | 수정 | `createExpiredCookie(User.Role)` 추가, `createLegacyExpiredCookie()`와 공통 로직을 private `expiredCookie(String)`로 추출 |
+| `backend/src/main/java/com/tpmp/testprep/service/AuthService.java` | 수정 | `logout(String scope, HttpServletResponse response)` 추가 |
+| `backend/src/main/java/com/tpmp/testprep/controller/AuthController.java` | 수정 | `POST /api/auth/logout` 추가 (scope 쿼리 파라미터, 기본값 `user`) |
+
+### 수정 상세
+
+#### `security/jwt/JwtAuthenticationFilter.java`
+- 변경 전: `isTokenOptionalEndpoint`가 `/api/auth/login`·`/api/auth/refresh`·`/api/auth/signup`만 허용
+- 변경 후: `/api/auth/logout`을 추가로 허용
+- 이유: 로그아웃은 accessToken이 만료된 상태에서도 호출될 수 있다(오히려 만료된 채로 로그아웃하려는 상황이 흔함). 이 예외가 없으면 필터가 만료 토큰을 이유로 401을 반환해 쿠키 삭제 로직에 도달하지 못한다.
+
+#### `security/jwt/RefreshTokenCookieProvider.java`
+- 변경 전: `createLegacyExpiredCookie()`만 존재(레거시 `refresh_token` 쿠키 전용)
+- 변경 후: `createExpiredCookie(User.Role role)` 추가 — `cookieNameFor(role)` 이름의 쿠키를 값 빈 문자열·`maxAge=0`·HttpOnly·path `/api/auth`로 생성. `createLegacyExpiredCookie()`와 로직이 중복되므로 private `expiredCookie(String name)` 헬퍼로 통합
+- 이유: role별 refresh 쿠키를 로그아웃 시 만료시켜야 하는데 기존에는 로그인 시 발급하는 `createCookie`만 있었음. CLAUDE.md 공용 유틸리티 규칙에 따라 중복 로직을 헬퍼로 정리
+
+#### `service/AuthService.java`
+- 변경 전: `logout` 메서드 없음
+- 변경 후: `logout(String scope, HttpServletResponse response)` 추가 — `"admin".equals(scope)` 기준으로 role 판정(`AuthController.refresh`와 동일 기준) 후 해당 role의 refresh 쿠키 + 레거시 `refresh_token` 쿠키를 응답에 만료 쿠키로 추가. 인증 정보·DB 조회 없음(만료된 토큰으로도 호출 가능해야 하므로)
+- 이유: Refresh Token은 stateless JWT라 서버 측 블랙리스트(무효화)는 이번 범위에 포함하지 않음 — 쿠키 삭제만으로 재발급 경로를 차단하는 것으로 충분
+
+#### `controller/AuthController.java`
+- 변경 전: `/logout` 엔드포인트 없음
+- 변경 후: `@PostMapping("/logout")` 추가 — `@RequestParam(name = "scope", defaultValue = "user") String scope`, `HttpServletResponse response`를 받아 `authService.logout(scope, response)` 호출 후 `ApiResponse.success()` 반환(`signup`의 void 응답 패턴과 동일)
+- 이유: 프론트 `authService.logout(scope)`가 호출할 실제 서버 엔드포인트 신설
+
+### 검증
+- `./gradlew compileJava` 통과 확인
+
+### 복원 방법
+이 ID(HIST-20260717-002)로 복원 시 `JwtAuthenticationFilter.isTokenOptionalEndpoint`에서 `/api/auth/logout` 분기를 제거하고, `RefreshTokenCookieProvider.createExpiredCookie`를 삭제(`createLegacyExpiredCookie`는 기존 `new Cookie(...)` 직접 생성 방식으로 되돌려도 되고 유지해도 무방), `AuthService.logout`과 `AuthController.logout` 메서드를 삭제한다.
+
+---
+
 ## HIST-20260717-001
 
 - **날짜**: 2026-07-17
