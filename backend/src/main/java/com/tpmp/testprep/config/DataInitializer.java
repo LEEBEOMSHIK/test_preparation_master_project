@@ -80,9 +80,9 @@ public class DataInitializer implements ApplicationRunner {
     }
 
     private void fixQuestionTypeConstraints() {
-        // questions(시험)는 구조화 유형(SCHEDULING/SQL) 미지원 — 4개 값 유지
-        fixQuestionTypeConstraint("questions", "'MULTIPLE_CHOICE', 'SHORT_ANSWER', 'OX', 'CODE'");
-        // question_bank(데일리 퀴즈)는 SCHEDULING·SQL 구조화 유형 지원
+        // 시험 문항과 문제은행 모두 동일한 6개 문항 유형을 지원한다.
+        fixQuestionTypeConstraint("questions",
+                "'MULTIPLE_CHOICE', 'SHORT_ANSWER', 'OX', 'CODE', 'SCHEDULING', 'SQL'");
         fixQuestionTypeConstraint("question_bank",
                 "'MULTIPLE_CHOICE', 'SHORT_ANSWER', 'OX', 'CODE', 'SCHEDULING', 'SQL'");
     }

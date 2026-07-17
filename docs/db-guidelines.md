@@ -122,7 +122,7 @@ repository.findAllByDelYn("N", pageable);
 |--------|------|---------------|------|
 | `users` | 사용자 계정 | 미적용 (레거시) | email, password, role, name |
 | `exams` | 시험지 (문항 묶음) | 미적용 (레거시) | title, order_no, question_mode, created_by FK |
-| `questions` | 시험지 내 문항 | 미적용 (레거시) | exam_id FK, seq, content, question_type, options(jsonb), answer, explanation, code, language |
+| `questions` | 시험지 내 문항 스냅샷 | 미적용 (레거시) | exam_id FK, nullable source_question_bank_id FK, instruction, content, question_type, options(jsonb), answer(TEXT), explanation, code, language, scheduling_data(jsonb), sql_data(jsonb) |
 | `question_bank` | 글로벌 문항 풀 | ✅ **적용** | category_id FK → domain_slave |
 | `domain_master` | 도메인 마스터 (분류 그룹) | 미적용 (단순 코드 테이블) | name |
 | `domain_slave` | 도메인 슬레이브 (분류 값) | 미적용 (단순 코드 테이블) | master_id FK, name, display_order |
@@ -243,7 +243,18 @@ created_at     TIMESTAMP    NOT NULL
 | 컬럼 | 설명 |
 |------|------|
 | `exam_id` | FK → exams.id (시험지) |
-| `question_type` | MULTIPLE_CHOICE / SHORT_ANSWER / OX / CODE |
+| `source_question_bank_id` | nullable FK → question_bank.id (원본 문항, 자동 전파 없는 스냅샷 연결) |
+| `instruction` | 시험지 문항 발문(지시문) 스냅샷 |
+| `question_type` | MULTIPLE_CHOICE / SHORT_ANSWER / OX / CODE / SCHEDULING / SQL |
+| `scheduling_data` | CPU 스케줄링 구조화 데이터 스냅샷 (JSONB, nullable) |
+| `sql_data` | SQL 테이블·기대 결과 구조화 데이터 스냅샷 (JSONB, nullable) |
+
+#### `exam_history_details`
+| 컬럼 | 설명 |
+|------|------|
+| `instruction` | 제출 시점 발문(지시문) 스냅샷 |
+| `scheduling_data` | 제출 시점 CPU 스케줄링 구조화 데이터 스냅샷 (JSONB, nullable) |
+| `sql_data` | 제출 시점 SQL 구조화 데이터 스냅샷 (JSONB, nullable) |
 
 #### `question_bank`
 | 컬럼 | 설명 |

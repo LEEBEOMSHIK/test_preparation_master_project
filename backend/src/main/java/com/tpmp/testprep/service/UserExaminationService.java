@@ -15,10 +15,12 @@ import com.tpmp.testprep.entity.ExamSession;
 import com.tpmp.testprep.entity.Examination;
 import com.tpmp.testprep.entity.Question;
 import com.tpmp.testprep.entity.User;
+import com.tpmp.testprep.entity.support.SqlData;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.ExamHistoryDetailRepository;
 import com.tpmp.testprep.repository.ExamHistoryRepository;
+import com.tpmp.testprep.repository.ExamRepository;
 import com.tpmp.testprep.repository.ExamSessionRepository;
 import com.tpmp.testprep.repository.ExaminationRepository;
 import com.tpmp.testprep.repository.QuestionRepository;
@@ -46,6 +48,7 @@ public class UserExaminationService {
     private final QuestionRepository questionRepository;
     private final UserRepository userRepository;
     private final ExamHistoryRepository examHistoryRepository;
+    private final ExamRepository examRepository;
     private final ExamHistoryDetailRepository examHistoryDetailRepository;
     private final ExamSessionRepository examSessionRepository;
 
@@ -58,6 +61,10 @@ public class UserExaminationService {
     public ExamSessionResponse startExam(Long examinationId, String email, boolean reset) {
         Examination examination = examinationRepository.findByIdWithPaper(examinationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EXAMINATION_NOT_FOUND));
+
+        // 동기화 apply와 동일한 Exam 행 잠금을 먼저 잡아 세션 생성/문항 갱신의 TOCTOU를 막는다.
+        examRepository.findByIdForUpdate(examination.getExamPaper().getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.EXAM_NOT_FOUND));
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -122,8 +129,7 @@ public class UserExaminationService {
         for (Question q : questions) {
             String raw = answers.getOrDefault(q.getId(), "");
             String userAnswer = raw.isEmpty() ? null : raw;
-            boolean isCorrect = AnswerGrader.isCorrect(
-                    q.getQuestionType().name(), q.getAnswer(), userAnswer, q.getOptions());
+            boolean isCorrect = isQuestionCorrect(q, userAnswer);
             if (isCorrect) correct++;
             results.add(QuestionResultResponse.of(q, raw, isCorrect));
         }
@@ -145,12 +151,12 @@ public class UserExaminationService {
             Question q = questions.get(i);
             String raw = answers.getOrDefault(q.getId(), "");
             String userAnswer = raw.isEmpty() ? null : raw;
-            boolean isCorrect = AnswerGrader.isCorrect(
-                    q.getQuestionType().name(), q.getAnswer(), userAnswer, q.getOptions());
+            boolean isCorrect = isQuestionCorrect(q, userAnswer);
 
             ExamHistoryDetail detail = ExamHistoryDetail.builder()
                     .questionId(q.getId())
                     .seq(q.getSeq())
+                    .instruction(q.getInstruction())
                     .content(q.getContent())
                     .questionType(q.getQuestionType().name())
                     .options(q.getOptions())
@@ -160,6 +166,8 @@ public class UserExaminationService {
                     .explanation(q.getExplanation())
                     .code(q.getCode())
                     .language(q.getLanguage())
+                    .schedulingData(q.getSchedulingData())
+                    .sqlData(q.getSqlData())
                     .categoryName(q.getCategory() != null ? q.getCategory().getName() : null)
                     .build();
             history.addDetail(detail);
@@ -167,7 +175,22 @@ public class UserExaminationService {
 
         ExamHistory saved = examHistoryRepository.save(history);
 
+        // 제출 이력 저장이 성공한 트랜잭션에서만 응시 세션을 종료한다.
+        examSessionRepository.deleteByUser_IdAndExamination_Id(user.getId(), id);
+
         return ExaminationSubmitResponse.of(total, correct, score, results, saved.getId());
+    }
+
+    private boolean isQuestionCorrect(Question question, String userAnswer) {
+        SqlData sqlData = question.getSqlData();
+        SqlData.SqlExpectedResult expectedResult =
+                question.getQuestionType() == Question.QuestionType.SQL && sqlData != null
+                        ? sqlData.expectedResult() : null;
+        if (expectedResult != null && !AnswerGrader.hasMeaningfulOptions(question.getOptions())) {
+            return AnswerGrader.isSqlResultTableCorrect(expectedResult, userAnswer);
+        }
+        return AnswerGrader.isCorrect(
+                question.getQuestionType().name(), question.getAnswer(), userAnswer, question.getOptions());
     }
 
     /** 사용자 전체 응시 이력 목록 (최신순 페이징) */

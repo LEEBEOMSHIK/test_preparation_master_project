@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import type { ApiResponse, ExaminationSubmitResult, ExamQuestion, ExamSummary, PageResponse, QuestionSummary, QuestionType, SchedulingData, SqlData } from '@/types';
+import type { ApiResponse, ExamQuestionSyncPreview, ExaminationSubmitResult, ExamQuestion, ExamSummary, PageResponse, QuestionSummary, QuestionType, SchedulingData, SqlData } from '@/types';
 
 export const examService = {
   // Admin
@@ -37,6 +37,21 @@ export const examService = {
 
   adminGetExamQuestions: (examId: number) =>
     apiClient.get<ApiResponse<ExamQuestion[]>>(`/admin/exams/${examId}/questions`),
+
+  adminGetQuestionSyncPreview: (examId: number) =>
+    apiClient.get<ApiResponse<ExamQuestionSyncPreview>>(`/admin/exams/${examId}/questions/sync-preview`),
+
+  adminSyncQuestions: (
+    examId: number,
+    selections: Array<{ questionId: number; sourceQuestionBankId: number }>,
+    applyAnswers: boolean,
+    answerConfirmation?: string,
+  ) =>
+    apiClient.post<ApiResponse<ExamQuestionSyncPreview>>(`/admin/exams/${examId}/questions/sync`, {
+      selections,
+      applyAnswers,
+      answerConfirmation,
+    }),
 
   adminRemoveQuestion: (examId: number, questionId: number) =>
     apiClient.delete<ApiResponse<void>>(`/admin/exams/${examId}/questions/${questionId}`),

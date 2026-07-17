@@ -1,3 +1,122 @@
+## HIST-20260717-005
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 프론트엔드 / SQL 결과 답안 복원 테스트 타입 보완
+- **수정 개요**: Jest 런타임은 통과하지만 TypeScript가 전역 `jest` 값과 jest-dom 확장 matcher 타입을 찾지 못하던 테스트를 프로젝트 설정에 맞게 수정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/components/ui/SqlResultAnswerInput.test.tsx` | 수정 | `@jest/globals` 명시 import 및 기본 Jest DOM null assertion 사용 |
+
+### 수정 상세
+
+- 전역 Jest 설정은 확장하지 않고 `expect`·`jest`를 명시적으로 가져왔다.
+- jest-dom 전용 matcher를 기본 `toBeNull`/`not.toBeNull`로 교체해 tsc와 Jest 양쪽 타입 계약을 만족시켰다.
+
+---
+
+## HIST-20260717-004
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 프론트엔드 / SQL 결과 답안 복원
+- **수정 개요**: SQL 결과 입력 그리드가 저장된 value를 버리던 문제를 수정해 문항 전환·재마운트·외부 답안 변경 시 행렬을 안전하게 복원한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/components/ui/SqlResultAnswerInput.tsx` | 수정 | value 역직렬화와 무루프 외부 상태 동기화 |
+| `frontend/src/lib/sql.ts` | 수정 | SQL 답안 grid serialize/deserialize 공용 함수 추가 |
+| `frontend/src/lib/sql.test.ts` | 수정 | round-trip·손상 값 폴백 테스트 |
+| `frontend/src/components/ui/SqlResultAnswerInput.test.tsx` | 추가 | 문항 전환 재마운트 답안 복원 테스트 |
+
+### 수정 상세
+
+- 컬럼 수가 정확히 맞는 직렬화 값만 복원하고 빈 값·손상 값은 빈 1행으로 폴백한다.
+- 부모 value를 반영할 때 `onChange`를 호출하지 않아 stale 상태와 무한 갱신 루프를 방지한다.
+
+---
+
+## HIST-20260717-003
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 프론트엔드 / SCHEDULING·SQL 시험 응시·결과 표시
+- **수정 개요**: 시험 화면에 구조화 스케줄링 표와 SQL 테이블을 렌더하고 SQL 기대 결과 문항에는 결과 입력 그리드를 제공한다. 결과 화면도 동일 구조를 재현한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | 구조화 문제 표시와 SQL 결과 입력 |
+| `frontend/src/components/ui/ExamResultDisplay.tsx` | 수정 | 구조화 문제 결과 재현 |
+| `frontend/src/services/examService.ts` 외 | 수정 | schedulingData/sqlData/sqlResultColumns 타입 전달 |
+
+### 수정 상세
+
+- 기존 공용 `SchedulingProblemTable`, `SqlProblemView`, `SqlResultAnswerInput`을 재사용했다.
+- 이유: 문제은행과 시험 응시 화면 사이의 유형별 UX 및 답안 직렬화 계약을 일치시키기 위함.
+
+---
+
+## HIST-20260717-002
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시·결과 — 발문 스냅샷 표시
+- **수정 개요**: 시험 응시 화면과 제출 직후/과거 이력 공용 결과 화면에서 문항 본문 앞에 `instruction`을 `RichContent`로 렌더한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | 응시 문항 발문 RichContent 표시, 세션 시작 후 상세 조회 순서 보장 |
+| `frontend/src/components/ui/ExamResultDisplay.tsx` | 수정 | 결과 상세 발문 RichContent 표시 |
+| `frontend/src/types/index.ts` | 수정 | Question/QuestionResult instruction 타입 추가 |
+
+### 수정 상세
+
+- 변경 전: QuestionBank에는 발문이 있어도 시험 응시와 결과 화면에는 본문만 표시됐다.
+- 변경 후: 시험지 및 제출 시점 스냅샷의 발문을 본문과 분리해 안전한 공용 HTML 렌더러로 표시한다. 초기 실제 응시는 `최근 결과 확인 → startExam → 상세 조회`, 재응시는 `startExam(reset=true) → 상세 재조회` 순서를 보장해 세션 잠금 전 stale 문항을 읽지 않는다.
+- 이유: 원본 문항의 풀이 지시를 응시와 과거 결과에서 동일하게 보존하기 위함.
+
+### 복원 방법
+
+이 ID(`UserExamination_Modified.md` 기준 HIST-20260717-002)로 복원 시 두 화면의 instruction 렌더와 관련 FE 타입을 제거한다.
+
+---
+
+## HIST-20260717-001
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 풀이 스크래치패드 — 코드 트레이싱 배열 프리뷰 파싱 보정
+- **수정 개요**: 코드 트레이싱 배열 파서가 중괄호 튜플 내부 쉼표를 최상위 원소 구분자로 잘못 처리해 `[{1, "AB"}, {2, "DC"}, {3, "EB"}]`를 6개 셀로 표시하던 결함을 수정했다. 대괄호·중괄호·소괄호의 중첩과 작은따옴표·큰따옴표·백슬래시 이스케이프를 함께 추적하며, 바깥 배열 바로 아래의 쉼표만 분리한다. 불균형 괄호와 미종료 문자열은 배열로 렌더하지 않고 자유 텍스트로 안전하게 폴백한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/traceNotation.ts` | 수정 | 상태 기반 배열 그룹 파싱으로 중첩 그룹·문자열 내부 쉼표 보존 및 malformed 입력 폴백 |
+| `frontend/src/lib/traceNotation.test.ts` | 추가 | 튜플·문자열 이스케이프·중첩 그룹·빈 배열·바깥 대괄호 중복/누락·malformed 입력과 기존 1D/2D 배열 회귀 테스트 |
+
+### 수정 상세
+
+#### `frontend/src/lib/traceNotation.ts`
+- 변경 전: 바깥 `]` 탐색과 원소 분리가 대괄호 깊이만 추적해 `{1, "AB"}` 내부의 쉼표와 문자열 안의 쉼표·대괄호를 구분하지 못했다. 괄호나 따옴표가 깨진 입력도 일부 배열로 오인할 수 있었다.
+- 변경 후: 단일 상태 기반 `parseBracketGroup`이 `[]`·`{}`·`()` 스택, 작은따옴표·큰따옴표, 백슬래시 이스케이프를 추적한다. 바깥 배열 바로 아래의 쉼표만 셀 경계로 사용하고 모든 그룹·문자열이 정상 종료된 경우에만 배열을 반환한다. 중괄호 튜플은 새 렌더 종류 없이 1D 배열의 원자 셀로 유지한다.
+- 이유: 시험 응시 화면의 공용 스크래치패드 프리뷰에서 구조를 포함한 배열 메모가 데이터 손실 없이 표시되고, 잘못 닫힌 입력은 안전하게 원문 보존되도록 하기 위함.
+
+#### `frontend/src/lib/traceNotation.test.ts`
+- 변경 전: `traceNotation` 전용 단위 테스트가 없어 배열 구분 경계와 malformed 폴백의 회귀를 자동 검증하지 못했다.
+- 변경 후: 사용자 재현 입력이 3개 원자 셀로 유지되는지, 문자열 내부 쉼표·이스케이프와 중첩 중괄호·소괄호를 보존하는지, 빈 배열이 빈 1D 배열로 유지되는지, 불균형 그룹·바깥 대괄호 중복/누락 입력이 text로 폴백하는지, 기존 1D/2D 배열 동작이 유지되는지를 검증하는 Jest 테스트를 추가했다.
+- 이유: 동일 결함 재발과 기존 배열 렌더 회귀를 방지하기 위함.
+
+### 복원 방법
+
+이 ID(`UserExamination_Modified.md` 기준 HIST-20260717-001)로 복원 시 `traceNotation.ts`의 상태 기반 `parseBracketGroup`을 기존 대괄호 깊이 전용 `findMatchingBracketEnd`·`splitTopLevel` 구현으로 되돌리고 `traceNotation.test.ts`를 제거한다.
+
+---
+
 ## HIST-20260710-005
 
 - **날짜**: 2026-07-10

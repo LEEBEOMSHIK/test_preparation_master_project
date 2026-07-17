@@ -1,3 +1,52 @@
+## HIST-20260717-002
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 관리자 프론트엔드 / 시험지 SCHEDULING·SQL 문항 편집
+- **수정 개요**: 시험지 등록·수정에서 구조화 문항을 제외하지 않고 schedulingData/sqlData를 원본 스냅샷 payload에 포함한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/app/admin/exams/papers/new/page.tsx` | 수정 | 구조화 문항 선택·payload 지원 |
+| `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` | 수정 | 구조화 문항 추가·수정 payload 지원 |
+| `frontend/src/types/index.ts` | 수정 | 시험 문항 구조화 데이터 타입 확장 |
+| `frontend/src/lib/sql.test.ts` | 추가 | SQL 기대 결과 payload·직렬화 회귀 테스트 |
+
+### 수정 상세
+
+- 기존 SCHEDULING·SQL 필터를 제거하고 두 JSON 구조를 백엔드로 전달한다.
+- 이유: 문제은행의 모든 문항 유형을 시험지에서도 동일하게 사용할 수 있게 하기 위함.
+
+---
+
+## HIST-20260717-001
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 관리자 프론트엔드 / 시험지 등록·수정 — 문항 원본 스냅샷 연결·명시적 동기화
+- **수정 개요**: 시험지 신규/추가 요청에 QuestionBank 원본 ID를 전달하고, 수정 화면에 Skeleton 기반 동기화 미리보기·위험 표시·선택 적용·정답 이중 확인 패널을 추가했다. 기존 문항 제외 비교를 Question 행 ID가 아닌 `sourceQuestionBankId` 기준으로 수정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/app/admin/exams/papers/new/page.tsx` | 수정 | 원본 ID payload, 지원 불가 유형 제외, Skeleton 적용 |
+| `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx` | 수정 | 동기화 패널, 원본 ID 기준 중복 제외, 삭제 즉시 로컬 상태 제거와 preview best-effort 갱신, 현재 선택 기준 정답 이중 확인 |
+| `frontend/src/services/examService.ts` | 수정 | sync-preview/sync API 클라이언트 추가 |
+| `frontend/src/types/index.ts` | 수정 | 원본 링크·동기화 미리보기 타입 추가 |
+
+### 수정 상세
+
+- 변경 전: QuestionBank 값을 FE가 복사 전송했고 시험지 문항 ID와 원본 ID를 혼동해 이미 추가된 문항 비교가 틀렸으며, 원본 변경 차이를 확인·적용할 UI가 없었다.
+- 변경 후: FE는 `sourceQuestionBankId`를 함께 보내며, 링크/후보/변경 필드/정답 위험/지원 불가/활성 세션 상태를 보여준 뒤 선택 문항만 적용한다. 삭제 성공 즉시 `examQuestions`·`syncPreview.items`·`syncSelectedIds`에서 로컬 제거하고 후속 preview 재조회는 best-effort로 분리한다. 현재 선택에 정답 변경이 있을 때만 체크박스 2개와 `정답 동기화` 문구 확인을 요구하며 그 외에는 이전 승인 상태를 초기화한다.
+- 이유: 출제 스냅샷 안정성을 유지하면서 관리자 승인 하에만 원본 변경을 반영하기 위함.
+
+### 복원 방법
+
+이 ID(`AdminExamPaper_Modified.md` 기준 HIST-20260717-001)로 복원 시 위 동기화 상태·패널·서비스 메서드·원본 ID payload를 제거하고 기존 ID 비교 로직으로 되돌린다.
+
+---
+
 ## HIST-20260709-001
 
 - **날짜**: 2026-07-09

@@ -7,10 +7,31 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+import java.util.Optional;
+
 public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long> {
 
     /** 삭제되지 않은 문항만 조회 */
     Page<QuestionBank> findAllByDelYn(String delYn, Pageable pageable);
+
+    Optional<QuestionBank> findByIdAndDelYnAndUseYn(Long id, String delYn, String useYn);
+
+    /** 기존 미연결 Question의 구조화 후보: 시험 연도+회차+원본 문항번호가 모두 같은 활성 원본. */
+    @Query("""
+            SELECT qb FROM QuestionBank qb
+            WHERE qb.delYn = 'N' AND qb.useYn = 'Y'
+              AND qb.examYear = :examYear
+              AND qb.examRound = :examRound
+              AND qb.questionNo = :questionNo
+              AND qb.examType.id = :examTypeId
+            ORDER BY qb.id ASC
+            """)
+    List<QuestionBank> findStructuralSyncCandidates(
+            @Param("examYear") Integer examYear,
+            @Param("examRound") Integer examRound,
+            @Param("questionNo") Integer questionNo,
+            @Param("examTypeId") Long examTypeId);
 
     /** 슬레이브 ID가 category 또는 examType으로 참조되는지 확인 */
     boolean existsByCategoryIdOrExamTypeId(Long categoryId, Long examTypeId);

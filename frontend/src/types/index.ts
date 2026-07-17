@@ -142,11 +142,15 @@ export interface ExamSummary {
 export interface Question {
   id: number;
   seq: number;
+  instruction?: string;
   content: string;
   questionType: QuestionType;
   options?: string[];
   code?: string;
   language?: string;
+  schedulingData?: SchedulingData;
+  sqlData?: SqlData;
+  sqlResultColumns?: string[];
 }
 
 export interface ExamDetail extends ExamSummary {
@@ -157,6 +161,8 @@ export interface ExamDetail extends ExamSummary {
 export interface ExamQuestion {
   id: number;
   seq: number;
+  sourceQuestionBankId?: number;
+  instruction?: string;
   content: string;
   questionType: QuestionType;
   options?: string[];
@@ -166,6 +172,26 @@ export interface ExamQuestion {
   language?: string;
   categoryId?: number;
   categoryName?: string;
+  schedulingData?: SchedulingData;
+  sqlData?: SqlData;
+}
+
+export interface ExamQuestionSyncItem {
+  questionId: number;
+  seq: number;
+  linkedSourceQuestionBankId?: number;
+  candidateSourceQuestionBankId?: number;
+  linkStatus: 'LINKED' | 'CANDIDATE' | 'UNLINKED' | 'AMBIGUOUS';
+  syncStatus: 'UP_TO_DATE' | 'CHANGED' | 'CANDIDATE' | 'NO_SOURCE' | 'MISSING_SOURCE' | 'UNSUPPORTED';
+  changedFields: string[];
+  answerChanged: boolean;
+  risks: string[];
+}
+
+export interface ExamQuestionSyncPreview {
+  examId: number;
+  activeSession: boolean;
+  items: ExamQuestionSyncItem[];
 }
 
 export interface QuestionSummary {
@@ -429,6 +455,7 @@ export interface BookmarkQuestion {
 export interface QuestionResult {
   questionId: number | null;
   seq: number;
+  instruction?: string;
   content: string;
   questionType: QuestionType;
   options?: string[];
@@ -438,6 +465,8 @@ export interface QuestionResult {
   explanation?: string;
   code?: string;
   language?: string;
+  schedulingData?: SchedulingData;
+  sqlData?: SqlData;
 }
 
 /** 시험 제출·채점 결과 */

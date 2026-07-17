@@ -28,6 +28,9 @@ public enum ErrorCode {
     SQL_DATA_INVALID(HttpStatus.BAD_REQUEST, "SQL 문제 데이터가 올바르지 않습니다. (테이블·컬럼·행 데이터를 확인하세요)"),
     QUESTION_BODY_REQUIRED(HttpStatus.BAD_REQUEST, "발문 또는 문항 내용 중 하나는 입력해야 합니다."),
     QUESTION_NO_DUPLICATE(HttpStatus.CONFLICT, "동일한 시험 그룹에 이미 등록된 문항번호입니다."),
+    EXAM_QUESTION_SYNC_ACTIVE_SESSION(HttpStatus.CONFLICT, "응시 중인 세션이 있어 문항을 동기화할 수 없습니다."),
+    EXAM_QUESTION_SYNC_SOURCE_MISMATCH(HttpStatus.CONFLICT, "선택한 원본 문항이 현재 미리보기 후보와 일치하지 않습니다."),
+    EXAM_QUESTION_SYNC_ANSWER_CONFIRM_REQUIRED(HttpStatus.BAD_REQUEST, "정답 동기화 문구를 정확히 입력해야 합니다."),
 
     // ConceptNote
     CONCEPT_NOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "개념 요약을 찾을 수 없습니다."),

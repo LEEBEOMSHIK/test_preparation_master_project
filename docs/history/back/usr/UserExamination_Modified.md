@@ -1,3 +1,53 @@
+## HIST-20260717-003
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 백엔드 / 구조화 시험 문항 응시·채점·이력
+- **수정 개요**: SCHEDULING·SQL 데이터를 응시 응답과 제출 이력에 보존하고, SQL 기대 결과 문항을 결과 테이블 채점기로 판정한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `backend/src/main/java/com/tpmp/testprep/dto/response/ExaminationQuestionView.java` 외 | 수정 | 응시 시 SQL 정답 제거·결과 컬럼 제공, 제출 후 전체 구조 반환 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserExaminationService.java` | 수정 | SQL 결과 테이블 채점과 구조화 이력 저장 |
+| `backend/src/main/java/com/tpmp/testprep/entity/ExamHistoryDetail.java` | 수정 | JSONB 스냅샷·TEXT 답안 저장 |
+| `backend/src/test/java/com/tpmp/testprep/service/UserExaminationSessionLifecycleTest.java` | 수정 | SQL 채점·구조화 결과 회귀 테스트 |
+
+### 수정 상세
+
+- 응시 전에는 sqlData.expectedResult를 제거하고 입력 그리드 생성용 컬럼만 노출한다. 제출 후에는 정답·해설과 함께 구조화 문제를 재현한다.
+- 이유: 정답 유출 없이 SQL 결과형 문항을 실제 시험에서도 채점하고 과거 결과를 보존하기 위함.
+
+---
+
+## HIST-20260717-002
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 백엔드 / 시험 응시·결과 — 발문 제출 이력 스냅샷
+- **수정 개요**: 시험 상세·제출 결과 응답에 Question instruction을 포함하고, 제출 시 `exam_history_details.instruction`에 저장해 원본/시험지 변경 후에도 과거 이력 발문을 유지한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `backend/src/main/java/com/tpmp/testprep/entity/ExamHistoryDetail.java` | 수정 | instruction 스냅샷 컬럼 매핑 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserExaminationService.java` | 수정 | 제출 시 발문 스냅샷 저장 |
+| `backend/src/test/java/com/tpmp/testprep/service/UserExaminationSessionLifecycleTest.java` | 추가 | 시험 시작 시 Exam 행 잠금 순서와 제출 성공 시 세션 삭제 검증 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/ExaminationQuestionView.java` | 수정 | 응시 상세 발문 응답 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionResultResponse.java` | 수정 | 제출/이력 결과 발문 응답 |
+
+### 수정 상세
+
+- 변경 전: 이력 상세에는 content·정답·해설만 저장되어 발문을 재현할 수 없었다.
+- 변경 후: 제출 시점 instruction을 별도 TEXT 스냅샷으로 저장하고 현재 응시/과거 결과 응답에 포함한다. 시험 시작은 시험지 Exam 행을 잠근 뒤 세션을 조회/생성하고, 제출 이력 저장 성공 시 같은 트랜잭션에서 해당 응시 세션을 삭제한다.
+- 이유: 시험지 동기화 이후에도 이미 제출된 결과의 문맥을 불변으로 보존하기 위함.
+
+### 복원 방법
+
+이 ID(`UserExamination_Modified.md` 기준 HIST-20260717-002)로 복원 시 instruction 응답·저장 매핑과 DDL 컬럼을 제거한다.
+
+---
+
 ## HIST-20260717-001
 
 - **날짜**: 2026-07-17

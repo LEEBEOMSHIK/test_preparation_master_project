@@ -8,11 +8,11 @@
  * 값은 기존 채점 API의 문자열 계약(`셀 | 셀` + 줄바꿈)으로 직렬화해 부모(value/onChange)에
  * 노출하므로, 페이지 쪽 제출 로직은 CodeAnswerInput과 동일하게 다룰 수 있다.
  *
- * 문항 전환 시 그리드를 초기화해야 하므로, 호출부에서 반드시 `key={question.id}`를 지정해
- * 문항이 바뀔 때 컴포넌트를 리마운트해야 한다(내부 상태는 마운트 시 1회만 초기화됨).
+ * 문항 전환 리마운트와 외부 value 변경 모두에서 저장된 답안을 복원한다.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { deserializeSqlAnswerGrid, serializeSqlAnswerGrid } from '@/lib/sql';
 
 interface Props {
   columns: string[];
@@ -21,24 +21,23 @@ interface Props {
   disabled?: boolean;
 }
 
-/** 컬럼 수에 맞는 빈 행 1개로 시작 (value는 부모가 관리하는 직렬화 문자열이지만,
- *  진실 원천은 이 컴포넌트의 로컬 grid 상태 — CodeAnswerInput과 동일한 uncontrolled 패턴) */
-function initialGrid(columnCount: number): string[][] {
-  return [Array(columnCount).fill('')];
-}
-
-/** 행렬 → "셀 | 셀\n셀 | 셀" 직렬화 문자열 */
-function serializeGrid(rows: string[][]): string {
-  return rows.map((row) => row.join(' | ')).join('\n');
-}
-
 export function SqlResultAnswerInput({ columns, value, onChange, disabled = false }: Props) {
-  void value; // 직렬화 문자열은 onChange로만 내보내고, 그리드 자체 상태가 진실 원천(컴포넌트는 문항별로 리마운트됨)
-  const [rows, setRows] = useState<string[][]>(() => initialGrid(columns.length));
+  const [rows, setRows] = useState<string[][]>(() => deserializeSqlAnswerGrid(value, columns.length));
+
+  // 부모의 답안 복원·초기화가 들어오면 로컬 그리드만 갱신한다. onChange를 재호출하지 않아
+  // controlled 업데이트 루프를 만들지 않고, 방금 commit한 동일 값은 그대로 유지한다.
+  useEffect(() => {
+    setRows((current) => {
+      const hasCurrentShape = current.every((row) => row.length === columns.length);
+      return hasCurrentShape && serializeSqlAnswerGrid(current) === value
+        ? current
+        : deserializeSqlAnswerGrid(value, columns.length);
+    });
+  }, [value, columns.length]);
 
   const commit = (next: string[][]) => {
     setRows(next);
-    onChange(serializeGrid(next));
+    onChange(serializeSqlAnswerGrid(next));
   };
 
   const updateCell = (rowIdx: number, colIdx: number, cell: string) => {

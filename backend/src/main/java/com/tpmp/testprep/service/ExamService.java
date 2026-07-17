@@ -13,9 +13,11 @@ import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.DomainSlaveRepository;
 import com.tpmp.testprep.repository.ExamRepository;
 import com.tpmp.testprep.repository.QuestionRepository;
+import com.tpmp.testprep.repository.QuestionBankRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import com.tpmp.testprep.service.parser.ParsedQuestion;
 import com.tpmp.testprep.service.parser.PdfQuestionParser;
+import com.tpmp.testprep.service.support.StructuredQuestionValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
@@ -52,6 +54,7 @@ public class ExamService {
 
     private final ExamRepository examRepository;
     private final QuestionRepository questionRepository;
+    private final QuestionBankRepository questionBankRepository;
     private final UserRepository userRepository;
     private final DomainSlaveRepository domainSlaveRepository;
 
@@ -130,22 +133,7 @@ public class ExamService {
     public void addQuestion(Long examId, QuestionRequest request) {
         Exam exam = getExamDetail(examId);
         int seq = questionRepository.maxSeqByExamId(examId) + 1;
-        DomainSlave category = (request.categoryId() != null)
-                ? domainSlaveRepository.findById(request.categoryId()).orElse(null)
-                : null;
-        Question question = Question.builder()
-                .exam(exam)
-                .seq(seq)
-                .content(request.content())
-                .questionType(request.questionType())
-                .options(request.options())
-                .answer(request.answer())
-                .explanation(request.explanation())
-                .code(request.code())
-                .language(request.language())
-                .category(category)
-                .build();
-        questionRepository.save(question);
+        questionRepository.save(buildSnapshot(exam, seq, request));
     }
 
     @Transactional
@@ -155,22 +143,7 @@ public class ExamService {
         int startSeq = questionRepository.maxSeqByExamId(examId) + 1;
         List<Question> questions = new ArrayList<>();
         for (int i = 0; i < requests.size(); i++) {
-            QuestionRequest req = requests.get(i);
-            DomainSlave category = (req.categoryId() != null)
-                    ? domainSlaveRepository.findById(req.categoryId()).orElse(null)
-                    : null;
-            questions.add(Question.builder()
-                    .exam(exam)
-                    .seq(startSeq + i)
-                    .content(req.content())
-                    .questionType(req.questionType())
-                    .options(req.options())
-                    .answer(req.answer())
-                    .explanation(req.explanation())
-                    .code(req.code())
-                    .language(req.language())
-                    .category(category)
-                    .build());
+            questions.add(buildSnapshot(exam, startSeq + i, requests.get(i)));
         }
         questionRepository.saveAll(questions);
     }
@@ -193,28 +166,67 @@ public class ExamService {
         if (questionRequests != null && !questionRequests.isEmpty()) {
             List<Question> questions = new ArrayList<>();
             for (int i = 0; i < questionRequests.size(); i++) {
-                QuestionRequest req = questionRequests.get(i);
-                DomainSlave category = (req.categoryId() != null)
-                        ? domainSlaveRepository.findById(req.categoryId()).orElse(null)
-                        : null;
-                questions.add(Question.builder()
-                        .exam(exam)
-                        .seq(i + 1)
-                        .content(req.content())
-                        .questionType(req.questionType())
-                        .options(req.options())
-                        .answer(req.answer())
-                        .explanation(req.explanation())
-                        .code(req.code())
-                        .language(req.language())
-                        .category(category)
-                        .build());
+                questions.add(buildSnapshot(exam, i + 1, questionRequests.get(i)));
             }
             questionRepository.saveAll(questions);
             questionCount = questions.size();
         }
 
         return ExamSummaryResponse.from(exam, questionCount);
+    }
+
+    /** 원본 ID가 있으면 클라이언트 복사값을 무시하고 QuestionBank에서 출제 스냅샷을 만든다. */
+    private Question buildSnapshot(Exam exam, int seq, QuestionRequest request) {
+        if (request.sourceQuestionBankId() != null) {
+            com.tpmp.testprep.entity.QuestionBank source = questionBankRepository
+                    .findByIdAndDelYnAndUseYn(request.sourceQuestionBankId(), "N", "Y")
+                    .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
+            return Question.builder()
+                    .exam(exam)
+                    .sourceQuestionBank(source)
+                    .seq(seq)
+                    .instruction(source.getInstruction())
+                    .content(source.getContent())
+                    .questionType(Question.QuestionType.valueOf(source.getQuestionType().name()))
+                    .options(source.getOptions())
+                    .answer(source.getAnswer())
+                    .explanation(source.getExplanation())
+                    .code(source.getCode())
+                    .language(source.getLanguage())
+                    .category(source.getCategory())
+                    .schedulingData(source.getSchedulingData())
+                    .sqlData(source.getSqlData())
+                    .build();
+        }
+
+        StructuredQuestionValidator.validate(
+                request.questionType() == null ? null : request.questionType().name(),
+                request.schedulingData(),
+                request.sqlData());
+
+        boolean contentBlank = request.content() == null || request.content().isBlank();
+        boolean instructionBlank = request.instruction() == null || request.instruction().isBlank();
+        if (contentBlank && instructionBlank) {
+            throw new BusinessException(ErrorCode.QUESTION_BODY_REQUIRED);
+        }
+        DomainSlave category = request.categoryId() == null
+                ? null
+                : domainSlaveRepository.findById(request.categoryId()).orElse(null);
+        return Question.builder()
+                .exam(exam)
+                .seq(seq)
+                .instruction(request.instruction())
+                .content(request.content() == null ? "" : request.content())
+                .questionType(request.questionType())
+                .options(request.options())
+                .answer(request.answer())
+                .explanation(request.explanation())
+                .code(request.code())
+                .language(request.language())
+                .category(category)
+                .schedulingData(request.schedulingData())
+                .sqlData(request.sqlData())
+                .build();
     }
 
     @Transactional

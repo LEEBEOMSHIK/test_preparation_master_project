@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface ExaminationRepository extends JpaRepository<Examination, Long> {
 
@@ -27,4 +28,7 @@ public interface ExaminationRepository extends JpaRepository<Examination, Long> 
            "LEFT JOIN FETCH e.category " +
            "WHERE e.id = :id")
     Optional<Examination> findByIdWithPaper(@Param("id") Long id);
+
+    @Query("SELECT DISTINCT e.category.id FROM Examination e WHERE e.examPaper.id = :examPaperId")
+    List<Long> findDistinctCategoryIdsByExamPaperId(@Param("examPaperId") Long examPaperId);
 }

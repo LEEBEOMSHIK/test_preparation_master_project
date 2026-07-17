@@ -190,3 +190,22 @@ export function serializeSqlResult(expectedResult: SqlExpectedResult): string {
   const rowLines = expectedResult.rows.map((row) => row.join(' | '));
   return [headerLine, ...rowLines].join('\n');
 }
+
+/** SQL 결과 답안 그리드 → 채점 API 문자열. 헤더는 포함하지 않는다. */
+export function serializeSqlAnswerGrid(rows: string[][]): string {
+  return rows.map((row) => row.join(' | ')).join('\n');
+}
+
+/**
+ * 채점 API 문자열 → SQL 결과 답안 그리드.
+ * 각 행의 셀 수가 현재 컬럼 수와 정확히 일치할 때만 복원하며, 빈 값·손상된 값은
+ * 입력 가능한 빈 1행으로 안전하게 폴백한다.
+ */
+export function deserializeSqlAnswerGrid(value: string, columnCount: number): string[][] {
+  const emptyRow = [Array(Math.max(columnCount, 0)).fill('')];
+  if (columnCount <= 0 || value.trim() === '') return emptyRow;
+
+  const rows = value.replace(/\r\n?/g, '\n').split('\n').map((line) => line.split(' | '));
+  if (rows.length === 0 || rows.some((row) => row.length !== columnCount)) return emptyRow;
+  return rows;
+}

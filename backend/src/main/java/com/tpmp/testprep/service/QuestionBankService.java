@@ -8,13 +8,12 @@ import com.tpmp.testprep.entity.Attachment;
 import com.tpmp.testprep.entity.DomainSlave;
 import com.tpmp.testprep.entity.QuestionBank;
 import com.tpmp.testprep.entity.User;
-import com.tpmp.testprep.entity.support.SchedulingData;
-import com.tpmp.testprep.entity.support.SqlData;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.DomainSlaveRepository;
 import com.tpmp.testprep.repository.QuestionBankRepository;
 import com.tpmp.testprep.repository.UserRepository;
+import com.tpmp.testprep.service.support.StructuredQuestionValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -53,8 +52,7 @@ public class QuestionBankService {
     /** 문항 단건 등록 */
     @Transactional
     public QuestionBankResponse createQuestion(QuestionBankRequest request, String adminEmail) {
-        validateSchedulingData(request);
-        validateSqlData(request);
+        validateStructuredData(request);
         validateBody(request);
         Long adminId = resolveAdminId(adminEmail);
         DomainSlave category = resolveCategory(request.categoryId());
@@ -89,8 +87,7 @@ public class QuestionBankService {
     /** 문항 일괄 등록 */
     @Transactional
     public int createQuestionsBulk(QuestionBankBulkRequest bulkRequest, String adminEmail) {
-        bulkRequest.questions().forEach(this::validateSchedulingData);
-        bulkRequest.questions().forEach(this::validateSqlData);
+        bulkRequest.questions().forEach(this::validateStructuredData);
         bulkRequest.questions().forEach(this::validateBody);
         Long adminId = resolveAdminId(adminEmail);
         List<QuestionBankRequest> requests = bulkRequest.questions();
@@ -129,8 +126,7 @@ public class QuestionBankService {
     /** 문항 수정 */
     @Transactional
     public QuestionBankResponse updateQuestion(Long id, QuestionBankRequest request, String adminEmail) {
-        validateSchedulingData(request);
-        validateSqlData(request);
+        validateStructuredData(request);
         validateBody(request);
         Long adminId = resolveAdminId(adminEmail);
         DomainSlave category = resolveCategory(request.categoryId());
@@ -328,89 +324,12 @@ public class QuestionBankService {
         return request.examYear() == null && request.examRound() == null && request.categoryId() != null;
     }
 
-    /**
-     * SCHEDULING 유형 문항의 스케줄링 데이터 정합성 검증.
-     * <ul>
-     *   <li>questionType == SCHEDULING 인데 schedulingData 가 없으면 오류</li>
-     *   <li>RR 알고리즘인데 timeQuantum 이 없거나 0 이하이면 오류</li>
-     *   <li>PRIORITY 계열 알고리즘인데 프로세스 중 priority 가 비어있는 행이 있으면 오류</li>
-     * </ul>
-     * 등록(단건/일괄) · 수정 3개 경로 모두에서 호출한다.
-     */
-    private void validateSchedulingData(QuestionBankRequest request) {
-        if (request.questionType() != QuestionBank.QuestionType.SCHEDULING) {
-            return;
-        }
-        SchedulingData data = request.schedulingData();
-        if (data == null) {
-            throw new BusinessException(ErrorCode.SCHEDULING_DATA_INVALID);
-        }
-        if (data.algorithm() == SchedulingData.SchedulingAlgorithm.RR
-                && (data.timeQuantum() == null || data.timeQuantum() <= 0)) {
-            throw new BusinessException(ErrorCode.SCHEDULING_DATA_INVALID);
-        }
-        boolean isPriorityAlgorithm =
-                data.algorithm() == SchedulingData.SchedulingAlgorithm.PRIORITY_NON_PREEMPTIVE
-                || data.algorithm() == SchedulingData.SchedulingAlgorithm.PRIORITY_PREEMPTIVE;
-        if (isPriorityAlgorithm
-                && data.processes().stream().anyMatch(p -> p.priority() == null)) {
-            throw new BusinessException(ErrorCode.SCHEDULING_DATA_INVALID);
-        }
-    }
-
-    /**
-     * SQL 유형 문항의 SQL 데이터 정합성 검증.
-     * <ul>
-     *   <li>questionType == SQL 인데 sqlData 가 없으면 오류</li>
-     *   <li>테이블 목록이 비어있으면 오류</li>
-     *   <li>테이블의 rows가 존재할 때, 각 행의 셀 수가 columns 개수와 다르면 오류</li>
-     *   <li>expectedResult(결과 테이블 정답)가 있으면: columns 비어있으면 오류, rows 비어있으면
-     *       오류(0행 정답은 지원하지 않음), 각 행의 셀 수가 columns 개수와 다르면 오류</li>
-     * </ul>
-     * 등록(단건/일괄) · 수정 3개 경로 모두에서 호출한다.
-     */
-    private void validateSqlData(QuestionBankRequest request) {
-        if (request.questionType() != QuestionBank.QuestionType.SQL) {
-            return;
-        }
-        SqlData data = request.sqlData();
-        if (data == null || data.tables() == null || data.tables().isEmpty()) {
-            throw new BusinessException(ErrorCode.SQL_DATA_INVALID);
-        }
-        for (SqlData.SqlTable table : data.tables()) {
-            if (table.rows() == null || table.rows().isEmpty()) {
-                continue;
-            }
-            int columnCount = table.columns().size();
-            boolean invalidRow = table.rows().stream().anyMatch(row -> row.size() != columnCount);
-            if (invalidRow) {
-                throw new BusinessException(ErrorCode.SQL_DATA_INVALID);
-            }
-        }
-        validateSqlExpectedResult(data.expectedResult());
-    }
-
-    /**
-     * SQL 결과 테이블 정답(expectedResult) 정합성 검증. expectedResult가 없으면(선택 필드) 통과.
-     * columns 비어있으면 오류, rows 비어있으면 오류(0행 정답은 범위 제외), 각 행의 셀 수가
-     * columns 개수와 다르면 오류.
-     */
-    private void validateSqlExpectedResult(SqlData.SqlExpectedResult expected) {
-        if (expected == null) {
-            return;
-        }
-        if (expected.columns() == null || expected.columns().isEmpty()) {
-            throw new BusinessException(ErrorCode.SQL_DATA_INVALID);
-        }
-        if (expected.rows() == null || expected.rows().isEmpty()) {
-            throw new BusinessException(ErrorCode.SQL_DATA_INVALID);
-        }
-        int columnCount = expected.columns().size();
-        boolean invalidRow = expected.rows().stream()
-                .anyMatch(row -> row == null || row.size() != columnCount);
-        if (invalidRow) {
-            throw new BusinessException(ErrorCode.SQL_DATA_INVALID);
-        }
+    /** 문제은행 등록·일괄·수정이 시험지 수동 문항과 동일한 구조 검증기를 사용한다. */
+    private void validateStructuredData(QuestionBankRequest request) {
+        StructuredQuestionValidator.validate(
+                request.questionType() == null ? null : request.questionType().name(),
+                request.schedulingData(),
+                request.sqlData());
     }
 
     /**

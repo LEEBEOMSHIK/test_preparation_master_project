@@ -3,11 +3,14 @@ package com.tpmp.testprep.controller;
 import com.tpmp.testprep.dto.request.ExamCreateRequest;
 import com.tpmp.testprep.dto.request.ExamCreateWithQuestionsRequest;
 import com.tpmp.testprep.dto.request.QuestionRequest;
+import com.tpmp.testprep.dto.request.ExamQuestionSyncRequest;
 import com.tpmp.testprep.dto.response.ApiResponse;
 import com.tpmp.testprep.dto.response.ExamSummaryResponse;
 import com.tpmp.testprep.dto.response.QuestionDetailResponse;
+import com.tpmp.testprep.dto.response.ExamQuestionSyncPreviewResponse;
 import com.tpmp.testprep.entity.Exam;
 import com.tpmp.testprep.service.ExamService;
+import com.tpmp.testprep.service.ExamQuestionSyncService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,6 +33,7 @@ import java.util.Map;
 public class AdminExamController {
 
     private final ExamService examService;
+    private final ExamQuestionSyncService examQuestionSyncService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<Page<ExamSummaryResponse>>> getExams(Pageable pageable) {
@@ -95,6 +99,19 @@ public class AdminExamController {
     @GetMapping("/{id}/questions")
     public ResponseEntity<ApiResponse<List<QuestionDetailResponse>>> getExamQuestions(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(examService.getExamQuestions(id)));
+    }
+
+    @GetMapping("/{id}/questions/sync-preview")
+    public ResponseEntity<ApiResponse<ExamQuestionSyncPreviewResponse>> getQuestionSyncPreview(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(examQuestionSyncService.preview(id)));
+    }
+
+    @PostMapping("/{id}/questions/sync")
+    public ResponseEntity<ApiResponse<ExamQuestionSyncPreviewResponse>> syncQuestions(
+            @PathVariable Long id,
+            @Valid @RequestBody ExamQuestionSyncRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(examQuestionSyncService.apply(id, request)));
     }
 
     @DeleteMapping("/{id}/questions/{questionId}")

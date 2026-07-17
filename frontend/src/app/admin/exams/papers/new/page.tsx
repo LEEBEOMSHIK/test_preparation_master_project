@@ -7,6 +7,7 @@ import { examService } from '@/services/examService';
 import type { QuestionSummary, QuestionType } from '@/types';
 import { stripHtml } from '@/lib/html';
 import { QuestionDetailModal, type QuestionDetailItem } from '@/components/ui/QuestionDetailModal';
+import { CardListSkeleton } from '@/components/ui/Skeleton';
 
 const TYPE_LABEL: Record<QuestionType, string> = {
   MULTIPLE_CHOICE: '객관식',
@@ -87,6 +88,8 @@ export default function AdminExamPaperNewPage() {
         title.trim(),
         questionMode,
         selected.map((q) => ({
+          sourceQuestionBankId: q.id,
+          instruction: q.instruction ?? null,
           content: q.content,
           questionType: q.questionType,
           options: q.options ?? null,
@@ -95,6 +98,8 @@ export default function AdminExamPaperNewPage() {
           code: q.code ?? null,
           language: q.language ?? null,
           categoryId: q.categoryId ?? null,
+          schedulingData: q.schedulingData ?? null,
+          sqlData: q.sqlData ?? null,
         })),
       );
       router.push('/admin/exams/papers');
@@ -223,7 +228,7 @@ export default function AdminExamPaperNewPage() {
           {/* 문항 목록 */}
           <div className="max-h-72 overflow-y-auto">
             {qLoading ? (
-              <div className="p-8 text-center text-gray-400 text-sm">불러오는 중...</div>
+              <div className="p-5"><CardListSkeleton rows={4} /></div>
             ) : qError ? (
               <div className="p-8 text-center space-y-1">
                 <p className="text-sm text-gray-400">{qError}</p>

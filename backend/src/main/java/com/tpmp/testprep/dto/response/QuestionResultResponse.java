@@ -2,6 +2,8 @@ package com.tpmp.testprep.dto.response;
 
 import com.tpmp.testprep.entity.ExamHistoryDetail;
 import com.tpmp.testprep.entity.Question;
+import com.tpmp.testprep.entity.support.SchedulingData;
+import com.tpmp.testprep.entity.support.SqlData;
 
 import java.util.List;
 
@@ -11,6 +13,7 @@ import java.util.List;
 public record QuestionResultResponse(
         Long questionId,
         int seq,
+        String instruction,
         String content,
         String questionType,
         List<String> options,
@@ -19,7 +22,9 @@ public record QuestionResultResponse(
         boolean correct,
         String explanation,
         String code,
-        String language
+        String language,
+        SchedulingData schedulingData,
+        SqlData sqlData
 ) {
     /**
      * 시험 제출 직후 채점 결과 생성 (Question 엔티티 기반)
@@ -32,6 +37,7 @@ public record QuestionResultResponse(
         return new QuestionResultResponse(
                 q.getId(),
                 q.getSeq(),
+                q.getInstruction(),
                 q.getContent(),
                 q.getQuestionType().name(),
                 q.getOptions(),
@@ -40,7 +46,9 @@ public record QuestionResultResponse(
                 correct,
                 q.getExplanation(),
                 q.getCode(),
-                q.getLanguage()
+                q.getLanguage(),
+                q.getSchedulingData(),
+                q.getSqlData()
         );
     }
 
@@ -53,6 +61,7 @@ public record QuestionResultResponse(
         return new QuestionResultResponse(
                 detail.getQuestionId(),
                 detail.getSeq(),
+                detail.getInstruction(),
                 detail.getContent(),
                 detail.getQuestionType(),
                 detail.getOptions(),
@@ -61,7 +70,9 @@ public record QuestionResultResponse(
                 detail.isCorrect(),
                 detail.getExplanation(),
                 detail.getCode(),
-                detail.getLanguage()
+                detail.getLanguage(),
+                detail.getSchedulingData(),
+                detail.getSqlData()
         );
     }
 }

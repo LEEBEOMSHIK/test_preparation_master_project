@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { examService } from '@/services/examService';
-import type { ExamQuestion, QuestionSummary, QuestionType } from '@/types';
+import type { ExamQuestion, ExamQuestionSyncPreview, QuestionSummary, QuestionType } from '@/types';
 import { stripHtml } from '@/lib/html';
 import { QuestionDetailModal, type QuestionDetailItem } from '@/components/ui/QuestionDetailModal';
+import { CardListSkeleton, Skeleton, TableSkeleton } from '@/components/ui/Skeleton';
 
 const TYPE_LABEL: Record<QuestionType, string> = {
   MULTIPLE_CHOICE: '객관식',
@@ -47,6 +48,15 @@ export default function AdminExamPaperEditPage() {
   const [bankLoading,   setBankLoading]   = useState(true);
   const [addingBulk,    setAddingBulk]    = useState(false);
 
+  // ── 원본 문항 동기화 ──
+  const [syncPreview, setSyncPreview] = useState<ExamQuestionSyncPreview | null>(null);
+  const [syncLoading, setSyncLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncSelectedIds, setSyncSelectedIds] = useState<Set<number>>(new Set());
+  const [applyAnswers, setApplyAnswers] = useState(false);
+  const [answerConfirmed, setAnswerConfirmed] = useState(false);
+  const [answerConfirmation, setAnswerConfirmation] = useState('');
+
   // ── 파일(PDF)로 문항 추가 ──
   const [uploadingPdf,  setUploadingPdf]  = useState(false);
   const [uploadResult,  setUploadResult]  = useState('');
@@ -61,8 +71,9 @@ export default function AdminExamPaperEditPage() {
       examService.adminGetExam(id),
       examService.adminGetExamQuestions(id),
       examService.adminGetQuestions(0, 500),
+      examService.adminGetQuestionSyncPreview(id),
     ])
-      .then(([examRes, questionsRes, bankRes]) => {
+      .then(([examRes, questionsRes, bankRes, syncRes]) => {
         const exam = examRes.data.data;
         if (exam) {
           setTitle(exam.title);
@@ -70,14 +81,28 @@ export default function AdminExamPaperEditPage() {
         }
         setExamQuestions(questionsRes.data.data ?? []);
         setAllQuestions(bankRes.data.data?.content ?? []);
+        setSyncPreview(syncRes.data.data ?? null);
       })
       .catch(() => setError('데이터를 불러오지 못했습니다.'))
       .finally(() => {
         setFetching(false);
         setQListLoading(false);
         setBankLoading(false);
+        setSyncLoading(false);
       });
   }, [id]);
+
+  const selectedHasAnswerChanges = syncPreview?.items.some(
+    (item) => syncSelectedIds.has(item.questionId) && item.answerChanged,
+  ) ?? false;
+
+  useEffect(() => {
+    if (!selectedHasAnswerChanges) {
+      setApplyAnswers(false);
+      setAnswerConfirmed(false);
+      setAnswerConfirmation('');
+    }
+  }, [selectedHasAnswerChanges]);
 
   // ── 기본 정보 저장 ──
   const handleInfoSave = async (e: React.FormEvent) => {
@@ -102,15 +127,36 @@ export default function AdminExamPaperEditPage() {
     try {
       await examService.adminRemoveQuestion(id, questionId);
       setExamQuestions((prev) => prev.filter((q) => q.id !== questionId));
+      setSyncPreview((prev) => prev == null ? null : {
+        ...prev,
+        items: prev.items.filter((item) => item.questionId !== questionId),
+      });
+      setSyncSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(questionId);
+        return next;
+      });
     } catch {
       setError('문항 제거에 실패했습니다.');
+      setRemovingId(null);
+      return;
+    }
+
+    // 삭제 성공은 확정된 상태다. 후속 preview 갱신 실패를 삭제 실패로 오인하지 않는다.
+    try {
+      const preview = await examService.adminGetQuestionSyncPreview(id);
+      setSyncPreview(preview.data.data ?? null);
+    } catch {
+      // 로컬에서 이미 삭제 반영했으므로 best-effort 재조회 실패는 무시한다.
     } finally {
       setRemovingId(null);
     }
   };
 
   // ── 문항 추가 ──
-  const alreadyInExamIds = new Set(examQuestions.map((q) => q.id));
+  const alreadyInExamIds = new Set(
+    examQuestions.flatMap((q) => q.sourceQuestionBankId == null ? [] : [q.sourceQuestionBankId]),
+  );
   const filteredBank = allQuestions.filter(
     (q) =>
       !alreadyInExamIds.has(q.id) &&
@@ -133,6 +179,8 @@ export default function AdminExamPaperEditPage() {
       await examService.adminAddQuestionsBulk(
         id,
         toAdd.map((q) => ({
+          sourceQuestionBankId: q.id,
+          instruction:  q.instruction ?? null,
           content:      q.content,
           questionType: q.questionType,
           options:      q.options ?? null,
@@ -141,16 +189,68 @@ export default function AdminExamPaperEditPage() {
           code:         q.code ?? null,
           language:     q.language ?? null,
           categoryId:   q.categoryId ?? null,
+          schedulingData: q.schedulingData ?? null,
+          sqlData: q.sqlData ?? null,
         })),
       );
       // 문항 목록 새로고침
       const refreshed = await examService.adminGetExamQuestions(id);
       setExamQuestions(refreshed.data.data ?? []);
+      const preview = await examService.adminGetQuestionSyncPreview(id);
+      setSyncPreview(preview.data.data ?? null);
       setSelectedIds(new Set());
     } catch {
       setError('문항 추가에 실패했습니다.');
     } finally {
       setAddingBulk(false);
+    }
+  };
+
+  const toggleSyncSelection = (questionId: number) => {
+    setSyncSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(questionId) ? next.delete(questionId) : next.add(questionId);
+      return next;
+    });
+  };
+
+  const handleSyncSelected = async () => {
+    if (!syncPreview || syncSelectedIds.size === 0) return;
+    const effectiveApplyAnswers = applyAnswers && selectedHasAnswerChanges;
+    if (effectiveApplyAnswers && (!answerConfirmed || answerConfirmation !== '정답 동기화')) {
+      setError('정답 적용 체크 후 확인 문구 "정답 동기화"를 정확히 입력해주세요.');
+      return;
+    }
+    const selections = syncPreview.items
+      .filter((item) => syncSelectedIds.has(item.questionId))
+      .flatMap((item) => {
+        const sourceQuestionBankId = item.linkedSourceQuestionBankId ?? item.candidateSourceQuestionBankId;
+        return sourceQuestionBankId == null ? [] : [{ questionId: item.questionId, sourceQuestionBankId }];
+      });
+    if (selections.length !== syncSelectedIds.size) {
+      setError('원본을 확정할 수 없는 문항이 포함되어 있습니다.');
+      return;
+    }
+    setSyncing(true);
+    setError('');
+    try {
+      const response = await examService.adminSyncQuestions(
+        id,
+        selections,
+        effectiveApplyAnswers,
+        effectiveApplyAnswers ? answerConfirmation : undefined,
+      );
+      setSyncPreview(response.data.data ?? null);
+      const refreshed = await examService.adminGetExamQuestions(id);
+      setExamQuestions(refreshed.data.data ?? []);
+      setSyncSelectedIds(new Set());
+      setApplyAnswers(false);
+      setAnswerConfirmed(false);
+      setAnswerConfirmation('');
+    } catch {
+      setError('문항 동기화에 실패했습니다. 활성 응시 세션과 원본 상태를 확인해주세요.');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -182,9 +282,7 @@ export default function AdminExamPaperEditPage() {
 
   if (fetching) {
     return (
-      <div className="flex items-center justify-center h-48">
-        <div className="w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <div className="max-w-2xl space-y-4"><CardListSkeleton rows={5} /></div>
     );
   }
 
@@ -259,6 +357,102 @@ export default function AdminExamPaperEditPage() {
         </div>
       </form>
 
+      {/* ── 문항 원본 동기화 ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <p className="text-sm font-semibold text-gray-700">문항 원본 동기화</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            문항 풀 변경은 자동 반영되지 않습니다. 차이를 확인한 뒤 선택한 스냅샷만 갱신하세요.
+          </p>
+        </div>
+        {syncLoading ? (
+          <div className="p-5 space-y-3">
+            <Skeleton className="h-5 w-1/3" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        ) : !syncPreview ? (
+          <div className="p-6 text-sm text-gray-400 text-center">동기화 정보를 불러오지 못했습니다.</div>
+        ) : (
+          <div className="p-5 space-y-4">
+            {syncPreview.activeSession && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                응시 세션이 존재해 동기화 적용이 차단되었습니다. 미리보기만 확인할 수 있습니다.
+              </div>
+            )}
+            <div className="space-y-2">
+              {syncPreview.items.map((item) => {
+                const selectable = !syncPreview.activeSession &&
+                  item.syncStatus !== 'UP_TO_DATE' && item.syncStatus !== 'NO_SOURCE' &&
+                  item.syncStatus !== 'MISSING_SOURCE' &&
+                  item.syncStatus !== 'UNSUPPORTED' &&
+                  (item.linkedSourceQuestionBankId != null || item.candidateSourceQuestionBankId != null);
+                const checked = syncSelectedIds.has(item.questionId);
+                return (
+                  <label key={item.questionId} className={[
+                    'block rounded-xl border px-4 py-3',
+                    item.syncStatus === 'UNSUPPORTED' ? 'border-red-200 bg-red-50' :
+                    item.answerChanged ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50',
+                    selectable ? 'cursor-pointer' : 'opacity-70',
+                  ].join(' ')}>
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={!selectable}
+                        onChange={() => toggleSyncSelection(item.questionId)}
+                        className="mt-1 h-4 w-4 rounded border-gray-300 text-indigo-600"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold text-gray-700">Q{item.seq}</span>
+                          <span className="text-xs rounded-full bg-white border px-2 py-0.5 text-gray-500">{item.linkStatus}</span>
+                          <span className="text-xs rounded-full bg-white border px-2 py-0.5 text-gray-500">{item.syncStatus}</span>
+                        </div>
+                        {item.changedFields.length > 0 && (
+                          <p className="mt-1 text-xs text-gray-600">변경 필드: {item.changedFields.join(', ')}</p>
+                        )}
+                        {item.risks.map((risk) => <p key={risk} className="mt-1 text-xs text-red-600">주의: {risk}</p>)}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+            {selectedHasAnswerChanges && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+                <label className="flex items-center gap-2 text-sm font-medium text-amber-900">
+                  <input type="checkbox" checked={applyAnswers} onChange={(e) => setApplyAnswers(e.target.checked)} />
+                  선택 문항의 정답 변경도 적용
+                </label>
+                {applyAnswers && (
+                  <>
+                    <label className="flex items-center gap-2 text-xs text-amber-800">
+                      <input type="checkbox" checked={answerConfirmed} onChange={(e) => setAnswerConfirmed(e.target.checked)} />
+                      기존 정답이 덮어써지는 위험을 확인했습니다.
+                    </label>
+                    <input
+                      value={answerConfirmation}
+                      onChange={(e) => setAnswerConfirmation(e.target.value)}
+                      placeholder={'확인 문구 입력: 정답 동기화'}
+                      className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm"
+                    />
+                  </>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handleSyncSelected}
+              disabled={syncing || syncSelectedIds.size === 0 || syncPreview.activeSession}
+              className="w-full py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold disabled:opacity-40"
+            >
+              {syncing ? '동기화 중...' : `선택한 문항 ${syncSelectedIds.size}개 동기화`}
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* ── 현재 문항 목록 ── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -269,7 +463,7 @@ export default function AdminExamPaperEditPage() {
         </div>
 
         {qListLoading ? (
-          <div className="p-8 text-center text-gray-400 text-sm">불러오는 중...</div>
+          <TableSkeleton rows={4} cols={4} />
         ) : examQuestions.length === 0 ? (
           <div className="p-8 text-center text-gray-400 text-sm">등록된 문항이 없습니다.</div>
         ) : (
@@ -401,7 +595,7 @@ export default function AdminExamPaperEditPage() {
         {/* 문항 목록 */}
         <div className="max-h-64 overflow-y-auto">
           {bankLoading ? (
-            <div className="p-6 text-center text-gray-400 text-sm">불러오는 중...</div>
+            <div className="p-5"><CardListSkeleton rows={4} /></div>
           ) : filteredBank.length === 0 ? (
             <div className="p-6 text-center text-gray-400 text-sm">
               {searchText ? '검색 결과가 없습니다.' : '추가 가능한 문항이 없습니다.'}

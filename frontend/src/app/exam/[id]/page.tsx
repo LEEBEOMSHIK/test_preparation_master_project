@@ -12,6 +12,9 @@ import { ConceptNoteModal } from '@/components/ui/ConceptNoteModal';
 import { CodeBlock } from '@/components/ui/CodeBlock';
 import { CodeAnswerInput } from '@/components/ui/CodeAnswerInput';
 import { ScratchPadPanel } from '@/components/ui/ScratchPadPanel';
+import { SchedulingProblemTable } from '@/components/ui/SchedulingProblemTable';
+import { SqlProblemView } from '@/components/ui/SqlProblemView';
+import { SqlResultAnswerInput } from '@/components/ui/SqlResultAnswerInput';
 import { stripHtml } from '@/lib/html';
 import { hasOptions } from '@/lib/answer';
 
@@ -145,60 +148,56 @@ export default function ExamTakingPage() {
 
     const init = async () => {
       try {
-        // ① 시험 상세 조회
-        const detailRes = await examinationService.userGetExaminationDetail(examId);
-        if (cancelled) return;
-        if (detailRes.data.success && detailRes.data.data) {
-          const detail = detailRes.data.data;
-          setExam(detail);
-
-          // 개념노트 비동기 병행 — 결과 화면 분기에 영향 없음
-          conceptNoteService.getMyNotes(0, 500).then(notesRes => {
-            if (cancelled) return;
-            if (notesRes.data.success && notesRes.data.data) {
-              const qIds = new Set(detail.questions.map(q => q.id));
-              const map: Record<number, ConceptNote> = {};
-              notesRes.data.data.content.forEach(note => {
-                if (note.questionId && qIds.has(note.questionId)) {
-                  map[note.questionId] = note;
-                }
-              });
-              setQuestionNotes(map);
-            }
-          });
-        }
-
-        // ② 이전 응시 결과 조회 — 성공이면 결과 화면으로, 404이면 세션 시작
+        // ① 이전 응시 결과 조회 — 실제 응시 여부를 상세 조회보다 먼저 결정한다.
+        let restoredResult: ExamHistoryDetailResult | null = null;
         try {
           const latestRes = await examinationService.userGetLatestResult(examId);
           if (cancelled) return;
           if (latestRes.data.success && latestRes.data.data) {
-            const saved: ExamHistoryDetailResult = latestRes.data.data;
-            const restored: ExaminationSubmitResult = {
-              historyId: saved.historyId,
-              total: saved.total,
-              correct: saved.correct,
-              score: saved.score,
-              results: saved.results,
-            };
-            // 총 응시 횟수 세팅 (0/undefined 방어)
-            setAttemptCount(saved.attemptCount ?? 1);
-            // 최근 응시일 세팅
-            setTakenAt(saved.takenAt ?? null);
-            // 결과 화면으로 직행하지 않고 선택 게이트 화면에 보관
-            setPendingResult(restored);
-            examDone.current = true; // 진행 중 세션 없음 → beforeunload 경고 비활성
-            return; // 이미 응시 이력 있음 — 세션 시작 생략
+            restoredResult = latestRes.data.data;
           }
         } catch {
           // 미응시(404) 또는 오류 → 세션 시작으로 진행
         }
 
-        // ③ 세션 시작 (또는 재개)
-        const sessionRes = await examinationService.userStartExam(examId, false);
-        if (cancelled) return;
-        if (sessionRes.data.success && sessionRes.data.data) {
+        // ② 실제 응시라면 Exam 잠금+세션 생성이 끝난 뒤에만 출제 스냅샷 상세를 읽는다.
+        if (!restoredResult) {
+          const sessionRes = await examinationService.userStartExam(examId, false);
+          if (cancelled) return;
+          if (!sessionRes.data.success || !sessionRes.data.data) throw new Error('SESSION_START_FAILED');
           setSecondsLeft(Math.max(0, sessionRes.data.data.remainingSeconds));
+        }
+
+        // ③ 세션 생성 성공 후(또는 결과 게이트 표시용) 상세 조회
+        const detailRes = await examinationService.userGetExaminationDetail(examId);
+        if (cancelled) return;
+        if (!detailRes.data.success || !detailRes.data.data) throw new Error('DETAIL_LOAD_FAILED');
+        const detail = detailRes.data.data;
+        setExam(detail);
+
+        conceptNoteService.getMyNotes(0, 500).then(notesRes => {
+          if (cancelled) return;
+          if (notesRes.data.success && notesRes.data.data) {
+            const qIds = new Set(detail.questions.map(q => q.id));
+            const map: Record<number, ConceptNote> = {};
+            notesRes.data.data.content.forEach(note => {
+              if (note.questionId && qIds.has(note.questionId)) map[note.questionId] = note;
+            });
+            setQuestionNotes(map);
+          }
+        });
+
+        if (restoredResult) {
+          setAttemptCount(restoredResult.attemptCount ?? 1);
+          setTakenAt(restoredResult.takenAt ?? null);
+          setPendingResult({
+            historyId: restoredResult.historyId,
+            total: restoredResult.total,
+            correct: restoredResult.correct,
+            score: restoredResult.score,
+            results: restoredResult.results,
+          });
+          examDone.current = true;
         }
       } catch {
         // 시험 상세 조회 자체 실패 — 목록으로 이동
@@ -319,29 +318,40 @@ export default function ExamTakingPage() {
     router.push('/user/exams');
   };
 
-  // 다시 풀기 — 결과 화면·선택 게이트 양쪽에서 공통 사용. 세션 reset 후 타이머 재시작
+  // 다시 풀기 — reset 세션 생성 성공 후 최신 출제 스냅샷 상세를 다시 조회한다.
   const handleRetake = useCallback(async () => {
-    setResult(null);
-    setPendingResult(null); // 게이트 화면에서도 호출되므로 함께 초기화
-    setAnswers({});
-    setFlagged(new Set());
-    setCurrent(0);
-    warningShown.current = false;
-    setShowWarningBanner(false);
-    examDone.current = false;
-
     try {
       const sessionRes = await examinationService.userStartExam(examId, true);
-      if (sessionRes.data.success && sessionRes.data.data) {
-        setSecondsLeft(Math.max(0, sessionRes.data.data.remainingSeconds));
-      } else {
-        // 폴백: exam.timeLimit 기준
-        setSecondsLeft((exam?.timeLimit ?? 60) * 60);
-      }
+      if (!sessionRes.data.success || !sessionRes.data.data) throw new Error('SESSION_RESET_FAILED');
+      const detailRes = await examinationService.userGetExaminationDetail(examId);
+      if (!detailRes.data.success || !detailRes.data.data) throw new Error('DETAIL_RELOAD_FAILED');
+
+      const detail = detailRes.data.data;
+      setExam(detail);
+      setResult(null);
+      setPendingResult(null);
+      setAnswers({});
+      setFlagged(new Set());
+      setCurrent(0);
+      setQuestionNotes({});
+      conceptNoteService.getMyNotes(0, 500).then(notesRes => {
+        if (notesRes.data.success && notesRes.data.data) {
+          const qIds = new Set(detail.questions.map(q => q.id));
+          const map: Record<number, ConceptNote> = {};
+          notesRes.data.data.content.forEach(note => {
+            if (note.questionId && qIds.has(note.questionId)) map[note.questionId] = note;
+          });
+          setQuestionNotes(map);
+        }
+      });
+      warningShown.current = false;
+      setShowWarningBanner(false);
+      setSecondsLeft(Math.max(0, sessionRes.data.data.remainingSeconds));
+      examDone.current = false;
     } catch {
-      setSecondsLeft((exam?.timeLimit ?? 60) * 60);
+      router.push('/user/exams');
     }
-  }, [examId, exam]);
+  }, [examId, router]);
 
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60).toString().padStart(2, '0');
@@ -483,6 +493,7 @@ export default function ExamTakingPage() {
   const isMultiple = q.questionType === 'MULTIPLE_CHOICE';
   const isOX = q.questionType === 'OX';
   const isCode = q.questionType === 'CODE';
+  const isSql = q.questionType === 'SQL';
   const isFlagged = flagged.has(q.id);
   // 보기가 있으면(유형 무관) 참고 표시 + 번호 직접 입력으로 채점. 단 MULTIPLE_CHOICE는 기존 클릭 선택 유지.
   const optionsAvailable = hasOptions(q.options);
@@ -663,11 +674,21 @@ export default function ExamTakingPage() {
                 <span className="text-xs text-gray-400">{current + 1} / {questions.length}</span>
               </div>
 
+              {q.instruction && (
+                <div className="rounded-lg bg-indigo-50/70 px-3 py-2">
+                  <RichContent html={q.instruction} className="text-indigo-900 text-sm font-medium" />
+                </div>
+              )}
+
               {/* 문제 본문 (이미지 포함 가능) */}
               <RichContent html={q.content} className="text-gray-800 text-sm" />
 
               {/* 코드 블록 (CODE 유형 또는 code 필드가 있는 경우) */}
               {q.code && <CodeBlock code={q.code} language={q.language} />}
+
+              {q.schedulingData && <SchedulingProblemTable data={q.schedulingData} />}
+
+              {q.sqlData && <SqlProblemView data={q.sqlData} />}
 
               {/* 선택지 (객관식) */}
               {isMultiple && q.options && (
@@ -723,13 +744,22 @@ export default function ExamTakingPage() {
                       ))}
                     </div>
                   )}
-                  {isCode && !optionsAvailable ? (
-                    <CodeAnswerInput
-                      value={answers[q.id] ?? ''}
-                      onChange={v => handleAnswer(q.id, v)}
-                      placeholder="코드 답안을 입력하세요"
-                      rows={6}
-                    />
+                  {(isCode || isSql) && !optionsAvailable ? (
+                    isSql && q.sqlResultColumns && q.sqlResultColumns.length > 0 ? (
+                      <SqlResultAnswerInput
+                        key={q.id}
+                        columns={q.sqlResultColumns}
+                        value={answers[q.id] ?? ''}
+                        onChange={v => handleAnswer(q.id, v)}
+                      />
+                    ) : (
+                      <CodeAnswerInput
+                        value={answers[q.id] ?? ''}
+                        onChange={v => handleAnswer(q.id, v)}
+                        placeholder={isSql ? 'SQL 답안을 입력하세요' : '코드 답안을 입력하세요'}
+                        rows={6}
+                      />
+                    )
                   ) : (
                     <input
                       value={answers[q.id] ?? ''}

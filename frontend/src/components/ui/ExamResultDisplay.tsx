@@ -6,6 +6,8 @@ import { CodeBlock } from '@/components/ui/CodeBlock';
 import { stripHtml } from '@/lib/html';
 import { hasOptions, formatAnswerAlternatives } from '@/lib/answer';
 import type { ExamResultData } from '@/types';
+import { SchedulingProblemTable } from '@/components/ui/SchedulingProblemTable';
+import { SqlProblemView } from '@/components/ui/SqlProblemView';
 
 interface Props {
   result: ExamResultData;
@@ -181,8 +183,17 @@ export function ExamResultDisplay({
                   {/* 펼침 내용 */}
                   {isExpanded && (
                     <div className="border-t border-gray-100 dark:border-gray-700 px-4 py-4 space-y-4">
+                      {item.instruction && (
+                        <div className="rounded-lg bg-indigo-50/70 dark:bg-indigo-900/20 px-3 py-2">
+                          <RichContent html={item.instruction} className="text-indigo-900 dark:text-indigo-200 text-sm font-medium" />
+                        </div>
+                      )}
                       {/* 문항 본문 */}
                       <RichContent html={item.content} className="text-gray-800 dark:text-gray-200 text-sm" />
+
+                      {item.schedulingData && <SchedulingProblemTable data={item.schedulingData} />}
+
+                      {item.sqlData && <SqlProblemView data={item.sqlData} />}
 
                       {/* 보기 목록(번호+텍스트) 참고 표시 — 유형 무관, 보기가 있으면 표시 (MULTIPLE_CHOICE 포함) */}
                       {hasOptions(item.options) && item.options && (
