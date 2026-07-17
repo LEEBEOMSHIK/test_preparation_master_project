@@ -12,11 +12,10 @@ import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.UserInterestedExamRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import com.tpmp.testprep.security.jwt.JwtTokenProvider;
-import jakarta.servlet.http.Cookie;
+import com.tpmp.testprep.security.jwt.RefreshTokenCookieProvider;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,9 +32,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final LoginHistoryService loginHistoryService;
-
-    @Value("${app.jwt.refresh-token-expiry}")
-    private long refreshTokenExpiry;
+    private final RefreshTokenCookieProvider refreshTokenCookieProvider;
 
     @Transactional
     public void signup(SignupRequest request) {
@@ -70,11 +67,9 @@ public class AuthService {
         String accessToken = jwtTokenProvider.createAccessToken(user.getEmail(), user.getRole().name(), permCodes);
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getEmail());
 
-        Cookie cookie = new Cookie("refresh_token", refreshToken);
-        cookie.setHttpOnly(true);
-        cookie.setPath("/api/auth");
-        cookie.setMaxAge((int) (refreshTokenExpiry / 1000));
-        response.addCookie(cookie);
+        response.addCookie(refreshTokenCookieProvider.createCookie(user.getRole(), refreshToken));
+        // role 분리 이전 발급된 레거시 refresh_token 쿠키가 남아 있으면 즉시 만료시켜 정리한다.
+        response.addCookie(refreshTokenCookieProvider.createLegacyExpiredCookie());
 
         String ip = resolveClientIp(httpRequest);
         String userAgent = httpRequest.getHeader("User-Agent");

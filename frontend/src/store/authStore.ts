@@ -17,6 +17,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   setAuth: (user, accessToken) => {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('accessToken', accessToken);
+      // refresh 응답이 다른 계정으로 뒤바뀌었는지 검증하기 위한 기준값 (apiClient.ts refreshAccessToken 참고)
+      sessionStorage.setItem('authEmail', user.email);
     }
     set({ user, accessToken, isAuthenticated: true });
   },
@@ -28,6 +30,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   clearAuth: () => {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('authEmail');
       localStorage.removeItem('tpmp_quote_hidden_until');
     }
     set({ user: null, accessToken: null, isAuthenticated: false });

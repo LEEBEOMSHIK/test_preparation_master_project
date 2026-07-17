@@ -4,7 +4,7 @@ import com.tpmp.testprep.entity.PermissionDetail;
 import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.repository.UserRepository;
 import com.tpmp.testprep.security.jwt.JwtTokenProvider;
-import jakarta.servlet.http.Cookie;
+import com.tpmp.testprep.security.jwt.RefreshTokenCookieProvider;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -23,9 +23,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
-
-    @Value("${app.jwt.refresh-token-expiry}")
-    private long refreshTokenExpiry;
+    private final RefreshTokenCookieProvider refreshTokenCookieProvider;
 
     @Value("${app.oauth2.frontend-redirect-uri}")
     private String frontendRedirectUri;
@@ -48,11 +46,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String accessToken = jwtTokenProvider.createAccessToken(user.getEmail(), user.getRole().name(), permCodes);
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getEmail());
 
-        Cookie cookie = new Cookie("refresh_token", refreshToken);
-        cookie.setHttpOnly(true);
-        cookie.setPath("/api/auth");
-        cookie.setMaxAge((int) (refreshTokenExpiry / 1000));
-        response.addCookie(cookie);
+        response.addCookie(refreshTokenCookieProvider.createCookie(user.getRole(), refreshToken));
 
         getRedirectStrategy().sendRedirect(request, response, frontendRedirectUri + "?token=" + accessToken);
     }

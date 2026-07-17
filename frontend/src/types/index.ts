@@ -60,6 +60,11 @@ export interface AuthTokens {
   accessToken: string;
 }
 
+// refresh 응답: accessToken과 함께 계정 검증용 user를 포함한다 (백엔드 LoginResponse와 동일 형태)
+export interface RefreshResponse extends AuthTokens {
+  user: User;
+}
+
 // ──────────────────────────────────────────
 // Exam
 // ──────────────────────────────────────────

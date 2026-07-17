@@ -1,3 +1,60 @@
+## HIST-20260717-002
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 프론트엔드 / 인증 (Refresh 토큰 계정 검증 — 탭 간 계정 오염 버그 수정)
+- **수정 개요**: 같은 브라우저에서 사용자 탭과 관리자 탭을 동시에 로그인해 두면 사용자 탭의 accessToken이 만료된 뒤 refresh 시 admin 계정 토큰을 검증 없이 그대로 저장해버려 사용자 세션이 조용히 admin으로 전환되던 버그를 수정. `authStore`에 `authEmail` 기준값을 추가하고 `apiClient`의 refresh 응답 계정을 검증하도록 변경(백엔드 대응 변경은 `docs/history/back/usr/Auth_Modified.md` HIST-20260717-001 참고)
+
+### 원인
+- refresh 토큰 쿠키가 origin 단위로 공유되어 관리자 탭 로그인이 사용자 탭의 쿠키를 덮어씀
+- 사용자 탭이 401로 `/auth/refresh`를 호출하면 admin 쿠키가 전송되어 admin의 accessToken을 그대로 받아 `sessionStorage`에 저장 — 화면 표시용 user는 zustand 메모리에 남아 있어 사용자가 계정 전환을 눈치채지 못함(실제 피해: `quiz_history`가 admin 계정에 오염 축적)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | `RefreshResponse`(`AuthTokens` + `user: User`) 타입 신규 추가 |
+| `frontend/src/store/authStore.ts` | 수정 | `setAuth`가 `authEmail`(user.email)을 sessionStorage에 함께 저장, `clearAuth`가 함께 제거 |
+| `frontend/src/services/apiClient.ts` | 수정 | `refreshAccessToken()`이 경로 기준 scope(`/admin` 접두 여부)로 `/api/auth/refresh?scope=...` 호출, 응답 `user.email`을 저장된 `authEmail`과 비교해 불일치 시 토큰 미저장 + throw. 401 catch에서 `authEmail`도 함께 제거 |
+| `frontend/src/services/authService.ts` | 수정 | `refresh()` 응답 타입을 `ApiResponse<AuthTokens>` → `ApiResponse<RefreshResponse>`로 맞춤(동작 변경 없음, apiClient 인터셉터와 별개 경로) |
+
+### 수정 상세
+
+#### `types/index.ts`
+- 변경 전: `AuthTokens { accessToken: string }`만 존재
+- 변경 후: `export interface RefreshResponse extends AuthTokens { user: User }` 추가(백엔드 `LoginResponse`와 동일 형태 — refresh 응답에도 user가 포함됨)
+- 이유: refresh 응답의 계정 검증을 위해 user.email이 필요, `any` 캐스팅 없이 strict 타입으로 접근하기 위함
+
+#### `store/authStore.ts`
+- 변경 전: `setAuth`는 `accessToken`만 sessionStorage에 저장, `clearAuth`는 `accessToken`만 제거
+- 변경 후: `setAuth`가 `sessionStorage.setItem('authEmail', user.email)`도 함께 수행, `clearAuth`가 `sessionStorage.removeItem('authEmail')`도 함께 수행
+- 이유: refresh 응답이 다른 계정으로 뒤바뀌었는지 비교할 기준값이 필요. 로그인/온보딩 등 `setAuth`를 호출하는 모든 지점에서 자동으로 최신 계정 기준값이 갱신됨
+
+#### `services/apiClient.ts`
+- 변경 전: `refreshAccessToken()`이 `/api/auth/refresh`를 scope 없이 호출하고 응답 `accessToken`을 검증 없이 그대로 저장
+- 변경 후:
+  - `scope = window.location.pathname.startsWith('/admin') ? 'admin' : 'user'` 판정 후 `/api/auth/refresh?scope=${scope}`로 POST
+  - 응답 `data.user?.email`을 `sessionStorage.getItem('authEmail')`과 비교 — 저장된 값이 있고 응답 이메일과 다르면 `throw`(토큰 미저장, 기존 401 catch가 로그아웃 처리를 타도록 함)
+  - 저장된 `authEmail`이 없으면(검증 기준 부재) 검증을 건너뛰고 응답 이메일을 `authEmail`로 기록한 뒤 진행
+  - 401 catch 블록에서 `sessionStorage.removeItem('authEmail')`을 `accessToken` 제거와 함께 수행
+- 이유: 사용자 탭이 admin 쿠키로 refresh되어 admin의 accessToken을 받더라도, 응답에 포함된 계정 이메일이 사용자 탭이 알고 있던 계정과 다르면 저장을 거부하여 계정 오염을 원천 차단. `/admin`(끝에 슬래시 없음) 기준으로 판정 — 기존 401 catch의 리다이렉트 판정(`/admin/`)과는 별개 기준이므로 혼동 주의
+
+#### `services/authService.ts`
+- 변경 전: `refresh: () => apiClient.post<ApiResponse<AuthTokens>>('/auth/refresh')`
+- 변경 후: `refresh: () => apiClient.post<ApiResponse<RefreshResponse>>('/auth/refresh')`
+- 이유: `apiClient.ts`의 인터셉터 경로와 타입 정합성만 맞춤. 이 함수는 인터셉터의 `refreshAccessToken()`과 별개 경로(scope 없이 기본값 `user`로 호출됨)이므로 동작은 변경하지 않음
+
+### 검증 결과
+- `npx tsc --noEmit`: 오류 0건
+
+### 복원 방법
+이 ID(HIST-20260717-002)만으로 복원 시:
+1. `types/index.ts`에서 `RefreshResponse` 인터페이스 제거
+2. `authStore.ts`의 `setAuth`/`clearAuth`에서 `authEmail` 관련 라인 제거
+3. `apiClient.ts`의 `refreshAccessToken()`을 `axios.post('/api/auth/refresh', {}, { withCredentials: true })` + 검증 없이 `accessToken` 저장하는 기존 형태로 되돌리고, 401 catch의 `authEmail` 제거 라인 삭제
+4. `authService.ts`의 `refresh()` 반환 타입을 `ApiResponse<AuthTokens>`로 되돌림
+
+---
+
 ## HIST-20260717-001
 
 - **날짜**: 2026-07-17

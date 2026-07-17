@@ -5,6 +5,7 @@ import com.tpmp.testprep.dto.request.SignupRequest;
 import com.tpmp.testprep.dto.response.ApiResponse;
 import com.tpmp.testprep.dto.response.LoginResponse;
 import com.tpmp.testprep.dto.response.UserResponse;
+import com.tpmp.testprep.security.jwt.RefreshTokenCookieProvider;
 import com.tpmp.testprep.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -39,7 +40,12 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<LoginResponse>> refresh(
-            @CookieValue(name = "refresh_token", required = false) String refreshToken) {
+            @CookieValue(name = RefreshTokenCookieProvider.COOKIE_NAME_USER, required = false) String userRefreshToken,
+            @CookieValue(name = RefreshTokenCookieProvider.COOKIE_NAME_ADMIN, required = false) String adminRefreshToken,
+            @RequestParam(name = "scope", defaultValue = "user") String scope) {
+        // 레거시 refresh_token 쿠키는 오염 경로(관리자 로그인이 사용자 세션을 덮어쓰던 버그)의
+        // 원인이었으므로 fallback으로 절대 사용하지 않는다.
+        String refreshToken = "admin".equals(scope) ? adminRefreshToken : userRefreshToken;
         return ResponseEntity.ok(ApiResponse.success(authService.refresh(refreshToken)));
     }
 

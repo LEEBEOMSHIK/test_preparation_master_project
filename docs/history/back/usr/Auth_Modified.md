@@ -1,3 +1,64 @@
+## HIST-20260717-001
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 백엔드 / 인증 (Refresh Token 쿠키 계정 오염 버그 수정)
+- **수정 개요**: 사용자·관리자 탭을 같은 브라우저에서 동시에 로그인하면 origin 단위로 공유되는 refresh 쿠키(`refresh_token` 단일 이름)가 서로 덮어써 사용자 탭이 조용히 admin 계정으로 전환되던 버그를 수정. refresh 쿠키를 role별로 `refresh_token_user` / `refresh_token_admin`으로 분리하고, 쿠키 생성 로직을 공용 `RefreshTokenCookieProvider`로 추출
+
+### 원인
+
+1. accessToken은 `sessionStorage`(프론트 `authStore.ts`)라 탭별로 격리되어 정상 동작
+2. 그러나 refresh 토큰은 쿠키 `refresh_token` 하나뿐(`AuthService.login()`). 쿠키는 탭이 아닌 origin 단위로 공유되므로 관리자 탭 로그인이 사용자 탭의 쿠키를 덮어씀
+3. 사용자 탭 accessToken이 15분 뒤 만료 → 401 → 프론트 `apiClient.ts`가 `/auth/refresh` 호출(withCredentials로 admin 쿠키 전송) → **admin accessToken**을 검증 없이 수신·저장
+4. 화면 표시용 user는 zustand 메모리라 헤더 표시는 그대로 유지되어 사용자가 계정 전환을 눈치채지 못함(실제 피해: `quiz_history`가 admin 계정에 오염 축적)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/security/jwt/RefreshTokenCookieProvider.java` | 추가 | role별 refresh 쿠키 이름 상수(`refresh_token_user`/`refresh_token_admin`)·생성 헬퍼·레거시 쿠키 만료 헬퍼를 제공하는 공용 컴포넌트 |
+| `backend/src/main/java/com/tpmp/testprep/service/AuthService.java` | 수정 | `login()`의 쿠키 생성을 `RefreshTokenCookieProvider`로 위임, 레거시 `refresh_token` 쿠키 즉시 만료 처리 추가 |
+| `backend/src/main/java/com/tpmp/testprep/security/oauth2/OAuth2AuthenticationSuccessHandler.java` | 수정 | OAuth2 로그인 성공 시 쿠키 생성도 동일하게 `RefreshTokenCookieProvider`로 위임 |
+| `backend/src/main/java/com/tpmp/testprep/controller/AuthController.java` | 수정 | `/auth/refresh`가 `refresh_token_user`/`refresh_token_admin` 쿠키와 `scope` 쿼리 파라미터(`user`\|`admin`, 기본 `user`)를 받아 scope에 맞는 쿠키만 사용하도록 변경. 레거시 `refresh_token` 쿠키는 fallback으로 사용하지 않음 |
+
+### 수정 상세
+
+#### `security/jwt/RefreshTokenCookieProvider.java` (신규)
+- 변경 전: 없음
+- 변경 후: `COOKIE_NAME_USER = "refresh_token_user"`, `COOKIE_NAME_ADMIN = "refresh_token_admin"`, `LEGACY_COOKIE_NAME = "refresh_token"` 상수와 `createCookie(User.Role, String)`(role 기준 이름 분기, HttpOnly, path `/api/auth`, maxAge는 `app.jwt.refresh-token-expiry` 그대로 유지), `createLegacyExpiredCookie()`(값 빈 문자열, maxAge=0)를 제공
+- 이유: `AuthService`와 `OAuth2AuthenticationSuccessHandler` 두 곳에 동일한 쿠키 생성 로직이 중복돼 있어 CLAUDE.md 공용 유틸리티 규칙에 따라 추출. 패키지는 기존 `JwtTokenProvider`가 위치한 `security/jwt/`에 배치(같은 "인증 토큰 관련 보안 컴포넌트" 성격)
+
+#### `service/AuthService.java`
+- 변경 전: `login()`에서 `new Cookie("refresh_token", refreshToken)` 직접 생성 + `@Value`로 주입받은 `refreshTokenExpiry` 필드 사용
+- 변경 후: `refreshTokenCookieProvider.createCookie(user.getRole(), refreshToken)` + `refreshTokenCookieProvider.createLegacyExpiredCookie()` 두 쿠키를 응답에 추가. 로컬 `refreshTokenExpiry` 필드·`Cookie`/`@Value` import 제거(공용 컴포넌트로 이전)
+- 이유: role 기반 쿠키 분리 + 레거시 쿠키 정리로 오염 경로 원천 차단. `refresh(String)` 시그니처는 변경하지 않음(컨트롤러가 role에 맞는 토큰 값만 골라 넘기는 구조 유지)
+
+#### `security/oauth2/OAuth2AuthenticationSuccessHandler.java`
+- 변경 전: `login()`과 동일하게 `new Cookie("refresh_token", refreshToken)` 직접 생성
+- 변경 후: `refreshTokenCookieProvider.createCookie(user.getRole(), refreshToken)` 사용. 로컬 `refreshTokenExpiry` 필드 제거
+- 이유: OAuth2 로그인 경로도 동일한 오염 취약점을 가지므로 동일 규칙 적용. (레거시 쿠키 만료 처리는 이번 범위에서 이 경로에는 추가하지 않음 — 일반 로그인 `AuthService.login()`에서만 정리)
+
+#### `controller/AuthController.java`
+- 변경 전: `@CookieValue(name = "refresh_token", required = false) String refreshToken`만 받아 `authService.refresh(refreshToken)` 호출
+- 변경 후: `@CookieValue(name = RefreshTokenCookieProvider.COOKIE_NAME_USER)`, `@CookieValue(name = RefreshTokenCookieProvider.COOKIE_NAME_ADMIN)` 둘 다 받고, `@RequestParam(name = "scope", defaultValue = "user") String scope`로 어느 쿠키를 쓸지 선택(`"admin".equals(scope)`이면 admin 쿠키, 아니면 user 쿠키). 레거시 `refresh_token` 쿠키는 어떤 경우에도 fallback으로 사용하지 않음
+- 이유: 프론트가 현재 화면 경로(`/admin` 여부)로 scope를 판정해 넘기고, 서버는 그 scope에 해당하는 쿠키만 신뢰하도록 하여 쿠키 오염 경로를 차단
+
+### 연동 프론트엔드 변경 (참고, 상세는 `docs/history/front/usr/Login_Modified.md` HIST-20260717-002)
+- `authStore.ts`: `setAuth`가 `accessToken`과 함께 `authEmail`(user.email)을 sessionStorage에 저장, `clearAuth`가 함께 제거
+- `apiClient.ts`: `refreshAccessToken()`이 경로 기준 scope로 `/auth/refresh?scope=...` 호출 + 응답 `user.email`을 저장된 `authEmail`과 비교해 불일치 시 토큰을 저장하지 않고 실패 처리(기존 401 catch의 로그아웃 흐름을 타도록 함)
+
+### 검증 결과
+- `./gradlew compileJava`: BUILD SUCCESSFUL (컴파일 오류 없음)
+- `npx tsc --noEmit`(frontend): 오류 0건
+
+### 복원 방법
+이 ID(HIST-20260717-001)만으로 복원 시:
+1. `RefreshTokenCookieProvider.java` 삭제
+2. `AuthService.java`: `login()`의 쿠키 생성부를 `Cookie cookie = new Cookie("refresh_token", refreshToken); cookie.setHttpOnly(true); cookie.setPath("/api/auth"); cookie.setMaxAge((int) (refreshTokenExpiry / 1000)); response.addCookie(cookie);` 로 되돌리고, `@Value("${app.jwt.refresh-token-expiry}") private long refreshTokenExpiry;` 필드와 `import jakarta.servlet.http.Cookie;`를 복원, `RefreshTokenCookieProvider` 필드·import 제거
+3. `OAuth2AuthenticationSuccessHandler.java`: 동일하게 `new Cookie("refresh_token", refreshToken)` 직접 생성 방식과 로컬 `refreshTokenExpiry` 필드로 되돌림
+4. `AuthController.java`의 `/refresh`를 `@CookieValue(name = "refresh_token", required = false) String refreshToken` 단일 파라미터로 되돌리고 `scope` 파라미터 제거
+
+---
+
 ## HIST-20260622-001
 
 - **날짜**: 2026-06-22

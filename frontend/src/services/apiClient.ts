@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { ApiResponse, RefreshResponse } from '@/types';
 
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
@@ -28,12 +29,30 @@ const NO_RETRY_AUTH_ENDPOINTS = ['/auth/login', '/auth/refresh', '/auth/signup']
 let refreshPromise: Promise<string> | null = null;
 function refreshAccessToken(): Promise<string> {
   if (!refreshPromise) {
+    // 사용자/관리자 탭이 같은 브라우저에서 동시에 열려도 refresh 쿠키가 role별로 분리되어 있으므로
+    // 현재 경로 기준으로 scope를 판정해 올바른 쿠키를 사용하도록 서버에 알려준다.
+    const scope = window.location.pathname.startsWith('/admin') ? 'admin' : 'user';
     refreshPromise = axios
-      .post('/api/auth/refresh', {}, { withCredentials: true })
+      .post<ApiResponse<RefreshResponse>>(`/api/auth/refresh?scope=${scope}`, {}, { withCredentials: true })
       .then((res) => {
-        const newToken: string = res.data.data.accessToken;
-        sessionStorage.setItem('accessToken', newToken);
-        return newToken;
+        const data = res.data.data;
+        if (!data) {
+          throw new Error('Invalid refresh response');
+        }
+        const responseEmail = data.user?.email;
+        const storedEmail = sessionStorage.getItem('authEmail');
+
+        // 쿠키 분리가 어긋난 경우(레거시 쿠키 잔존 등) 다른 계정의 토큰이 내려올 수 있으므로
+        // 저장된 계정과 응답 계정이 다르면 절대 저장하지 않고 실패 처리한다(호출부가 로그아웃 처리).
+        if (storedEmail && responseEmail && storedEmail !== responseEmail) {
+          throw new Error('Refresh account mismatch');
+        }
+        if (!storedEmail && responseEmail) {
+          sessionStorage.setItem('authEmail', responseEmail);
+        }
+
+        sessionStorage.setItem('accessToken', data.accessToken);
+        return data.accessToken;
       })
       .finally(() => { refreshPromise = null; });
   }
@@ -60,6 +79,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch {
         sessionStorage.removeItem('accessToken');
+        sessionStorage.removeItem('authEmail');
         const loginPath = window.location.pathname.startsWith('/admin/') ? '/admin/login' : '/user/login';
         window.location.href = loginPath;
       }
