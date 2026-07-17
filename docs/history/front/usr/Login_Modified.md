@@ -1,3 +1,30 @@
+## HIST-20260717-001
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 사용자 프론트엔드 / 로그인 화면 (다크모드 토글)
+- **수정 개요**: 사용자 로그인 화면에 다크모드 토글 버튼 추가 및 `dark:` 변형 스타일 적용. 레이아웃 셸에 중복 정의돼 있던 토글을 공용 컴포넌트로 추출.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/ThemeToggle.tsx` | 추가 | 공용 다크모드 토글 버튼 (해/달 아이콘, `className` prop으로 스타일 재정의) |
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | 로컬 `ThemeToggle` 정의 제거 → 공용 컴포넌트 import |
+| `frontend/src/app/user/login/page.tsx` | 수정 | 우상단(fixed) 토글 추가 + 배경·카드·입력·에러·구분선·Google 버튼·링크·Suspense 폴백에 `dark:` 변형 추가 |
+
+### 수정 상세
+- 로그인 경로는 레이아웃 셸이 children만 반환(HIST-20260506-003)해 헤더 토글이 없었음 → 페이지 자체에 `fixed top-4 right-4` 위치로 `<ThemeToggle />` 배치.
+- 테마 상태는 기존 `useThemeStore`(localStorage `tpmp-theme` 영속) + `ThemeProvider` 그대로 사용, 로그인 화면에서 바꾼 테마가 로그인 후 화면에도 유지됨.
+- 공용 추출로 `UserLayoutShell`/`AdminLayoutShell`의 중복 토글 정의 제거 (Shared Utilities 규칙). CLAUDE.md 공용 유틸 표에 `<ThemeToggle />` 등재.
+
+### 검증 결과
+- `npx tsc --noEmit`: 오류 0건
+
+### 복원 방법
+이 ID(HIST-20260717-001)로 복원 시 `ThemeToggle.tsx` 삭제, `UserLayoutShell.tsx`에 로컬 `ThemeToggle` 함수 복원, `user/login/page.tsx`의 토글 블록과 `dark:` 클래스 제거.
+
+---
+
 ## HIST-20260615-001
 
 - **날짜**: 2026-06-15
