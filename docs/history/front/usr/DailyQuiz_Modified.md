@@ -1,3 +1,31 @@
+## HIST-20260718-002
+
+- **날짜**: 2026-07-18
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 화면 키보드 단축키
+- **수정 개요**: 데일리 퀴즈 화면(`user/quiz/[categoryId]/page.tsx`)에 Alt 조합 키보드 단축키(정답 확인, 다음 문제)를 추가하고, 버튼 title 속성과 데스크톱 전용 힌트 텍스트로 단축키 정보를 노출했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | Alt+Enter/Alt+→ 키보드 단축키 effect 추가, 관련 버튼 title·힌트 텍스트 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: 정답 확인과 다음 문제 이동은 오직 버튼 클릭(또는 입력창의 기존 Enter·Ctrl+Enter 제출)으로만 가능했다. 관련 단축키·안내 문구가 없었다.
+- 변경 후:
+  - `handleSelectOX` 정의 직후, "Loading" 분기 직전에 새 `useEffect`를 추가해 `window`에 `keydown` 리스너를 등록했다. `e.altKey && e.key === 'Enter'`이면 "정답확인" 버튼의 기존 disabled 조건과 동일하게 `!answerState?.submitted && inputValue.trim() && !checking`일 때만 `handleSubmitAnswer()`를 호출한다. `e.altKey && e.key === 'ArrowRight'`이면 `answerState?.submitted === true`일 때만 `e.preventDefault()` 후 `handleNext()`를 호출한다. 이 화면은 앞으로만 진행하므로 Alt+←는 바인딩하지 않았다.
+  - 단축키 활성 가드: `phase !== 'quiz'`, `!q`, `noteTarget`(개념노트 모달 열림) 중 하나라도 해당하면 effect가 조기 반환해 리스너를 등록하지 않는다(결과/이어풀기/로딩 등 다른 phase, 개념노트 모달 열림 시 비활성). effect cleanup에서 `removeEventListener`로 항상 해제한다.
+  - 기존 입력창의 Enter(단답 제출)·Ctrl+Enter(CODE 제출) 바인딩은 그대로 두고 건드리지 않았다. Alt+Enter는 별개의 독립 리스너로 추가했다.
+  - "정답확인" 버튼에 `title="정답 확인 (Alt+Enter)"`를 추가하고 그 아래(제출 전에만) 데스크톱 전용(`hidden sm:block`) 힌트 "Alt+Enter 정답 확인"을 추가했다. "다음 문제/라운드 완료" 버튼에 `title="다음 문제 (Alt+→)"`를 추가하고 그 아래(제출 후에만) 힌트 "Alt+→ 다음"을 추가했다. 이 파일은 기존에 `dark:` 클래스를 사용하므로 힌트 텍스트에도 `dark:text-gray-500`을 함께 적용했다.
+- 이유: 사용자가 Alt 조합 키보드 단축키를 명시적으로 요청했다. 기존 버튼 클릭·타이머·모달·기존 Enter/Ctrl+Enter 흐름은 전혀 변경하지 않고 순수 추가로만 구현했다.
+
+### 복원 방법
+이 ID(HIST-20260718-002)만으로 복원 시, `frontend/src/app/user/quiz/[categoryId]/page.tsx`에서 위에서 추가한 Alt 단축키 `useEffect` 블록 전체, "정답확인"/"다음 문제" 버튼의 `title` 속성 2개, 두 힌트 `<p>` 태그(제출 전/제출 후) 2개를 모두 제거한다.
+
+---
+
 ## HIST-20260718-001
 
 - **날짜**: 2026-07-18

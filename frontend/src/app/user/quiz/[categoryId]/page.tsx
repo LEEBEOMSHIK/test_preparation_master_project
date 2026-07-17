@@ -366,6 +366,31 @@ function QuizPlayContent() {
     }
   }, [q, answerState, checking]);
 
+  // ── Alt 조합 키보드 단축키 ────────────────────────────────────────────────
+  // Alt+Enter 정답 확인(제출 전, "정답확인" 버튼과 동일 가드), Alt+→ 다음 문제(제출 후에만).
+  // 앞으로만 진행하는 화면이라 Alt+←는 바인딩하지 않는다.
+  // 문항 풀이 화면(phase==='quiz')이고 현재 문항이 있으며 개념노트 모달이 닫혀 있을 때만 동작.
+  useEffect(() => {
+    if (phase !== 'quiz' || !q || noteTarget) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!e.altKey) return;
+      if (e.key === 'Enter') {
+        if (!answerState?.submitted && inputValue.trim() && !checking) {
+          handleSubmitAnswer();
+        }
+      } else if (e.key === 'ArrowRight') {
+        if (answerState?.submitted) {
+          e.preventDefault();
+          handleNext();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [phase, q, noteTarget, answerState, inputValue, checking, current, questions.length, answers]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Loading ────────────────────────────────────────────────────────────────
   if (phase === 'loading') {
     return <QuizCardSkeleton />;
@@ -724,10 +749,16 @@ function QuizPlayContent() {
               <button
                 onClick={handleSubmitAnswer}
                 disabled={!inputValue.trim() || checking}
+                title="정답 확인 (Alt+Enter)"
                 className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition"
               >
                 {checking ? '확인 중...' : '정답확인'}
               </button>
+            )}
+            {!answerState?.submitted && (
+              <p className="hidden sm:block text-center text-xs text-gray-400 dark:text-gray-500">
+                Alt+Enter 정답 확인
+              </p>
             )}
           </div>
         )}
@@ -813,10 +844,16 @@ function QuizPlayContent() {
       {answerState?.submitted && (
         <button
           onClick={handleNext}
+          title="다음 문제 (Alt+→)"
           className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition"
         >
           {current < questions.length - 1 ? '다음 문제' : '라운드 완료'}
         </button>
+      )}
+      {answerState?.submitted && (
+        <p className="hidden sm:block text-center text-xs text-gray-400 dark:text-gray-500">
+          Alt+→ 다음
+        </p>
       )}
 
       {/* 개념노트 모달 (공용) — 퀴즈 문항은 questionBankId로 연결 */}

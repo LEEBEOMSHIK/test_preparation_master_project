@@ -1,3 +1,31 @@
+## HIST-20260718-003
+
+- **날짜**: 2026-07-18
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 화면 키보드 단축키
+- **수정 개요**: 시험 응시 화면(`exam/[id]/page.tsx`)에 Alt 조합 키보드 단축키(이전·다음 문항 이동, 시험 제출)를 추가하고, 버튼 title 속성과 데스크톱 전용 힌트 텍스트로 단축키 정보를 노출했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | Alt+←/→/Enter 키보드 단축키 effect 추가, 관련 버튼 title·힌트 텍스트 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/exam/[id]/page.tsx`
+- 변경 전: 이전/다음 문항 이동과 시험 제출은 오직 버튼 클릭으로만 가능했다. 관련 단축키·안내 문구가 없었다.
+- 변경 후:
+  - `submitFnRef` 갱신 effect(264~266줄) 바로 뒤에 새 `useEffect`를 추가해 `window`에 `keydown` 리스너를 등록했다. `e.altKey && e.key === 'ArrowLeft'`이면 `e.preventDefault()` 후 `setCurrent(c => Math.max(0, c - 1))`, `e.altKey && e.key === 'ArrowRight'`이면 `e.preventDefault()` 후 `setCurrent(c => Math.min(questions.length - 1, c + 1))`, `e.altKey && e.key === 'Enter'`이면 `submitFnRef.current?.(false)`(최신 클로저 참조로 stale closure 방지, 내부적으로 flagged 알림·confirm 창이 이미 있어 오제출 방지됨)를 호출한다.
+  - 단축키 활성 가드: `loading`, `result`, `pendingResult`, `!exam` 중 하나라도 해당하거나 `leaveConfirm`/`flagAlert`/`noteTarget` 모달이 열려 있으면 `shortcutsActive`가 false가 되어 리스너를 아예 등록하지 않는다. effect cleanup에서 `removeEventListener`로 항상 해제한다.
+  - "이전"/"다음" 버튼에 각각 `title="이전 문항 (Alt+←)"`/`title="다음 문항 (Alt+→)"`를 추가하고, 그 버튼 묶음 바로 아래에 데스크톱 전용(`hidden sm:block`) 힌트 `text-xs text-gray-400` 텍스트 "Alt+← 이전 · Alt+→ 다음 · Alt+Enter 제출"을 추가했다. 이 화면은 기존에 다크모드 클래스를 쓰지 않으므로 새로 도입하지 않았다.
+  - 데스크톱 사이드바 "시험 제출" 버튼과 모바일 바텀시트 "시험 제출" 버튼 둘 다 `title="시험 제출 (Alt+Enter)"`를 추가했다.
+- 이유: 사용자가 Alt 조합 키보드 단축키를 명시적으로 요청했다. 기존 버튼 클릭·타이머·모달·시험 제출 흐름(플래그 알림·confirm 오제출 방지 포함)은 전혀 변경하지 않고 순수 추가로만 구현했다.
+
+### 복원 방법
+이 ID(HIST-20260718-003)만으로 복원 시, `frontend/src/app/exam/[id]/page.tsx`에서 위에서 추가한 Alt 단축키 `useEffect` 블록 전체, "이전"/"다음" 버튼의 `title` 속성 2개, 버튼 묶음 아래 힌트 `<p>` 태그, 데스크톱·모바일 "시험 제출" 버튼의 `title` 속성 2개를 모두 제거한다.
+
+---
+
 ## HIST-20260718-002
 
 - **날짜**: 2026-07-18

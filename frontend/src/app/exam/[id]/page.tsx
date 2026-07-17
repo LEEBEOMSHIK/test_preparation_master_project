@@ -265,6 +265,31 @@ export default function ExamTakingPage() {
     submitFnRef.current = submitExam;
   });
 
+  // ── Alt 조합 키보드 단축키 ────────────────────────────────────────────────
+  // Alt+←/→ 이전·다음 문항 이동, Alt+Enter 시험 제출.
+  // 문항 풀이 중일 때만 동작 — 로딩/결과/게이트 화면이거나 모달(나가기·플래그·개념노트)이 열려 있으면 무시.
+  useEffect(() => {
+    const shortcutsActive = !loading && !result && !pendingResult && !!exam
+      && !leaveConfirm && !flagAlert && !noteTarget;
+    if (!shortcutsActive) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!e.altKey) return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setCurrent(c => Math.max(0, c - 1));
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setCurrent(c => Math.min(questions.length - 1, c + 1));
+      } else if (e.key === 'Enter') {
+        submitFnRef.current?.(false);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [loading, result, pendingResult, exam, leaveConfirm, flagAlert, noteTarget, questions.length]);
+
   // ── 타이머 effect ─────────────────────────────────────────────────────────
   // 조건: 결과/게이트 없이 secondsLeft > 0 일 때 틱
   const timerActive = !result && !pendingResult && secondsLeft > 0;
@@ -774,15 +799,20 @@ export default function ExamTakingPage() {
               {/* 이전 / 다음 */}
               <div className="flex gap-2 mt-auto pt-4 border-t border-gray-100">
                 <button onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}
+                  title="이전 문항 (Alt+←)"
                   className="flex-1 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition">
                   이전
                 </button>
                 <button onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))}
                   disabled={current === questions.length - 1}
+                  title="다음 문항 (Alt+→)"
                   className="flex-1 py-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-sm font-medium hover:bg-indigo-100 disabled:opacity-40 transition">
                   다음
                 </button>
               </div>
+              <p className="hidden sm:block text-center text-xs text-gray-400">
+                Alt+← 이전 · Alt+→ 다음 · Alt+Enter 제출
+              </p>
             </div>
           </div>
 
@@ -800,6 +830,7 @@ export default function ExamTakingPage() {
             </div>
 
             <button onClick={() => submitExam(false)} disabled={submitting}
+              title="시험 제출 (Alt+Enter)"
               className="w-full py-3 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl font-medium hover:bg-indigo-100 disabled:opacity-50 transition">
               {submitting ? '채점 중...' : '시험 제출'}
             </button>
@@ -851,6 +882,7 @@ export default function ExamTakingPage() {
               <button
                 onClick={() => { setShowAnswerSheet(false); submitExam(false); }}
                 disabled={submitting}
+                title="시험 제출 (Alt+Enter)"
                 className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50 transition"
               >
                 {submitting ? '채점 중...' : '시험 제출'}
