@@ -1,37 +1,53 @@
 # Agent Handoff - CURRENT
 
-이 파일은 세션 종료, 컨텍스트 압축, 다른 AI 또는 다른 세션 인계를 위한 현재 작업 상태 기록이다.
-작업 단계 경계마다 갱신하고, 완료 후에도 마지막 커밋과 남은 이슈를 간단히 남긴다.
-누적 로그가 아니라 최신 작업 1개의 상태 스냅샷으로 운영한다.
-
 ## Current Goal
 
-- 2026-07-13~14 세션: AI 커스텀 문항 대량 등록 + 관련 채점/출제/관리 기능 개선 — **코드 작업 모두 완료·커밋·푸시됨.**
+- 2026년 1회 3번(DB 설계 절차)·18번(SQL JOIN·서브쿼리) 문항을 이미지 → 구조·데이터로 치환 — **완료, 커밋 대기**.
+- (이전 작업들, 모두 커밋 대기) ① 채점 오류 수정(`AnswerGrader` + 데이터) ② 로그인 화면 다크모드 토글.
 
-## 최근 코드 커밋 (main)
+## Completed
 
-- `ba953fc` 퀴즈 문항별 카테고리 표시(QuizQuestionView.categoryName + 카드 배지) · 관리자 문항 관리 검색을 문항 제목 기준으로 변경(내용 HTML 검색 제거) · 데일리 퀴즈 언어 선택창에서 sql 전용 CODE 카테고리 제외
-- 그 이전(07-13): `e155922` 시험유형 추가 버튼 · `9130c22` SQL 결과테이블 정답 섹션 버그 · `960d259` 따옴표 종류 무시 채점 · `7940b42` AI커스텀 전체 통합카드 · `43099d1` 세션 내 중복출제 방지(excludeIds) · `e1f4b8f` AI커스텀 카테고리별 문항번호 자동채번 · `91edd7d`/`3e9f84c` 대체정답(||) 채점 + 대표정답 1개 표시
+- 문항 구조화(데이터만, 코드 변경 없음): `question_bank` id=3·18과 `questions` id=83·98(exam_id=5)의 content를 이미지에서 HTML 구조(세로 흐름/테이블)로, 3번은 options+슬롯 정답(`4,2,3,5,1`), 18번은 SQL을 `code`(`language='sql'`)로 이동, 해설 추가. 덤프 동기화. 상세: `docs/history/back/adm/QuestionBank_Modified.md` HIST-20260717-001.
+- `AnswerGrader` 채점 개선: 열거 마커 확장(`ㄱ.`·`①`·`a.`) + 괄호 대체 표기 1:1 매칭 + 느슨 폴백 마커 제거. 상세: `docs/history/back/usr/UserExamination_Modified.md` HIST-20260717-001.
+- `AnswerGraderTest`: 사례 재현·회귀 테스트 11건 추가, 기존 실패 1건(`code_commaSeparatedNotSplit_incorrect`) 현행 정책으로 갱신.
+- 데이터 수정(로컬 DB): `questions` id=86·90, `question_bank` id=6·10 정답에 괄호 대체 표기 추가. `docs/sql/tpmp_content_data.sql` 덤프에도 동기화(4개 INSERT).
+- 다크모드 토글: `ThemeToggle` 공용 추출 + 사용자/관리자 로그인 페이지 적용 (히스토리: `docs/history/front/usr|adm/Login_Modified.md`).
 
-## 채점 방식 요약 (문항 등록 시 참고)
+## Modified Files
 
-- SQL 결과테이블 정답 → SQL 유형 + expectedResult(orderedRows=false)
-- "모두 골라"(순서 무관) → 주관식 무보기(Set 비교) / "순서·위치 중요" → options 보기(위치 비교, 번호↔텍스트 상호 인정)
-- 표기 변형 인정 → 정답에 ` || ` 대체 정답 (그룹 내 순서 무관 분류는 순열을 ||로 생성)
-- 코드 실행 결과 → CODE 유형 + 실제 실행 출력을 정답으로. **SQL 빈칸(순서·개수 정확 필요)도 CODE 유형(줄 단위)으로 등록** — 언어=sql이면 언어선택창 제외됨(위 ba953fc). CODE는 순서·개수·대소문자무시 엄격 채점.
+- `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java`
+- `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java`
+- `docs/sql/tpmp_content_data.sql`
+- (직전 작업) `frontend/src/components/ui/ThemeToggle.tsx`(신규), `UserLayoutShell.tsx`, `AdminLayoutShell.tsx`, `user/login/page.tsx`, `admin/login/page.tsx`, `CLAUDE.md`
+- 히스토리 4건 + 본 파일
 
-## 데이터 작업 (커밋 대상 아님, 운영 DB)
+## Verification
 
-- AI 커스텀 문항 다수 등록(정처기 실기7 / 리눅스 문제는 리눅스마스터1급9). 카테고리별 자동 채번 활용. 등록 직후 check API로 정답/오답/순서/개수 케이스 검증하는 파이썬 스크립트 방식(한글은 curl 인라인 금지 — 인코딩 깨짐).
-- SQL 빈칸 9문항(187~196, 190은 179와 중복이라 삭제)을 SHORT_ANSWER→CODE(sql) 전환해 순서·개수 엄격 채점 적용 완료.
+- `.\gradlew.bat test --tests "*.AnswerGraderTest"`: 통과
+- `.\gradlew.bat test` (전체): BUILD SUCCESSFUL — 이전에 실패하던 1건 포함 전부 통과
+- `cd frontend; npx tsc --noEmit`: 오류 0건 (다크모드 작업)
+- DB 확인: questions 86·90, question_bank 6·10 answer 갱신 확인 쿼리 실행 완료
 
 ## Warnings / Notes
 
-- 코드 수정은 webapp-developer에 위임 → git diff로 히스토리 prepend·범위 검증(에이전트가 히스토리 덮어쓰는 사고 반복 이력).
-- dev 서버 가동 중 `npm run build` 금지(`npx tsc --noEmit`), 백엔드 변경 시 재시작 후 API/E2E 확인. `references/` 미추적 유지.
-- 로컬 dev 서버 2개(3000/8080) 백그라운드 가동 — 새 세션은 포트 확인 후 기동.
-- 관리자 제목 검색: 제목 없는 문항은 키워드 검색에 안 걸림(의도된 동작, 필요 시 내용 폴백 보완 가능).
+- 백엔드가 기동 중이면 재시작 없이 다음 채점부터 새 로직 적용(코드는 재시작 필요 — **백엔드 재시작 후 화면에서 재채점 확인 필요**).
+- options 채점(빈칸 순서 비교) 경로는 프론트 `lib/answer.ts`와 규칙 동기화 때문에 의도적으로 변경하지 않음(숫자 마커만 유지).
+- 이미지 사례 중 Q2(Bridge/Observer)·Q11(CIDR)은 코드 수정만으로, Q6(HDLC)·Q10(FOREIGN KEY)은 코드+데이터 수정으로 해결.
+- 브라우저 육안 확인(시험 재응시 채점, 로그인 다크모드 토글)은 미실시.
 
-## Last Commit
+## Next Commands
 
-- `ba953fc [FE|BE] feat: 퀴즈 문항별 카테고리 표시·관리자 제목 검색·SQL 언어선택창 sql 제외` — main 푸시 완료
+```powershell
+# 백엔드 재시작 후 시험(exam_id=5) 재제출로 4개 문항 정답 처리 확인
+
+# 커밋 (사용자 승인 후 — FE/BE 분리 커밋 권장)
+git add frontend/src CLAUDE.md docs/history/front docs/agent-handoff
+git commit -m "[FE] feat: 사용자·관리자 로그인 화면 다크모드 토글 추가"
+git add backend/src docs/sql docs/history/back docs/agent-handoff
+git commit -m "[BE] fix: 채점 열거 마커 확장(ㄱ.·①·a.) 및 괄호 대체 표기 인정"
+```
+
+## Do Not Touch
+
+- `.env` (로컬 전용, 커밋 금지).
+- `references/images/*` — 사용자가 넣어둔 참고 이미지, 삭제·이동 금지.

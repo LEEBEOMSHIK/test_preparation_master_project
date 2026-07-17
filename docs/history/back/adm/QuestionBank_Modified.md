@@ -1,3 +1,22 @@
+## HIST-20260717-001
+
+- **날짜**: 2026-07-17
+- **수정 범위**: 콘텐츠 데이터 / 2026년 1회 3번(DB 설계 절차)·18번(SQL JOIN·서브쿼리) — 이미지 → 구조·데이터 치환 (코드 변경 없음)
+- **수정 개요**: 두 문항이 스크린샷 이미지(`<img src="/uploads/...">`)와 흰색 글씨 SQL(`<span style="color: rgb(255,255,255)">`) 형태로 등록돼 있던 것을 구조화 데이터로 치환했다. 문제은행(`question_bank` id=3·18)과 시험 문항(`questions` id=83·98, exam_id=5 seq 3·18) 양쪽 모두 적용, `docs/sql/tpmp_content_data.sql` 덤프 동기화.
+
+### 변경 내용
+
+| 문항 | 변경 |
+|------|------|
+| 3번 (DB 설계 절차) | content를 세로 흐름 HTML(`( ㄱ )<br>↓<br>( ㄴ )…`)로, [보기] 5개를 `options` JSON(`["구현","개념적 설계","논리적 설계","요구사항 분석","물리적 설계"]`)으로, 정답을 보기 번호 슬롯 `4,2,3,5,1`로 전환(빈칸 순서 채점 적용 — 절차 문제라 순서까지 채점), 해설 추가 |
+| 18번 (SQL JOIN·서브쿼리) | employee/dept 테이블을 content의 HTML `<table>`로, SQL을 `code` 컬럼(`language='sql'` — CodeBlock 구문강조)으로 이동, 해설 추가(AVG=200 → 부서 20 → 사원 2명 → COUNT(*)=2). 정답 `2` 유지 |
+
+- 사용 화면 확인: 시험 응시(`app/exam/[id]`)·퀴즈 풀이(`user/quiz/[categoryId]`) 모두 `q.code` 존재 시 유형 무관 CodeBlock 렌더, options 존재 시 읽기 전용 보기 목록 + 번호 입력 UI(HIST-20260707 계열 기능) 사용.
+- 이전 이미지 파일(`/uploads/images/8eb3a757-…`, `187bb124-…`)은 삭제하지 않고 미참조 상태로 남김.
+
+### 복원 방법
+이 ID(HIST-20260717-001)로 복원 시 git에서 `docs/sql/tpmp_content_data.sql`의 해당 4개 INSERT를 이전 커밋으로 되돌리고 그 값으로 DB를 UPDATE한다.
+
 ## HIST-20260713-001
 
 - **날짜**: 2026-07-13
