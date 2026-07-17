@@ -1,3 +1,33 @@
+## HIST-20260718-002
+
+- **날짜**: 2026-07-18
+- **수정 범위**: 사용자 프론트엔드 / 시험 결과 CODE 문항 표시
+- **수정 개요**: 시험 완료 결과 화면(제출 직후 + 이력 재조회 공용)의 펼침 내용에서 CODE 유형 문항의 문제 코드(지문 코드)가 렌더링되지 않던 문제를 고쳤다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/components/ui/ExamResultDisplay.tsx` | 수정 | 펼침 내용의 문항 본문 뒤에 `item.code` 코드 블록 추가 |
+| `frontend/src/components/ui/ExamResultDisplay.test.tsx` | 수정 | CodeBlock mock을 code 텍스트 렌더로 교체, 문제 코드 표시/미표시 회귀 테스트 추가 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/ExamResultDisplay.tsx`
+- 변경 전: 백엔드 `QuestionResultResponse`와 프론트 `QuestionResult` 타입에는 `code`/`language` 필드가 이미 채워져 있었지만, 펼침 내용 렌더링에서 `item.content`, `item.schedulingData`, `item.sqlData`만 그리고 `item.code`를 렌더링하는 코드가 없어 CODE 유형 문항의 지문 코드가 결과 화면에서 보이지 않았다(468~472줄 근방, `내 답`의 CodeBlock은 사용자 답안이며 문제 코드가 아님).
+- 변경 후: `<RichContent html={item.content} .../>` 직후 `<SchedulingProblemTable>`/`<SqlProblemView>` 이전에 `{item.code && (<CodeBlock code={item.code} language={item.language} size="xs" />)}`를 추가했다. `QuestionDetailModal.tsx`의 문제 코드 표시 컨벤션과 동일하게 `showHeader`를 지정하지 않아 기본값(헤더=언어 배지 표시)을 사용하며, 아래쪽 답안용 CodeBlock(`showHeader={false}`)과 시각적으로 구분된다. CODE 유형 여부로 별도 분기하지 않고 `item.code` 존재 여부만으로 조건부 렌더링해 다른 유형은 자연히 노출되지 않는다.
+- 이유: 사용자가 채점 대상 코드가 무엇이었는지 결과 화면에서 확인할 수 없는 버그를 해결하기 위함. 데이터는 이미 정상 흐름이었고 순수 렌더링 누락이었다.
+
+#### `frontend/src/components/ui/ExamResultDisplay.test.tsx`
+- 변경 전: `jest.mock('@/components/ui/CodeBlock', ...)`가 `CodeBlock: () => null`로 항상 null을 렌더링해 코드 블록 표시 여부를 테스트로 검증할 수 없었다.
+- 변경 후: mock을 `CodeBlock: ({ code }) => <div data-testid="problem-code">{code}</div>`로 교체하고, "CODE 유형 문항의 문제 코드를 펼침 내용에 표시한다"(아코디언 펼침 후 `problem-code` 텍스트 노출 확인)와 "문제 코드가 없으면 코드 블록을 렌더링하지 않는다"(펼침 후에도 `problem-code` 미노출 확인) 두 케이스를 추가했다.
+- 이유: 렌더링 누락 회귀를 방지하기 위한 최소 테스트 커버리지 확보.
+
+### 복원 방법
+이 ID(HIST-20260718-002)만으로 복원 시, `ExamResultDisplay.tsx`에서 추가한 `{item.code && (<CodeBlock .../>)}` 블록을 제거하고, `ExamResultDisplay.test.tsx`의 `CodeBlock` mock을 `() => null`로 되돌리며 위 두 회귀 테스트 케이스를 삭제한다.
+
+---
+
 ## HIST-20260718-001
 
 - **날짜**: 2026-07-18

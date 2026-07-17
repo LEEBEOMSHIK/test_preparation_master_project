@@ -4,7 +4,7 @@ import type { ExamResultData, QuestionResult } from '@/types';
 
 jest.mock('@/components/ui/CodeBlock', () => ({
   __esModule: true,
-  CodeBlock: () => null,
+  CodeBlock: ({ code }: { code: string }) => <div data-testid="problem-code">{code}</div>,
 }));
 
 jest.mock('@/components/ui/RichContent', () => ({
@@ -456,6 +456,39 @@ describe('ExamResultDisplay', () => {
       expect(mockedBookmarkService.getBookmarkedIds).not.toHaveBeenCalled();
     });
     expect(screen.queryByRole('button', { name: /복습 표시/ })).toBeNull();
+  });
+
+  it('CODE 유형 문항의 문제 코드를 펼침 내용에 표시한다', async () => {
+    render(
+      <ExamResultDisplay
+        result={result(
+          question({
+            seq: 1,
+            questionBankId: null,
+            content: '다음 Java 코드의 실행 결과를 쓰시오.',
+            code: 'System.out.println("hi");',
+            language: 'java',
+          }),
+        )}
+        onBack={jest.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId('problem-code')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { expanded: false }));
+    expect((await screen.findByTestId('problem-code')).textContent).toBe('System.out.println("hi");');
+  });
+
+  it('문제 코드가 없으면 코드 블록을 렌더링하지 않는다', async () => {
+    render(
+      <ExamResultDisplay
+        result={result(question({ seq: 1, questionBankId: null, content: '일반 문항' }))}
+        onBack={jest.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { expanded: false }));
+    expect(screen.queryByTestId('problem-code')).toBeNull();
   });
 
   it('같은 questionBankId를 가진 문항은 상태를 공유하고 오답 필터에서도 버튼을 유지한다', async () => {

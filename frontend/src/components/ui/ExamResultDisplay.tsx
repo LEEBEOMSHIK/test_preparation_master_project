@@ -467,6 +467,15 @@ export function ExamResultDisplay({
                       {/* 문항 본문 */}
                       <RichContent html={item.content} className="text-gray-800 dark:text-gray-200 text-sm" />
 
+                      {/* 문제 코드(지문 코드) */}
+                      {item.code && (
+                        <CodeBlock
+                          code={item.code}
+                          language={item.language}
+                          size="xs"
+                        />
+                      )}
+
                       {item.schedulingData && <SchedulingProblemTable data={item.schedulingData} />}
 
                       {item.sqlData && <SqlProblemView data={item.sqlData} />}
