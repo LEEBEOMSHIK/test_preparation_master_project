@@ -2,27 +2,43 @@
 
 ## Current Goal
 
-- 진행 중 작업 없음. 직전 작업 3건 모두 커밋·푸시 완료.
+- 진행 중 작업 없음. 직전 작업 2건 커밋·푸시 완료.
 
 ## Completed (커밋)
 
-- `fee78c6` [FE] 사용자·관리자 로그인 화면 다크모드 토글 (공용 `ThemeToggle` 추출 포함)
-- `90e17c2` [BE] 채점 열거 마커 확장(ㄱ.·①·a.) + 괄호 대체 표기 인정 (`AnswerGrader`, 테스트 11건 추가)
-- `6884b4a` [INFRA] 콘텐츠 덤프 갱신 — 채점 대체 표기 + 2026년 1회 3·18번 이미지 → 구조·데이터 치환
+- `8fe4850` [FE|BE] fix: 동일 브라우저 다중 계정 세션 오염 방지
+  - refresh 쿠키를 role별 분리(`refresh_token_user` / `refresh_token_admin`) + `/auth/refresh` scope 파라미터 분기
+  - FE가 refresh 응답 `user.email`을 `authEmail`과 대조해 불일치 시 저장 거부·로그아웃
+  - `RefreshTokenCookieProvider` 신설(login·OAuth2 핸들러 공용), 레거시 `refresh_token` 쿠키는 로그인 시 즉시 만료
+- `98d6bd2` [FE] feat: 복습 표시 목록에 문항 제목 표시 (제목 주 텍스트 + 내용 미리보기 보조 격하, 제목 없으면 폴백)
 
 ## Verification
 
-- 백엔드 전체 테스트: BUILD SUCCESSFUL (이전 실패 1건 포함 전부 통과)
-- 프론트 `npx tsc --noEmit`: 오류 0건
-- 로컬 DB: `questions` 83·86·90·98, `question_bank` 3·6·10·18 갱신 확인
+- `./gradlew compileJava`: BUILD SUCCESSFUL
+- `npx tsc --noEmit`: 오류 0건
+- `git diff --stat`: 히스토리 3개 파일 모두 순수 prepend(삭제 0줄) 확인
+- **미실시: 런타임 검증.** 아래 "남은 이슈" 참고.
 
-## 남은 이슈 / 참고
+## 남은 이슈 / 주의사항
 
-- 브라우저 육안 확인 미실시: ① 로그인 화면 다크모드 토글 ② 2026년 1회 3번(보기+번호 입력 UI)·18번(테이블+SQL 구문강조) 렌더링 ③ 채점 수정 후 시험 재응시.
-- 백엔드가 기동 중이었다면 채점 코드 반영에는 재시작 필요(데이터 변경은 즉시 반영).
-- 다른 로컬은 `docs/sql/tpmp_content_data.sql` 재적용 시 ON CONFLICT DO NOTHING이라 기존 행이 갱신되지 않음 — 새 문항 데이터가 필요하면 해당 행 삭제 후 재적용하거나 UPDATE 직접 실행.
+- **런타임 미검증 (최우선)**: 백엔드 재시작 후 실제 로그인 → 쿠키 이름(`refresh_token_user`/`refresh_token_admin`) → `/auth/refresh?scope=` 흐름을 확인해야 한다. 복습 화면 제목 표시도 브라우저 육안 확인 미실시.
+- **배포·재시작 후 열려 있는 탭은 1회 재로그인 필요** (레거시 쿠키 만료 → 새 이름으로 재발급).
+- **알려진 제약**: 사용자 화면(`/user/*`)에서 admin 계정으로 로그인하면 15분 뒤 로그아웃된다. 쿠키는 role 기준(`refresh_token_admin`)인데 refresh scope는 경로 기준(`user`)이라 쿠키를 못 찾기 때문. 오염 대신 안전하게 실패하는 의도된 동작.
+- `scope` 판정은 `/admin`(슬래시 없음), 기존 리다이렉트 판정은 `/admin/`(슬래시 포함)로 기준이 다름 — `apiClient.ts` 주석에 명시.
+- **백엔드 `/api/auth/logout` 핸들러 부재**: 프론트 `authService.ts`가 호출 중이나 컨트롤러·SecurityConfig 어디에도 없어 404. 로그아웃해도 refresh 쿠키가 남는다. 별도 작업 필요(이번 범위 제외).
+- **오염된 기존 데이터 보존 결정됨**: `quiz_history` admin(id=1) 919건 / user(id=2) 42건, `user_question_bookmarks` admin 48건 / user 2건. 사용자 화면에서 푼 기록이 admin에 쌓인 상태. 이관 재개 시 admin 기록 시작 시점(2026-06-24)을 기준으로 범위를 산정할 것.
+
+## 다음 세션이 바로 실행할 명령
+
+```powershell
+cd C:\project\tpmp\test_preparation_master_project
+# 백엔드 재시작 후 로그인 → 응답 Set-Cookie 이름이 role별로 갈리는지 확인
+# 사용자·관리자 탭 동시 로그인 후 15분 경과 시 사용자 탭이 user 계정을 유지하는지 확인
+```
 
 ## Do Not Touch
 
+- DB 데이터 — 오염된 `quiz_history`·`user_question_bookmarks` 보존 결정됨.
+- `codex-config-tui-notify.tmp` — 기존 미추적 파일(작업과 무관, 커밋 대상 아님).
 - `.env` (로컬 전용, 커밋 금지).
 - `references/images/*` — 사용자 참고 이미지(gitignore 상태), 삭제·이동 금지.
