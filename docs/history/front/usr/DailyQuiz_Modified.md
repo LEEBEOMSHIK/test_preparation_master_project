@@ -1,3 +1,53 @@
+## HIST-20260718-003
+
+- **날짜**: 2026-07-18
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 풀이 스크래치패드 — 코드 트레이싱 표기법 확장(나란히 2D 배열 + 오브젝트)
+- **수정 개요**: 코드 트레이싱 "타이핑→자동 렌더" 표기법 파서(`traceNotation.ts`)에 두 가지 표기를 추가했다. (1) `[1,2,3][2,3,4]`처럼 중첩 없이 대괄호 그룹을 나란히 연속으로 쓴 형태를 2D 배열로 인식(기존에는 텍스트로 폴백). (2) `{k: v, ...}` 오브젝트 표기를 새 `ObjectLine`으로 파싱해 프리뷰에서 키-값 2열 표로 렌더. 기존 1D·중첩 2D·수식 자동계산·타입 배지 동작은 전혀 건드리지 않았다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/lib/traceNotation.ts` | 수정 | 나란히 2D 배열 인식(`splitTopLevelBracketGroups` 추가 + `parseArrayValue` 분기), 오브젝트 표기 파싱(`ObjectLine` 타입, `parseBraceGroup`/`splitEntryByTopColon`/`parseObjectValue` 추가, `classifyLine`·`ClassifiedLine`·최종 `parseTraceLines` 매핑에 object 분기 반영) |
+| `frontend/src/components/ui/TracePreview.tsx` | 수정 | `ObjectRow` 컴포넌트 추가(이름+타입 배지 + 키-값 2열 표, 빈 객체는 "(빈 객체)" 안내), switch에 `case 'object'` 추가 |
+| `frontend/src/lib/traceNotation.test.ts` | 수정 | 나란히 2D 배열 인식 테스트 1건 + 기존 중첩 2D·1D 회귀 테스트 2건, 오브젝트 파싱 테스트(단순 엔트리·값 내부 콜론 보존·명시 타입·빈 객체·콜론 없는 엔트리 text 폴백·불균형 중괄호 text 폴백) 6건 추가 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표의 `parseTraceLines`/`TracePreview` 행 설명에 나란히 2D·오브젝트 표기 지원 내용 반영 |
+
+### 수정 상세
+
+#### `frontend/src/lib/traceNotation.ts`
+- 변경 전: rhs가 `[`로 시작할 때 `parseArrayValue`는 단일 최상위 대괄호 그룹만 처리했다(1D 또는 중첩 `[[..],[..]]` 2D). `[1,2,3][2,3,4]`처럼 그룹을 나란히 이어 쓰면 `parseBracketGroup`이 바깥 대괄호 뒤에 남는 문자를 감지해 실패 → text 폴백이었다. `{`로 시작하는 값은 배열/스칼라 어느 분기에도 걸리지 않아 `scalarAssign`으로 떨어져 `inferScalarType`이 항상 `'string'`으로 표시했다(오브젝트 구조를 표현할 수단이 없었다).
+- 변경 후:
+  - `splitTopLevelBracketGroups(rhs)`: rhs가 공백만 사이에 두고 이어지는 최상위 `[...]` 그룹 2개 이상으로 전체를 덮으면 그룹별 원문 문자열 배열을 반환(괄호 깊이·따옴표만으로 그룹 경계 판정, 각 그룹 내부의 실제 유효성은 이후 `parseBracketGroup`이 재검증). 그룹이 1개뿐이거나 경계 판정에 실패하면 null.
+  - `parseArrayValue`가 먼저 `splitTopLevelBracketGroups`를 호출해 그룹이 2개 이상이면 각 그룹을 `parseBracketGroup`으로 1D 파싱해 행으로 삼아 `array2d`를 반환(한 그룹이라도 실패하면 null → text 폴백). 그룹이 1개면 기존 로직(단일 그룹 `parseBracketGroup` → 1D 또는 중첩 2D)으로 그대로 위임 — 기존 동작 미변경.
+  - `ObjectLine` 인터페이스(`kind: 'object'; name; entries: {key,value}[]; typeLabel; typeSource`)를 `TraceLine` 유니온에 추가.
+  - `parseBraceGroup(raw)`: `parseBracketGroup`과 동일한 깊이/따옴표 추적 로직을 `{...}`용으로 적용해 최상위 콤마로 엔트리 문자열 배열을 분리(불균형·미종료 문자열은 null).
+  - `splitEntryByTopColon(entry)`: 엔트리 문자열을 중첩/따옴표 밖의 첫 번째 콜론으로 key/value 분리(값 내부 콜론은 보존, 예 `url: http://x` → `key='url', value='http://x'`). 최상위 콜론이 없으면 null.
+  - `parseObjectValue(rhs)`: `parseBraceGroup` 결과의 각 엔트리를 `splitEntryByTopColon`으로 분리하고, 콜론 없는 엔트리가 하나라도 있으면(Set 형태 `{1, 2, 3}` 등) 전체 null(오브젝트로 보지 않음). 빈 `{}`는 entries 빈 배열로 정상 처리.
+  - `classifyLine`에서 배열 분기(`rhs.startsWith('[')`) 다음, 기존 `scalarAssign` 반환 이전에 `rhs.startsWith('{')` 분기를 추가해 `parseObjectValue` 결과를 `ObjectLine`으로 반환(실패 시 text 폴백). typeLabel은 명시 타입 있으면 그것, 없으면 `'object'`.
+  - `ClassifiedLine` 유니온에 `ObjectLine` 추가, `parseTraceLines` 최종 매핑에서 `array1d`/`array2d`/`text`와 함께 `object`도 그대로 통과시키도록 조건 확장(env 등록·수식 계산 대상 아님).
+  - 값은 재귀 파싱하지 않고 문자열 그대로 보존하며, 파서는 어떤 입력에도 throw하지 않고 실패 시 text로 폴백하는 기존 안전 원칙을 그대로 유지했다. eval/new Function/신뢰 불가 JSON.parse는 사용하지 않았다.
+- 이유: 사용자가 "둘 다 개선"을 명시 선택. 자주 쓰는 나란히 2D 표기와 오브젝트 표기를 지원해 트레이싱 프리뷰의 표현 범위를 넓히되, 기존 1D·중첩 2D·수식 자동계산·타입 추론 경로는 전혀 변경하지 않았다.
+
+#### `frontend/src/components/ui/TracePreview.tsx`
+- 변경 전: switch 문에 `var`/`array1d`/`array2d`/`text`/`expr` 케이스만 있었고 `ObjectLine`을 렌더할 컴포넌트가 없었다.
+- 변경 후: `Array2DGrid` 바로 다음, `FreeTextRow` 이전에 `ObjectRow` 컴포넌트를 추가했다. 상단에 이름 칩 + `TypeBadge`(기존 `Array1DRow`/`Array2DGrid`와 동일한 `text-xs font-semibold text-indigo-600 dark:text-indigo-300 font-mono` + 배지 배치 컨벤션 준용), 아래에 `키`/`값` 2열 `<table>`(기존 `Array2DGrid`와 동일한 border/bg/폰트 톤 — `border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-xs font-mono` 셀 스타일)을 렌더한다. entries가 빈 배열이면 `Array2DGrid`의 `(빈 배열)` 패턴을 준용해 `(빈 객체)`를 표시한다. switch 문에 `case 'object'`를 추가해 `ObjectRow`에 name/entries/typeLabel/typeSource를 전달한다.
+- 이유: 파서가 반환하는 `ObjectLine`을 기존 컴포넌트 스타일 컨벤션에 맞춰 읽기 전용으로 시각화하기 위해.
+
+#### `frontend/src/lib/traceNotation.test.ts`
+- 변경 전: 배열 파싱(대괄호 그룹 분리) 테스트만 있었고 나란히 2D·오브젝트 표기 테스트가 없었다.
+- 변경 후: 기존 `describe('parseTraceLines array parsing')` 블록에 나란히 2D 인식 테스트(`[1,2,3][2,3,4]` → `array2d`, grid `[['1','2','3'],['2','3','4']]`, typeLabel `number[][]`)와 기존 중첩 2D(`[[1,2],[3,4]]`)·1D(`[1,2,3]`) 회귀 확인 테스트를 추가했다. 새 `describe('parseTraceLines object parsing')` 블록에 단순 엔트리(`{1: 3, 3: 4}`), 값 내부 콜론 보존(`{url: http://x}`), 명시 타입(`o: Map = {1: 2}`), 빈 객체(`{}`), 콜론 없는 엔트리 text 폴백(`{1, 2}`), 불균형 중괄호 text 폴백(`{1: 2`) 테스트를 추가했다.
+- 이유: 신규 파서 분기의 정상 케이스·안전 폴백 케이스와 기존 동작 무회귀를 함께 검증하기 위해.
+
+### 복원 방법
+이 ID(HIST-20260718-003)만으로 복원 시:
+- `frontend/src/lib/traceNotation.ts`에서 `splitTopLevelBracketGroups` 함수, `parseArrayValue` 안의 나란히 2D 분기(함수 상단 `topGroups` 관련 블록), `ObjectLine` 인터페이스, `TraceLine` 유니온의 `ObjectLine` 추가, `parseBraceGroup`/`splitEntryByTopColon`/`parseObjectValue` 함수, `classifyLine`의 `rhs.startsWith('{')` 분기, `ClassifiedLine` 유니온의 `ObjectLine` 추가, `parseTraceLines` 최종 매핑의 `object` 조건 추가를 모두 제거하고 파일 상단 표기법 설명 주석의 나란히 2D·오브젝트 관련 문구 2줄을 제거한다.
+- `frontend/src/components/ui/TracePreview.tsx`에서 `ObjectRow` 컴포넌트 전체와 switch 문의 `case 'object'` 블록을 제거한다.
+- `frontend/src/lib/traceNotation.test.ts`에서 이번에 추가한 나란히 2D·1D 회귀 테스트 2건과 `describe('parseTraceLines object parsing')` 블록 전체를 제거한다.
+- `CLAUDE.md`의 Shared Utilities 표에서 `parseTraceLines`/`TracePreview` 행 설명 중 나란히 2D·오브젝트 관련 문구를 제거해 이전 서술로 되돌린다.
+
+---
+
 ## HIST-20260718-002
 
 - **날짜**: 2026-07-18

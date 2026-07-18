@@ -180,6 +180,57 @@ function Array2DGrid({
   );
 }
 
+function ObjectRow({
+  name,
+  entries,
+  typeLabel,
+  typeSource,
+}: {
+  name: string;
+  entries: { key: string; value: string }[];
+  typeLabel: string;
+  typeSource: TypeSource;
+}) {
+  return (
+    <div className="flex flex-col gap-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-300 font-mono">{name}</span>
+        <TypeBadge typeLabel={typeLabel} typeSource={typeSource} />
+      </div>
+      {entries.length === 0 ? (
+        <span className="text-xs text-gray-300 dark:text-gray-600">(빈 객체)</span>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="border-separate border-spacing-0.5">
+            <thead>
+              <tr>
+                <th className="text-[10px] font-normal text-gray-400 dark:text-gray-500 text-left px-1">키</th>
+                <th className="text-[10px] font-normal text-gray-400 dark:text-gray-500 text-left px-1">값</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((entry, idx) => (
+                <tr key={idx}>
+                  <td>
+                    <span className="flex items-center min-w-[2.5rem] rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs font-mono px-1.5 py-1 break-all">
+                      {entry.key === '' ? ' ' : entry.key}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="flex items-center min-w-[2.5rem] rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs font-mono px-1.5 py-1 break-all">
+                      {entry.value === '' ? ' ' : entry.value}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FreeTextRow({ text }: { text: string }) {
   return <p className="text-xs text-gray-400 dark:text-gray-500 whitespace-pre-wrap px-0.5">{text}</p>;
 }
@@ -229,6 +280,16 @@ export function TracePreview({ lines }: TracePreviewProps) {
                 key={idx}
                 name={line.name}
                 grid={line.grid}
+                typeLabel={line.typeLabel}
+                typeSource={line.typeSource}
+              />
+            );
+          case 'object':
+            return (
+              <ObjectRow
+                key={idx}
+                name={line.name}
+                entries={line.entries}
                 typeLabel={line.typeLabel}
                 typeSource={line.typeSource}
               />

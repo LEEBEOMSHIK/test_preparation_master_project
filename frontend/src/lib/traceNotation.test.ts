@@ -94,4 +94,107 @@ describe('parseTraceLines array parsing', () => {
       },
     ]);
   });
+
+  it('recognizes side-by-side bracket groups as a 2D array', () => {
+    expect(parseTraceLines('arr = [1,2,3][2,3,4]')).toEqual([
+      {
+        kind: 'array2d',
+        name: 'arr',
+        grid: [
+          ['1', '2', '3'],
+          ['2', '3', '4'],
+        ],
+        typeLabel: 'number[][]',
+        typeSource: 'inferred',
+      },
+    ]);
+  });
+
+  it('still parses nested 2D array notation (regression)', () => {
+    expect(parseTraceLines('grid = [[1,2],[3,4]]')).toEqual([
+      {
+        kind: 'array2d',
+        name: 'grid',
+        grid: [
+          ['1', '2'],
+          ['3', '4'],
+        ],
+        typeLabel: 'number[][]',
+        typeSource: 'inferred',
+      },
+    ]);
+  });
+
+  it('still parses 1D array notation (regression)', () => {
+    expect(parseTraceLines('arr = [1,2,3]')).toEqual([
+      {
+        kind: 'array1d',
+        name: 'arr',
+        cells: ['1', '2', '3'],
+        typeLabel: 'number[]',
+        typeSource: 'inferred',
+      },
+    ]);
+  });
+});
+
+describe('parseTraceLines object parsing', () => {
+  it('parses a simple object into key-value entries', () => {
+    expect(parseTraceLines('obj = {1: 3, 3: 4}')).toEqual([
+      {
+        kind: 'object',
+        name: 'obj',
+        entries: [
+          { key: '1', value: '3' },
+          { key: '3', value: '4' },
+        ],
+        typeLabel: 'object',
+        typeSource: 'inferred',
+      },
+    ]);
+  });
+
+  it('preserves colons inside the value by splitting on the first top-level colon only', () => {
+    expect(parseTraceLines('o = {url: http://x}')).toEqual([
+      {
+        kind: 'object',
+        name: 'o',
+        entries: [{ key: 'url', value: 'http://x' }],
+        typeLabel: 'object',
+        typeSource: 'inferred',
+      },
+    ]);
+  });
+
+  it('honors an explicit type override', () => {
+    expect(parseTraceLines('o: Map = {1: 2}')).toEqual([
+      {
+        kind: 'object',
+        name: 'o',
+        entries: [{ key: '1', value: '2' }],
+        typeLabel: 'Map',
+        typeSource: 'explicit',
+      },
+    ]);
+  });
+
+  it('treats an empty object as a valid object with no entries', () => {
+    expect(parseTraceLines('o = {}')).toEqual([
+      {
+        kind: 'object',
+        name: 'o',
+        entries: [],
+        typeLabel: 'object',
+        typeSource: 'inferred',
+      },
+    ]);
+  });
+
+  it('falls back to text when an entry has no colon (e.g. Set-like braces)', () => {
+    expect(parseTraceLines('o = {1, 2}')).toEqual([{ kind: 'text', text: 'o = {1, 2}' }]);
+  });
+
+  it('falls back to text for unbalanced braces', () => {
+    expect(parseTraceLines('o = {1: 2')).toEqual([{ kind: 'text', text: 'o = {1: 2' }]);
+  });
 });

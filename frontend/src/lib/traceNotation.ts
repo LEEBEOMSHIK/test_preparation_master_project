@@ -11,7 +11,9 @@
  *   name = value            → 변수 한 줄(타입은 값에서 자동 추론)
  *   name: type = value      → 변수 한 줄 + 명시 타입 오버라이드(자유 문자열, 예: long, char, Node)
  *   name = [a, b, c]        → 1D 배열(인덱스 라벨)
- *   name = [[1,2],[3,4]]    → 2D 배열(행/열 인덱스 헤더)
+ *   name = [[1,2],[3,4]]    → 2D 배열(행/열 인덱스 헤더, 중첩 표기)
+ *   name = [1,2,3][4,5,6]   → 2D 배열(행/열 인덱스 헤더, 나란히 표기 — 대괄호 그룹 2개 이상 연속)
+ *   name = {k: v, ...}      → 오브젝트(키-값 표, 값은 재귀 파싱 없이 문자열 그대로)
  *   그 외 줄                 → 자유 텍스트(메모 겸용, 손실 없음)
  *   빈 줄                    → 무시
  *
@@ -85,6 +87,18 @@ export interface Array2DLine {
   typeSource: TypeSource;
 }
 
+/**
+ * 오브젝트 표기(`name = {k: v, ...}`) 라인. 값은 재귀 파싱하지 않고 문자열 그대로 보존한다
+ * (중첩 객체/배열이 값으로 와도 표시용 문자열일 뿐 계산·env 등록 대상이 아니다).
+ */
+export interface ObjectLine {
+  kind: 'object';
+  name: string;
+  entries: { key: string; value: string }[];
+  typeLabel: string;
+  typeSource: TypeSource;
+}
+
 export interface TextLine {
   kind: 'text';
   text: string;
@@ -105,7 +119,7 @@ export interface ExprLine {
 }
 
 /** 트레이스 한 줄의 파싱 결과 판별 유니온 */
-export type TraceLine = VarLine | Array1DLine | Array2DLine | TextLine | ExprLine;
+export type TraceLine = VarLine | Array1DLine | Array2DLine | ObjectLine | TextLine | ExprLine;
 
 // 그룹: 1=이름, 2=명시 타입(선택, `name:` 바로 뒤만 매칭), 3=rhs(= 이후 전체, 값 내부 콜론은 안전)
 const ASSIGN_PATTERN = /^([A-Za-z_]\w*)\s*(?::\s*([^=]+?))?\s*=\s*(.+)$/;
@@ -283,8 +297,83 @@ function parseBracketGroup(raw: string): string[] | null {
 
 type ArrayParseResult = { kind: 'array1d'; cells: string[] } | { kind: 'array2d'; grid: string[][] };
 
+/**
+ * rhs가 대괄호로 시작할 때, 공백만 사이에 두고 이어지는 최상위 `[...]` 그룹들로 전체 문자열이
+ * 정확히 덮이는지 확인해 그룹별 원문 문자열 배열로 분리한다("나란히" 2D 표기 `[a,b][c,d]` 전용
+ * 헬퍼). 그룹 경계는 대괄호/중괄호/소괄호 깊이와 따옴표만으로 판정하며, 각 그룹 내부의 괄호
+ * 타입이 실제로 맞는지는 검증하지 않는다(그건 이후 `parseBracketGroup`이 그룹별로 재검증한다).
+ * 최상위 그룹이 1개뿐이거나(기존 1D/중첩 2D 경로로 위임), 그룹 사이/뒤에 대괄호가 아닌 문자가
+ * 있거나, 괄호가 끝까지 닫히지 않으면 null을 반환한다.
+ */
+function splitTopLevelBracketGroups(rhs: string): string[] | null {
+  const s = rhs.trim();
+  if (s.length === 0 || s[0] !== '[') return null;
+
+  const groups: string[] = [];
+  let i = 0;
+  const n = s.length;
+
+  while (i < n) {
+    while (i < n && /\s/.test(s[i])) i++;
+    if (i >= n) break;
+    if (s[i] !== '[') return null; // 그룹 사이/뒤에 대괄호가 아닌 문자 → 나란히 표기 아님
+
+    let depth = 0;
+    let quote: '"' | "'" | null = null;
+    let escaped = false;
+    let j = i;
+    let closed = false;
+
+    for (; j < n; j++) {
+      const ch = s[j];
+      if (quote !== null) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === quote) quote = null;
+        continue;
+      }
+      if (ch === '"' || ch === "'") {
+        quote = ch;
+        continue;
+      }
+      if (ch === '[' || ch === '{' || ch === '(') {
+        depth++;
+        continue;
+      }
+      if (ch === ']' || ch === '}' || ch === ')') {
+        depth--;
+        if (depth === 0) {
+          closed = true;
+          j++;
+          break;
+        }
+        continue;
+      }
+    }
+
+    if (!closed || depth !== 0) return null; // 괄호가 끝까지 닫히지 않음
+    groups.push(s.slice(i, j));
+    i = j;
+  }
+
+  return groups.length >= 1 ? groups : null;
+}
+
 /** rhs(대괄호로 시작하는 값)를 1D/2D 배열로 판정. 파싱 실패 시 null(호출부에서 text로 폴백) */
 function parseArrayValue(rhs: string): ArrayParseResult | null {
+  // "나란히" 2D 표기 — 최상위 대괄호 그룹이 2개 이상 연속으로 전체 문자열을 덮으면 각 그룹을
+  // 한 행으로 취급한다. 그룹이 1개뿐이면(기존 1D/중첩 2D 케이스) 아래 기존 경로로 넘어간다.
+  const topGroups = splitTopLevelBracketGroups(rhs);
+  if (topGroups !== null && topGroups.length >= 2) {
+    const grid: string[][] = [];
+    for (const group of topGroups) {
+      const row = parseBracketGroup(group);
+      if (row === null) return null; // 한 그룹이라도 깨지면 전체 text로 폴백
+      grid.push(row);
+    }
+    return { kind: 'array2d', grid };
+  }
+
   const elements = parseBracketGroup(rhs);
   if (elements === null) return null;
   if (elements.length === 0) return { kind: 'array1d', cells: [] };
@@ -302,6 +391,140 @@ function parseArrayValue(rhs: string): ArrayParseResult | null {
     grid.push(row);
   }
   return { kind: 'array2d', grid };
+}
+
+/** `{...}`로 감싸인 값 하나를 최상위 엔트리 문자열 배열로 분리. 형태가 아니면 null(오브젝트 파싱용, parseBracketGroup과 동일한 깊이/따옴표 추적 로직을 `{`용으로 적용) */
+function parseBraceGroup(raw: string): string[] | null {
+  const s = raw.trim();
+  if (s.length < 2 || s[0] !== '{') return null;
+
+  const parts: string[] = [];
+  const stack: Array<'[' | '{' | '('> = ['{'];
+  let quote: '"' | "'" | null = null;
+  let escaped = false;
+  let partStart = 1;
+
+  const expectedOpening = (closing: string): '[' | '{' | '(' | null => {
+    if (closing === ']') return '[';
+    if (closing === '}') return '{';
+    if (closing === ')') return '(';
+    return null;
+  };
+
+  for (let i = 1; i < s.length; i++) {
+    const ch = s[i];
+
+    if (quote !== null) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      continue;
+    }
+
+    if (ch === '[' || ch === '{' || ch === '(') {
+      stack.push(ch);
+      continue;
+    }
+
+    const opening = expectedOpening(ch);
+    if (opening !== null) {
+      if (stack[stack.length - 1] !== opening) return null;
+      stack.pop();
+
+      if (stack.length === 0) {
+        if (i !== s.length - 1) return null;
+        const lastPart = s.slice(partStart, i).trim();
+        if (lastPart.length > 0 || parts.length > 0) parts.push(lastPart);
+        return parts;
+      }
+      continue;
+    }
+
+    // 바깥 오브젝트 바로 아래의 콤마만 엔트리 경계다. 중첩 그룹·문자열 내부 콤마는 보존한다.
+    if (ch === ',' && stack.length === 1) {
+      parts.push(s.slice(partStart, i).trim());
+      partStart = i + 1;
+    }
+  }
+
+  // 바깥 중괄호, 중첩 그룹 또는 따옴표가 닫히지 않은 입력은 오브젝트로 오인하지 않는다.
+  return null;
+}
+
+/**
+ * 엔트리 문자열 하나(`key: value` 형태 기대)를 최상위(중첩/따옴표 밖) 첫 번째 콜론으로
+ * key/value 분리한다. 값 내부의 콜론(`url: http://x`의 `://`)은 최상위가 아니므로 안전하게
+ * value에 보존된다. 최상위 콜론이 하나도 없으면 null(호출부에서 Set 형태 등으로 판단해 전체
+ * text 폴백).
+ */
+function splitEntryByTopColon(entry: string): { key: string; value: string } | null {
+  const stack: Array<'[' | '{' | '('> = [];
+  let quote: '"' | "'" | null = null;
+  let escaped = false;
+
+  for (let i = 0; i < entry.length; i++) {
+    const ch = entry[i];
+
+    if (quote !== null) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      continue;
+    }
+
+    if (ch === '[' || ch === '{' || ch === '(') {
+      stack.push(ch);
+      continue;
+    }
+
+    if (ch === ']' || ch === '}' || ch === ')') {
+      stack.pop();
+      continue;
+    }
+
+    if (ch === ':' && stack.length === 0) {
+      return { key: entry.slice(0, i).trim(), value: entry.slice(i + 1).trim() };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * rhs(중괄호로 시작하는 값)를 오브젝트 키-값 엔트리 배열로 판정. 파싱 실패 시(불균형 중괄호,
+ * 콜론 없는 엔트리 등) null(호출부에서 text로 폴백). 값은 재귀 파싱하지 않고 문자열 그대로
+ * 보존한다.
+ */
+function parseObjectValue(rhs: string): { key: string; value: string }[] | null {
+  const rawEntries = parseBraceGroup(rhs);
+  if (rawEntries === null) return null;
+  if (rawEntries.length === 0) return [];
+
+  const entries: { key: string; value: string }[] = [];
+  for (const raw of rawEntries) {
+    const split = splitEntryByTopColon(raw);
+    if (split === null) return null; // 콜론 없는 엔트리(예: Set 형태 `{1, 2, 3}`) → 오브젝트로 보지 않음
+    entries.push(split);
+  }
+  return entries;
 }
 
 /**
@@ -327,8 +550,8 @@ interface ExprCandidateInfo {
   raw: string;
 }
 
-/** classifyLine의 반환 유니온 — 배열/텍스트는 이미 확정, 스칼라 대입·수식 후보만 후속 처리 대상 */
-type ClassifiedLine = Array1DLine | Array2DLine | TextLine | ScalarAssignInfo | ExprCandidateInfo;
+/** classifyLine의 반환 유니온 — 배열/오브젝트/텍스트는 이미 확정, 스칼라 대입·수식 후보만 후속 처리 대상 */
+type ClassifiedLine = Array1DLine | Array2DLine | ObjectLine | TextLine | ScalarAssignInfo | ExprCandidateInfo;
 
 // [확장3] 이름 없는 수식 후보 판별에 쓰는 "연산자 최소 1개 포함" 가드 — 단어 하나(note)·단일
 // 식별자(av)·자유 문장이 수식으로 오인되지 않도록 하는 핵심 조건. FORMULA_CHAR_PATTERN(숫자/
@@ -376,6 +599,18 @@ function classifyLine(rawLine: string): ClassifiedLine {
         name,
         grid: parsed.grid,
         typeLabel: explicitType ?? inferArray2DType(parsed.grid),
+        typeSource,
+      };
+    }
+
+    if (rhs.startsWith('{')) {
+      const entries = parseObjectValue(rhs);
+      if (entries === null) return { kind: 'text', text: rawLine };
+      return {
+        kind: 'object',
+        name,
+        entries,
+        typeLabel: explicitType ?? 'object',
         typeSource,
       };
     }
@@ -451,7 +686,7 @@ export function parseTraceLines(text: string): TraceLine[] {
 
   // 최종 렌더 — 원래 줄 순서 그대로, 각 라인은 자신의 값(리터럴/계산/폴백)만 반영
   return classified.map((c, i): TraceLine => {
-    if (c.kind === 'array1d' || c.kind === 'array2d' || c.kind === 'text') return c;
+    if (c.kind === 'array1d' || c.kind === 'array2d' || c.kind === 'object' || c.kind === 'text') return c;
 
     if (c.kind === 'exprCandidate') {
       // [확장3] named 변수 픽스포인트가 모두 끝난 최종 resolvedEnv로 1회만 평가. 이름이 없으므로
