@@ -13,9 +13,11 @@
   - A: `AnswerGrader.extendedEnumerationToSeparators`/`ENUMERATION_MARKER`/`normalizeOptionToken` + 프론트 `answer.ts.normalizeOptionToken`에 괄호 숫자 마커 `(N)` 인식.
   - B: `disableAlternativeAnswer` 플래그 — 마이그레이션(question_bank·questions·exam_history_details), 엔티티·DTO·서비스·관리자 토글 UI·프론트 표시(`formatAnswerAlternatives` 2번째 인자)·채점 오버로드. Q15(question_bank 75 / questions 35 / exam_history_details) 플래그 true 적용.
 
+- Issue C 완료: Q7(question_bank 67 + 시험 스냅샷 questions 27)을 SQL 유형으로 전환 + `sql_data`(tables emp·sal + expectedResult 컬럼 [name, incentives]·행 [이순신, 1000]) 세팅. 마이그레이션 `20260718_03_q7_sql_result_table.sql` 신규 + 로컬 적용. 채점은 `isSqlResultTableCorrect`로 라우팅, 격자 입력은 `sqlResultColumns`(ExaminationQuestionView·QuizQuestionView 노출)로 표시됨.
+
 ## 미완료 작업
 
-- **Issue C 진행 중**: Q7 원본 question_bank id 67(SHORT_ANSWER) + 시험 스냅샷 questions id 27을 SQL 유형으로 전환하고 결과표 정답(컬럼 [name, incentives], 정답 행 [이순신, 1000]) 세팅. 콘텐츠 덤프 반영. 채점이 `isSqlResultTableCorrect`로 라우팅되는지 확인.
+- 없음(A·B·C 모두 완료). 브라우저 육안 확인만 남음 — Q7 격자 입력·Q15 정답 전체 표시·괄호 마커 채점.
 
 ## 검증 (A+B)
 

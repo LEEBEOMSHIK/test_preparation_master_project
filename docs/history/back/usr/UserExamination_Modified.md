@@ -1,3 +1,19 @@
+## HIST-20260718-002
+
+- **날짜**: 2026-07-18
+- **수정 범위**: 콘텐츠 데이터 / 2025년 1회 7번(SQL 조인 실행 결과) 문항을 SQL 결과표 유형으로 전환
+- **수정 개요**: SHORT_ANSWER로 등록돼 한 줄 텍스트로만 답할 수 있던 SQL 실행결과 문항을 `question_type=SQL` + `sql_data`(tables `emp`·`sal` + `expectedResult` 컬럼 [name, incentives]·정답 행 [이순신, 1000], `orderedRows=false`)로 전환했다. 이제 시험/퀴즈 풀이에서 `SqlResultAnswerInput` 컬럼×행 격자로 입력하고, 채점은 `AnswerGrader.isSqlResultTableCorrect`(행 순서 무시 다중집합 비교)로 라우팅된다. content의 문제 표 이미지는 제거하고 query만 남겨, 표는 `SqlProblemView`가 구조화 렌더한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `docs/db-migration/20260718_03_q7_sql_result_table.sql` | 신규 | question_bank(id 67)·questions(id 27 스냅샷)를 고유 이미지 UUID로 매칭해 SQL 유형+sql_data로 전환. `question_type='SHORT_ANSWER'` 가드로 재실행 안전 |
+| (로컬 tpmp-db) | 데이터 | 위 마이그레이션 적용(question_bank·questions 각 1건 UPDATE) |
+
+### 복원 방법
+이 ID(HIST-20260718-002)만으로 복원 시, 해당 두 행을 다시 `question_type='SHORT_ANSWER'`로 되돌리고 `sql_data=NULL`, content를 원래 이미지+query HTML로, answer를 `name=이순신 / incentives=1000`으로 복구한다(콘텐츠 덤프 재적재 권장). 마이그레이션 파일은 삭제한다.
+
 ## HIST-20260718-001
 
 - **날짜**: 2026-07-18
