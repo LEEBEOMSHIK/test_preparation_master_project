@@ -21,7 +21,8 @@ public record QuestionDetailResponse(
         Long categoryId,
         String categoryName,
         SchedulingData schedulingData,
-        SqlData sqlData
+        SqlData sqlData,
+        boolean disableAlternativeAnswer
 ) {
     public static QuestionDetailResponse from(Question q) {
         return new QuestionDetailResponse(
@@ -39,7 +40,8 @@ public record QuestionDetailResponse(
                 q.getCategory() != null ? q.getCategory().getId() : null,
                 q.getCategory() != null ? q.getCategory().getName() : null,
                 q.getSchedulingData(),
-                q.getSqlData()
+                q.getSqlData(),
+                q.isDisableAlternativeAnswer()
         );
     }
 }

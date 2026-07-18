@@ -79,6 +79,7 @@ public class QuestionBankService {
                 .aiSummary(request.aiSummary())
                 .schedulingData(request.schedulingData())
                 .sqlData(request.sqlData())
+                .disableAlternativeAnswer(request.disableAlternativeAnswer())
                 .createdByUno(adminId)
                 .build();
         return QuestionBankResponse.from(questionBankRepository.save(qb));
@@ -116,6 +117,7 @@ public class QuestionBankService {
                         .aiSummary(req.aiSummary())
                         .schedulingData(req.schedulingData())
                         .sqlData(req.sqlData())
+                        .disableAlternativeAnswer(req.disableAlternativeAnswer())
                         .createdByUno(adminId)
                         .build());
         }
@@ -144,6 +146,7 @@ public class QuestionBankService {
                   request.schedulingData(),
                   request.sqlData(),
                   request.instruction(),
+                  request.disableAlternativeAnswer(),
                   adminId);
         return QuestionBankResponse.from(qb);
     }

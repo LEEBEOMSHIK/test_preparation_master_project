@@ -218,6 +218,98 @@ class AnswerGraderTest {
     }
 
     // -----------------------------------------------------------------------
+    // SHORT_ANSWER — 괄호 숫자 마커 ((1)·(2) …) — HIST-20260718-001
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("괄호 숫자 마커: 정답 4개 항목 + 마커 없는 사용자 콤마 입력 — 정답 (id 28 실측)")
+    void shortAnswer_parenNumberMarker_userWithoutMarker_correct() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "(1) ㄷ / (2) ㅁ / (3) ㅅ / (4) ㄱ", "ㄷ,ㅁ,ㅅ,ㄱ"
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("괄호 숫자 마커: 슬래시 구분 사용자 입력도 정답 (id 28 실측)")
+    void shortAnswer_parenNumberMarker_userSlashSeparated_correct() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "(1) ㄷ / (2) ㅁ / (3) ㅅ / (4) ㄱ", "ㄷ / ㅁ / ㅅ / ㄱ"
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("괄호 숫자 마커: 정답 3개 항목 — 정답 (id 32 실측)")
+    void shortAnswer_parenNumberMarker_threeItems_correct() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "(1) ㅁ / (2) ㄴ / (3) ㄹ", "ㅁ,ㄴ,ㄹ"
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("괄호 숫자 마커: 영문 약어 항목 — 정답")
+    void shortAnswer_parenNumberMarker_englishAbbreviation_correct() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "(1) ARP / (2) RARP", "ARP, RARP"
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("괄호 숫자 마커: 일부만 입력하면 오답 유지")
+    void shortAnswer_parenNumberMarker_partialInput_incorrect() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "(1) ㄷ / (2) ㅁ / (3) ㅅ / (4) ㄱ", "ㄷ,ㅁ,ㅅ"
+        )).isFalse();
+    }
+
+    @Test
+    @DisplayName("괄호 숫자 마커: 순서가 달라도(콤마 다중값 Set 비교) 정답")
+    void shortAnswer_parenNumberMarker_reversedOrder_correct() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "(1) ㄷ / (2) ㅁ / (3) ㅅ / (4) ㄱ", "ㄱ,ㅅ,ㅁ,ㄷ"
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("괄호 숫자 마커: SCHEDULING·SQL 유형도 동일하게 인식")
+    void parenNumberMarker_schedulingAndSql_correct() {
+        String correct = "(1) FCFS / (2) SJF";
+        assertThat(AnswerGrader.isCorrect("SCHEDULING", correct, "FCFS, SJF")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SQL", correct, "FCFS, SJF")).isTrue();
+    }
+
+    @Test
+    @DisplayName("괄호 숫자 마커 회귀 방지: 말미 괄호 대체 표기는 여전히 마커로 오분리되지 않음")
+    void parenNumberMarker_regression_trailingParentheticalAlternativeStillWorks() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "비동기 균형 모드(ABM)", "ABM")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "비동기 균형 모드(ABM)", "비동기 균형 모드")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "대칭키(DES)", "DES")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "대칭키(DES)", "대칭키")).isTrue();
+    }
+
+    @Test
+    @DisplayName("괄호 숫자 마커 회귀 방지: 함수 표기 f(x)·좌표 (3,4)는 마커로 오분리되지 않음")
+    void parenNumberMarker_regression_functionAndCoordinateNotSplit() {
+        // f(x) — 괄호 안이 숫자가 아니므로 애초에 대상 아님, 통문자열 그대로 비교되어 일치해야 정답
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "f(x)", "f(x)")).isTrue();
+        // (3,4) — 괄호 안이 "숫자,숫자" 형태(닫는 괄호 직전이 순수 1~2자리 숫자가 아님)라 마커 아님
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "(3,4)", "(3,4)")).isTrue();
+    }
+
+    @Test
+    @DisplayName("괄호 숫자 마커 회귀 방지: 기존 숫자·자모·라틴·원문자 마커는 그대로 동작")
+    void parenNumberMarker_regression_existingMarkersUnaffected() {
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "1. FCFS 2. SJF", "FCFS,SJF")).isTrue();
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "ㄱ. Bridge / ㄴ. Observer", "Bridge, Observer"
+        )).isTrue();
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER",
+            "① CONSTRAINT / ② FOREIGN / ③ TEAM_ID / ④ REFERENCES / ⑤ TEAM_ID2",
+            "CONSTRAINT, FOREIGN, TEAM_ID, REFERENCES, TEAM_ID2"
+        )).isTrue();
+    }
+
+    // -----------------------------------------------------------------------
     // 실사용 2025년 2회 11·19·20번 — 명시적 대체답, dash, 구분자 직후 숫자 마커
     // -----------------------------------------------------------------------
 
@@ -635,6 +727,49 @@ class AnswerGraderTest {
     }
 
     // -----------------------------------------------------------------------
+    // 4-인자 오버로드 — 괄호 숫자 접두("(1) ") 정답 (options 경로, normalizeOptionToken) — HIST-20260718-001
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 괄호 숫자 접두 정답(보기 번호) + 번호 입력 — 정답")
+    void withOptions_ordered_parenNumberPrefixAnswer_numberInput_correct() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "(1) 2 / (2) 4", "2,4", PWD_OPTIONS
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 괄호 숫자 접두 정답(보기 텍스트) + 텍스트 입력 — 정답")
+    void withOptions_ordered_parenNumberPrefixAnswer_textInput_correct() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "(1) pwd / (2) ls", "pwd, ls", PWD_OPTIONS
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 괄호 숫자 접두 정답(보기 번호) + 번호↔텍스트 혼용 입력 — 정답")
+    void withOptions_ordered_parenNumberPrefixAnswer_mixedInput_correct() {
+        // 정답 (1)=4번(pwd), (2)=1번(ls) — 사용자가 첫 빈칸은 번호, 둘째 빈칸은 텍스트로 입력해도 정답
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "(1) 4 / (2) 1", "4, ls", PWD_OPTIONS
+        )).isTrue();
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "(1) 4 / (2) 1", "pwd, 1", PWD_OPTIONS
+        )).isTrue();
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "(1) 4 / (2) 1", "1, 4", PWD_OPTIONS
+        )).isFalse();
+    }
+
+    @Test
+    @DisplayName("빈칸 순서 비교: 괄호 숫자 접두 정답 + 순서 틀린 입력 — 오답")
+    void withOptions_ordered_parenNumberPrefixAnswer_wrongOrder_incorrect() {
+        assertThat(AnswerGrader.isCorrect(
+            "SHORT_ANSWER", "(1) pwd / (2) ls", "ls, pwd", PWD_OPTIONS
+        )).isFalse();
+    }
+
+    // -----------------------------------------------------------------------
     // 대체 정답 (||) — 여러 후보 중 하나만 일치해도 정답
     // -----------------------------------------------------------------------
 
@@ -692,6 +827,57 @@ class AnswerGraderTest {
         List<String> options = Arrays.asList("보기1", "보기2", "보기3");
         assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "1 || 3", "3", options)).isTrue();
         assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "1 || 3", "2", options)).isFalse();
+    }
+
+    // -----------------------------------------------------------------------
+    // 대체 정답 구분자 사용 안 함 플래그 (disableAlternativeAnswer) — HIST-20260718-002
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("플래그 ON: 코드 조건 정답의 || 논리 OR가 대체 정답으로 분리되지 않고 통째로 채점됨(id 35 실측)")
+    void disableAlternativeAnswer_codeConditionWithLogicalOr_treatedAsSingleAnswer() {
+        String correct = "① int a = 0 / ② a < m || b[a] < x / ③ b[a] < 0 / ④ b[a] = -b[a]; / ⑤ a++; / ⑥ return 1; / ⑦ ③ → ④ → ⑤ → ② → ⑥";
+        // 플래그 ON — 정답 그대로 입력하면 정답 처리(||가 대체 정답 구분자로 쪼개지지 않음)
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", correct, correct, true)).isTrue();
+        // 대체 정답 중 하나(예: "int a = 0")만 입력하면 플래그 ON에서는 오답이어야 함
+        // (플래그 OFF였다면 ||로 쪼개져 부분 일치가 정답으로 오인될 위험이 있는 대비 케이스)
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", correct, "int a = 0", true)).isFalse();
+    }
+
+    @Test
+    @DisplayName("플래그 OFF(기본값): 기존과 동일하게 || 를 대체 정답 구분자로 해석 (회귀)")
+    void disableAlternativeAnswer_defaultFalse_legacyBehaviorUnchanged() {
+        String correct = "팩토리 메서드 || 팩토리 메소드 || factory method";
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", correct, "factory method")).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", correct, "factory method", false)).isTrue();
+    }
+
+    @Test
+    @DisplayName("플래그 ON이어도 단일 파이프(|) 그룹·콤마 다중값 로직은 영향받지 않음(회귀)")
+    void disableAlternativeAnswer_doesNotAffectSinglePipeOrMultiValueLogic() {
+        // 단일 | 그룹 구조는 그대로 순서 보존 비교
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "a | b", "a | b", true)).isTrue();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "a | b", "b | a", true)).isFalse();
+        // 콤마 다중값 Set 비교(순서 무관)도 그대로 동작
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "정답, test", "test, 정답", true)).isTrue();
+    }
+
+    @Test
+    @DisplayName("플래그 ON + CODE 유형: 통문자열 비교가 그대로 적용되고 || 는 분리되지 않음")
+    void disableAlternativeAnswer_code_treatsPipePipeAsLiteral() {
+        String correct = "if (a < m || b[a] < x) return true;";
+        assertThat(AnswerGrader.isCorrect("CODE", correct, correct, true)).isTrue();
+        assertThat(AnswerGrader.isCorrect("CODE", correct, "if (a < m) return true;", true)).isFalse();
+    }
+
+    @Test
+    @DisplayName("플래그 ON + 4-인자(options 있음): || 대체 정답 분리 없이 빈칸 순서 비교")
+    void disableAlternativeAnswer_withOptions_singleCandidateOrderedCompare() {
+        List<String> options = Arrays.asList("보기1", "보기2", "보기3");
+        // 플래그 ON이면 "1 || 3"을 대체 정답 후보로 분리하지 않고 원문 그대로 토큰화하므로
+        // 사용자가 "1"만 입력하면(정답 원문과 다름) 오답 처리된다.
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "1 || 3", "1", options, true)).isFalse();
+        assertThat(AnswerGrader.isCorrect("SHORT_ANSWER", "1 || 3", "3", options, false)).isTrue();
     }
 
     // -----------------------------------------------------------------------

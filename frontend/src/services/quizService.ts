@@ -27,6 +27,8 @@ export interface CheckResult {
   correct: boolean;
   answer: string;
   explanation?: string;
+  /** true면 answer의 `||`를 대체 정답 구분자로 해석하지 않음(코드 조건의 논리 OR 보호용) */
+  disableAlternativeAnswer?: boolean;
 }
 
 export const quizService = {

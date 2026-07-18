@@ -1,3 +1,28 @@
+## HIST-20260718-001
+
+- **날짜**: 2026-07-18
+- **수정 범위**: 관리자 백엔드 / 문항 관리 — 문항별 "대체 정답(||) 구분자 사용 안 함" 플래그 등록·수정 지원
+- **수정 개요**: 코드 조건 정답(예: `a < m || b[a] < x`)의 `||`가 채점 시 대체 정답 구분자로 오인되는 문제를 문항별로 끌 수 있도록, 관리자 문항 등록/수정 요청·응답 DTO(`QuestionBankRequest`/`QuestionBankResponse`, 시험지 개별 문항 DTO `QuestionRequest`/`QuestionDetailResponse`)에 `disableAlternativeAnswer`(boolean, 기본 false) 필드를 추가하고, `QuestionBankService`의 단건 등록·일괄 등록·수정 세 경로 모두에서 `QuestionBank` 엔티티 빌더/`update()`에 반영했다. 채점 로직 자체(`AnswerGrader`)와 시험 응시 스냅샷 전파는 `docs/history/back/usr/UserQuiz_Modified.md` HIST-20260718-002에서 함께 처리했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `backend/src/main/java/com/tpmp/testprep/dto/request/QuestionBankRequest.java` | 수정 | disableAlternativeAnswer(boolean) 필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionBankResponse.java` | 수정 | disableAlternativeAnswer 필드 추가, from()에 반영 |
+| `backend/src/main/java/com/tpmp/testprep/service/QuestionBankService.java` | 수정 | createQuestion·createQuestionsBulk·updateQuestion에서 disableAlternativeAnswer 전달 |
+| `backend/src/test/java/com/tpmp/testprep/service/QuestionBankServiceTest.java` | 수정 | QuestionBankRequest 생성자 시그니처 변경(disableAlternativeAnswer 인자 추가)에 맞춰 헬퍼 수정 |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/dto/request/QuestionBankRequest.java`
+- 변경 전: `disableAlternativeAnswer` 필드 없음(정답에 `||`가 있으면 항상 대체 정답 구분자로 채점됨).
+- 변경 후: `boolean disableAlternativeAnswer` 필드 추가(생략 시 기본 false, 기존 동작 유지).
+- 이유: 관리자가 문항 등록/수정 화면에서 코드 조건 정답을 정확히 저장·표시할 수 있도록 저장 계층을 마련.
+
+### 복원 방법
+이 ID(HIST-20260718-001)만으로 복원 시 `QuestionBankRequest`/`QuestionBankResponse`의 disableAlternativeAnswer 필드와 `QuestionBankService`의 세 경로 전달 코드를 제거한다(엔티티·마이그레이션 롤백은 HIST-20260718-002 참고).
+
 ## HIST-20260625-001
 
 - **날짜**: 2026-06-25

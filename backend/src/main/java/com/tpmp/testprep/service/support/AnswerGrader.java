@@ -55,8 +55,13 @@ import java.util.stream.Collectors;
  * "a.b"·"i.e." 같은 본문 표기는 영향받지 않는다. 숫자 마커는 문자열 시작·공백뿐 아니라
  * 콤마·슬래시 직후({@code ,2. }·{@code /3) })도 인식한다. 번호 뒤 공백이 없어도
  * 비숫자 본문이 바로 시작되면({@code 1.TTL}) 마커로 보되, 다음 문자가 숫자인
- * {@code 11.75} 같은 소수는 제외한다. options 채점(빈칸 순서 비교)은 프론트엔드
- * {@code lib/answer.ts}와 규칙을 동기화해야 하므로 기존 숫자 마커만 유지한다.
+ * {@code 11.75} 같은 소수는 제외한다. 괄호 숫자 마커({@code (1)}·{@code (2)} …)도 문자열
+ * 시작·공백·콤마·슬래시 직후에 오면 동일하게 항목 구분 마커로 인식한다(예: 정답
+ * "(1) ㄷ / (2) ㅁ / (3) ㅅ / (4) ㄱ"에 사용자 "ㄷ,ㅁ,ㅅ,ㄱ"은 정답). 말미 괄호 부연 표기
+ * ({@code 비동기 균형 모드(ABM)})나 {@code f(x)}처럼 괄호 안이 숫자만이 아니거나 시작·공백·
+ * 콤마·슬래시 직후가 아니면 이 마커로 인식하지 않으므로 서로 충돌하지 않는다. options
+ * 채점(빈칸 순서 비교)은 프론트엔드 {@code lib/answer.ts}와 규칙을 동기화해야 하므로 기존
+ * 숫자 마커·괄호 숫자 마커만 유지한다.
  * 영문자 사이의 하이픈·일반 dash는 단일 공백으로 정규화해 {@code SYN-Flooding}과
  * {@code SYN Flooding}을 동치로 보되, 숫자·수식의 하이픈은 보존한다.
  *
@@ -84,6 +89,15 @@ import java.util.stream.Collectors;
  * 그룹 내부 콤마/슬래시 토큰 순서가 모두 같아야 정답이다. 이 구조 비교는 일반 Set 비교보다
  * 먼저 수행해 서로 다른 경로에 반복된 노드가 중복 제거되는 오탐을 막는다. 콤마로 구분된
  * 숫자-하이픈 경로 목록도 동일하게 경로 수·경로 순서·노드 순서를 보존한다.
+ *
+ * <p><b>대체 정답 구분자 사용 안 함 플래그(disableAlternativeAnswer)</b> — 문항의 정답에
+ * 코드 조건(예: {@code a < m || b[a] < x})처럼 논리 OR로서의 {@code ||}가 포함되는 경우,
+ * 위 "대체 정답" 분리 규칙이 이를 오인해 채점·표시를 그르친다. 문항별 boolean 플래그
+ * {@code disableAlternativeAnswer}가 true인 문항은 {@code isCorrect}의 boolean 파라미터
+ * 오버로드({@link #isCorrect(String, String, String, boolean)},
+ * {@link #isCorrect(String, String, String, List, boolean)})를 통해 {@code ||} 분리를
+ * 건너뛰고 정답 문자열 전체를 단일 후보로 채점한다. 단일 {@code |} 그룹 로직(위 문단)·
+ * 콤마/슬래시 다중값 비교·CODE·options 채점 등 나머지 규칙에는 영향을 주지 않는다.
  */
 public final class AnswerGrader {
 
@@ -100,8 +114,29 @@ public final class AnswerGrader {
      * @return 정답이면 true, 오답·null·빈 값이면 false
      */
     public static boolean isCorrect(String questionType, String correctAnswer, String userAnswer) {
+        return isCorrect(questionType, correctAnswer, userAnswer, false);
+    }
+
+    /**
+     * 채점 결과를 반환한다. {@code disableAlternativeAnswer}가 true면(문항별
+     * "대체 정답(||) 구분자 사용 안 함" 플래그) correctAnswer를 {@code ||}로 분리하지 않고
+     * 정답 전체를 단일 후보로 채점한다 — 코드 조건 정답(예: {@code a < m || b[a] < x})의
+     * {@code ||}가 코드의 논리 OR인 경우 대체 정답 구분자로 오인되는 것을 방지하기 위함이다.
+     * false면(기본값) 기존과 동일하게 {@code ||}를 대체 정답 구분자로 해석한다.
+     *
+     * @param questionType  문항 유형 이름 (QuestionBank.QuestionType 또는 Question.QuestionType 의 name())
+     * @param correctAnswer DB에 저장된 정답 문자열
+     * @param userAnswer    사용자가 제출한 답안 문자열
+     * @param disableAlternativeAnswer true면 {@code ||} 대체 정답 분리를 하지 않음
+     * @return 정답이면 true, 오답·null·빈 값이면 false
+     */
+    public static boolean isCorrect(String questionType, String correctAnswer, String userAnswer,
+                                     boolean disableAlternativeAnswer) {
         if (correctAnswer == null || userAnswer == null) {
             return false;
+        }
+        if (disableAlternativeAnswer) {
+            return isCorrectSingle(questionType, correctAnswer, userAnswer);
         }
         for (String alternative : splitAlternatives(correctAnswer)) {
             if (isCorrectSingle(questionType, alternative, userAnswer)) {
@@ -174,9 +209,33 @@ public final class AnswerGrader {
      * @return 정답이면 true, 오답·null·빈 값이면 false
      */
     public static boolean isCorrect(String questionType, String correctAnswer, String userAnswer, List<String> options) {
+        return isCorrect(questionType, correctAnswer, userAnswer, options, false);
+    }
+
+    /**
+     * 채점 결과를 반환한다 (보기 유무에 따라 채점 방식을 분기 + 문항별
+     * "대체 정답(||) 구분자 사용 안 함" 플래그 반영).
+     *
+     * <p>{@code disableAlternativeAnswer}가 true면 options 경로에서도 correctAnswer를
+     * {@code ||}로 분리하지 않고 정답 전체를 단일 후보로 빈칸 순서 비교한다. options가 없는
+     * 경우는 {@link #isCorrect(String, String, String, boolean)} 3-인자+플래그 오버로드로
+     * 위임하여 동일한 플래그 의미를 유지한다.
+     *
+     * @param questionType  문항 유형 이름 (options가 없을 때만 사용)
+     * @param correctAnswer DB에 저장된 정답 문자열
+     * @param userAnswer    사용자가 제출한 답안 문자열
+     * @param options       문항 보기 목록 (없으면 null 또는 빈 리스트)
+     * @param disableAlternativeAnswer true면 {@code ||} 대체 정답 분리를 하지 않음
+     * @return 정답이면 true, 오답·null·빈 값이면 false
+     */
+    public static boolean isCorrect(String questionType, String correctAnswer, String userAnswer,
+                                     List<String> options, boolean disableAlternativeAnswer) {
         if (hasMeaningfulOptions(options)) {
             if (correctAnswer == null || userAnswer == null) {
                 return false;
+            }
+            if (disableAlternativeAnswer) {
+                return isCorrectWithOptionsSingle(correctAnswer, userAnswer, options);
             }
             for (String alternative : splitAlternatives(correctAnswer)) {
                 if (isCorrectWithOptionsSingle(alternative, userAnswer, options)) {
@@ -185,7 +244,7 @@ public final class AnswerGrader {
             }
             return false;
         }
-        return isCorrect(questionType, correctAnswer, userAnswer);
+        return isCorrect(questionType, correctAnswer, userAnswer, disableAlternativeAnswer);
     }
 
     /**
@@ -319,12 +378,17 @@ public final class AnswerGrader {
      *   <li>라틴 단일 문자 + 구두점 + 공백: {@code a. }·{@code B) } — 공백이 반드시 뒤따라야
      *       하므로 "a.b"·"i.e." 같은 본문 표기는 영향받지 않는다</li>
      *   <li>원문자 {@code ①}~{@code ⑳}: 구두점·공백 없이도 마커로 취급 ("①CONSTRAINT" 포함)</li>
+     *   <li>괄호 숫자 {@code (1)}~{@code (20)}: 문자열 시작 또는 공백·콤마·슬래시 직후에 오는
+     *       {@code (1~2자리 숫자)}(뒤 공백 선택)를 마커로 취급. 말미 괄호 부연 표기(예:
+     *       {@code 대칭키(DES)})는 앞에 시작·공백·콤마·슬래시가 아닌 문자(본문)가 오므로
+     *       이 규칙에 걸리지 않는다</li>
      * </ul>
      */
     private static String extendedEnumerationToSeparators(String raw) {
         return raw.replaceAll("(^|[\\s,/])\\d{1,2}[.)](?:\\s+|(?=[^\\d\\s]))", "$1/")
                 .replaceAll("(^|[\\s,/])[ㄱ-ㅎA-Za-z][.)]\\s+", "$1/")
-                .replaceAll("(^|[\\s,/])[①-⑳][.)]?\\s*", "$1/");
+                .replaceAll("(^|[\\s,/])[①-⑳][.)]?\\s*", "$1/")
+                .replaceAll("(^|[\\s,/])\\(\\d{1,2}\\)\\s*", "$1/");
     }
 
     /**
@@ -343,12 +407,16 @@ public final class AnswerGrader {
 
     /**
      * options 채점용 단일 토큰 정규화: trim → 소문자화 → 내부 연속 공백 단일화 → 선행 열거
-     * 접두(예: "1. ", "2) ") 제거 → 재trim. SHORT_ANSWER용 {@link #normalizeToken(String)}과
-     * 달리 괄호 부연 설명은 건드리지 않고, 대신 열거 접두를 제거한다는 점이 다르다.
+     * 접두(예: "(1) ", "1. ", "2) ") 제거 → 재trim. SHORT_ANSWER용 {@link #normalizeToken(String)}과
+     * 달리 괄호 부연 설명은 건드리지 않고, 대신 열거 접두를 제거한다는 점이 다르다. 괄호 숫자
+     * 접두({@code (1)})를 먼저 제거한 뒤 일반 숫자 접두({@code 1.}·{@code 1)})를 제거하므로
+     * 두 표기 모두 동일하게 처리된다. 프론트엔드 {@code lib/answer.ts}의
+     * {@code normalizeOptionToken}과 반드시 동일한 규칙을 유지해야 한다.
      */
     private static String normalizeOptionToken(String raw) {
         String s = raw.trim().toLowerCase();
         s = s.replaceAll("\\s+", " ");
+        s = s.replaceAll("^\\(\\d+\\)\\s*", "");
         s = s.replaceAll("^\\d+\\s*[.)]\\s*", "");
         return s.trim();
     }
@@ -515,7 +583,8 @@ public final class AnswerGrader {
     private static final Pattern ENUMERATION_MARKER = Pattern.compile(
             "(^|[\\s,/])\\d{1,2}[.)](?:\\s+|(?=[^\\d\\s]))"
                     + "|(^|[\\s,/])[ㄱ-ㅎA-Za-z][.)]\\s+"
-                    + "|(^|[\\s,/])[①-⑳][.)]?\\s*");
+                    + "|(^|[\\s,/])[①-⑳][.)]?\\s*"
+                    + "|(^|[\\s,/])\\(\\d{1,2}\\)\\s*");
     private static final Pattern ENGLISH_WORD_DASH = Pattern.compile(
             "(?<=[A-Za-z])[-‐‑‒–—−](?=[A-Za-z])");
 

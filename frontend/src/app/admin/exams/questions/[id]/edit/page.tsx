@@ -72,6 +72,8 @@ interface FormState {
   schedulingData: SchedulingDataDraft;
   /** SQL 구조화 데이터 (SQL 유형에서만 사용) */
   sqlData: SqlDataDraft;
+  /** true면 정답 문자열의 `||`를 대체 정답 구분자로 해석하지 않음(코드 조건의 논리 OR 보호용) */
+  disableAlternativeAnswer: boolean;
 }
 
 const defaultForm = (): FormState => ({
@@ -92,6 +94,7 @@ const defaultForm = (): FormState => ({
   aiAnalysis:   null,
   schedulingData: emptySchedulingDraft(),
   sqlData:      emptySqlDraft(),
+  disableAlternativeAnswer: false,
 });
 
 // ── Page ───────────────────────────────────────────────────────────────────────
@@ -166,6 +169,7 @@ export default function AdminQuestionEditPage() {
             : null,
           schedulingData: fromSchedulingData(q.schedulingData),
           sqlData:      fromSqlData(q.sqlData),
+          disableAlternativeAnswer: q.disableAlternativeAnswer ?? false,
         });
         // 보기가 있으면 기존 answer를 슬롯으로 복원 시도 — 매칭 실패 시 원문 텍스트 폴백
         if (hasOptions(loadedOptions)) {
@@ -186,7 +190,7 @@ export default function AdminQuestionEditPage() {
       .finally(() => setFetching(false));
   }, [id]);
 
-  const update = (field: keyof FormState, value: string | string[] | number | null | QuestionAnalysis | SchedulingDataDraft | SqlDataDraft) =>
+  const update = (field: keyof FormState, value: string | string[] | number | boolean | null | QuestionAnalysis | SchedulingDataDraft | SqlDataDraft) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
   /** AI 분석 완료 콜백 — state 갱신 + DB 즉시 저장(silent 실패) */
@@ -256,6 +260,7 @@ export default function AdminQuestionEditPage() {
         explanation:  form.explanation || undefined,
         schedulingData: isScheduling ? toSchedulingDataPayload(form.schedulingData) : undefined,
         sqlData:      sqlDataPayload,
+        disableAlternativeAnswer: form.disableAlternativeAnswer,
         aiKeywords:   form.aiAnalysis?.keywords,
         aiDomains:    form.aiAnalysis?.domains,
         aiDifficulty: form.aiAnalysis?.difficulty,
@@ -603,6 +608,24 @@ export default function AdminQuestionEditPage() {
               )}
             </div>
           )}
+
+          {/* 대체 정답(||) 구분자 사용 안 함 — 코드 조건 정답의 논리 OR(||)가 대체 정답 구분자로
+               오인되는 것을 방지 (예: "a < m || b[a] < x") */}
+          <label className="flex items-start gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.disableAlternativeAnswer}
+              onChange={(e) => update('disableAlternativeAnswer', e.target.checked)}
+              className="mt-0.5"
+            />
+            <span className="text-xs text-gray-600">
+              대체 정답(<code className="font-mono">||</code>) 구분자 사용 안 함
+              <span className="block text-gray-400">
+                정답에 코드 조건의 논리 OR(<code className="font-mono">||</code>)가 포함된 경우 체크하세요.
+                체크하면 정답 전체를 하나의 답으로만 채점·표시합니다.
+              </span>
+            </span>
+          </label>
 
           {/* ── 보기 (선택) — 유형 무관 상시 노출. 입력하면 유형과 무관하게
                '보기 참고 후 번호 입력' 문제로 동작한다. ── */}

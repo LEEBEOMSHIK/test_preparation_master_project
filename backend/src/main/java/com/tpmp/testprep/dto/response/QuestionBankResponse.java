@@ -32,6 +32,9 @@ public record QuestionBankResponse(
         String aiSummary,
         SchedulingData schedulingData,
         SqlData sqlData,
+        /** true면 정답 문자열의 {@code ||}를 대체 정답 구분자로 해석하지 않음(코드 조건의
+         *  논리 OR 보호용). 기본값 false. */
+        boolean disableAlternativeAnswer,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
@@ -60,6 +63,7 @@ public record QuestionBankResponse(
                 qb.getAiSummary(),
                 qb.getSchedulingData(),
                 qb.getSqlData(),
+                qb.isDisableAlternativeAnswer(),
                 qb.getCreateDt(),
                 qb.getModifiedDt()
         );

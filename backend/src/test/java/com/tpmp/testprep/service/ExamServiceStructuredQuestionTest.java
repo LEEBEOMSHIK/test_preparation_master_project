@@ -123,6 +123,6 @@ class ExamServiceStructuredQuestionTest {
     ) {
         return new QuestionRequest(
                 "문항 내용", null, type, null, "정답", null,
-                null, null, null, null, schedulingData, sqlData);
+                null, null, null, null, schedulingData, sqlData, false);
     }
 }

@@ -196,6 +196,7 @@ public class ExamService {
                     .category(source.getCategory())
                     .schedulingData(source.getSchedulingData())
                     .sqlData(source.getSqlData())
+                    .disableAlternativeAnswer(source.isDisableAlternativeAnswer())
                     .build();
         }
 
@@ -226,6 +227,7 @@ public class ExamService {
                 .category(category)
                 .schedulingData(request.schedulingData())
                 .sqlData(request.sqlData())
+                .disableAlternativeAnswer(request.disableAlternativeAnswer())
                 .build();
     }
 

@@ -222,6 +222,8 @@ export interface QuestionSummary {
   schedulingData?: SchedulingData;
   /** SQL 구조화 데이터 (SQL 유형 전용) */
   sqlData?: SqlData;
+  /** true면 정답 문자열의 `||`를 대체 정답 구분자로 해석하지 않음(코드 조건의 논리 OR 보호용) */
+  disableAlternativeAnswer?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -469,6 +471,9 @@ export interface QuestionResult {
   language?: string;
   schedulingData?: SchedulingData;
   sqlData?: SqlData;
+  /** true면 correctAnswer의 `||`를 대체 정답 구분자로 해석하지 않음(코드 조건의 논리 OR 보호용).
+   *  formatAnswerAlternatives 표시 분기에 사용 (선택, 없으면 false와 동일하게 동작) */
+  disableAlternativeAnswer?: boolean;
 }
 
 /** 시험 제출·채점 결과 */

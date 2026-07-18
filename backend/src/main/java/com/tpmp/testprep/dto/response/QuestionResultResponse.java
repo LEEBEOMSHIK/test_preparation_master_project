@@ -26,7 +26,10 @@ public record QuestionResultResponse(
         String code,
         String language,
         SchedulingData schedulingData,
-        SqlData sqlData
+        SqlData sqlData,
+        /** true면 correctAnswer의 {@code ||}를 대체 정답 구분자로 해석하지 않음(프론트
+         *  formatAnswerAlternatives 표시 분기용). 기본값 false. */
+        boolean disableAlternativeAnswer
 ) {
     /**
      * 시험 제출 직후 채점 결과 생성 (Question 엔티티 기반)
@@ -52,7 +55,8 @@ public record QuestionResultResponse(
                 q.getCode(),
                 q.getLanguage(),
                 q.getSchedulingData(),
-                q.getSqlData()
+                q.getSqlData(),
+                q.isDisableAlternativeAnswer()
         );
     }
 
@@ -78,7 +82,8 @@ public record QuestionResultResponse(
                 detail.getCode(),
                 detail.getLanguage(),
                 detail.getSchedulingData(),
-                detail.getSqlData()
+                detail.getSqlData(),
+                detail.isDisableAlternativeAnswer()
         );
     }
 }

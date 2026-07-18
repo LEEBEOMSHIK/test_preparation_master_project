@@ -191,7 +191,8 @@ public class UserQuizService {
             correct = AnswerGrader.isSqlResultTableCorrect(sqlExpectedResult, request.userAnswer());
         } else {
             correct = AnswerGrader.isCorrect(
-                    qb.getQuestionType().name(), qb.getAnswer(), request.userAnswer(), qb.getOptions());
+                    qb.getQuestionType().name(), qb.getAnswer(), request.userAnswer(), qb.getOptions(),
+                    qb.isDisableAlternativeAnswer());
         }
 
         // 스칼라 값 먼저 추출 — readOnly tx 내에서 LAZY 접근 가능, recorder에는 id만 전달
@@ -212,6 +213,6 @@ public class UserQuizService {
                     request.questionId(), email, e.getMessage());
         }
 
-        return new CheckResult(correct, qb.getAnswer(), qb.getExplanation());
+        return new CheckResult(correct, qb.getAnswer(), qb.getExplanation(), qb.isDisableAlternativeAnswer());
     }
 }

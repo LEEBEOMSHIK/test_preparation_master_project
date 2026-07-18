@@ -71,6 +71,8 @@ interface QuestionDraft {
   schedulingData: SchedulingDataDraft;
   /** SQL 구조화 데이터 (SQL 유형에서만 사용) */
   sqlData: SqlDataDraft;
+  /** true면 정답 문자열의 `||`를 대체 정답 구분자로 해석하지 않음(코드 조건의 논리 OR 보호용) */
+  disableAlternativeAnswer: boolean;
 }
 
 interface ImportedDraft extends QuestionDraft {
@@ -101,6 +103,7 @@ const emptyDraft = (): QuestionDraft => ({
   aiAnalysis:   null,
   schedulingData: emptySchedulingDraft(),
   sqlData:      emptySqlDraft(),
+  disableAlternativeAnswer: false,
 });
 
 function parseTextToQuestions(text: string): ImportedDraft[] {
@@ -120,6 +123,7 @@ function parseTextToQuestions(text: string): ImportedDraft[] {
         aiAnalysis: null,
         schedulingData: emptySchedulingDraft(),
         sqlData: emptySqlDraft(),
+        disableAlternativeAnswer: false,
         excluded: false, sourceHint: '클립보드',
       });
     }
@@ -165,6 +169,7 @@ async function simulateFileParse(file: File): Promise<ImportedDraft[]> {
           aiAnalysis: null,
           schedulingData: emptySchedulingDraft(),
           sqlData: emptySqlDraft(),
+          disableAlternativeAnswer: false,
           excluded: false, sourceHint: file.name,
         })),
       );
@@ -181,7 +186,7 @@ function ManualQuestionCard({
   draft:              QuestionDraft;
   index:              number;
   total:              number;
-  onChange:           (field: string, value: string | string[] | number | null | QuestionAnalysis | SchedulingDataDraft | SqlDataDraft) => void;
+  onChange:           (field: string, value: string | string[] | number | boolean | null | QuestionAnalysis | SchedulingDataDraft | SqlDataDraft) => void;
   onRemove:           () => void;
   onAnalyzed:         (result: QuestionAnalysis) => void;
   examTypeSlaves:     DomainSlave[];
@@ -543,6 +548,24 @@ function ManualQuestionCard({
           </div>
         )}
 
+        {/* 대체 정답(||) 구분자 사용 안 함 — 코드 조건 정답의 논리 OR(||)가 대체 정답 구분자로
+             오인되는 것을 방지 (예: "a < m || b[a] < x") */}
+        <label className="flex items-start gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={draft.disableAlternativeAnswer}
+            onChange={(e) => onChange('disableAlternativeAnswer', e.target.checked)}
+            className="mt-0.5"
+          />
+          <span className="text-xs text-gray-600">
+            대체 정답(<code className="font-mono">||</code>) 구분자 사용 안 함
+            <span className="block text-gray-400">
+              정답에 코드 조건의 논리 OR(<code className="font-mono">||</code>)가 포함된 경우 체크하세요.
+              체크하면 정답 전체를 하나의 답으로만 채점·표시합니다.
+            </span>
+          </span>
+        </label>
+
         {/* ── 보기 (선택) — 유형 무관 상시 노출. 입력하면 유형과 무관하게
              '보기 참고 후 번호 입력' 문제로 동작한다. ── */}
         <div className="space-y-2">
@@ -752,7 +775,7 @@ export default function AdminQuestionNewPage() {
   const removeManualQuestion = (id: string) =>
     setManualQuestions((p) => p.filter((q) => q.localId !== id));
 
-  const updateManualQuestion = (id: string, field: string, value: string | string[] | number | null | QuestionAnalysis | SchedulingDataDraft | SqlDataDraft) =>
+  const updateManualQuestion = (id: string, field: string, value: string | string[] | number | boolean | null | QuestionAnalysis | SchedulingDataDraft | SqlDataDraft) =>
     setManualQuestions((p) => p.map((q) => (q.localId === id ? { ...q, [field]: value } : q)));
 
   // ── File / clipboard helpers ─────────────────────────────────────────────────
@@ -891,6 +914,7 @@ export default function AdminQuestionNewPage() {
             language:     q.language || undefined,
             schedulingData: q.questionType === 'SCHEDULING' ? toSchedulingDataPayload(q.schedulingData) : undefined,
             sqlData:      sqlDataPayload,
+            disableAlternativeAnswer: q.disableAlternativeAnswer,
             // aiAnalysis는 ManualQuestionDraft에만 존재; ImportedDraft는 null로 전송
             aiKeywords:   q.aiAnalysis?.keywords,
             aiDomains:    q.aiAnalysis?.domains,

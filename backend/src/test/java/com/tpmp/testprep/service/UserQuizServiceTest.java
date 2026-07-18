@@ -1,5 +1,7 @@
 package com.tpmp.testprep.service;
 
+import com.tpmp.testprep.dto.request.CheckRequest;
+import com.tpmp.testprep.dto.response.CheckResult;
 import com.tpmp.testprep.dto.response.DomainMasterResponse;
 import com.tpmp.testprep.dto.response.DomainSlaveResponse;
 import com.tpmp.testprep.dto.response.QuizQuestionView;
@@ -248,5 +250,48 @@ class UserQuizServiceTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).content()).isEqualTo("문항 내용");
+    }
+
+    // -----------------------------------------------------------------------
+    // checkAnswer — disableAlternativeAnswer 플래그가 AnswerGrader·CheckResult로 전파되는지 검증
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("checkAnswer: 문항의 disableAlternativeAnswer=true면 코드 조건 || 정답을 통째로 채점하고 CheckResult에도 플래그가 그대로 실린다")
+    void checkAnswer_disableAlternativeAnswerTrue_gradesWholeAnswerAndPropagatesFlag() {
+        String answer = "① int a = 0 / ② a < m || b[a] < x / ③ b[a] < 0";
+        QuestionBank qb = QuestionBank.builder()
+                .questionType(QuestionBank.QuestionType.SHORT_ANSWER)
+                .content("문항 내용")
+                .answer(answer)
+                .disableAlternativeAnswer(true)
+                .build();
+        ReflectionTestUtils.setField(qb, "id", 75L);
+        when(questionBankRepository.findById(75L)).thenReturn(Optional.of(qb));
+
+        CheckResult exactMatch = service.checkAnswer(new CheckRequest(75L, answer), USER_EMAIL);
+        assertThat(exactMatch.correct()).isTrue();
+        assertThat(exactMatch.disableAlternativeAnswer()).isTrue();
+
+        // 플래그 ON이므로 ||로 쪼개진 부분 답("int a = 0"만 입력)은 오답 처리되어야 한다.
+        CheckResult partialMatch = service.checkAnswer(new CheckRequest(75L, "int a = 0"), USER_EMAIL);
+        assertThat(partialMatch.correct()).isFalse();
+    }
+
+    @Test
+    @DisplayName("checkAnswer: disableAlternativeAnswer=false(기본값)면 기존처럼 CheckResult 플래그도 false")
+    void checkAnswer_disableAlternativeAnswerFalse_flagPropagatesAsFalse() {
+        QuestionBank qb = QuestionBank.builder()
+                .questionType(QuestionBank.QuestionType.SHORT_ANSWER)
+                .content("문항 내용")
+                .answer("정답")
+                .build();
+        ReflectionTestUtils.setField(qb, "id", 10L);
+        when(questionBankRepository.findById(10L)).thenReturn(Optional.of(qb));
+
+        CheckResult result = service.checkAnswer(new CheckRequest(10L, "정답"), USER_EMAIL);
+
+        assertThat(result.correct()).isTrue();
+        assertThat(result.disableAlternativeAnswer()).isFalse();
     }
 }

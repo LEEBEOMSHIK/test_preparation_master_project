@@ -782,7 +782,7 @@ function QuizPlayContent() {
                     ? 'font-medium font-mono whitespace-pre-wrap block mt-1'
                     : 'font-medium'
                 }>
-                  {formatAnswerAlternatives(answerState.result?.answer ?? '')}
+                  {formatAnswerAlternatives(answerState.result?.answer ?? '', answerState.result?.disableAlternativeAnswer)}
                 </span>
               </p>
             )}

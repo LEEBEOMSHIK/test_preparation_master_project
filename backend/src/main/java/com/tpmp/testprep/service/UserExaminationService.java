@@ -171,6 +171,7 @@ public class UserExaminationService {
                     .schedulingData(q.getSchedulingData())
                     .sqlData(q.getSqlData())
                     .categoryName(q.getCategory() != null ? q.getCategory().getName() : null)
+                    .disableAlternativeAnswer(q.isDisableAlternativeAnswer())
                     .build();
             history.addDetail(detail);
         }
@@ -192,7 +193,8 @@ public class UserExaminationService {
             return AnswerGrader.isSqlResultTableCorrect(expectedResult, userAnswer);
         }
         return AnswerGrader.isCorrect(
-                question.getQuestionType().name(), question.getAnswer(), userAnswer, question.getOptions());
+                question.getQuestionType().name(), question.getAnswer(), userAnswer, question.getOptions(),
+                question.isDisableAlternativeAnswer());
     }
 
     /** 사용자 전체 응시 이력 목록 (최신순 페이징) */

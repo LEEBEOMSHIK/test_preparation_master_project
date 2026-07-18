@@ -1,3 +1,72 @@
+## HIST-20260718-002
+
+- **날짜**: 2026-07-18
+- **수정 범위**: 사용자 프론트엔드 / 시험 결과·데일리 퀴즈 정답 표시 — 대체 정답(||) 구분자 억제 플래그 반영
+- **수정 개요**: `formatAnswerAlternatives`는 무조건 `||`를 대체 정답 구분자로 잘라 첫 후보만 표시했는데, 코드 조건 정답(예: `② a < m || b[a] < x`)에서 `||`가 코드의 논리 OR인 경우 뒷부분이 잘려 표시되는 문제가 있었다. 2번째 인자 `disableAlternative?: boolean`을 추가해 true면 원문을 그대로 반환하도록 하고(인자 생략 시 기존 동작 그대로 — 하위 호환), 기존 두 호출부(`ExamResultDisplay.tsx`의 시험 결과 정답 표시, 데일리 퀴즈 `user/quiz/[categoryId]/page.tsx`의 오답 시 정답 표시)가 각각 문항의 `disableAlternativeAnswer` 플래그(`QuestionResult.disableAlternativeAnswer` / `CheckResult.disableAlternativeAnswer`)를 넘기도록 수정했다. 백엔드 채점·전파 로직은 `docs/history/back/usr/UserQuiz_Modified.md` HIST-20260718-002에서 함께 처리했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/lib/answer.ts` | 수정 | formatAnswerAlternatives에 disableAlternative?: boolean 2번째 인자 추가, JSDoc 보강 |
+| `frontend/src/components/ui/ExamResultDisplay.tsx` | 수정 | formatAnswerAlternatives 호출에 item.disableAlternativeAnswer 전달 |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | formatAnswerAlternatives 호출에 answerState.result?.disableAlternativeAnswer 전달 |
+| `frontend/src/services/quizService.ts` | 수정 | CheckResult에 disableAlternativeAnswer?: boolean 필드 추가 |
+| `frontend/src/types/index.ts` | 수정 | QuestionResult에 disableAlternativeAnswer?: boolean 필드 추가 |
+| `frontend/src/lib/answer.test.ts` | 추가 | formatAnswerAlternatives 플래그 분기 단위 테스트(신규 파일) |
+
+### 수정 상세
+
+#### `frontend/src/lib/answer.ts`
+- 변경 전: `formatAnswerAlternatives(answer: string)` — `||`가 있으면 무조건 첫 후보만 반환.
+- 변경 후: `formatAnswerAlternatives(answer: string, disableAlternative?: boolean)` — true면 원문 그대로 반환, 그 외(undefined 포함)는 기존 동작.
+- 이유: 코드 조건 정답의 `||`가 대체 정답 구분자로 오인되어 잘려 표시되는 문제를 문항별로 방지.
+
+### 복원 방법
+이 ID(HIST-20260718-002)만으로 복원 시 `formatAnswerAlternatives`의 2번째 인자와 그 분기, 두 호출부의 인자 전달, `CheckResult`/`QuestionResult`의 disableAlternativeAnswer 필드, `frontend/src/lib/answer.test.ts`의 관련 테스트 케이스를 제거한다.
+
+## HIST-20260718-001
+
+- **날짜**: 2026-07-18
+- **수정 범위**: 사용자 프론트엔드 / 퀴즈·시험 options(보기) 빈칸 순서 채점 — 괄호 숫자 접두 정규화 동기화
+- **수정 개요**: 백엔드 `AnswerGrader`가 정답에 괄호 숫자 마커(`(1)` `(2)` …)를 열거 마커로 새로 인식하도록 수정됨에 따라(백엔드 `docs/history/back/usr/UserQuiz_Modified.md` HIST-20260718-001), options(보기)가 있는 문항의 "빈칸 순서대로" 채점에 쓰이는 프론트 `normalizeOptionToken`도 동일 규칙으로 동기화했다. `hasOptions`/`parseAnswerToSlots`가 이 함수를 통해 정답·보기 텍스트를 정규화하므로, 정답이 `(1) pwd / (2) ls`처럼 괄호 숫자 접두로 저장된 문항의 관리자 화면 슬롯 파싱(정답↔보기 매칭)도 함께 정상화된다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/answer.ts` | 수정 | `normalizeOptionToken`에 선행 괄호 숫자 접두(`(1)`) 제거 규칙 추가, JSDoc 보강 |
+
+### 수정 상세
+
+#### `frontend/src/lib/answer.ts`
+- 변경 전:
+```ts
+function normalizeOptionToken(raw: string): string {
+  let s = raw.trim().toLowerCase();
+  s = s.replace(/\s+/g, ' ');
+  s = s.replace(/^\d+\s*[.)]\s*/, '');
+  return s.trim();
+}
+```
+- 변경 후:
+```ts
+function normalizeOptionToken(raw: string): string {
+  let s = raw.trim().toLowerCase();
+  s = s.replace(/\s+/g, ' ');
+  s = s.replace(/^\(\d+\)\s*/, '');
+  s = s.replace(/^\d+\s*[.)]\s*/, '');
+  return s.trim();
+}
+```
+- 이유: 이 함수는 백엔드 `AnswerGrader.normalizeOptionToken`과 반드시 동일한 규칙을 유지해야 하는 공용 정규화 로직(주석에 명시)이며, 백엔드가 괄호 숫자 마커 `(N)`을 인식하도록 확장되어 프론트도 동기화가 필요했다.
+- 비고: 이번 변경 시점 기준 `frontend/src/lib/answer.ts`에는 전용 Jest 테스트 파일이 없어(`src/lib/*.test.ts` 중 `answer.test.ts` 부재) 신규 테스트 파일 생성은 보류했다. 채점 정확성은 백엔드 `AnswerGraderTest`(options 경로 포함)로 검증했다.
+
+### 복원 방법
+이 ID(HIST-20260718-001)만으로 복원 시 `frontend/src/lib/answer.ts`의 `normalizeOptionToken`에서 `s = s.replace(/^\(\d+\)\s*/, '');` 줄을 제거한다.
+
+---
+
 ## HIST-20260716-002
 
 - **날짜**: 2026-07-16

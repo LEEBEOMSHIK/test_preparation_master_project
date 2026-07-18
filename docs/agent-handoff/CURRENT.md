@@ -2,86 +2,42 @@
 
 ## 현재 목표와 사용자 결정 사항
 
-- 시험 제출 직후·과거 시험 이력·데일리 퀴즈 완료 결과의 각 문항에서 복습 표시를 추가·해제한다.
-- 시험지 `questionId`를 문제은행 ID로 추정하지 않고 명시적인 nullable `questionBankId`만 사용한다.
-- `exam_history_details.question_bank_id`에 제출 시점 원본 ID를 FK 없이 스냅샷으로 저장한다.
-- 원본 문제은행이 없는 수동 문항에는 복습 버튼과 북마크 API 호출을 생략한다.
+- 시험 결과/데일리 퀴즈 채점·표시 정확도 개선 3건(이미지 img.png/img_1/img_2 기반).
+  - Issue A: 정답이 `(1) X / (2) Y` 괄호 숫자 마커 형태면 사용자의 `X,Y` 입력이 오답 처리되던 버그.
+  - Issue B: 코드 조건 정답의 `||`(논리 OR)가 대체정답 구분자로 오인 → **문항별 OFF 플래그**로 해결(사용자 결정).
+  - Issue C: Q7이 SHORT_ANSWER라 SQL 결과표 격자 입력이 안 됨 → **SQL 유형 전환 + 결과표 정답 세팅**(사용자가 "둘 다 네가 세팅" 결정).
 
-## 완료한 작업
+## 완료한 작업 (커밋됨)
 
-- DB 컬럼 추가, 기존 NULL 이력 보강, 검증 실패 시 강제 롤백, 수동 롤백을 포함한 재실행 안전 마이그레이션을 작성했다.
-- 백엔드 엔티티·DTO·제출 저장 로직에 nullable `questionBankId`를 연결하고 회귀 테스트를 보강했다.
-- 공용 결과 화면에 초기 북마크 조회, 결과 변경·언마운트 경쟁 방지, ID별 중복 토글 차단, 오류 안내·재시도, 앰버 별 버튼을 구현했다.
-- 목록 로딩·조회 실패 상태를 명시적으로 구분하고 상태가 확인되기 전에는 모든 복습 토글을 잠근다.
-- pending ID는 결과 전환 중에도 완료까지 유지하며, ID별 변경 버전으로 늦은 목록 응답이 성공한 토글 상태를 덮어쓰지 않게 했다. 이전 결과의 오류는 버리고 새 결과에도 같은 ID가 있으면 성공 상태를 반영한다.
-- 현재 결과 ID와 mounted 상태는 브라우저·JSDOM의 layout effect(SSR은 일반 effect)에서 커밋 시점에만 갱신하고, 언마운트 cleanup에서 즉시 비활성화한다.
-- 언마운트 뒤 deferred 목록·토글 resolve/reject, 동일 ID 토글 성공 뒤 stale 목록, 현재 결과 밖 ID의 다음 결과 비누출 회귀 테스트를 추가했다. 결과 밖 ID 테스트는 두 번째 조회 완료 전 비활성·미확인 aria와 비활성 별 테마까지 확인한다.
-- 모바일에서도 `복습 표시`·`복습 표시됨` 및 로딩·확인 필요 상태 텍스트를 항상 표시한다.
-- 아코디언과 복습 버튼을 형제 버튼으로 구성하고, 중복 문제은행 ID가 같은 상태를 공유하게 했다.
-- 데일리 퀴즈 결과에 `QuizQuestion.id`를 명시적인 `questionBankId`로 매핑했다.
-- 사용자 BE/FE 및 데일리 퀴즈 수정 히스토리 `HIST-20260718-001`을 작성했다.
-- `git diff --check`와 DTO 직접 생성자 사용처 검색을 통과했다.
+- Issue A + B는 한 커밋으로 완료(파일 공유로 분리 불가).
+  - A: `AnswerGrader.extendedEnumerationToSeparators`/`ENUMERATION_MARKER`/`normalizeOptionToken` + 프론트 `answer.ts.normalizeOptionToken`에 괄호 숫자 마커 `(N)` 인식.
+  - B: `disableAlternativeAnswer` 플래그 — 마이그레이션(question_bank·questions·exam_history_details), 엔티티·DTO·서비스·관리자 토글 UI·프론트 표시(`formatAnswerAlternatives` 2번째 인자)·채점 오버로드. Q15(question_bank 75 / questions 35 / exam_history_details) 플래그 true 적용.
 
 ## 미완료 작업
 
-- 운영·스테이징 DB에는 배포 시 동일 마이그레이션을 애플리케이션 기동 전에 적용해야 한다.
+- **Issue C 진행 중**: Q7 원본 question_bank id 67(SHORT_ANSWER) + 시험 스냅샷 questions id 27을 SQL 유형으로 전환하고 결과표 정답(컬럼 [name, incentives], 정답 행 [이순신, 1000]) 세팅. 콘텐츠 덤프 반영. 채점이 `isSqlResultTableCorrect`로 라우팅되는지 확인.
 
-## 완료 커밋
+## 검증 (A+B)
 
-- `cb667dc [FE|BE] feat: 시험 완료 문항 복습 표시 추가`
-
-## 수정한 파일
-
-- `backend/src/main/java/com/tpmp/testprep/entity/ExamHistoryDetail.java`
-- `backend/src/main/java/com/tpmp/testprep/entity/Question.java`
-- `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionResultResponse.java`
-- `backend/src/main/java/com/tpmp/testprep/service/UserExaminationService.java`
-- `backend/src/test/java/com/tpmp/testprep/service/UserExaminationSessionLifecycleTest.java`
-- `frontend/src/types/index.ts`
-- `frontend/src/app/user/quiz/[categoryId]/page.tsx`
-- `frontend/src/components/ui/ExamResultDisplay.tsx`
-- `frontend/src/components/ui/ExamResultDisplay.test.tsx`
-- `frontend/src/data/tableComments.ts`
-- `docs/db-migration/20260718_01_add_exam_history_question_bank_id.sql`
-- `docs/db-guidelines.md`
-- `docs/history/back/usr/UserExamination_Modified.md`
-- `docs/history/front/usr/UserExamination_Modified.md`
-- `docs/history/front/usr/DailyQuiz_Modified.md`
-- `docs/agent-handoff/CURRENT.md`
-
-## 실행한 확인 명령과 결과
-
-- `git diff --check`: 통과.
-- `rg -n "new QuestionResultResponse\\(" backend/src/main backend/src/test`: 팩토리 내부 2곳만 존재해 필드 순서 누락 없음.
-- `rg -n "questionBankId|question_bank_id" ...`: DTO·엔티티·서비스·FE 타입·결과 UI·테스트·문서 연결 확인.
-- `rg -n "pendingBookmarkIdsRef.current.clear|hidden sm:inline|RAISE EXCEPTION|isBookmarkStateUnknown|aria-busy" ...`: pending 강제 초기화·모바일 텍스트 숨김이 제거됐고 unknown/로딩 접근성 및 강제 롤백이 존재함을 확인.
-- `rg -n "visibleQuestionBankIdsRef.current\\s*=|useCommittedLayoutEffect|mountedRef.current" ...`: visible ref 할당이 커밋 effect 내부와 언마운트 cleanup에만 존재함을 확인.
-- webapp-verifier 최종 독립 정적 검증: PASS, 잔여 finding 0건.
-- 백엔드 지정 테스트 5개 및 전체 194개: PASS.
-- 프론트 `ExamResultDisplay` 16개 및 전체 Jest 7 suites/38 tests: PASS.
-- `npx.cmd tsc --noEmit`: PASS.
-- `npm.cmd run build`: PASS, 정적 페이지 48/48 생성.
-- 로컬 `tpmp-db`에 `20260718_01_add_exam_history_question_bank_id.sql` 적용: COMMIT.
-- 기존 이력 80건 `question_bank_id` 백필, 미해결 0건, 현재 `questions.source_question_bank_id`와 불일치 0건.
-- 이력 5의 Q11/Q19/Q20은 문제은행 51/59/60과 각각 연결되고 모두 정답 상태임을 확인.
+- 백엔드 `./gradlew test --tests "*AnswerGrader*" *UserQuizServiceTest* *QuestionBankServiceTest* *ExamServiceStructuredQuestionTest* *UserExamination*`: BUILD SUCCESSFUL.
+- 프론트 `npx tsc --noEmit`: 오류 0 · `npx jest answer`: 통과.
+- 마이그레이션 `20260718_02_disable_alternative_answer.sql` 로컬 tpmp-db 적용 완료(3개 테이블 컬럼 존재 확인).
+- 히스토리 4개 파일 순수 prepend(삭제 0) 확인.
 
 ## 실패·경고·주의사항
 
-- `ddl-auto=validate` 환경이므로 `20260718_01_add_exam_history_question_bank_id.sql`을 애플리케이션 기동보다 먼저 적용해야 한다.
-- 기존 이력 중 `questions` 행 또는 `source_question_bank_id` 연결이 없는 행은 의도대로 `questionBankId = null`이며 복습 버튼이 표시되지 않는다.
-- 초기 북마크 조회는 결과 변경당 1회이며, 사용자가 실패 안내의 `다시 시도`를 누른 경우에만 추가 호출한다.
-- 목록 조회 실패는 북마크 미등록으로 간주하지 않는다. 버튼은 `상태 확인 필요`로 잠기며 상단 `다시 시도` 성공 후에만 활성화된다.
-- 마이그레이션 보강 검증에서 해결되지 않은 연결 가능 행이 있으면 `RAISE EXCEPTION`으로 컬럼 추가와 보강 전체가 롤백된다.
-- 기존 Gradle deprecated/unchecked/JVM class sharing 경고와 Next.js `metadata.viewport` 경고가 있으나 신규 실패는 없다.
+- 하위 에이전트가 세션 한도(4:40pm KST 리셋)로 B 마지막 검증 단계에서 중단 → 메인이 이어서 검증 완료.
+- ddl-auto=validate 환경이므로 배포 시 `20260718_02` 마이그레이션을 기동 전 적용해야 함.
+- Issue C 착수 시 SqlData 구조·expectedResult JSON 포맷을 기존 SQL 문항에서 확인 후 동일하게 작성할 것.
 
 ## 다음 세션이 바로 실행할 명령
 
 ```powershell
 git status --short --branch
-docker exec tpmp-db psql -U tpmp -d tpmp -c "SELECT count(question_bank_id), count(*) FROM exam_history_details;"
+docker exec tpmp-db psql -U tpmp -d tpmp -c "SELECT id, question_type, (sql_data IS NOT NULL) FROM question_bank WHERE id=67;"
 ```
 
 ## 건드리면 안 되는 파일 또는 기존 미추적 파일
 
-- 이번 작업 범위 밖 파일은 수정하지 않는다.
-- 신규 마이그레이션 파일은 의도된 미추적 파일이므로 삭제하지 않는다.
+- `codex-config-tui-notify.tmp` — 기존 미추적 파일(내 작업 아님), 커밋·삭제 금지.
+- 신규 마이그레이션 파일은 의도된 산출물이므로 삭제하지 않는다.

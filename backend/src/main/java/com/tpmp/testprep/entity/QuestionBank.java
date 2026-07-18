@@ -116,6 +116,12 @@ public class QuestionBank extends BaseEntity {
     @Column(name = "sql_data", columnDefinition = "jsonb")
     private SqlData sqlData;
 
+    /** true면 채점·표시 시 정답 문자열의 {@code ||}를 대체 정답 구분자로 해석하지 않고 전체를
+     *  단일 정답으로 취급한다(코드 조건의 논리 OR가 {@code ||}를 포함하는 경우 보호용).
+     *  기본값 false(기존 동작 — 대체 정답 구분자로 해석). */
+    @Column(name = "disable_alternative_answer", nullable = false)
+    private boolean disableAlternativeAnswer;
+
     @Builder
     public QuestionBank(String title, Integer examYear, Integer examRound, Integer questionNo,
                         String content, QuestionType questionType,
@@ -128,6 +134,7 @@ public class QuestionBank extends BaseEntity {
                         SchedulingData schedulingData,
                         SqlData sqlData,
                         String instruction,
+                        boolean disableAlternativeAnswer,
                         Long createdByUno) {
         this.title = title;
         this.examYear = examYear;
@@ -149,6 +156,7 @@ public class QuestionBank extends BaseEntity {
         this.schedulingData = schedulingData;
         this.sqlData = sqlData;
         this.instruction = instruction;
+        this.disableAlternativeAnswer = disableAlternativeAnswer;
         initAudit(createdByUno);
     }
 
@@ -163,6 +171,7 @@ public class QuestionBank extends BaseEntity {
                        SchedulingData schedulingData,
                        SqlData sqlData,
                        String instruction,
+                       boolean disableAlternativeAnswer,
                        Long modifiedByUno) {
         this.title = title;
         this.examYear = examYear;
@@ -184,6 +193,7 @@ public class QuestionBank extends BaseEntity {
         this.schedulingData = schedulingData;
         this.sqlData = sqlData;
         this.instruction = instruction;
+        this.disableAlternativeAnswer = disableAlternativeAnswer;
         updateAudit(modifiedByUno);
     }
 

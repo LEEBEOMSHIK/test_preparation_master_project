@@ -66,7 +66,7 @@ class QuestionBankServiceTest {
                 "제목", null, null, null, "문항 내용", null, type, 10L, 20L,
                 null, "정답", null, null, null,
                 null, null, null, null,
-                schedulingData, null
+                schedulingData, null, false
         );
     }
 
@@ -75,7 +75,7 @@ class QuestionBankServiceTest {
                 "제목", null, null, null, "문항 내용", null, QuestionBank.QuestionType.SQL, 10L, 20L,
                 null, "정답", null, null, null,
                 null, null, null, null,
-                null, sqlData
+                null, sqlData, false
         );
     }
 
@@ -85,7 +85,7 @@ class QuestionBankServiceTest {
                 "제목", null, null, null, content, instruction, QuestionBank.QuestionType.SHORT_ANSWER, 10L, 20L,
                 null, "정답", null, null, null,
                 null, null, null, null,
-                null, null
+                null, null, false
         );
     }
 
@@ -95,7 +95,7 @@ class QuestionBankServiceTest {
                 QuestionBank.QuestionType.SHORT_ANSWER, 10L, 20L,
                 null, "정답", null, null, null,
                 null, null, null, null,
-                null, null
+                null, null, false
         );
     }
 
@@ -362,7 +362,7 @@ class QuestionBankServiceTest {
                 "제목", 2024, 1, null, "문항 내용", null, QuestionBank.QuestionType.SHORT_ANSWER, 10L, 20L,
                 null, "정답", null, null, null,
                 null, null, null, null,
-                null, null
+                null, null, false
         );
 
         service.createQuestion(req, ADMIN_EMAIL);

@@ -1,3 +1,88 @@
+## HIST-20260718-002
+
+- **날짜**: 2026-07-18
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈·시험 공용 채점 — 문항별 "대체 정답(||) 구분자 사용 안 함" 플래그 추가
+- **수정 개요**: `AnswerGrader`가 정답 문자열의 ` || `(공백-파이프 2개)를 "대체 정답 구분자"로 해석해 여러 후보 중 하나만 맞아도 정답 처리하는데, 코드 조건 정답(예: 문항 커버리지 문항 `question_bank` id 75 / 시험 스냅샷 `questions` id 35의 `② a < m || b[a] < x`)에서 `||`는 코드의 논리 OR인데도 시스템이 대체 정답 구분자로 오인해 채점이 엉뚱하게 쪼개지는 문제가 있었다. `QuestionBank`·`Question`·`ExamHistoryDetail` 세 엔티티에 `disableAlternativeAnswer`(boolean, 기본 false) 컬럼을 추가하고, 시험지 출제 스냅샷(`ExamService#buildSnapshot`)·문항 동기화(`Question#syncFrom`)·시험 응시 이력 스냅샷(`UserExaminationService#submitExam`) 세 지점 모두에서 원본 값을 그대로 복사해 전파한다. `AnswerGrader.isCorrect`의 3-인자·4-인자(options) 오버로드에 각각 `boolean disableAlternativeAnswer` 파라미터를 추가한 새 오버로드를 만들어(기존 시그니처는 `false`로 위임하는 얇은 래퍼로 유지 — 기존 호출부·테스트 전부 회귀 없음), 플래그가 true면 `splitAlternatives`로 쪼개지 않고 정답 전체를 단일 후보로 채점하도록 했다. `UserQuizService#checkAnswer`·`UserExaminationService#isQuestionCorrect` 두 호출부 모두 문항의 플래그를 넘기도록 수정했다. 단일 `|`(경로/그룹 경계, `orderedPipeGroupsMatch`)·콤마/슬래시 다중값 비교·CODE 통문자열 비교·options 빈칸 순서 비교 등 나머지 채점 로직은 전혀 건드리지 않았다(플래그는 오직 `||` 분리 여부에만 영향). DB 마이그레이션(`docs/db-migration/20260718_02_disable_alternative_answer.sql`)으로 `question_bank`·`questions`·`exam_history_details`(과거 이력 재조회 화면 표시 정확도를 위해 원 요청 범위 밖이었으나 함께 추가) 세 테이블에 컬럼을 추가하고, 로컬 DB에 적용 후 문항 커버리지 문항(`question_bank` id 75, `questions` id 35, `exam_history_details` id 95)에 `disable_alternative_answer = true`를 데이터 보정했다(정답 텍스트 매칭 기반 재실행 안전 UPDATE — id 하드코딩 아님).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `docs/db-migration/20260718_02_disable_alternative_answer.sql` | 추가 | question_bank·questions·exam_history_details에 disable_alternative_answer 컬럼 추가 + Q15 데이터 보정(재실행 안전) |
+| `backend/src/main/java/com/tpmp/testprep/entity/QuestionBank.java` | 수정 | disableAlternativeAnswer 필드 추가, @Builder·update() 파라미터 반영 |
+| `backend/src/main/java/com/tpmp/testprep/entity/Question.java` | 수정 | disableAlternativeAnswer 필드 추가, @Builder·update()·syncFrom()에 반영 |
+| `backend/src/main/java/com/tpmp/testprep/entity/ExamHistoryDetail.java` | 수정 | disableAlternativeAnswer 필드 추가(@Builder 자동 반영) |
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | isCorrect 3-인자·4-인자에 disableAlternativeAnswer boolean 오버로드 추가, 클래스 javadoc 보강 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java` | 수정 | checkAnswer가 qb.isDisableAlternativeAnswer()를 AnswerGrader·CheckResult에 전달 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserExaminationService.java` | 수정 | isQuestionCorrect가 플래그 전달, submitExam의 ExamHistoryDetail.builder()에 플래그 스냅샷 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/ExamService.java` | 수정 | buildSnapshot(question_bank→Question, 수동 입력 모두)에서 플래그 전파 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/CheckResult.java` | 수정 | disableAlternativeAnswer 필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionResultResponse.java` | 수정 | disableAlternativeAnswer 필드 추가(Question·ExamHistoryDetail 두 팩토리 모두) |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionDetailResponse.java` | 수정 | disableAlternativeAnswer 필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/request/QuestionRequest.java` | 수정 | disableAlternativeAnswer 필드 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 수정 | 플래그 ON/OFF 회귀 테스트(코드 조건 ||·CODE·options·단일 |) 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/UserQuizServiceTest.java` | 수정 | checkAnswer가 플래그를 채점·CheckResult에 정확히 전파하는지 검증하는 테스트 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/ExamServiceStructuredQuestionTest.java` | 수정 | QuestionRequest 생성자 시그니처 변경(disableAlternativeAnswer 인자 추가)에 맞춰 헬퍼 수정 |
+| `docs/sql/tpmp_content_data.sql` | 수정 | question_bank id 75 / questions id 35 INSERT에 disable_alternative_answer=true 반영(다른 환경 재현용, 스키마는 마이그레이션 담당) |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java`
+- 변경 전: `isCorrect(questionType, correctAnswer, userAnswer)` / `isCorrect(questionType, correctAnswer, userAnswer, options)` 두 진입점만 존재, 항상 `||`를 대체 정답 구분자로 분리.
+- 변경 후: 각각에 `boolean disableAlternativeAnswer` 파라미터를 추가한 오버로드를 신설하고, 기존 시그니처는 `false`를 넘기는 얇은 위임으로 유지. true면 `splitAlternatives` 분리 없이 정답 전체를 단일 후보로 `isCorrectSingle`/`isCorrectWithOptionsSingle`에 전달.
+- 이유: 코드 조건 정답의 논리 OR(`||`)가 대체 정답 구분자로 오인되는 채점 오류를 문항별로 끌 수 있게 하되, 기존 문항·테스트의 회귀를 0으로 유지하기 위함.
+
+#### `backend/src/main/java/com/tpmp/testprep/service/UserQuizService.java` / `UserExaminationService.java`
+- 변경 전: `AnswerGrader.isCorrect(...)` 호출 시 플래그를 넘기지 않음(항상 false와 동일 동작).
+- 변경 후: `qb.isDisableAlternativeAnswer()` / `question.isDisableAlternativeAnswer()`를 채점 호출에 전달, `CheckResult`·`ExamHistoryDetail` 스냅샷에도 플래그를 함께 실음.
+- 이유: 문항별 플래그가 실제 채점·이력 표시 경로까지 끝까지 전파되어야 함.
+
+### 복원 방법
+이 ID(HIST-20260718-002)만으로 복원 시: `AnswerGrader.isCorrect`의 boolean 오버로드 2개, `UserQuizService`/`UserExaminationService`의 플래그 전달 코드, `CheckResult`/`QuestionResultResponse`/`QuestionDetailResponse`/`QuestionRequest`의 disableAlternativeAnswer 필드, `QuestionBank`/`Question`/`ExamHistoryDetail` 엔티티의 disableAlternativeAnswer 필드와 그 전파 지점(ExamService#buildSnapshot, Question#syncFrom, UserExaminationService#submitExam)을 모두 제거하고, `docs/db-migration/20260718_02_disable_alternative_answer.sql`의 ROLLBACK 절을 실행한다.
+
+## HIST-20260718-001
+
+- **날짜**: 2026-07-18
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈·시험 공용 주관식 채점 — 괄호 숫자 마커 `(1)`·`(2)` 인식
+- **수정 개요**: 정답이 `(1) ㄷ / (2) ㅁ / (3) ㅅ / (4) ㄱ`처럼 **괄호 숫자 위치 마커**로 저장된 SHORT_ANSWER 문항(실측: `question_bank` id 28·id 32)에서, 사용자가 `ㄷ,ㅁ,ㅅ,ㄱ`으로 정답을 맞게 입력해도 오답 처리되던 버그를 수정했다. 원인은 `AnswerGrader`의 열거 마커 인식 로직이 `1.`·`1)`·`①`·`ㄱ.`·`a.`만 인식하고 괄호 숫자 `(1)`은 인식하지 못해, 정답을 분리해도 각 토큰에 `(1)` 접두가 그대로 남아 사용자 토큰과 매칭되지 않았기 때문이다. 문자열 시작 또는 공백·콤마·슬래시 직후에 오는 `(1~2자리 숫자)`를 항목 구분 마커로 추가 인식하도록 세 지점을 수정했다: 다중값 비교·느슨 폴백에서 쓰는 `extendedEnumerationToSeparators`, 느슨 폴백 진입 가드 `ENUMERATION_MARKER`, options(보기) 채점 경로의 `normalizeOptionToken`(선행 괄호 숫자 접두 제거). 프론트엔드 `lib/answer.ts`의 `normalizeOptionToken`도 백엔드 options 경로와 동일 규칙으로 동기화했다. 말미 괄호 대체 표기(`비동기 균형 모드(ABM)`)·함수 표기(`f(x)`)·좌표(`(3,4)`) 등 괄호 안이 순수 1~2자리 숫자가 아니거나 시작·공백·콤마·슬래시 직후가 아닌 경우는 이 마커로 인식되지 않아 기존 동작에 영향 없음을 회귀 테스트로 확인했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java` | 수정 | `extendedEnumerationToSeparators`·`ENUMERATION_MARKER`·`normalizeOptionToken`에 괄호 숫자 마커 `(N)` 인식 추가, 클래스 javadoc 보강 |
+| `backend/src/test/java/com/tpmp/testprep/service/support/AnswerGraderTest.java` | 수정 | 괄호 숫자 마커 정답 처리 + 회귀(말미 괄호·함수·좌표·기존 마커) 테스트, options 경로 괄호 접두 테스트 추가 |
+| `frontend/src/lib/answer.ts` | 수정 | `normalizeOptionToken`에 선행 괄호 숫자 접두(`(1)`) 제거 규칙 추가 (백엔드 options 경로와 동기화) |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/service/support/AnswerGrader.java`
+- 변경 전:
+  - `extendedEnumerationToSeparators`: 숫자·자모·라틴·원문자 마커만 슬래시 구분자로 치환 — 괄호 숫자 `(1)`은 그대로 남음.
+  - `ENUMERATION_MARKER` 정적 Pattern: 위와 동일한 3가지 대안만 포함 — `hasEnumerationMarker`가 `(1) ...` 정답을 마커 있음으로 판단하지 못해 느슨 폴백(`looseEqualsIgnoringPunctuation`)이 아예 시도되지 않음.
+  - `normalizeOptionToken`: `^\d+\s*[.)]\s*`(예: `1.`·`1)`)만 제거 — `(1)` 접두는 제거되지 않아 options 채점(빈칸 순서 비교) 경로에서도 `(1) pwd` 토큰이 `pwd`와 불일치.
+- 변경 후:
+  - `extendedEnumerationToSeparators`에 `.replaceAll("(^|[\\s,/])\\(\\d{1,2}\\)\\s*", "$1/")` 규칙 추가(문자열 시작/공백/콤마/슬래시 직후의 `(N)`만 매칭).
+  - `ENUMERATION_MARKER`에 동일 조건의 대안 `|(^|[\\s,/])\\(\\d{1,2}\\)\\s*` 추가.
+  - `normalizeOptionToken`에 `s = s.replaceAll("^\\(\\d+\\)\\s*", "");`을 기존 숫자 접두 제거보다 먼저 적용.
+  - 클래스 javadoc "열거 마커 확장" 단락에 괄호 숫자 마커 설명과 말미 괄호·함수·좌표 표기와 충돌하지 않는 근거를 추가.
+- 이유: 실측 데이터(`question_bank` id 28·32)의 정답 표기 형식(`(1)` `(2)` …)이 기존 마커 인식 정규식 범위 밖이라 정답을 입력해도 오답 처리되는 채점 버그를 수정하기 위함. 정규식은 "시작/공백/콤마/슬래시 직후"만 매칭하도록 제한해 말미 괄호 대체 표기·함수 표기·좌표 등 기존 동작과 충돌하지 않게 했다.
+
+#### `frontend/src/lib/answer.ts`
+- 변경 전: `normalizeOptionToken`이 `s = s.replace(/^\d+\s*[.)]\s*/, '');`만 적용.
+- 변경 후: 그 앞에 `s = s.replace(/^\(\d+\)\s*/, '');`을 추가해 선행 괄호 숫자 접두를 먼저 제거.
+- 이유: options(보기) 채점 경로는 백엔드 `AnswerGrader.normalizeOptionToken`과 규칙이 반드시 동일해야 하므로(주석 명시), 백엔드 변경과 동기화.
+
+### 복원 방법
+이 ID(HIST-20260718-001)만으로 복원 시:
+1. `AnswerGrader.java`의 `extendedEnumerationToSeparators`에서 `.replaceAll("(^|[\\s,/])\\(\\d{1,2}\\)\\s*", "$1/")` 줄을 제거한다.
+2. `ENUMERATION_MARKER` Pattern에서 `+ "|(^|[\\s,/])\\(\\d{1,2}\\)\\s*"` 줄을 제거한다.
+3. `normalizeOptionToken`에서 `s = s.replaceAll("^\\(\\d+\\)\\s*", "");` 줄을 제거한다.
+4. `frontend/src/lib/answer.ts`의 `normalizeOptionToken`에서 `s = s.replace(/^\(\d+\)\s*/, '');` 줄을 제거한다.
+5. 클래스 javadoc의 괄호 숫자 마커 관련 추가 문단을 제거한다.
+
+---
+
 ## HIST-20260717-002
 
 - **날짜**: 2026-07-17

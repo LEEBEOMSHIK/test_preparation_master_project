@@ -1,4 +1,29 @@
-﻿## HIST-20260717-001
+﻿## HIST-20260718-001
+
+- **날짜**: 2026-07-18
+- **수정 범위**: 관리자 프론트엔드 / 문항 관리 — 문항 등록·수정 화면에 "대체 정답(||) 구분자 사용 안 함" 체크박스 추가
+- **수정 개요**: 코드 조건 정답(예: `a < m || b[a] < x`)의 `||`가 채점·표시 시 대체 정답 구분자로 오인되지 않도록, 문항 등록(`admin/exams/questions/new`)·수정(`admin/exams/questions/[id]/edit`) 화면에 "대체 정답(||) 구분자 사용 안 함" 체크박스를 추가했다(보기 섹션 바로 위, 안내 문구 포함). 폼 상태(`QuestionDraft`/`FormState`)에 `disableAlternativeAnswer` 필드를 추가하고 저장 payload·수정 페이지 로드 로직(기존값 복원)에 반영했다. `onChange`/`update` 콜백 타입에 `boolean`을 허용하도록 확장했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `frontend/src/app/admin/exams/questions/new/page.tsx` | 수정 | QuestionDraft에 disableAlternativeAnswer 필드 추가, 체크박스 UI, onChange 타입에 boolean 허용, 제출 payload 반영, import/clipboard 드래프트 기본값 false |
+| `frontend/src/app/admin/exams/questions/[id]/edit/page.tsx` | 수정 | FormState에 disableAlternativeAnswer 필드 추가, 체크박스 UI, update 타입에 boolean 허용, 로드 시 기존값 복원, 제출 payload 반영 |
+| `frontend/src/services/examService.ts` | 수정 | adminCreateQuestionsBulk·adminUpdateQuestion 요청 타입에 disableAlternativeAnswer?: boolean 추가 |
+| `frontend/src/types/index.ts` | 수정 | QuestionSummary에 disableAlternativeAnswer?: boolean 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/questions/new/page.tsx` / `[id]/edit/page.tsx`
+- 변경 전: 정답 관련 폼 필드에 대체 정답 구분자 제어 UI 없음.
+- 변경 후: "대체 정답(||) 구분자 사용 안 함" 체크박스 추가, 체크 시 저장 payload의 disableAlternativeAnswer가 true로 전송됨.
+- 이유: 관리자가 코드 조건 정답을 등록할 때 채점 오류를 예방할 수 있도록.
+
+### 복원 방법
+이 ID(HIST-20260718-001)만으로 복원 시 두 페이지의 체크박스 UI·disableAlternativeAnswer 필드, `examService.ts`·`types/index.ts`의 필드 추가분을 제거한다.
+
+## HIST-20260717-001
 
 - **날짜**: 2026-07-17
 - **수정 범위**: 관리자 프론트엔드 / 문항 관리 — 문항 상세 모달 정답 표시 줄바꿈 처리 (관리자·사용자 공용 컴포넌트)

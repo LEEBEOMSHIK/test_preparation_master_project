@@ -83,6 +83,11 @@ public class ExamHistoryDetail {
     @Column(name = "category_name", length = 100)
     private String categoryName;
 
+    /** 제출 시점 Question.disableAlternativeAnswer 스냅샷 — 과거 이력 재조회 화면에서
+     *  correctAnswer의 {@code ||}를 대체 정답 구분자로 잘라 표시하지 않도록 함(기본 false). */
+    @Column(name = "disable_alternative_answer", nullable = false)
+    private boolean disableAlternativeAnswer;
+
     /** ExamHistory.addDetail() 에서 양방향 연관 세팅을 위해 패키지 가시성으로 제공 */
     void setExamHistory(ExamHistory examHistory) {
         this.examHistory = examHistory;

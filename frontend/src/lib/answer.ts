@@ -15,12 +15,14 @@ export function hasOptions(options?: string[] | null): boolean {
 
 /**
  * options 채점용 단일 토큰 정규화: trim → 소문자화 → 내부 연속 공백 단일화 → 선행 열거
- * 접두(예: "1. ", "2) ") 제거 → 재trim. 백엔드 AnswerGrader.normalizeOptionToken과
- * 반드시 동일한 규칙을 유지해야 한다.
+ * 접두(예: "(1) ", "1. ", "2) ") 제거 → 재trim. 괄호 숫자 접두(`(1)`)를 먼저 제거한 뒤
+ * 일반 숫자 접두(`1.`·`1)`)를 제거하므로 두 표기 모두 동일하게 처리된다. 백엔드
+ * AnswerGrader.normalizeOptionToken과 반드시 동일한 규칙을 유지해야 한다.
  */
 function normalizeOptionToken(raw: string): string {
   let s = raw.trim().toLowerCase();
   s = s.replace(/\s+/g, ' ');
+  s = s.replace(/^\(\d+\)\s*/, '');
   s = s.replace(/^\d+\s*[.)]\s*/, '');
   return s.trim();
 }
@@ -32,9 +34,16 @@ function normalizeOptionToken(raw: string): string {
  * 원문 그대로 반환한다. 예: `"팩토리 메서드 || factory method"` → `"팩토리 메서드"`.
  * 오답 시 "정답:" 표시 등 사용자 화면에서만 사용하고, 관리자 화면(문항 상세/목록)은 원문을
  * 그대로 노출한다.
+ *
+ * `disableAlternative`가 true면(문항별 "대체 정답(||) 구분자 사용 안 함" 플래그 —
+ * 백엔드 QuestionBank/Question.disableAlternativeAnswer) `||`를 대체 정답 구분자로 해석하지
+ * 않고 원문을 그대로 반환한다. 코드 조건 정답(예: `a < m || b[a] < x`)처럼 `||`가 코드의
+ * 논리 OR인 경우 잘려 표시되는 것을 막기 위함이다. 인자를 생략하면(undefined) 기존과 동일하게
+ * 동작한다(하위 호환).
  */
-export function formatAnswerAlternatives(answer: string): string {
+export function formatAnswerAlternatives(answer: string, disableAlternative?: boolean): string {
   if (!answer) return answer;
+  if (disableAlternative) return answer;
   const alternatives = answer
     .split(/\s*\|\|\s*/)
     .map((s) => s.trim())

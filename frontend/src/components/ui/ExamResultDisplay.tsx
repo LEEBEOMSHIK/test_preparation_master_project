@@ -566,7 +566,7 @@ export function ExamResultDisplay({
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-500 dark:text-gray-400 shrink-0 w-14">정답</span>
                                 <span className="font-medium text-green-700 dark:text-green-300">
-                                  {item.correctAnswer ? formatAnswerAlternatives(item.correctAnswer) : '—'}
+                                  {item.correctAnswer ? formatAnswerAlternatives(item.correctAnswer, item.disableAlternativeAnswer) : '—'}
                                 </span>
                               </div>
                             </>

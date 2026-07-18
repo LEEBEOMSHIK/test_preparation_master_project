@@ -78,5 +78,9 @@ public record QuestionBankRequest(
 
         /** SQL 구조화 데이터 (SQL 유형에서만 사용, 선택) */
         @Valid
-        SqlData sqlData
+        SqlData sqlData,
+
+        /** true면 정답 문자열의 {@code ||}를 대체 정답 구분자로 해석하지 않음(코드 조건의
+         *  논리 OR 보호용). 기본값 false(생략 시 대체 정답 구분자로 해석하는 기존 동작 유지). */
+        boolean disableAlternativeAnswer
 ) {}

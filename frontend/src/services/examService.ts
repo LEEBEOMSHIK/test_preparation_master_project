@@ -101,6 +101,8 @@ export const examService = {
     aiSummary?: string;
     schedulingData?: SchedulingData;
     sqlData?: SqlData;
+    /** true면 정답 문자열의 `||`를 대체 정답 구분자로 해석하지 않음(코드 조건의 논리 OR 보호용) */
+    disableAlternativeAnswer?: boolean;
   }>) =>
     apiClient.post<ApiResponse<{ created: number }>>('/admin/questions/bulk', { questions }),
 
@@ -129,6 +131,8 @@ export const examService = {
     aiSummary?: string;
     schedulingData?: SchedulingData;
     sqlData?: SqlData;
+    /** true면 정답 문자열의 `||`를 대체 정답 구분자로 해석하지 않음(코드 조건의 논리 OR 보호용) */
+    disableAlternativeAnswer?: boolean;
   }) =>
     apiClient.put<ApiResponse<QuestionSummary>>(`/admin/questions/${id}`, data),
 };

@@ -77,12 +77,18 @@ public class Question {
     @JoinColumn(name = "category_id")
     private DomainSlave category;
 
+    /** true면 채점·표시 시 정답 문자열의 {@code ||}를 대체 정답 구분자로 해석하지 않고 전체를
+     *  단일 정답으로 취급한다. 출제 시점 QuestionBank.disableAlternativeAnswer 스냅샷(기본 false). */
+    @Column(name = "disable_alternative_answer", nullable = false)
+    private boolean disableAlternativeAnswer;
+
     @Builder
     public Question(Exam exam, QuestionBank sourceQuestionBank, Integer seq, String instruction,
                     String content, QuestionType questionType,
                     List<String> options, String answer, String explanation,
                     String sourceFile, String code, String language, DomainSlave category,
-                    SchedulingData schedulingData, SqlData sqlData) {
+                    SchedulingData schedulingData, SqlData sqlData,
+                    boolean disableAlternativeAnswer) {
         this.exam = exam;
         this.sourceQuestionBank = sourceQuestionBank;
         this.seq = seq;
@@ -98,12 +104,14 @@ public class Question {
         this.category = category;
         this.schedulingData = schedulingData;
         this.sqlData = sqlData;
+        this.disableAlternativeAnswer = disableAlternativeAnswer;
     }
 
     public void update(String instruction, String content, QuestionType questionType,
                        List<String> options, String answer, String explanation,
                        String code, String language, DomainSlave category,
-                       QuestionBank sourceQuestionBank, SchedulingData schedulingData, SqlData sqlData) {
+                       QuestionBank sourceQuestionBank, SchedulingData schedulingData, SqlData sqlData,
+                       boolean disableAlternativeAnswer) {
         this.instruction = instruction;
         this.content = content;
         this.questionType = questionType;
@@ -116,6 +124,7 @@ public class Question {
         this.sourceQuestionBank = sourceQuestionBank;
         this.schedulingData = schedulingData;
         this.sqlData = sqlData;
+        this.disableAlternativeAnswer = disableAlternativeAnswer;
     }
 
     /** 원본 문항을 명시적으로 동기화한다. 정답은 별도 승인 시에만 덮어쓴다. */
@@ -132,6 +141,7 @@ public class Question {
         this.category = source.getCategory();
         this.schedulingData = source.getSchedulingData();
         this.sqlData = source.getSqlData();
+        this.disableAlternativeAnswer = source.isDisableAlternativeAnswer();
     }
 
     /** 제출 결과와 이력에 사용할 원본 문항 제목. 원본 연결이 없는 수동 문항은 null이다. */

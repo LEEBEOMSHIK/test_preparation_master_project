@@ -46,5 +46,9 @@ public record QuestionRequest(
 
         @Valid SchedulingData schedulingData,
 
-        @Valid SqlData sqlData
+        @Valid SqlData sqlData,
+
+        /** true면 정답 문자열의 {@code ||}를 대체 정답 구분자로 해석하지 않음. sourceQuestionBankId가
+         *  있으면 서버가 원본 QuestionBank 값을 그대로 사용하므로 이 값은 무시된다. 기본값 false. */
+        boolean disableAlternativeAnswer
 ) {}
