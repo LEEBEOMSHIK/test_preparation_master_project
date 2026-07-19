@@ -8,8 +8,11 @@
 
 | 파일 경로 | 수정 유형 | 설명 |
 |---|---|---|
-| `docs/db-migration/20260720_01_ai_custom_exam_2026_r1.sql` | 신규 | exams 1행 + questions 20행 삽입. 동일 제목 시험/문항 존재 시 미삽입(재실행 안전), id는 IDENTITY 자동 생성 |
-| (로컬 tpmp-db) | 데이터 | 위 마이그레이션 적용(exams 1건 + questions 20건) |
+| `docs/db-migration/20260720_01_ai_custom_exam_2026_r1.sql` | 신규 | exams(시험지) 1행 + questions 20행 + examinations(응시 대상, exam_paper_id로 exams 참조) 1행 삽입. 동일 제목 존재 시 미삽입(재실행 안전), id는 IDENTITY 자동 생성 |
+| (로컬 tpmp-db) | 데이터 | 위 마이그레이션 적용(exams 1 + questions 20 + examinations 1) |
+
+- **주의**: 사용자 시험 목록/응시(`/user/examinations`)는 `exams`가 아니라 `examinations` 테이블을 읽는다. `exams`는 시험지(문항 컨테이너)이고, 실제 응시 대상은 `examinations`(exam_paper_id → exams). 시험 신규 생성 시 두 테이블 모두 필요.
+- **검증**: 백엔드 로컬 기동 후 user 계정으로 응시(start→submit) — 실제 사용자 답안(콤마 입력·괄호 생략·CIDR 등)으로 20/20 채점 확인.
 
 ### 복원 방법
 이 ID(HIST-20260720-001)만으로 복원 시, exams의 해당 제목 행과 그 exam_id의 questions 20행을 삭제한다(또는 del_yn='Y'). 기존 5개 시험·question_bank에는 영향 없음.

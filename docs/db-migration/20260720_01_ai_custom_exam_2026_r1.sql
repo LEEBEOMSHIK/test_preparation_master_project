@@ -230,6 +230,15 @@ print(sum(row[1] for row in a))$q$,
 ) AS v(seq, qt, instr, content, code, lang, answer, expl)
 WHERE NOT EXISTS (SELECT 1 FROM questions q WHERE q.exam_id = e.id);
 
+-- 응시 대상 등록: examinations(사용자 시험 목록/응시)는 exam_paper_id로 위 exams(시험지)를 참조한다.
+-- 기존 기출 시험과 동일하게 time_limit 150분, category_id 7(정보처리기사 실기)로 등록한다.
+INSERT INTO examinations (created_at, time_limit, title, category_id, created_by, exam_paper_id)
+SELECT now(), 150, '2026년 1회 정보처리기사 실기 (AI 커스텀)', 7, 1,
+       (SELECT id FROM exams WHERE title = '2026년 1회 정보처리기사 실기 (AI 커스텀)' AND del_yn = 'N')
+WHERE NOT EXISTS (
+    SELECT 1 FROM examinations WHERE title = '2026년 1회 정보처리기사 실기 (AI 커스텀)'
+);
+
 COMMIT;
 
 -- 검증
