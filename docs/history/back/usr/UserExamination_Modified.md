@@ -1,3 +1,12 @@
+## HIST-20260720-003
+
+- **날짜**: 2026-07-20
+- **수정 범위**: 콘텐츠 데이터 / AI 커스텀 시험 40문항을 문제은행(question_bank)에도 AI 커스텀으로 등록
+- **수정 개요**: 문항 관리 화면(`/admin/questions`)은 `question_bank`를 조회하는데, AI 커스텀 시험(2026-1·2025-3) 40문항을 시험(exams+questions)에만 넣어 문항 관리에 노출되지 않았다. 동일 내용(content·code·answer·options·instruction·explanation)을 exam questions에서 복사하고, 카테고리(domain_slave master_id=1: 운영체제1·SQL2·프로그래밍3·네트워크4·정보보안5·SW공학30·관계형DB31)·문항번호(카테고리별 max+순번)·`ai_keywords`·`ai_domains`·`ai_summary`·`ai_difficulty`를 부여해 `question_bank`에 AI 커스텀(exam_year·exam_round = NULL)으로 40행 등록했다. 이로써 문항 관리의 "AI 커스텀" 필터에 노출되고 데일리 퀴즈 도메인 분석에도 반영된다.
+- **파일**: `docs/db-migration/20260720_03_ai_custom_questionbank.sql` (신규, 동일 title 존재 시 미삽입으로 재실행 안전). 로컬 적용.
+- **검증**: 관리자 문항 API(`/api/admin/questions`)에 40문항 노출, 보기 문항 options·CODE 문항 code 복사 및 ai_* 채움 확인.
+- **미연결(선택)**: exam `questions.source_question_bank_id`는 이 bank 행과 링크하지 않았다(exam·bank는 독립 복사본). CODE 문항 content가 동일해 자동 매칭이 모호하므로 별도 링크는 보류.
+
 ## HIST-20260720-002
 
 - **날짜**: 2026-07-20
