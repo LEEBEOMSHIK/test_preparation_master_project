@@ -12,7 +12,8 @@
 | (로컬 tpmp-db) | 데이터 | 위 마이그레이션 적용(exams 1 + questions 20 + examinations 1) |
 
 - **주의**: 사용자 시험 목록/응시(`/user/examinations`)는 `exams`가 아니라 `examinations` 테이블을 읽는다. `exams`는 시험지(문항 컨테이너)이고, 실제 응시 대상은 `examinations`(exam_paper_id → exams). 시험 신규 생성 시 두 테이블 모두 필요.
-- **검증**: 백엔드 로컬 기동 후 user 계정으로 응시(start→submit) — 실제 사용자 답안(콤마 입력·괄호 생략·CIDR 등)으로 20/20 채점 확인.
+- **보기(options) 추가**: 용어 선택형 단답 7문항(seq 2·3·4·6·15·19·20)에 구조화 보기(`options` jsonb 단어 은행)를 부여해 "보기에서 고르는" 형태로 전환. 보기 존재 시 채점은 "빈칸 순서대로"(번호·용어 상호 인정)로 전환되며, 해당 문항 정답은 열거 마커 없는 용어 나열(`Adapter / Strategy` 등)로 조정. Q4·Q15의 인라인 `<보기>` 중복 텍스트는 제거.
+- **검증**: 백엔드 로컬 기동 후 user 계정으로 응시(start→submit) — 실제 사용자 답안으로 20/20 채점 확인. 보기 7문항은 **용어 입력·번호 입력 모두 100점**으로 상호 인정 확인.
 
 ### 복원 방법
 이 ID(HIST-20260720-001)만으로 복원 시, exams의 해당 제목 행과 그 exam_id의 questions 20행을 삭제한다(또는 del_yn='Y'). 기존 5개 시험·question_bank에는 영향 없음.
