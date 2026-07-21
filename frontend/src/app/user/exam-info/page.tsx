@@ -8,6 +8,7 @@ import { examApplicationService } from '@/services/examApplicationService';
 import { ExamApplicationFormModal } from '@/components/ui/ExamApplicationFormModal';
 import type { ExamApplicationPrefill } from '@/components/ui/ExamApplicationFormModal';
 import { ExamInfoCardSkeleton, ExamTypeGridSkeleton } from '@/components/ui/Skeleton';
+import { parseLocalDate, getExamDDayLabel, getExamDDayBadgeClass } from '@/lib/date';
 import type { ExamInfo, UserExamApplication } from '@/types';
 
 const PALETTE = [
@@ -35,14 +36,6 @@ function fmtRange(val: string | undefined): string {
 }
 
 type PhaseStatus = 'active' | 'upcoming' | 'past' | 'none';
-
-// "YYYY-MM-DD"를 로컬 자정 기준으로 파싱한다.
-// new Date("YYYY-MM-DD")는 UTC 자정으로 해석되어 KST(UTC+9)에서는
-// 오늘 날짜가 미래(예정)로 잘못 판정되므로 로컬 기준으로 직접 파싱한다.
-function parseLocalDate(s: string): Date {
-  const [y, m, d] = s.split('-').map(Number);
-  return new Date(y, (m ?? 1) - 1, d ?? 1);
-}
 
 function getPhaseStatus(rangeStr: string | undefined): PhaseStatus {
   if (!rangeStr) return 'none';
@@ -338,11 +331,18 @@ export default function UserExamInfoPage() {
                 <div className="mt-3 pt-3 border-t border-gray-100">
                   {(applicationsByExamInfoId.get(item.id) ?? []).length > 0 ? (
                     <div className="space-y-2">
-                      {(applicationsByExamInfoId.get(item.id) ?? []).map(app => (
+                      {(applicationsByExamInfoId.get(item.id) ?? []).map(app => {
+                        const dDayLabel = getExamDDayLabel(app.applicationDate, app.examDate);
+                        return (
                         <div key={app.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2">
-                          <p className="text-xs text-gray-600 truncate">
+                          <p className="text-xs text-gray-600 truncate flex items-center gap-1.5">
                             <span className="font-medium text-gray-700">내 접수</span>
-                            {app.applicationDate && <span className="ml-2">접수일 {app.applicationDate}</span>}
+                            {dDayLabel && (
+                              <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${getExamDDayBadgeClass(app.applicationDate, app.examDate)}`}>
+                                {dDayLabel}
+                              </span>
+                            )}
+                            {app.applicationDate && <span className="ml-1">접수일 {app.applicationDate}</span>}
                             {app.examDate && <span className="ml-2">시험일 {app.examDate}</span>}
                             {app.memo && <span className="ml-2 text-gray-400">· {app.memo}</span>}
                           </p>
@@ -361,7 +361,8 @@ export default function UserExamInfoPage() {
                             </button>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                       <button type="button" onClick={() => openAddApplication(item)}
                         className="text-xs text-indigo-500 hover:underline">
                         + 접수 정보 추가

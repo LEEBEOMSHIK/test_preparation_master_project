@@ -10,6 +10,7 @@ import { examApplicationService } from '@/services/examApplicationService';
 import { useAuthStore } from '@/store/authStore';
 import { Skeleton, CardListSkeleton } from '@/components/ui/Skeleton';
 import { ExamApplicationFormModal } from '@/components/ui/ExamApplicationFormModal';
+import { getExamDDayLabel, getExamDDayBadgeClass } from '@/lib/date';
 import type { UserExamApplication } from '@/types';
 
 // ── Suspense fallback ─────────────────────────────────────────────────────────
@@ -326,7 +327,9 @@ function UserSettingsContent() {
             </p>
           ) : (
             <div className="space-y-2">
-              {applications.map(app => (
+              {applications.map(app => {
+                const dDayLabel = getExamDDayLabel(app.applicationDate, app.examDate);
+                return (
                 <div key={app.id} className="flex items-center justify-between gap-3 bg-gray-50 rounded-lg px-3 py-2.5">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-800 truncate flex items-center gap-1.5">
@@ -336,6 +339,11 @@ function UserSettingsContent() {
                         </span>
                       )}
                       <span className="truncate">{app.examName}</span>
+                      {dDayLabel && (
+                        <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${getExamDDayBadgeClass(app.applicationDate, app.examDate)}`}>
+                          {dDayLabel}
+                        </span>
+                      )}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
                       {app.applicationDate && <>접수일 {app.applicationDate}</>}
@@ -358,7 +366,8 @@ function UserSettingsContent() {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

@@ -1,5 +1,29 @@
 # 사용자 설정 화면 수정 이력
 
+## HIST-20260721-002
+
+- **날짜**: 2026-07-21
+- **수정 범위**: 사용자 프론트엔드 / 설정 페이지 ("내 시험 접수 정보" 섹션)
+- **수정 개요**: "내 시험 접수 정보" 리스트 각 항목에 개인 접수 정보 기반 D-day 배지 추가(`exam-info` 화면과 동일한 공용 로직·스타일 재사용)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/settings/page.tsx` | 수정 | `@/lib/date`에서 `getExamDDayLabel`/`getExamDDayBadgeClass` import, "내 시험 접수 정보" 리스트 각 항목의 examType 배지·시험명 옆에 D-day 배지 추가(라벨 빈 문자열이면 미렌더) |
+
+### 수정 상세
+
+#### `frontend/src/app/user/settings/page.tsx`
+- 변경 전: 각 접수 정보 항목이 examType 배지 + 시험명 + 접수일/시험일 텍스트만 표시
+- 변경 후: 시험명 옆에 `getExamDDayLabel(app.applicationDate, app.examDate)` 결과를 `getExamDDayBadgeClass`로 스타일링한 배지로 추가 표시
+- 이유: `exam-info/page.tsx`와 동일한 데이터(`UserExamApplication[]`)를 보여주는 화면이므로 D-day 정보도 동일하게 노출해 일관성 유지. `frontend/src/lib/date.ts` 신규 공용 유틸 추출 관련 상세는 `UserExamInfo_Modified.md`의 `HIST-20260721-003` 참고
+
+### 복원 방법
+이 ID(HIST-20260721-002)만으로 복원 시 `frontend/src/app/user/settings/page.tsx`에서 `getExamDDayLabel`/`getExamDDayBadgeClass` import와 D-day 배지 JSX를 제거한다(HIST-20260721-001 시점 코드로 복원).
+
+---
+
 ## HIST-20260721-001
 
 - **날짜**: 2026-07-21

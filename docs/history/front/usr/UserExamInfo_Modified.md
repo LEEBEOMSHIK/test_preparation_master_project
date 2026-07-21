@@ -1,3 +1,35 @@
+## HIST-20260721-003
+
+- **날짜**: 2026-07-21
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보 (내 접수 정보 D-day 표시)
+- **수정 개요**: "내 접수" 미니 섹션에 개인 접수 정보 기반 D-day 배지 추가. 공식 일정 배지(접수기간/시험일정/합격발표 — `진행중/예정/종료`)는 그대로 두고, 개인 접수일·시험일 기반 D-day를 별도 배지로 병기. 공용 로직은 신규 `src/lib/date.ts`로 추출(`exam-info`/`settings` 두 화면 공용)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/date.ts` | 추가 | `parseLocalDate`(기존 `exam-info/page.tsx`에서 이동, 로컬 자정 파싱), `getExamDDayLabel(applicationDate?, examDate?)`(examDate 우선 — `시험까지 D-N`/`오늘 시험일`/`시험 종료`, 없으면 applicationDate만으로 `접수 예정 D-N`/`접수 완료`, 둘 다 없으면 빈 문자열), `isExamDDayUrgent`/`getExamDDayBadgeClass`(오늘 포함 7일 이내 임박이면 빨강 배지, 그 외 회색) |
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | 로컬 `parseLocalDate` 함수 정의 제거 후 `@/lib/date`에서 import. "내 접수" 미니 섹션의 각 접수 항목에 `getExamDDayLabel`/`getExamDDayBadgeClass` 기반 배지 추가(라벨이 빈 문자열이면 미렌더) |
+
+### 수정 상세
+
+#### `frontend/src/lib/date.ts` (신규)
+- 변경 전: 없음(신규 파일)
+- 변경 후: `parseLocalDate`, `getExamDDayLabel`, `isExamDDayUrgent`, `getExamDDayBadgeClass`, `EXAM_DDAY_BADGE_URGENT`/`EXAM_DDAY_BADGE_NEUTRAL` 상수 export
+- 이유: `exam-info/page.tsx`와 `settings/page.tsx` 두 화면이 동일한 D-day 계산·배지 스타일 로직을 필요로 해 CLAUDE.md 공통 유틸리티 원칙에 따라 추출
+
+#### `frontend/src/app/user/exam-info/page.tsx`
+- 변경 전: 파일 내부에 `parseLocalDate` 함수를 직접 정의(KST 파싱 버그 방지 주석 포함), "내 접수" 미니 섹션은 접수일·시험일·메모만 텍스트로 표시
+- 변경 후: `parseLocalDate`를 `@/lib/date`에서 import(로컬 정의 제거), "내 접수" 각 항목 앞에 `getExamDDayLabel(app.applicationDate, app.examDate)` 결과를 `getExamDDayBadgeClass`로 스타일링한 배지로 표시(라벨 빈 문자열이면 배지 미렌더)
+- 이유: 사용자가 직접 입력한 개인 접수 정보에 D-day 카운트다운을 추가해 임박도를 한눈에 파악할 수 있게 함(기존 공식 일정 배지는 그대로 유지, 개인 상태와 혼동되지 않도록 분리)
+
+### 복원 방법
+이 ID(HIST-20260721-003)만으로 복원 시:
+1. `frontend/src/lib/date.ts` 파일을 삭제한다.
+2. `frontend/src/app/user/exam-info/page.tsx`에서 `parseLocalDate`/`getExamDDayLabel`/`getExamDDayBadgeClass` import를 제거하고, "내 접수" 미니 섹션의 D-day 배지 JSX와 `parseLocalDate` 로컬 함수 정의를 원래대로 복원한다(HIST-20260721-002 시점 코드 참고).
+
+---
+
 ## HIST-20260721-002
 
 - **날짜**: 2026-07-21
