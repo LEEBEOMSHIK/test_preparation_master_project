@@ -1,5 +1,29 @@
 # 사용자 설정 화면 수정 이력
 
+## HIST-20260721-003
+
+- **날짜**: 2026-07-21
+- **수정 범위**: 사용자 프론트엔드 / 설정 페이지 (레이아웃)
+- **수정 개요**: 카드 3개(닉네임 수정 / Notion 연동 / 내 시험 접수 정보)를 "계정" / "연동" / "시험 관리" 3개 그룹으로 묶고 각 그룹 앞에 작은 섹션 라벨 추가(카드 내부 로직·JSX는 변경 없음, 순수 레이아웃 변경)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/settings/page.tsx` | 수정 | `UserSettingsContent()`의 `<h1>`/콜백 배너 아래에 `<div className="space-y-8">` 그룹 컨테이너를 추가하고, 각 `<section>`을 `<div className="space-y-3"><p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{라벨}</p><section>...</section></div>`로 감쌈(라벨: 계정/연동/시험 관리). `SettingsPageSkeleton()`도 동일한 3그룹 구조로 맞추고 각 그룹 라벨 자리에 `<Skeleton className="h-3 w-10" />`(시험 관리는 `w-14`) shimmer 추가, 바깥 컨테이너를 `space-y-6`→`space-y-8`(animate-pulse)로 조정 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/settings/page.tsx`
+- 변경 전: `<div className="max-w-2xl mx-auto p-6 space-y-6">` 안에 `<h1>` → 콜백 배너 → 닉네임 `<section>` → Notion `<section>` → 내 시험 접수 정보 `<section>`이 그룹 구분 없이 나란히 나열됨. `SettingsPageSkeleton()`도 동일하게 3개 카드 shimmer가 그룹 없이 나열됨
+- 변경 후: `<h1>`/콜백 배너는 그대로 두고 그 아래에 `<div className="space-y-8">`로 3개 그룹(계정/연동/시험 관리)을 감쌈. 각 그룹은 `<div className="space-y-3">` 안에 `text-xs font-semibold text-gray-400 uppercase tracking-wide` 톤의 라벨 `<p>` + 기존 `<section>`(내부 JSX·로직 변경 없음)으로 구성. `SettingsPageSkeleton()`도 동일하게 3그룹 구조에 라벨 자리 shimmer(`<Skeleton className="h-3 w-10/w-14" />`)를 추가하고 바깥 `space-y-6`→`space-y-8`로 조정. 이 파일은 기존에 `dark:` 클래스가 전혀 없는(라이트모드 전용) 컨벤션이라 새 라벨도 `dark:` 없이 기존 톤 그대로 추가(카드만 다크 미대응인 상태에서 라벨만 다크 대응 시 오히려 부자연스러움)
+- 이유: 카드 3개가 서로 다른 성격(계정 정보/외부 서비스 연동/시험 데이터 관리)임에도 시각적 구분 없이 나열되어 있어 그룹 라벨로 정보 위계를 명확히 함. 카드 내부 로직(닉네임 저장, Notion 연동 상태 조회/연결/해제, 시험 접수 정보 CRUD·D-day 배지·모달)은 전혀 건드리지 않은 순수 레이아웃 변경
+
+### 복원 방법
+이 ID(HIST-20260721-003)만으로 복원 시 `frontend/src/app/user/settings/page.tsx`에서 그룹 wrapper `<div className="space-y-8">`와 각 라벨 `<p>`, 그룹 wrapper `<div className="space-y-3">`를 제거하고 `<section>` 3개를 `<h1>`/콜백 배너 아래에 바로 나열하며 바깥 컨테이너를 `space-y-6`으로 되돌린다. `SettingsPageSkeleton()`도 그룹 wrapper·라벨 shimmer를 제거하고 바깥 컨테이너를 `space-y-6`으로 되돌려 HIST-20260721-002 시점 코드로 복원한다.
+
+---
+
 ## HIST-20260721-002
 
 - **날짜**: 2026-07-21
