@@ -52,6 +52,9 @@ export const examinationService = {
     examPaperId: number;
     categoryId: number;
     timeLimit: number;
+    examYear?: number | null;
+    examRound?: number | null;
+    isAiCustom?: boolean;
   }) =>
     apiClient.post<ApiResponse<Examination>>('/admin/examinations', data),
 
@@ -61,6 +64,9 @@ export const examinationService = {
     examPaperId: number;
     categoryId: number;
     timeLimit: number;
+    examYear?: number | null;
+    examRound?: number | null;
+    isAiCustom?: boolean;
   }) =>
     apiClient.put<ApiResponse<Examination>>(`/admin/examinations/${id}`, data),
 

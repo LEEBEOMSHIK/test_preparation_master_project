@@ -1,3 +1,26 @@
+## HIST-20260721-001
+
+- **날짜**: 2026-07-21
+- **수정 범위**: 사용자 프론트엔드 / 시험 목록 (`/user/exams`) — 년도·회차·AI 커스텀 필터 추가
+- **수정 개요**: 시험 목록 화면 필터 바에 연도·회차·AI 커스텀 여부 select 3개를 추가하고, 기존 `filteredExams` 조건에 해당 필터를 반영했다. 연도·회차 옵션은 추가 API 호출 없이 이미 로드된 `allExams` 배열에서 파생한다. 카드 목록에는 `isAiCustom`인 시험에 작은 "AI 커스텀" 배지를 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| frontend/src/app/user/exams/page.tsx | 수정 | filterYear/filterRound/filterAiCustom state, 파생 옵션, 필터 조건, select 3개, AI 커스텀 배지 추가 |
+| frontend/src/types/index.ts | 수정 | Examination 인터페이스에 examYear?/examRound?/isAiCustom 추가 (관리자 프론트 히스토리 HIST-20260721-001과 동일 파일) |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exams/page.tsx`
+- 변경 전: `searchTitle`/`filterCategory` 2개 필터만 존재, `filteredExams`는 title·category·관심유형 조건만 검사
+- 변경 후: `filterYear`(string, 기본 'ALL')/`filterRound`(string, 기본 'ALL')/`filterAiCustom`('ALL'|'ORIGINAL'|'AI_CUSTOM', 기본 'ALL') state 추가. `yearOptions`/`roundOptions`를 `allExams`에서 `Array.from(new Set(...))` 후 내림차순 정렬로 파생. `filteredExams` 콜백에 yearMatch/roundMatch/aiCustomMatch 조건 추가(examYear/examRound가 null인 레코드는 특정 값 선택 시 자연히 제외됨). 필터 바에 select 3개 추가, 각 변경 시 `resetPage()` 호출. "(필터 적용)" 표시 조건에 3개 필터도 포함. 카드 목록의 시험 제목 옆에 `exam.isAiCustom`이면 "AI 커스텀" 배지(indigo 톤, 기존 카드 스타일에 맞춤) 추가
+- 이유: 년도·회차·AI 커스텀 여부로 시험을 필터링할 수 있어야 한다는 요구사항. 신규 API 없이 기존 로드된 데이터에서 옵션을 파생해 비용 절감
+
+### 복원 방법
+이 ID(HIST-20260721-001)만으로 복원 시 `frontend/src/app/user/exams/page.tsx`에서 filterYear/filterRound/filterAiCustom state, yearOptions/roundOptions 파생, filteredExams의 yearMatch/roundMatch/aiCustomMatch 조건, 필터 바 select 3개, "(필터 적용)" 조건 확장분, AI 커스텀 배지를 제거한다.
+
 ## HIST-20260718-003
 
 - **날짜**: 2026-07-18

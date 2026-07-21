@@ -16,5 +16,11 @@ public record ExaminationCreateRequest(
         Long categoryId,
 
         @NotNull(message = "시험 시간을 선택해주세요.")
-        Integer timeLimit
+        Integer timeLimit,
+
+        Integer examYear,
+
+        Integer examRound,
+
+        Boolean isAiCustom
 ) {}

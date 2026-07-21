@@ -1,3 +1,39 @@
+## HIST-20260721-001
+
+- **날짜**: 2026-07-21
+- **수정 범위**: 관리자 프론트엔드 / 시험 관리 (시험 등록·수정) — 연도·회차·AI 커스텀 입력 필드 추가
+- **수정 개요**: 시험 등록(`new`)·수정(`edit`) 화면에 연도(숫자 input)·회차(1~4회 select)·"AI 커스텀 문항 시험" 체크박스를 추가하고, 제출 payload에 3필드를 포함시켰다. 수정 화면은 기존 값(백필된 값 포함)을 프리필한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| frontend/src/app/admin/exams/new/page.tsx | 수정 | examYear/examRound/isAiCustom state·폼 필드·제출 payload 추가 |
+| frontend/src/app/admin/exams/[id]/edit/page.tsx | 수정 | 동일 3필드 state·폼 필드·제출 payload 추가 + 기존 값 프리필 |
+| frontend/src/services/examinationService.ts | 수정 | adminCreateExamination/adminUpdateExamination payload 타입에 examYear/examRound/isAiCustom 추가 |
+| frontend/src/types/index.ts | 수정 | Examination 인터페이스에 examYear?/examRound?/isAiCustom 추가 |
+| frontend/src/data/tableComments.ts | 수정 | examinations 테이블 코멘트에 3개 컬럼 설명 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/new/page.tsx`
+- 변경 전: title/examPaperId/categoryId/timeLimit만 입력받아 제출
+- 변경 후: examYear(number|null, 숫자 input)/examRound(number|null, 1~4 select)/isAiCustom(boolean, 체크박스) state 추가, 시험 시간 select 아래에 연도·회차·AI 커스텀 폼 필드 추가, handleSubmit의 adminCreateExamination 호출에 3필드 포함
+- 이유: 신규 시험 등록 시 구조화된 년도·회차·AI 커스텀 값 입력
+
+#### `frontend/src/app/admin/exams/[id]/edit/page.tsx`
+- 변경 전: 동일하게 4필드만 처리, 프리필도 4필드만
+- 변경 후: 동일 3개 state·폼 필드 추가, useEffect에서 `exam.examYear ?? null`/`exam.examRound ?? null`/`exam.isAiCustom ?? false`로 프리필, handleSubmit의 adminUpdateExamination 호출에 3필드 포함
+- 이유: 기존(백필된) 값을 수정 화면에서 확인·변경 가능하도록
+
+#### `frontend/src/services/examinationService.ts`
+- 변경 전: adminCreateExamination/adminUpdateExamination data 타입이 title/examPaperId/categoryId/timeLimit만 포함
+- 변경 후: examYear?: number | null, examRound?: number | null, isAiCustom?: boolean 3개 옵셔널 필드 추가
+- 이유: 백엔드 ExaminationCreateRequest 확장에 맞춰 프론트 요청 타입 동기화
+
+### 복원 방법
+이 ID(HIST-20260721-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다.
+
 ## HIST-20260708-001
 
 - **날짜**: 2026-07-08

@@ -1,3 +1,26 @@
+## HIST-20260721-009
+
+- **날짜**: 2026-07-21
+- **수정 범위**: 사용자 백엔드 / 시험 목록 (Examination) — 년도·회차·AI 커스텀 필드 응답 노출
+- **수정 개요**: `examinations` 테이블에 추가된 `exam_year`/`exam_round`/`is_ai_custom` 컬럼을 `ExaminationResponse`에 포함시켜, `/user/examinations` 응답에도 자동으로 3개 필드가 내려가도록 했다(`UserExaminationService.getExaminations`는 `ExaminationResponse::from`을 그대로 재사용하므로 이 서비스 자체는 코드 변경 없음).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| docs/db-migration/20260722_01_examinations_add_year_round_ai_custom.sql | 추가 | examinations exam_year/exam_round/is_ai_custom 컬럼 추가 + 백필 (관리자 백엔드 히스토리 HIST-20260721-001과 동일 파일) |
+| backend/src/main/java/com/tpmp/testprep/dto/response/ExaminationResponse.java | 수정 | examYear/examRound/isAiCustom 필드 추가(사용자·관리자 공용 응답 DTO) |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/dto/response/ExaminationResponse.java`
+- 변경 전: examYear/examRound/isAiCustom 필드 없음
+- 변경 후: 3개 필드 추가, from()에서 매핑
+- 이유: `/user/exams` 화면 필터를 위해 사용자 API 응답에도 값이 필요. `UserExaminationService.getExaminations`가 `ExaminationResponse::from`을 그대로 쓰는지 확인한 결과 코드 변경 불필요함을 확인
+
+### 복원 방법
+이 ID(HIST-20260721-009)만으로 복원 시 `ExaminationResponse`에서 examYear/examRound/isAiCustom 필드와 from() 매핑 3줄을 제거한다.
+
 ## HIST-20260721-008
 
 - **날짜**: 2026-07-21

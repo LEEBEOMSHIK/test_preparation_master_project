@@ -204,6 +204,9 @@ title          VARCHAR(200) NOT NULL
 exam_paper_id  BIGINT       NOT NULL FK → exams.id (사용 시험지)
 category_id    BIGINT       NOT NULL FK → domain_slave.id (시험 유형)
 time_limit     INT          NOT NULL  — 제한 시간 (분)
+exam_year      INT          NULLABLE  — 시험 연도
+exam_round     INT          NULLABLE  — 시험 회차
+is_ai_custom   BOOLEAN      NOT NULL DEFAULT false  — AI 커스텀 문항 시험 여부
 created_by     BIGINT       NOT NULL FK → users.id
 created_at     TIMESTAMP    NOT NULL
 ```
@@ -299,6 +302,9 @@ updated_at        TIMESTAMP    NULLABLE
 |------|------|
 | `exam_paper_id` | FK → exams.id (사용 시험지) |
 | `category_id` | FK → domain_slave.id (시험 유형) |
+| `exam_year` | 시험 연도 — 레거시 데이터는 title 파싱 백필, NULL 가능 |
+| `exam_round` | 시험 회차 — 레거시 데이터는 title 파싱 백필, NULL 가능 |
+| `is_ai_custom` | AI 커스텀 문항 시험 여부 — 레거시 데이터는 title 파싱 백필 |
 | `created_by` | FK → users.id (생성자) |
 
 #### `user_exam_applications`

@@ -1,3 +1,45 @@
+## HIST-20260721-001
+
+- **날짜**: 2026-07-21
+- **수정 범위**: 관리자 백엔드 / 시험 관리 (Examination) — 년도·회차·AI 커스텀 구조화 컬럼 추가
+- **수정 개요**: `examinations` 테이블에 `exam_year`/`exam_round`/`is_ai_custom` 컬럼을 추가하고, 관리자 시험 등록/수정 API가 이 3개 필드를 받아 저장하도록 확장했다. 기존에는 이 정보가 title 문자열에만 암묵적으로 존재했으나, 사용자 화면 필터링을 위해 구조화된 컬럼으로 분리했다. 기존 데이터는 title 정규식 파싱으로 백필했다(로컬 tpmp-db 12건 전부 성공).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| docs/db-migration/20260722_01_examinations_add_year_round_ai_custom.sql | 추가 | exam_year/exam_round/is_ai_custom 컬럼 추가 + title 파싱 백필 마이그레이션 |
+| backend/src/main/java/com/tpmp/testprep/entity/Examination.java | 수정 | examYear/examRound/isAiCustom 필드·builder·update() 파라미터 추가 |
+| backend/src/main/java/com/tpmp/testprep/dto/request/ExaminationCreateRequest.java | 수정 | examYear/examRound/isAiCustom 필드 추가(등록·수정 공용 요청 DTO) |
+| backend/src/main/java/com/tpmp/testprep/dto/response/ExaminationResponse.java | 수정 | examYear/examRound/isAiCustom 필드 추가, from() 매핑 |
+| backend/src/main/java/com/tpmp/testprep/service/ExaminationService.java | 수정 | createExamination/updateExamination이 3개 필드를 builder/update()에 전달 |
+| docs/db-guidelines.md | 수정 | §8 examinations ERD 블록, §9.2 컬럼 코멘트 표에 3개 컬럼 추가 |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/entity/Examination.java`
+- 변경 전: `timeLimit`까지만 있는 4개 파라미터 builder/update()
+- 변경 후: `examYear`(Integer, nullable), `examRound`(Integer, nullable), `isAiCustom`(boolean, 컬럼 `is_ai_custom` NOT NULL DEFAULT false) 필드 추가, builder 7개 파라미터, `update(title, examPaper, category, timeLimit, examYear, examRound, isAiCustom)`로 확장
+- 이유: 사용자 화면 년도·회차·AI 커스텀 필터를 위해 구조화된 컬럼 필요. `.update(` 호출부는 `ExaminationService` 한 곳뿐임을 grep으로 확인 후 그 한 곳만 시그니처 맞춰 수정
+
+#### `backend/src/main/java/com/tpmp/testprep/dto/request/ExaminationCreateRequest.java`
+- 변경 전: title/examPaperId/categoryId/timeLimit 4개 필드
+- 변경 후: examYear(Integer, nullable), examRound(Integer, nullable), isAiCustom(Boolean, null이면 false 취급) 3개 필드 추가
+- 이유: 관리자 등록/수정 화면에서 새 필드를 전달하기 위함
+
+#### `backend/src/main/java/com/tpmp/testprep/dto/response/ExaminationResponse.java`
+- 변경 전: id/title/examPaperId/examPaperTitle/categoryId/categoryName/timeLimit/createdAt
+- 변경 후: examYear/examRound/isAiCustom 3개 필드 추가, from()에서 e.getExamYear()/e.getExamRound()/e.isAiCustom() 매핑
+- 이유: 사용자·관리자 화면 모두 이 응답을 그대로 쓰므로(`UserExaminationService.getExaminations`도 `ExaminationResponse::from` 그대로 사용, 코드 변경 없음 확인) 필드 확장만으로 양쪽에 전파됨
+
+#### `backend/src/main/java/com/tpmp/testprep/service/ExaminationService.java`
+- 변경 전: createExamination/updateExamination이 title/examPaperId/categoryId/timeLimit만 처리
+- 변경 후: builder에 examYear(request.examYear())/examRound(request.examRound())/isAiCustom(Boolean.TRUE.equals(request.isAiCustom())) 추가, update() 호출에 동일 3개 인자 추가
+- 이유: 등록·수정 시 신규 필드 저장
+
+### 복원 방법
+이 ID(HIST-20260721-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다. DB 마이그레이션은 파일 하단 ROLLBACK 절(`ALTER TABLE examinations DROP COLUMN exam_year, DROP COLUMN exam_round, DROP COLUMN is_ai_custom;`)로 되돌린다.
+
 ## HIST-20260419-016
 
 - **날짜**: 2026-04-19

@@ -38,6 +38,18 @@ public class Examination {
     @Column(name = "time_limit", nullable = false)
     private Integer timeLimit;
 
+    /** 시험 연도 — 레거시 데이터는 title 파싱 백필, 패턴 불일치 시 NULL 가능 */
+    @Column(name = "exam_year")
+    private Integer examYear;
+
+    /** 시험 회차 — 레거시 데이터는 title 파싱 백필, 패턴 불일치 시 NULL 가능 */
+    @Column(name = "exam_round")
+    private Integer examRound;
+
+    /** AI 커스텀 문항 구성 시험 여부 */
+    @Column(name = "is_ai_custom", nullable = false)
+    private boolean isAiCustom;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
@@ -52,18 +64,26 @@ public class Examination {
 
     @Builder
     public Examination(String title, Exam examPaper, DomainSlave category,
-                       Integer timeLimit, User createdBy) {
+                       Integer timeLimit, Integer examYear, Integer examRound,
+                       boolean isAiCustom, User createdBy) {
         this.title = title;
         this.examPaper = examPaper;
         this.category = category;
         this.timeLimit = timeLimit;
+        this.examYear = examYear;
+        this.examRound = examRound;
+        this.isAiCustom = isAiCustom;
         this.createdBy = createdBy;
     }
 
-    public void update(String title, Exam examPaper, DomainSlave category, Integer timeLimit) {
+    public void update(String title, Exam examPaper, DomainSlave category, Integer timeLimit,
+                        Integer examYear, Integer examRound, boolean isAiCustom) {
         this.title = title;
         this.examPaper = examPaper;
         this.category = category;
         this.timeLimit = timeLimit;
+        this.examYear = examYear;
+        this.examRound = examRound;
+        this.isAiCustom = isAiCustom;
     }
 }

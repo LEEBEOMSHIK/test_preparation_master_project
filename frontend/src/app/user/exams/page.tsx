@@ -26,6 +26,9 @@ export default function UserExamsPage() {
 
   const [searchTitle, setSearchTitle] = useState('');
   const [filterCategory, setFilterCategory] = useState('ALL');
+  const [filterYear, setFilterYear] = useState('ALL');
+  const [filterRound, setFilterRound] = useState('ALL');
+  const [filterAiCustom, setFilterAiCustom] = useState<'ALL' | 'ORIGINAL' | 'AI_CUSTOM'>('ALL');
   const [showAllExams, setShowAllExams] = useState(false);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<PageSize>(20);
@@ -68,11 +71,24 @@ export default function UserExamsPage() {
     ? examTypes.filter(t => interestedNames.includes(t.name))
     : examTypes;
 
+  const yearOptions = Array.from(
+    new Set(allExams.map(e => e.examYear).filter((y): y is number => y != null))
+  ).sort((a, b) => b - a);
+  const roundOptions = Array.from(
+    new Set(allExams.map(e => e.examRound).filter((r): r is number => r != null))
+  ).sort((a, b) => b - a);
+
   const filteredExams = allExams.filter(exam => {
     const titleMatch = !searchTitle.trim() || exam.title.toLowerCase().includes(searchTitle.toLowerCase());
     const categoryMatch = filterCategory === 'ALL' || exam.categoryName === filterCategory;
     const interestedMatch = showAllExams || !hasInterests || interestedNames.includes(exam.categoryName);
-    return titleMatch && categoryMatch && interestedMatch;
+    const yearMatch = filterYear === 'ALL' || exam.examYear === Number(filterYear);
+    const roundMatch = filterRound === 'ALL' || exam.examRound === Number(filterRound);
+    const aiCustomMatch =
+      filterAiCustom === 'ALL' ||
+      (filterAiCustom === 'AI_CUSTOM' && exam.isAiCustom) ||
+      (filterAiCustom === 'ORIGINAL' && !exam.isAiCustom);
+    return titleMatch && categoryMatch && interestedMatch && yearMatch && roundMatch && aiCustomMatch;
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredExams.length / pageSize));
@@ -190,6 +206,31 @@ export default function UserExamsPage() {
           <option value="ALL">전체 유형</option>
           {comboOptions.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
         </select>
+        <select
+          value={filterYear}
+          onChange={e => { setFilterYear(e.target.value); resetPage(); }}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+        >
+          <option value="ALL">전체 연도</option>
+          {yearOptions.map(y => <option key={y} value={y}>{y}년</option>)}
+        </select>
+        <select
+          value={filterRound}
+          onChange={e => { setFilterRound(e.target.value); resetPage(); }}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+        >
+          <option value="ALL">전체 회차</option>
+          {roundOptions.map(r => <option key={r} value={r}>{r}회</option>)}
+        </select>
+        <select
+          value={filterAiCustom}
+          onChange={e => { setFilterAiCustom(e.target.value as 'ALL' | 'ORIGINAL' | 'AI_CUSTOM'); resetPage(); }}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+        >
+          <option value="ALL">전체</option>
+          <option value="ORIGINAL">기출</option>
+          <option value="AI_CUSTOM">AI 커스텀</option>
+        </select>
       </div>
 
       {loading ? (
@@ -203,7 +244,7 @@ export default function UserExamsPage() {
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">
               총 <span className="font-semibold text-gray-900">{filteredExams.length}</span>건
-              {(searchTitle || filterCategory !== 'ALL' || (!showAllExams && hasInterests)) && (
+              {(searchTitle || filterCategory !== 'ALL' || filterYear !== 'ALL' || filterRound !== 'ALL' || filterAiCustom !== 'ALL' || (!showAllExams && hasInterests)) && (
                 <span className="ml-1 text-indigo-500 text-xs">(필터 적용)</span>
               )}
             </p>
@@ -226,8 +267,13 @@ export default function UserExamsPage() {
               <button key={exam.id} onClick={() => setSelectedExam(exam)}
                 className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between hover:border-indigo-400 hover:shadow-md transition group text-left w-full">
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 group-hover:text-indigo-700 transition truncate">
-                    {exam.title}
+                  <p className="font-medium text-gray-900 group-hover:text-indigo-700 transition truncate flex items-center gap-1.5">
+                    <span className="truncate">{exam.title}</span>
+                    {exam.isAiCustom && (
+                      <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200">
+                        AI 커스텀
+                      </span>
+                    )}
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {exam.examPaperTitle}

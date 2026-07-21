@@ -12,6 +12,9 @@ public record ExaminationResponse(
         Long categoryId,
         String categoryName,
         Integer timeLimit,
+        Integer examYear,
+        Integer examRound,
+        boolean isAiCustom,
         LocalDateTime createdAt
 ) {
     public static ExaminationResponse from(Examination e) {
@@ -23,6 +26,9 @@ public record ExaminationResponse(
                 e.getCategory().getId(),
                 e.getCategory().getName(),
                 e.getTimeLimit(),
+                e.getExamYear(),
+                e.getExamRound(),
+                e.isAiCustom(),
                 e.getCreatedAt()
         );
     }

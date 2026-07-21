@@ -277,6 +277,9 @@ export interface Examination {
   categoryId: number;
   categoryName: string;
   timeLimit: number;
+  examYear?: number;
+  examRound?: number;
+  isAiCustom: boolean;
   createdAt: string;
 }
 

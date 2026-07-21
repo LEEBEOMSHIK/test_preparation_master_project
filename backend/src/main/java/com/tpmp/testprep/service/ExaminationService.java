@@ -51,6 +51,9 @@ public class ExaminationService {
                 .examPaper(paper)
                 .category(category)
                 .timeLimit(request.timeLimit())
+                .examYear(request.examYear())
+                .examRound(request.examRound())
+                .isAiCustom(Boolean.TRUE.equals(request.isAiCustom()))
                 .createdBy(admin)
                 .build();
         return ExaminationResponse.from(examinationRepository.save(examination));
@@ -64,7 +67,8 @@ public class ExaminationService {
         DomainSlave category = domainSlaveRepository.findById(request.categoryId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
 
-        examination.update(request.title(), paper, category, request.timeLimit());
+        examination.update(request.title(), paper, category, request.timeLimit(),
+                request.examYear(), request.examRound(), Boolean.TRUE.equals(request.isAiCustom()));
         return ExaminationResponse.from(examination);
     }
 

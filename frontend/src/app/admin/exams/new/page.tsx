@@ -24,6 +24,9 @@ export default function AdminExamNewPage() {
   const [examPaperId, setExamPaperId]   = useState<number | null>(null);
   const [categoryId, setCategoryId]     = useState<number | null>(null);
   const [timeLimit, setTimeLimit]       = useState<number | null>(null);
+  const [examYear, setExamYear]         = useState<number | null>(null);
+  const [examRound, setExamRound]       = useState<number | null>(null);
+  const [isAiCustom, setIsAiCustom]     = useState(false);
 
   const [papers, setPapers]             = useState<ExamSummary[]>([]);
   const [examCategories, setExamCategories] = useState<DomainSlave[]>([]);
@@ -61,6 +64,9 @@ export default function AdminExamNewPage() {
         examPaperId,
         categoryId,
         timeLimit,
+        examYear,
+        examRound,
+        isAiCustom,
       });
       router.push('/admin/exams');
     } catch {
@@ -161,6 +167,44 @@ export default function AdminExamNewPage() {
               ))}
             </select>
           </div>
+
+          {/* 연도 / 회차 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">연도</label>
+              <input
+                type="number"
+                value={examYear ?? ''}
+                onChange={(e) => setExamYear(e.target.value === '' ? null : Number(e.target.value))}
+                placeholder="예: 2026"
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">회차</label>
+              <select
+                value={examRound ?? ''}
+                onChange={(e) => setExamRound(e.target.value === '' ? null : Number(e.target.value))}
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              >
+                <option value="">회차 선택</option>
+                {[1, 2, 3, 4].map((r) => (
+                  <option key={r} value={r}>{r}회</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* AI 커스텀 여부 */}
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isAiCustom}
+              onChange={(e) => setIsAiCustom(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            AI 커스텀 문항 시험
+          </label>
 
           {error && (
             <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
