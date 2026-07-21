@@ -56,6 +56,23 @@ export interface ExamInfo {
   updatedAt: string;
 }
 
+// ──────────────────────────────────────────
+// UserExamApplication (내 시험 접수 정보)
+// ──────────────────────────────────────────
+
+export interface UserExamApplication {
+  id: number;
+  examInfoId?: number;
+  examInfoTitle?: string;
+  examType?: string;
+  examName: string;
+  applicationDate?: string;
+  examDate?: string;
+  memo?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AuthTokens {
   accessToken: string;
 }

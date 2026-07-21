@@ -1,3 +1,83 @@
+## HIST-20260721-002
+
+- **날짜**: 2026-07-21
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보 (접수 정보 등록 모달)
+- **수정 개요**: `ExamApplicationFormModal`의 `validate()`에 날짜 검증 2가지 추가 — 접수일이 시험일보다 늦으면 거부, 연도가 `[2000, 현재연도+10]` 범위를 벗어나면 거부(UX용 조기 피드백, 최종 방어선은 백엔드)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/ExamApplicationFormModal.tsx` | 수정 | `validate()`에 연도 범위 체크(각 날짜의 앞 4자리를 `Number`로 파싱, `2000` ~ `new Date().getFullYear() + 10`)와 순서 체크(`applicationDate > examDate` 문자열 비교, `YYYY-MM-DD` ISO 형식이라 사전순 비교가 곧 날짜 비교와 동일) 추가 |
+
+### 수정 상세
+
+#### `ExamApplicationFormModal.tsx`
+- 변경 전:
+  ```ts
+  const validate = (): string | null => {
+    if (!examName.trim()) return '시험명을 입력해 주세요.';
+    if (!applicationDate && !examDate) return '접수일 또는 시험일 중 하나는 입력해야 합니다.';
+    return null;
+  };
+  ```
+- 변경 후:
+  ```ts
+  const validate = (): string | null => {
+    if (!examName.trim()) return '시험명을 입력해 주세요.';
+    if (!applicationDate && !examDate) return '접수일 또는 시험일 중 하나는 입력해야 합니다.';
+
+    const minYear = 2000;
+    const maxYear = new Date().getFullYear() + 10;
+    for (const dateStr of [applicationDate, examDate]) {
+      if (!dateStr) continue;
+      const year = Number(dateStr.slice(0, 4));
+      if (!Number.isFinite(year) || year < minYear || year > maxYear) {
+        return `날짜는 ${minYear}년부터 ${maxYear}년 사이여야 합니다.`;
+      }
+    }
+
+    if (applicationDate && examDate && applicationDate > examDate) {
+      return '접수일은 시험일보다 늦을 수 없습니다.';
+    }
+
+    return null;
+  };
+  ```
+- 이유: 저장 버튼 클릭 시 API 왕복 없이 즉시 오류를 안내하기 위한 UX 조기 피드백. 최종 검증은 백엔드 `UserExamApplicationService.validateDates()`(`HIST-20260721-002`, `docs/history/back/usr/UserExamApplication_Modified.md`)가 담당하며, 두 곳의 연도 상한 계산 로직(`현재연도+10`)은 각자의 언어(`new Date().getFullYear()` / `LocalDate.now().getYear()`)로 동적 계산해 하드코딩을 피함.
+
+### 복원 방법
+이 ID(HIST-20260721-002)만으로 복원 시 `ExamApplicationFormModal.tsx`의 `validate()`를 위 "변경 전" 상태로 되돌린다.
+
+---
+
+## HIST-20260721-001
+
+- **날짜**: 2026-07-21
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보 (신규)
+- **수정 개요**: "내 시험 접수 정보" 기능 추가 — 시험 정보 카드마다 내가 입력한 접수일·시험일을 표시하고 등록/수정/삭제할 수 있는 미니 섹션 + 헤더 "+ 직접 등록" 버튼 + exam_info와 연결되지 않은 자유 입력 기록을 위한 "직접 등록한 시험" 섹션 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | `examApplicationService.getMine()`을 기존 `examInfoService.getMyExamInfo()`와 `Promise.all`로 병행 로딩(기존 `ExamInfoCardSkeleton` 재사용), examInfoId 기준 그룹핑(`applicationsByExamInfoId`), 각 카드 하단 미니 섹션(매칭 기록 있으면 접수일/시험일+수정/삭제 아이콘, 없으면 "+ 접수 정보 입력"), 헤더에 "+ 직접 등록" 버튼(prefill=null), 자유 입력 기록용 "직접 등록한 시험" 섹션, `ExamApplicationFormModal` 렌더 |
+| `frontend/src/services/examApplicationService.ts` | 추가 | `getMine`/`create`/`update`/`remove` axios 함수 (신규 파일, 상세는 `UserExamApplication_Modified.md` 백엔드 히스토리 및 `UserSettings_Modified.md` 참고) |
+| `frontend/src/components/ui/ExamApplicationFormModal.tsx` | 추가 | 접수 정보 등록/수정 공용 모달 (신규 파일, 상세는 `UserSettings_Modified.md` 참고) |
+| `frontend/src/types/index.ts` | 수정 | `UserExamApplication` 인터페이스 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exam-info/page.tsx`
+- 변경 전: `examInfoService.getMyExamInfo()` 단일 호출로 `items`만 로딩, 카드에 시험 정보만 표시
+- 변경 후: `Promise.all([examInfoService.getMyExamInfo(), examApplicationService.getMine()])`로 `items`+`applications` 병행 로딩(로딩 상태는 기존 `loading` 하나로 통합, finally에서 해제). `useMemo`로 `applicationsByExamInfoId`(Map<examInfoId, UserExamApplication[]>) 계산, `freeApplications`(examInfoId 없는 기록) 파생. 카드 그리드(`applicationPeriod`/`examSchedule`/`resultDate`) 아래에 `border-t` 구분선 + 미니 섹션 추가 — 매칭 기록이 있으면 각 기록을 `접수일 .../시험일 .../· 메모` 텍스트 + 수정(연필)/삭제(휴지통) 아이콘 버튼으로 나열하고 "+ 접수 정보 추가" 링크를, 없으면 "+ 접수 정보 입력" 링크만 표시. 헤더 우측에 "+ 직접 등록" 버튼(관심 설정 버튼 왼쪽) 추가 — `openAddApplication()`(item 인자 없이 호출 시 prefill=null). 목록 하단에 `freeApplications.length > 0`일 때 "직접 등록한 시험" 섹션을 카드 리스트로 렌더. 삭제는 `window.confirm()` 후 `examApplicationService.remove(id)` 호출.
+- 이유: Q-net 공개 API가 개인별 접수 이력을 제공하지 않아 사용자가 직접 입력한 접수일·시험일을 시험 정보 화면에서 바로 확인·관리할 수 있도록 함.
+
+### 복원 방법
+이 ID(HIST-20260721-001)만으로 복원 시 `frontend/src/app/user/exam-info/page.tsx`에서 접수 정보 관련 import·state·핸들러·미니 섹션·"직접 등록한 시험" 섹션·모달 렌더를 모두 제거하고 변경 전 상태(단일 `getMyExamInfo()` 호출)로 되돌린다.
+
+---
+
 ## HIST-20260624-005
 
 - **날짜**: 2026-06-24

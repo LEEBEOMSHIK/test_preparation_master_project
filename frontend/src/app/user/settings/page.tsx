@@ -2,11 +2,15 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { notionService, type NotionStatus } from '@/services/notionService';
 import { userProfileService } from '@/services/userProfileService';
 import { authService } from '@/services/authService';
+import { examApplicationService } from '@/services/examApplicationService';
 import { useAuthStore } from '@/store/authStore';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { Skeleton, CardListSkeleton } from '@/components/ui/Skeleton';
+import { ExamApplicationFormModal } from '@/components/ui/ExamApplicationFormModal';
+import type { UserExamApplication } from '@/types';
 
 // ── Suspense fallback ─────────────────────────────────────────────────────────
 function SettingsPageSkeleton() {
@@ -37,6 +41,16 @@ function SettingsPageSkeleton() {
           <Skeleton className="h-9 w-28 rounded-lg" />
         </div>
       </div>
+      {/* 내 시험 접수 정보 섹션 shimmer */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-4 w-56" />
+        </div>
+        <div className="pt-4 border-t border-gray-100">
+          <CardListSkeleton rows={2} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -60,6 +74,12 @@ function UserSettingsContent() {
   const [notion, setNotion] = useState<NotionStatus | null>(null);
   const [notionLoading, setNotionLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+
+  // ── 내 시험 접수 정보 상태 ────────────────────────────────────────────────
+  const [applications, setApplications] = useState<UserExamApplication[]>([]);
+  const [applicationsLoading, setApplicationsLoading] = useState(true);
+  const [appModalOpen, setAppModalOpen] = useState(false);
+  const [appModalEditing, setAppModalEditing] = useState<UserExamApplication | null>(null);
 
   // 닉네임 초기값: store → 없으면 me() 호출
   useEffect(() => {
@@ -85,6 +105,31 @@ function UserSettingsContent() {
       .catch(() => setNotion(null))
       .finally(() => setNotionLoading(false));
   }, []);
+
+  useEffect(() => {
+    examApplicationService.getMine()
+      .then(res => setApplications(res.data.data ?? []))
+      .catch(() => setApplications([]))
+      .finally(() => setApplicationsLoading(false));
+  }, []);
+
+  const openEditApplication = (app: UserExamApplication) => {
+    setAppModalEditing(app);
+    setAppModalOpen(true);
+  };
+
+  const handleApplicationSaved = (saved: UserExamApplication) => {
+    setApplications(prev => {
+      const exists = prev.some(a => a.id === saved.id);
+      return exists ? prev.map(a => (a.id === saved.id ? saved : a)) : [...prev, saved];
+    });
+  };
+
+  const handleDeleteApplication = async (id: number) => {
+    if (!window.confirm('이 접수 정보를 삭제하시겠습니까?')) return;
+    await examApplicationService.remove(id);
+    setApplications(prev => prev.filter(a => a.id !== id));
+  };
 
   async function handleSaveNickname() {
     const trimmed = nicknameValue.trim();
@@ -259,6 +304,74 @@ function UserSettingsContent() {
           )}
         </div>
       </section>
+
+      {/* 내 시험 접수 정보 카드 */}
+      <section className="bg-white border border-gray-200 rounded-xl p-5">
+        <div>
+          <h2 className="font-semibold text-gray-800">내 시험 접수 정보</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            직접 입력한 접수일·시험일을 여기서도 확인·수정할 수 있습니다.
+          </p>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          {applicationsLoading ? (
+            <CardListSkeleton rows={3} />
+          ) : applications.length === 0 ? (
+            <p className="text-sm text-gray-400">
+              등록된 접수 정보가 없습니다.{' '}
+              <Link href="/user/exam-info" className="text-indigo-500 hover:underline">
+                시험 정보에서 등록하기
+              </Link>
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {applications.map(app => (
+                <div key={app.id} className="flex items-center justify-between gap-3 bg-gray-50 rounded-lg px-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate flex items-center gap-1.5">
+                      {app.examType && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-100 text-indigo-700 shrink-0">
+                          {app.examType}
+                        </span>
+                      )}
+                      <span className="truncate">{app.examName}</span>
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {app.applicationDate && <>접수일 {app.applicationDate}</>}
+                      {app.applicationDate && app.examDate && ' · '}
+                      {app.examDate && <>시험일 {app.examDate}</>}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button type="button" onClick={() => openEditApplication(app)} aria-label="접수 정보 수정"
+                      className="text-gray-400 hover:text-indigo-600">
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                      </svg>
+                    </button>
+                    <button type="button" onClick={() => handleDeleteApplication(app.id)} aria-label="접수 정보 삭제"
+                      className="text-gray-400 hover:text-red-500">
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                        <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {appModalOpen && appModalEditing && (
+        <ExamApplicationFormModal
+          open={appModalOpen}
+          onClose={() => setAppModalOpen(false)}
+          onSaved={handleApplicationSaved}
+          editing={appModalEditing}
+        />
+      )}
     </div>
   );
 }

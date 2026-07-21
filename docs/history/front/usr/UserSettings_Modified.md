@@ -1,5 +1,32 @@
 # 사용자 설정 화면 수정 이력
 
+## HIST-20260721-001
+
+- **날짜**: 2026-07-21
+- **수정 범위**: 사용자 프론트엔드 / 설정 페이지 (신규)
+- **수정 개요**: "내 시험 접수 정보" 카드 섹션 추가 — Notion 연동 카드 아래에 내가 등록한 접수일·시험일 목록을 표시하고 수정/삭제할 수 있는 섹션 신설 (신규 등록은 `/user/exam-info`로 안내, 여기서는 수정/삭제만 지원)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/settings/page.tsx` | 수정 | `applications`/`applicationsLoading` state 추가, `examApplicationService.getMine()` useEffect 로딩, Notion 카드 아래 "내 시험 접수 정보" `<section>` 추가(로딩 시 `CardListSkeleton rows={3}`, 빈 목록 시 `/user/exam-info` 링크 안내, 목록은 시험명+examType 배지+접수일~시험일+수정/삭제 아이콘), `SettingsPageSkeleton`에 동일 shimmer 블록 1개 추가, 수정 클릭 시 `ExamApplicationFormModal`을 `editing`으로 오픈 |
+| `frontend/src/components/ui/ExamApplicationFormModal.tsx` | 추가 | 접수 정보 등록/수정 공용 모달(`open, onClose, onSaved, editing?, prefill?`) — 시험명(필수)/접수일/시험일/메모(선택) 입력, 클라이언트 검증(시험명 필수, 접수일·시험일 중 최소 1개), 저장 성공 시 `onSaved` 콜백·실패 시 인라인 에러(axios 응답 `message` 우선 추출). `CLAUDE.md` Shared Utilities 표에 등록 완료 |
+| `frontend/src/services/examApplicationService.ts` | 추가 | `getMine`/`create`/`update`/`remove` axios 함수 (백엔드 `/api/user/exam-applications` CRUD, `UserExamApplication_Modified.md` 백엔드 히스토리 참고) |
+| `frontend/src/types/index.ts` | 수정 | `UserExamApplication` 인터페이스 추가 (`id, examInfoId?, examInfoTitle?, examType?, examName, applicationDate?, examDate?, memo?, createdAt, updatedAt`) |
+
+### 수정 상세
+
+#### `frontend/src/app/user/settings/page.tsx`
+- 변경 전: 닉네임 수정 카드 + Notion 연동 카드 2개 섹션만 존재
+- 변경 후: Notion 카드 아래 "내 시험 접수 정보" `<section className="bg-white border border-gray-200 rounded-xl p-5">` 추가. `useEffect`로 `examApplicationService.getMine()` 호출(`applicationsLoading` true→false, 실패 시 빈 배열 폴백). 로딩 중 `CardListSkeleton rows={3}`, `applications.length === 0`이면 "등록된 접수 정보가 없습니다. [시험 정보에서 등록하기](/user/exam-info)" 안내, 있으면 각 항목을 `examType` 배지+`examName`+접수일~시험일 텍스트+연필(수정)/휴지통(삭제) 아이콘 버튼으로 렌더. `openEditApplication`이 `appModalEditing` 세팅 후 모달 오픈(이 화면에서는 신규 등록 버튼 없음 — 신규는 `/user/exam-info`의 "+ 직접 등록"/카드별 "+ 접수 정보 입력"에서 처리). 삭제는 `window.confirm()` 후 `examApplicationService.remove(id)`. `SettingsPageSkeleton`(Suspense fallback)에도 동일 shimmer 블록(`Skeleton` 제목/설명 + `CardListSkeleton rows={2}`) 추가.
+- 이유: 설정 화면에서도 접수 일정을 빠르게 확인·수정할 수 있도록 하되, 신규 등록 진입점은 시험 정보 화면 하나로 유지해 중복 UX를 피함.
+
+### 복원 방법
+이 ID(HIST-20260721-001)만으로 복원 시 `frontend/src/app/user/settings/page.tsx`에서 "내 시험 접수 정보" `<section>`, 관련 state(`applications`, `applicationsLoading`, `appModalOpen`, `appModalEditing`)·핸들러(`openEditApplication`, `handleApplicationSaved`, `handleDeleteApplication`)·useEffect·모달 렌더·`SettingsPageSkeleton`의 추가 shimmer 블록을 모두 제거하고 import(`Link`, `examApplicationService`, `CardListSkeleton`, `ExamApplicationFormModal`, `UserExamApplication`)도 되돌린다.
+
+---
+
 ## HIST-20260621-001
 
 - **날짜**: 2026-06-21

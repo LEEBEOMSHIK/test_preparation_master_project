@@ -129,6 +129,7 @@ repository.findAllByDelYn("N", pageable);
 | `examinations` | 시험 이벤트 | 미적용 | title, exam_paper_id FK → exams, category_id FK → domain_slave, time_limit, created_by FK, created_at |
 | `concept_notes` | 개념 노트 | 미적용 (레거시) | |
 | `inquiries` | 문의 | 미적용 (레거시) | |
+| `user_exam_applications` | 사용자 직접 입력 시험 접수 정보 | 미적용 (신규, created_at/updated_at만 자체 관리) | user_id FK → users(CASCADE), exam_info_id nullable FK → exam_info(SET NULL), exam_name 스냅샷 |
 
 ### 적용 기준
 
@@ -207,6 +208,22 @@ created_by     BIGINT       NOT NULL FK → users.id
 created_at     TIMESTAMP    NOT NULL
 ```
 
+### user_exam_applications
+
+```
+user_exam_applications
+──────────────────────────────────────────────────────────
+id                BIGINT       PK, AUTO_INCREMENT
+user_id           BIGINT       NOT NULL FK → users.id (ON DELETE CASCADE)
+exam_info_id      BIGINT       NULLABLE FK → exam_info.id (ON DELETE SET NULL)
+exam_name         VARCHAR(200) NOT NULL  — 저장 시점 시험명 스냅샷
+application_date  DATE         NULLABLE  — 접수일(신청일)
+exam_date         DATE         NULLABLE  — 시험일
+memo              VARCHAR(300) NULLABLE
+created_at        TIMESTAMP    NOT NULL  DEFAULT now()
+updated_at        TIMESTAMP    NULLABLE
+```
+
 ---
 
 ## 9. 테이블·컬럼 코멘트 관리
@@ -231,6 +248,7 @@ created_at     TIMESTAMP    NOT NULL
 | `quotes` | 명언 |
 | `concept_notes` | 개념 노트 |
 | `inquiries` | 문의 |
+| `user_exam_applications` | 사용자 직접 입력 시험 접수 정보 |
 
 ### 9.2 주요 컬럼 코멘트 (FK 포함)
 
@@ -282,6 +300,13 @@ created_at     TIMESTAMP    NOT NULL
 | `exam_paper_id` | FK → exams.id (사용 시험지) |
 | `category_id` | FK → domain_slave.id (시험 유형) |
 | `created_by` | FK → users.id (생성자) |
+
+#### `user_exam_applications`
+| 컬럼 | 설명 |
+|------|------|
+| `user_id` | FK → users.id (접수 정보 소유자, ON DELETE CASCADE) |
+| `exam_info_id` | nullable FK → exam_info.id (연결된 시험 정보, ON DELETE SET NULL) |
+| `exam_name` | 시험명 스냅샷 (저장 시점 exam_info.title 또는 자유 입력값) |
 
 ### 9.3 코멘트 추가 방법
 

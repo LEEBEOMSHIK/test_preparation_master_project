@@ -182,6 +182,25 @@ export const TABLE_COMMENTS: TableComment[] = [
       id: 'PK',
     },
   },
+  {
+    table: 'user_exam_applications',
+    tableComment: '사용자 직접 입력 시험 접수 정보',
+    columns: {
+      id: 'PK',
+      user_id: 'FK → users.id (접수 정보 소유자, ON DELETE CASCADE)',
+      exam_info_id: 'FK → exam_info.id (연결된 시험 정보, nullable, ON DELETE SET NULL)',
+      exam_name: '시험명 스냅샷 (저장 시점 exam_info.title 또는 자유 입력값)',
+      application_date: '접수일(신청일), nullable',
+      exam_date: '시험일, nullable',
+      memo: '사용자 메모, nullable',
+      created_at: '생성 일시',
+      updated_at: '수정 일시, nullable',
+    },
+    fkRelations: [
+      { column: 'user_id', foreignTable: 'users', foreignColumn: 'id', displayColumn: 'name' },
+      { column: 'exam_info_id', foreignTable: 'exam_info', foreignColumn: 'id', displayColumn: 'title' },
+    ],
+  },
 ];
 
 export function getTableMeta(tableName: string): TableComment | undefined {

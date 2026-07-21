@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { examInfoService } from '@/services/examInfoService';
 import type { ExamTypeOption } from '@/services/examInfoService';
+import { examApplicationService } from '@/services/examApplicationService';
+import { ExamApplicationFormModal } from '@/components/ui/ExamApplicationFormModal';
+import type { ExamApplicationPrefill } from '@/components/ui/ExamApplicationFormModal';
 import { ExamInfoCardSkeleton, ExamTypeGridSkeleton } from '@/components/ui/Skeleton';
-import type { ExamInfo } from '@/types';
+import type { ExamInfo, UserExamApplication } from '@/types';
 
 const PALETTE = [
   'bg-blue-100 text-blue-700',
@@ -72,14 +75,61 @@ export default function UserExamInfoPage() {
   const [pendingInterests, setPendingInterests] = useState<Set<number>>(new Set());
   const [savingInterests, setSavingInterests] = useState(false);
 
+  // 내 시험 접수 정보
+  const [applications, setApplications] = useState<UserExamApplication[]>([]);
+  const [appModalOpen, setAppModalOpen] = useState(false);
+  const [appModalEditing, setAppModalEditing] = useState<UserExamApplication | null>(null);
+  const [appModalPrefill, setAppModalPrefill] = useState<ExamApplicationPrefill | null>(null);
+
   const userInterests = user?.interestedExamTypes ?? [];
 
   useEffect(() => {
-    examInfoService.getMyExamInfo()
-      .then(res => setItems(res.data.data ?? []))
+    Promise.all([examInfoService.getMyExamInfo(), examApplicationService.getMine()])
+      .then(([infoRes, appRes]) => {
+        setItems(infoRes.data.data ?? []);
+        setApplications(appRes.data.data ?? []);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const applicationsByExamInfoId = useMemo(() => {
+    const map = new Map<number, UserExamApplication[]>();
+    for (const app of applications) {
+      if (app.examInfoId == null) continue;
+      const list = map.get(app.examInfoId) ?? [];
+      list.push(app);
+      map.set(app.examInfoId, list);
+    }
+    return map;
+  }, [applications]);
+
+  const freeApplications = applications.filter(app => app.examInfoId == null);
+
+  const openAddApplication = (item?: ExamInfo) => {
+    setAppModalEditing(null);
+    setAppModalPrefill(item ? { examInfoId: item.id, examName: item.title, examType: item.examType } : null);
+    setAppModalOpen(true);
+  };
+
+  const openEditApplication = (app: UserExamApplication) => {
+    setAppModalEditing(app);
+    setAppModalPrefill(null);
+    setAppModalOpen(true);
+  };
+
+  const handleApplicationSaved = (saved: UserExamApplication) => {
+    setApplications(prev => {
+      const exists = prev.some(a => a.id === saved.id);
+      return exists ? prev.map(a => (a.id === saved.id ? saved : a)) : [...prev, saved];
+    });
+  };
+
+  const handleDeleteApplication = async (id: number) => {
+    if (!window.confirm('이 접수 정보를 삭제하시겠습니까?')) return;
+    await examApplicationService.remove(id);
+    setApplications(prev => prev.filter(a => a.id !== id));
+  };
 
   const openInterestModal = () => {
     examInfoService.getExamTypes()
@@ -132,16 +182,28 @@ export default function UserExamInfoPage() {
             <p className="text-sm text-gray-400 mt-1">전체 시험 정보를 표시합니다.</p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={openInterestModal}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:border-indigo-300 hover:text-indigo-600 transition"
-        >
-          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-            <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-          </svg>
-          관심 설정
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => openAddApplication()}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:border-indigo-300 hover:text-indigo-600 transition"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+            </svg>
+            직접 등록
+          </button>
+          <button
+            type="button"
+            onClick={openInterestModal}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:border-indigo-300 hover:text-indigo-600 transition"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+            </svg>
+            관심 설정
+          </button>
+        </div>
       </div>
 
       {/* Type filter tabs */}
@@ -271,10 +333,98 @@ export default function UserExamInfoPage() {
                     </div>
                   )}
                 </div>
+
+                {/* 내 접수 정보 미니 섹션 */}
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  {(applicationsByExamInfoId.get(item.id) ?? []).length > 0 ? (
+                    <div className="space-y-2">
+                      {(applicationsByExamInfoId.get(item.id) ?? []).map(app => (
+                        <div key={app.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                          <p className="text-xs text-gray-600 truncate">
+                            <span className="font-medium text-gray-700">내 접수</span>
+                            {app.applicationDate && <span className="ml-2">접수일 {app.applicationDate}</span>}
+                            {app.examDate && <span className="ml-2">시험일 {app.examDate}</span>}
+                            {app.memo && <span className="ml-2 text-gray-400">· {app.memo}</span>}
+                          </p>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button type="button" onClick={() => openEditApplication(app)} aria-label="접수 정보 수정"
+                              className="text-gray-400 hover:text-indigo-600">
+                              <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                              </svg>
+                            </button>
+                            <button type="button" onClick={() => handleDeleteApplication(app.id)} aria-label="접수 정보 삭제"
+                              className="text-gray-400 hover:text-red-500">
+                              <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                                <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => openAddApplication(item)}
+                        className="text-xs text-indigo-500 hover:underline">
+                        + 접수 정보 추가
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => openAddApplication(item)}
+                      className="text-xs text-indigo-500 hover:underline">
+                      + 접수 정보 입력
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
+      )}
+
+      {/* 직접 등록한 시험 (exam_info와 연결되지 않은 자유 입력 접수 정보) */}
+      {!loading && freeApplications.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-gray-700">직접 등록한 시험</h3>
+          <div className="grid gap-3">
+            {freeApplications.map(app => (
+              <div key={app.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{app.examName}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {app.applicationDate && <>접수일 {app.applicationDate}</>}
+                    {app.applicationDate && app.examDate && ' · '}
+                    {app.examDate && <>시험일 {app.examDate}</>}
+                  </p>
+                  {app.memo && <p className="text-xs text-gray-400 mt-1 truncate">{app.memo}</p>}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button type="button" onClick={() => openEditApplication(app)} aria-label="접수 정보 수정"
+                    className="text-gray-400 hover:text-indigo-600">
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                  </button>
+                  <button type="button" onClick={() => handleDeleteApplication(app.id)} aria-label="접수 정보 삭제"
+                    className="text-gray-400 hover:text-red-500">
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                      <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 접수 정보 등록/수정 모달 */}
+      {appModalOpen && (
+        <ExamApplicationFormModal
+          open={appModalOpen}
+          onClose={() => setAppModalOpen(false)}
+          onSaved={handleApplicationSaved}
+          editing={appModalEditing}
+          prefill={appModalPrefill}
+        />
       )}
 
       {/* Interest modal */}

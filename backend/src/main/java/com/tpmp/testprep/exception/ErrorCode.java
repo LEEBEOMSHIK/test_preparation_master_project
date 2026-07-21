@@ -40,6 +40,8 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
     BOOKMARK_NOT_FOUND(HttpStatus.NOT_FOUND, "복습 표시 항목을 찾을 수 없습니다."),
     NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
+    USER_EXAM_APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "접수 정보를 찾을 수 없습니다."),
+    USER_EXAM_APPLICATION_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 접수 정보에 접근할 수 없습니다."),
 
     // Inquiry
     INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "문의를 찾을 수 없습니다."),
