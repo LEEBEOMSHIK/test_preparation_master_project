@@ -235,8 +235,11 @@ export default function UserExamInfoPage() {
       ) : (
         <div className="grid gap-4">
           {displayed.map(item => {
-            const appStatus = getPhaseStatus(item.applicationPeriod);
-            const schStatus = getPhaseStatus(item.examSchedule);
+            const myApps = applicationsByExamInfoId.get(item.id) ?? [];
+            const myApplicationDate = myApps.find(a => a.applicationDate)?.applicationDate;
+            const myExamDate = myApps.find(a => a.examDate)?.examDate;
+            const appStatus = getPhaseStatus(myApplicationDate ?? item.applicationPeriod);
+            const schStatus = getPhaseStatus(myExamDate ?? item.examSchedule);
             const resStatus = getPhaseStatus(item.resultDate);
             return (
               <div key={item.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">

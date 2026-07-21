@@ -1,3 +1,38 @@
+## HIST-20260721-004
+
+- **날짜**: 2026-07-21
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보 (접수기간·시험일정 상태 배지 판정 기준)
+- **수정 개요**: 접수기간·시험일정 상태 배지(`진행중/예정/종료`)를 개인 접수 정보(`applicationDate`/`examDate`)가 있으면 그 날짜 기준으로, 없으면 기존처럼 공식 공통 일정(`item.applicationPeriod`/`item.examSchedule`) 기준으로 판정하도록 수정. 개인 시험일이 과거인데 공식 기간이 아직 안 끝나 "시험일정" 배지가 "진행중"으로 잘못 표시되던 문제 해결. 합격발표 배지·표시되는 날짜 텍스트(`fmtRange`)·D-day 미니 섹션은 변경 없음
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | 카드 렌더 루프에서 `applicationsByExamInfoId.get(item.id)`로 개인 접수 기록을 조회해 `applicationDate`/`examDate`가 있는 첫 기록을 찾고, 각각 있으면 그 값을 `getPhaseStatus`에 전달(없으면 기존 공식 필드 그대로 전달) |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exam-info/page.tsx`
+- 변경 전:
+```tsx
+const appStatus = getPhaseStatus(item.applicationPeriod);
+const schStatus = getPhaseStatus(item.examSchedule);
+const resStatus = getPhaseStatus(item.resultDate);
+```
+- 변경 후:
+```tsx
+const myApps = applicationsByExamInfoId.get(item.id) ?? [];
+const myApplicationDate = myApps.find(a => a.applicationDate)?.applicationDate;
+const myExamDate = myApps.find(a => a.examDate)?.examDate;
+const appStatus = getPhaseStatus(myApplicationDate ?? item.applicationPeriod);
+const schStatus = getPhaseStatus(myExamDate ?? item.examSchedule);
+const resStatus = getPhaseStatus(item.resultDate);
+```
+- 이유: 사용자 개인 시험일이 과거임에도 공식 공통 기간이 아직 끝나지 않아 "시험일정" 배지가 "진행중"으로 잘못 표시되는 버그 수정. 개인 접수 정보가 있으면 그것을 우선 기준으로 삼는 것이 사용자에게 더 정확한 정보
+
+### 복원 방법
+이 ID(HIST-20260721-004)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다.
+
 ## HIST-20260721-003
 
 - **날짜**: 2026-07-21
