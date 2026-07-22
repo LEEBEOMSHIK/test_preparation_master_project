@@ -3,11 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { examInfoService } from '@/services/examInfoService';
-import type { ExamTypeOption } from '@/services/examInfoService';
 import { examApplicationService } from '@/services/examApplicationService';
 import { ExamApplicationFormModal } from '@/components/ui/ExamApplicationFormModal';
 import type { ExamApplicationPrefill } from '@/components/ui/ExamApplicationFormModal';
-import { ExamInfoCardSkeleton, ExamTypeGridSkeleton } from '@/components/ui/Skeleton';
+import { InterestExamTypeModal } from '@/components/ui/InterestExamTypeModal';
+import { ExamInfoCardSkeleton } from '@/components/ui/Skeleton';
 import { parseLocalDate, getExamDDayLabel, getExamDDayBadgeClass } from '@/lib/date';
 import type { ExamInfo, UserExamApplication } from '@/types';
 
@@ -59,14 +59,11 @@ const PHASE_STYLES: Record<PhaseStatus, { box: string; badge: string; badgeColor
 };
 
 export default function UserExamInfoPage() {
-  const { user, setAuth } = useAuthStore();
+  const { user } = useAuthStore();
   const [items, setItems] = useState<ExamInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>('전체');
   const [showInterestModal, setShowInterestModal] = useState(false);
-  const [examTypes, setExamTypes] = useState<ExamTypeOption[]>([]);
-  const [pendingInterests, setPendingInterests] = useState<Set<number>>(new Set());
-  const [savingInterests, setSavingInterests] = useState(false);
 
   // 내 시험 접수 정보
   const [applications, setApplications] = useState<UserExamApplication[]>([]);
@@ -124,33 +121,14 @@ export default function UserExamInfoPage() {
     setApplications(prev => prev.filter(a => a.id !== id));
   };
 
-  const openInterestModal = () => {
-    examInfoService.getExamTypes()
-      .then(res => setExamTypes(res.data.data ?? []))
-      .catch(() => {});
-    setPendingInterests(new Set(user?.interestedExamSlaveIds ?? []));
-    setShowInterestModal(true);
-  };
+  const openInterestModal = () => setShowInterestModal(true);
 
-  const handleSaveInterests = async () => {
-    setSavingInterests(true);
-    try {
-      const res = await examInfoService.updateInterests(Array.from(pendingInterests));
-      const updatedUser = res.data.data;
-      if (updatedUser && user) {
-        const token = sessionStorage.getItem('accessToken') ?? '';
-        setAuth({ ...user, ...updatedUser }, token);
-      }
-      setShowInterestModal(false);
-      setLoading(true);
-      const infoRes = await examInfoService.getMyExamInfo();
-      setItems(infoRes.data.data ?? []);
-    } catch {
-      // silent
-    } finally {
-      setSavingInterests(false);
-      setLoading(false);
-    }
+  const handleInterestsSaved = () => {
+    setLoading(true);
+    examInfoService.getMyExamInfo()
+      .then(infoRes => setItems(infoRes.data.data ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
 
   const allTypes = ['전체', ...Array.from(new Set(items.map(i => i.examType)))];
@@ -179,12 +157,13 @@ export default function UserExamInfoPage() {
           <button
             type="button"
             onClick={() => openAddApplication()}
+            title="목록에 없는 시험의 접수 정보를 직접 입력합니다"
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:border-indigo-300 hover:text-indigo-600 transition"
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
               <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
             </svg>
-            직접 등록
+            다른 시험 직접 등록
           </button>
           <button
             type="button"
@@ -431,57 +410,12 @@ export default function UserExamInfoPage() {
         />
       )}
 
-      {/* Interest modal */}
-      {showInterestModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowInterestModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h3 className="text-base font-semibold text-gray-900">관심 시험 유형 설정</h3>
-            {examTypes.length === 0 ? (
-              <ExamTypeGridSkeleton count={6} itemHeight="h-10" />
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {examTypes.map(type => {
-                  const sel = pendingInterests.has(type.id);
-                  return (
-                    <button
-                      key={type.id}
-                      type="button"
-                      onClick={() => {
-                        setPendingInterests(prev => {
-                          const next = new Set(prev);
-                          if (next.has(type.id)) next.delete(type.id); else next.add(type.id);
-                          return next;
-                        });
-                      }}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-left text-sm transition-all ${
-                        sel ? 'border-indigo-500 bg-indigo-50 text-indigo-800 font-medium' : 'border-gray-100 text-gray-600 hover:border-gray-200'
-                      }`}
-                    >
-                      {sel && (
-                        <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-indigo-600 shrink-0">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                      {type.name}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <div className="flex gap-2 pt-2">
-              <button type="button" onClick={() => setShowInterestModal(false)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition">
-                취소
-              </button>
-              <button type="button" onClick={handleSaveInterests} disabled={savingInterests}
-                className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition">
-                {savingInterests ? '저장 중...' : '저장'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 관심 시험 유형 설정 모달 */}
+      <InterestExamTypeModal
+        open={showInterestModal}
+        onClose={() => setShowInterestModal(false)}
+        onSaved={handleInterestsSaved}
+      />
     </div>
   );
 }

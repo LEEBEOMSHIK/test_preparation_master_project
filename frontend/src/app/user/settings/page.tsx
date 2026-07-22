@@ -10,6 +10,7 @@ import { examApplicationService } from '@/services/examApplicationService';
 import { useAuthStore } from '@/store/authStore';
 import { Skeleton, CardListSkeleton } from '@/components/ui/Skeleton';
 import { ExamApplicationFormModal } from '@/components/ui/ExamApplicationFormModal';
+import { InterestExamTypeModal } from '@/components/ui/InterestExamTypeModal';
 import { getExamDDayLabel, getExamDDayBadgeClass } from '@/lib/date';
 import type { UserExamApplication } from '@/types';
 
@@ -56,6 +57,20 @@ function SettingsPageSkeleton() {
       {/* 시험 관리 그룹 shimmer */}
       <div className="space-y-3">
         <Skeleton className="h-3 w-14" />
+        {/* 관심 시험 유형 섹션 shimmer */}
+        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-4 w-56" />
+          </div>
+          <div className="pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
+            <div className="flex gap-1.5">
+              <Skeleton className="h-5 w-14 rounded" />
+              <Skeleton className="h-5 w-14 rounded" />
+            </div>
+            <Skeleton className="h-8 w-16 rounded-lg shrink-0" />
+          </div>
+        </div>
         {/* 내 시험 접수 정보 섹션 shimmer */}
         <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
           <div className="space-y-2">
@@ -96,6 +111,10 @@ function UserSettingsContent() {
   const [applicationsLoading, setApplicationsLoading] = useState(true);
   const [appModalOpen, setAppModalOpen] = useState(false);
   const [appModalEditing, setAppModalEditing] = useState<UserExamApplication | null>(null);
+
+  // ── 관심 시험 유형 상태 ────────────────────────────────────────────────────
+  const [showInterestModal, setShowInterestModal] = useState(false);
+  const interestedExamTypes = storeUser?.interestedExamTypes ?? [];
 
   // 닉네임 초기값: store → 없으면 me() 호출
   useEffect(() => {
@@ -336,6 +355,37 @@ function UserSettingsContent() {
         <div className="space-y-3">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">시험 관리</p>
 
+          {/* 관심 시험 유형 카드 */}
+          <section className="bg-white border border-gray-200 rounded-xl p-5">
+            <div>
+              <h2 className="font-semibold text-gray-800">관심 시험 유형</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                선택한 시험 유형을 기준으로 시험 정보·퀴즈가 우선 노출됩니다.
+              </p>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
+              {interestedExamTypes.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {interestedExamTypes.map(t => (
+                    <span key={t} className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400">선택된 관심 시험 유형이 없습니다.</p>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowInterestModal(true)}
+                className="shrink-0 text-sm text-gray-500 hover:text-indigo-600 border border-gray-200 hover:border-indigo-300 px-3 py-1.5 rounded-lg transition"
+              >
+                변경
+              </button>
+            </div>
+          </section>
+
           {/* 내 시험 접수 정보 카드 */}
           <section className="bg-white border border-gray-200 rounded-xl p-5">
             <div>
@@ -413,6 +463,12 @@ function UserSettingsContent() {
           editing={appModalEditing}
         />
       )}
+
+      {/* 관심 시험 유형 설정 모달 */}
+      <InterestExamTypeModal
+        open={showInterestModal}
+        onClose={() => setShowInterestModal(false)}
+      />
     </div>
   );
 }

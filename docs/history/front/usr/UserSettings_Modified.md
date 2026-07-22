@@ -1,5 +1,28 @@
 # 사용자 설정 화면 수정 이력
 
+## HIST-20260722-001
+
+- **날짜**: 2026-07-22
+- **수정 범위**: 사용자 프론트엔드 / 설정 페이지 ("시험 관리" 그룹에 관심 시험 유형 카드 추가)
+- **수정 개요**: "시험 관리" 섹션의 "내 시험 접수 정보" 카드 위에 "관심 시험 유형" 카드를 신규 추가. 현재 선택된 관심 시험 유형을 배지로 보여주고 "변경" 버튼으로 공용 `InterestExamTypeModal`을 열어 저장하면 authStore가 즉시 갱신되어 `/user/exam-info`와 양방향 동기화된다. `SettingsPageSkeleton`에도 새 카드 자리 shimmer 추가
+- **관련 작업**: `frontend/src/components/ui/InterestExamTypeModal.tsx` 신규 추출은 `docs/history/front/usr/UserExamInfo_Modified.md`의 HIST-20260722-001 참고
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/settings/page.tsx` | 수정 | "시험 관리" 그룹에 "관심 시험 유형" `<section>` 카드 추가(기존 "내 시험 접수 정보" 카드와 동일한 `bg-white border border-gray-200 rounded-xl p-5` 스타일), `showInterestModal` state·`InterestExamTypeModal` import·렌더 추가, `SettingsPageSkeleton`에 새 카드 shimmer 블록 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/settings/page.tsx`
+- 변경 전: "시험 관리" 그룹에 "내 시험 접수 정보" 카드 1개만 존재. 관심 시험 유형을 바꾸려면 `/user/exam-info`로 이동해야 함
+- 변경 후: "관심 시험 유형" 카드 추가 — `storeUser?.interestedExamTypes`를 배지로 표시(없으면 "선택된 관심 시험 유형이 없습니다."), "변경" 버튼 클릭 시 `InterestExamTypeModal` 오픈. 저장 성공 시 모달 내부에서 authStore `setAuth`로 유저 정보가 갱신되어 배지가 자동 반영(별도 재조회 불필요, `onSaved` prop 미사용). `SettingsPageSkeleton`에 관심 시험 유형 카드용 shimmer(라벨 배지 2개 + "변경" 버튼 자리) 추가
+- 이유: 마이페이지 3그룹(계정/연동/시험 관리) 재편에 맞춰 관심 시험 유형 설정 진입점을 `/user/settings`에도 제공해달라는 사용자 피드백 반영
+
+### 복원 방법
+이 ID(HIST-20260722-001)만으로 복원 시 `frontend/src/app/user/settings/page.tsx`에서 "관심 시험 유형" `<section>` 카드, `showInterestModal` state, `InterestExamTypeModal` import·렌더, `SettingsPageSkeleton`의 해당 shimmer 블록을 제거한다(단, `InterestExamTypeModal.tsx` 컴포넌트 자체 삭제는 `UserExamInfo_Modified.md`의 HIST-20260722-001 복원 절차를 따른다).
+
 ## HIST-20260721-003
 
 - **날짜**: 2026-07-21

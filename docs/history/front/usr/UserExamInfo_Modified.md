@@ -1,3 +1,31 @@
+## HIST-20260722-001
+
+- **날짜**: 2026-07-22
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보 (관심 시험 유형 모달 공용화 + "직접 등록" 버튼 문구 개선)
+- **수정 개요**: 인라인으로 구현돼 있던 "관심 시험 유형 설정" 모달을 `InterestExamTypeModal` 공용 컴포넌트로 추출해 `/user/settings`와 함께 쓸 수 있도록 변경(동작은 기존과 동일, 회귀 없음). 상단 "직접 등록" 버튼을 "다른 시험 직접 등록"으로 라벨을 명확히 하고 `title` 툴팁으로 "목록에 없는 시험의 접수 정보를 직접 입력합니다" 보조 설명 추가. 각 시험 카드 내부의 "+ 접수 정보 입력/추가" 버튼은 변경하지 않음
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/InterestExamTypeModal.tsx` | 추가 | `open`/`onClose`/`onSaved` props의 공용 관심 시험 유형 설정 모달. `examInfoService.getExamTypes`로 목록 조회, `updateInterests`로 저장 후 authStore `setAuth`로 유저 정보 즉시 갱신, 저장 성공 시 `onClose()` → `onSaved?.()` 순서로 호출 |
+| `frontend/src/app/user/exam-info/page.tsx` | 수정 | 인라인 관심 설정 모달 JSX·관련 state(`examTypes`/`pendingInterests`/`savingInterests`)·`handleSaveInterests` 제거 후 `InterestExamTypeModal` import로 교체(`onSaved`에서 `examInfoService.getMyExamInfo()` 재조회로 목록 동기화). 상단 "직접 등록" 버튼 텍스트를 "다른 시험 직접 등록"으로 변경하고 `title` 속성 추가 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/InterestExamTypeModal.tsx`
+- 변경 전: 없음(신규 파일)
+- 변경 후: `frontend/src/app/user/exam-info/page.tsx`에 있던 관심 시험 유형 설정 모달 JSX·상태·저장 로직을 그대로 이전한 공용 컴포넌트
+- 이유: CLAUDE.md 공용 유틸리티 원칙(동일 로직 2곳 이상 필요 시 공통 위치로 추출) — `/user/settings`에도 동일 기능이 필요해짐
+
+#### `frontend/src/app/user/exam-info/page.tsx`
+- 변경 전: `showInterestModal`/`examTypes`/`pendingInterests`/`savingInterests` state와 `openInterestModal`/`handleSaveInterests` 함수, 인라인 모달 JSX를 페이지 내부에 직접 구현. 상단 버튼 텍스트 "직접 등록"
+- 변경 후: `showInterestModal` state만 유지, `openInterestModal`은 `setShowInterestModal(true)`만 호출, `handleInterestsSaved`가 `InterestExamTypeModal`의 `onSaved` 콜백으로 전달되어 저장 후 `examInfoService.getMyExamInfo()`로 목록 재조회. 상단 버튼 텍스트 "다른 시험 직접 등록" + `title="목록에 없는 시험의 접수 정보를 직접 입력합니다"`
+- 이유: 관심 시험 유형 모달 공용화 + 신규 사용자 대상 버튼 의미 명확화 피드백 반영
+
+### 복원 방법
+이 ID(HIST-20260722-001)만으로 복원 시 `frontend/src/components/ui/InterestExamTypeModal.tsx`를 삭제하고, `frontend/src/app/user/exam-info/page.tsx`에서 "직접 등록" 버튼으로 텍스트를 되돌린 뒤 관심 설정 모달 관련 state·함수·인라인 JSX를 위 "변경 전" 설명대로 페이지 내부에 복원한다.
+
 ## HIST-20260721-004
 
 - **날짜**: 2026-07-21

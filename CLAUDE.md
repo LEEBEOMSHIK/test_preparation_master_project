@@ -199,6 +199,7 @@ rg --files frontend/src/app/admin backend/src/main/java
 | `<QuestionDetailModal question onClose hideEditLink hideAnswerInitially />` | `src/components/ui/QuestionDetailModal.tsx` | 문항 상세 모달 (`hideAnswerInitially`=true면 정답·해설을 "정답 보기" 버튼으로 가림, 기본 false) |
 | `<ConceptNoteModal defaultTitle existingNote link onClose onSaved />` | `src/components/ui/ConceptNoteModal.tsx` | 문항별 개념노트 작성/수정 모달 (시험=questionId·퀴즈=questionBankId 공용) |
 | `<ExamApplicationFormModal open onClose onSaved editing prefill />` | `src/components/ui/ExamApplicationFormModal.tsx` | 내 시험 접수 정보(접수일·시험일·메모) 등록/수정 모달 — `editing`(기존 레코드)이 있으면 수정 모드, `prefill`(`{examInfoId, examName, examType}`)이 있으면 특정 시험 정보에 연결된 신규 등록, 둘 다 없으면 examInfoId 없는 자유 입력. 시험명 필수 + 접수일·시험일 중 최소 1개 클라이언트 검증, 저장 성공 시 `onSaved(saved)` 콜백 |
+| `<InterestExamTypeModal open onClose onSaved />` | `src/components/ui/InterestExamTypeModal.tsx` | 관심 시험 유형 설정 모달(`examInfoService.getExamTypes`/`updateInterests` 호출, 저장 성공 시 authStore.user 즉시 갱신) — `user/exam-info`·`user/settings` 공용, `onSaved`는 저장 성공 후(모달이 닫히기 직전) 호출되어 호출부 후처리(목록 재조회 등)에 사용 |
 | `<PermissionDeniedModal />` | `src/components/ui/PermissionDeniedModal.tsx` | 권한 없음 팝업 |
 | `<TableSkeleton />` 외 | `src/components/ui/Skeleton.tsx` | 스켈레톤 UI 모음 |
 | `<QuestionAnalysisPanel content onApply questionType code language />` | `src/components/ui/QuestionAnalysisPanel.tsx` | 문항 AI 키워드·도메인 추출 + 태그 저장 + 문제 재구성 패널 (CODE 유형은 code+answer 함께 재생성, onApply({content, code?, answer?}) 콜백) |
