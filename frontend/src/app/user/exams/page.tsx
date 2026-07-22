@@ -133,7 +133,14 @@ export default function UserExamsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-7 space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-gray-900">{selectedExam.title}</h3>
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-1.5">
+                <span>{selectedExam.title}</span>
+                {selectedExam.isAiCustom && (
+                  <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200">
+                    AI 커스텀
+                  </span>
+                )}
+              </h3>
               <p className="text-sm text-gray-500 mt-1">시험을 시작하기 전 정보를 확인해 주세요.</p>
             </div>
             <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
@@ -152,6 +159,11 @@ export default function UserExamsPage() {
                 <span className="font-medium text-gray-900">{selectedExam.timeLimit}분</span>
               </div>
             </div>
+            {selectedExam.isAiCustom && (
+              <p className="text-xs text-indigo-600 bg-indigo-50 rounded-lg px-3 py-2 leading-relaxed">
+                정보처리기사 실기 시험의 출제 범위와 최신 출제 경향을 참고하여 AI가 새로 구성한 모의고사입니다. 실제 기출문제를 사용하지 않았습니다.
+              </p>
+            )}
             <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
               시험 도중 브라우저를 닫거나 뒤로가기 시 모든 답안이 초기화됩니다.
             </p>
@@ -270,7 +282,10 @@ export default function UserExamsPage() {
                   <p className="font-medium text-gray-900 group-hover:text-indigo-700 transition truncate flex items-center gap-1.5">
                     <span className="truncate">{exam.title}</span>
                     {exam.isAiCustom && (
-                      <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200">
+                      <span
+                        className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200"
+                        title="정보처리기사 실기 시험의 출제 범위와 최신 출제 경향을 참고하여 AI가 새로 구성한 모의고사입니다. 실제 기출문제를 사용하지 않았습니다."
+                      >
                         AI 커스텀
                       </span>
                     )}

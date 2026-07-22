@@ -1,3 +1,37 @@
+## HIST-20260722-002
+
+- **날짜**: 2026-07-22
+- **수정 범위**: 사용자 백엔드 / 시험 데이터 (exams, examinations) — AI 커스텀 시험 6개 제목을 사이트 자체 회차로 변경
+- **수정 개요**: 지금까지 AI 커스텀 시험 6개가 실제 국가기술자격 시험의 특정 연도·회차 제목("2026년 2회 정보처리기사 실기 (AI 커스텀)")을 그대로 사용해 실제 기출문제로 오인될 소지(저작권 문제)가 있었다. `exams.title`/`examinations.title`을 사이트 자체 회차 표기("TPMP 모의고사 N회")로 변경하고, 최신순으로 1회부터 매겼다. `exam_year`/`exam_round`/`is_ai_custom` 구조화 컬럼은 그대로 유지(값 변경 없음).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| docs/db-migration/20260722_04_rename_ai_custom_exam_titles.sql | 추가 | exams·examinations 각 6행 title UPDATE, 적용 전/후 검증 SELECT 포함, 롤백 문 포함 |
+
+### 수정 상세
+
+#### `docs/db-migration/20260722_04_rename_ai_custom_exam_titles.sql`
+- 변경 전(로컬 tpmp-db 실제 데이터, exams.id/examinations.id/title):
+  - 13/21: 2026년 2회 정보처리기사 실기 (AI 커스텀)
+  - 8/16: 2026년 1회 정보처리기사 실기 (AI 커스텀)
+  - 9/17: 2025년 3회 정보처리기사 실기 (AI 커스텀)
+  - 10/18: 2025년 2회 정보처리기사 실기 (AI 커스텀)
+  - 11/19: 2025년 1회 정보처리기사 실기 (AI 커스텀)
+  - 12/20: 2024년 3회 정보처리기사 실기 (AI 커스텀)
+- 변경 후(로컬 tpmp-db에 실제 적용 완료, 검증 SELECT로 확인):
+  - 13/21 → TPMP 모의고사 1회
+  - 8/16 → TPMP 모의고사 2회
+  - 9/17 → TPMP 모의고사 3회
+  - 10/18 → TPMP 모의고사 4회
+  - 11/19 → TPMP 모의고사 5회
+  - 12/20 → TPMP 모의고사 6회
+- 이유: 실제 시험 회차와 무관한 AI 생성 콘텐츠임을 제목만으로는 알 수 없어 저작권 오인 우려가 있었음. `UserExamApplication.examName`(접수정보 스냅샷)은 과거 시점 값이므로 소급 변경하지 않음. `question_bank`의 문항 제목("[AI커스텀] 2026-2 ...")은 관리자 내부 라벨이라 이번 스코프에서 제외
+
+### 복원 방법
+이 ID(HIST-20260722-002)만으로 복원 시 `docs/db-migration/20260722_04_rename_ai_custom_exam_titles.sql` 하단 ROLLBACK 블록(주석 처리됨)을 별도 트랜잭션으로 실행해 변경 전 title 6개(exams·examinations 각각)로 원복한다.
+
 ## HIST-20260722-001
 
 - **날짜**: 2026-07-22
