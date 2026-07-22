@@ -35,6 +35,8 @@ export default function AdminExamPaperEditPage() {
   const [title,        setTitle]        = useState('');
   const [questionMode, setQuestionMode] = useState<'SEQUENTIAL' | 'RANDOM'>('SEQUENTIAL');
   const [infoLoading,  setInfoLoading]  = useState(false);
+  const [useYn,        setUseYn]        = useState<'Y' | 'N'>('Y');
+  const [togglingUseYn, setTogglingUseYn] = useState(false);
 
   // ── 현재 문항 목록 ──
   const [examQuestions,    setExamQuestions]    = useState<ExamQuestion[]>([]);
@@ -79,6 +81,7 @@ export default function AdminExamPaperEditPage() {
         if (exam) {
           setTitle(exam.title);
           setQuestionMode(exam.questionMode as 'SEQUENTIAL' | 'RANDOM');
+          setUseYn(exam.useYn ?? 'Y');
         }
         setExamQuestions(questionsRes.data.data ?? []);
         setAllQuestions(bankRes.data.data?.content ?? []);
@@ -118,6 +121,21 @@ export default function AdminExamPaperEditPage() {
       setError('시험지 수정에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setInfoLoading(false);
+    }
+  };
+
+  // ── 사용 여부 토글 ──
+  const handleToggleUseYn = async () => {
+    setTogglingUseYn(true);
+    setError('');
+    try {
+      const res = await examService.adminToggleExam(id);
+      const updated = res.data.data;
+      if (updated) setUseYn(updated.useYn);
+    } catch {
+      setError('사용여부 변경에 실패했습니다.');
+    } finally {
+      setTogglingUseYn(false);
     }
   };
 
@@ -360,6 +378,26 @@ export default function AdminExamPaperEditPage() {
                 {mode === 'SEQUENTIAL' ? '순차 출제' : '랜덤 출제'}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">사용 여부</label>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleToggleUseYn}
+              disabled={togglingUseYn}
+              className={[
+                'px-3 py-1.5 rounded-full text-xs font-medium transition disabled:opacity-50',
+                useYn === 'Y'
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
+              ].join(' ')}
+            >
+              {togglingUseYn ? '변경 중...' : useYn === 'Y' ? '사용 중' : '미사용'}
+            </button>
+            <span className="text-xs text-gray-400">클릭 시 즉시 반영됩니다.</span>
           </div>
         </div>
 

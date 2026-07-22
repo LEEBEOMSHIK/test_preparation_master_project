@@ -1,3 +1,33 @@
+## HIST-20260722-002
+
+- **날짜**: 2026-07-22
+- **수정 범위**: 관리자 프론트엔드 / 시험 수정·시험지 수정 화면 — 사용여부 토글 컨트롤 누락 보완
+- **수정 개요**: 목록 화면(`/admin/exams`, `/admin/exams/papers`) 배지로만 가능했던 사용여부 토글을 각 수정(edit) 화면에도 추가했다. 두 화면 모두 목록 배지와 동일한 초록/회색 pill 버튼으로 즉시 반영(별도 저장 버튼 불필요) 방식을 사용해 UX를 통일했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| frontend/src/app/admin/exams/[id]/edit/page.tsx | 수정 | "AI 커스텀 문항 시험" 체크박스 아래에 "사용 여부" 토글 배지 추가, 로드시 `exam.useYn` 반영 |
+| frontend/src/app/admin/exams/papers/[id]/edit/page.tsx | 수정 | "기본 정보" 섹션의 문항 출제 방식 아래에 "사용 여부" 토글 배지 추가, 로드시 `exam.useYn` 반영 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/[id]/edit/page.tsx`
+- 변경 전: `useYn` state 없음, 폼에 사용여부 컨트롤 없음. 필드: 제목/유형/시험지/시간/연도/회차/AI커스텀만 존재
+- 변경 후: `useYn`(초기값 `exam.useYn ?? 'Y'`)·`togglingUseYn` state 추가. "AI 커스텀 문항 시험" 체크박스 다음에 "사용 여부" 라벨 + pill 버튼("사용 중"/"미사용") 추가. 클릭 시 `handleToggleUseYn`이 `examinationService.adminToggleExamination(id)`를 즉시 호출해 반영(폼의 "수정 완료" 버튼이 호출하는 `adminUpdateExamination`은 `useYn` 필드를 받지 않으므로 별도 즉시반영 방식 채택 — 목록 화면 배지와 동일한 UX)
+- 이유: 목록 화면 배지로만 토글 가능하고 수정 화면에서는 상태를 볼 수도 바꿀 수도 없어 혼란을 유발하던 버그 수정
+
+#### `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx`
+- 변경 전: `useYn` state 없음, "기본 정보" 섹션에 시험지 제목·문항 출제 방식·저장 버튼만 존재
+- 변경 후: `useYn`(초기값 `exam.useYn ?? 'Y'`)·`togglingUseYn` state 추가. 문항 출제 방식 블록과 "기본 정보 저장" 버튼 사이에 "사용 여부" pill 버튼 추가. 클릭 시 `handleToggleUseYn`이 `examService.adminToggleExam(id)`를 즉시 호출(기존 "기본 정보 저장"이 호출하는 `adminUpdateExam`은 `title`/`questionMode`만 받으므로 위 파일과 동일 기준으로 즉시반영 방식 채택). 하단 "현재 문항" 목록의 문항별 사용여부 배지는 변경하지 않음
+- 이유: 시험지 자체의 사용여부를 수정 화면에서도 확인·변경할 수 있도록 보완
+
+### 복원 방법
+이 ID(HIST-20260722-002)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다(즉, 두 파일에서 `useYn`/`togglingUseYn` state와 "사용 여부" UI 블록, `handleToggleUseYn` 함수를 제거).
+
+---
+
 ## HIST-20260722-001
 
 - **날짜**: 2026-07-22

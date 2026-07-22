@@ -30,6 +30,7 @@ export default function AdminExamEditPage() {
   const [examYear, setExamYear]         = useState<number | null>(null);
   const [examRound, setExamRound]       = useState<number | null>(null);
   const [isAiCustom, setIsAiCustom]     = useState(false);
+  const [useYn, setUseYn]               = useState<'Y' | 'N'>('Y');
 
   const [papers, setPapers]             = useState<ExamSummary[]>([]);
   const [examCategories, setExamCategories] = useState<DomainSlave[]>([]);
@@ -37,6 +38,7 @@ export default function AdminExamEditPage() {
   const [loading, setLoading]     = useState(false);
   const [fetching, setFetching]   = useState(true);
   const [error, setError]         = useState('');
+  const [togglingUseYn, setTogglingUseYn] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -59,6 +61,7 @@ export default function AdminExamEditPage() {
           setExamYear(exam.examYear ?? null);
           setExamRound(exam.examRound ?? null);
           setIsAiCustom(exam.isAiCustom ?? false);
+          setUseYn(exam.useYn ?? 'Y');
         }
       })
       .catch(() => setError('데이터를 불러오지 못했습니다.'))
@@ -89,6 +92,20 @@ export default function AdminExamEditPage() {
       setError('시험 수정에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleUseYn = async () => {
+    setTogglingUseYn(true);
+    setError('');
+    try {
+      const res = await examinationService.adminToggleExamination(id);
+      const updated = res.data.data;
+      if (updated) setUseYn(updated.useYn);
+    } catch {
+      setError('사용여부 변경에 실패했습니다.');
+    } finally {
+      setTogglingUseYn(false);
     }
   };
 
@@ -223,6 +240,27 @@ export default function AdminExamEditPage() {
             />
             AI 커스텀 문항 시험
           </label>
+
+          {/* 사용 여부 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">사용 여부</label>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleToggleUseYn}
+                disabled={togglingUseYn}
+                className={[
+                  'px-3 py-1.5 rounded-full text-xs font-medium transition disabled:opacity-50',
+                  useYn === 'Y'
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
+                ].join(' ')}
+              >
+                {togglingUseYn ? '변경 중...' : useYn === 'Y' ? '사용 중' : '미사용'}
+              </button>
+              <span className="text-xs text-gray-400">클릭 시 즉시 반영됩니다.</span>
+            </div>
+          </div>
 
           {error && (
             <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
