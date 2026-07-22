@@ -1,3 +1,27 @@
+## HIST-20260722-001
+
+- **날짜**: 2026-07-22
+- **수정 범위**: 사용자 프론트엔드 / 네비게이션 (도움말 그룹에 "개발자 응원하기" 메뉴 추가)
+- **수정 개요**: 도움말 드롭다운(데스크톱)·모바일 그룹 패널에 "개발자 응원하기"(`/user/support`) 항목 추가. 신규 후원 안내 페이지 진입점. 자세한 내용은 `docs/history/front/usr/UserSupport_Modified.md`의 HIST-20260722-001 참고.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | `ICON_MAP`에 `support` 아이콘 추가, `USER_FALLBACK_NAV` 도움말 그룹에 `leaf(114, '개발자 응원하기', '/user/support', 'support', 5)` 추가, `ALWAYS_ALLOWED`에 `/user/support` 추가 |
+
+### 수정 상세
+
+#### `UserLayoutShell.tsx`
+- 변경 전: 도움말 그룹 자식 4개(시험 정보/FAQ/1:1 문의/설정), `ALWAYS_ALLOWED = ['/user/inquiries', '/user/settings']`
+- 변경 후: 도움말 그룹 자식 5개(마지막에 개발자 응원하기 추가), `ALWAYS_ALLOWED`에 `/user/support` 추가로 메뉴 권한과 무관하게 로그인 사용자는 항상 접근 가능
+- 이유: 사용자 요청으로 후원 페이지 진입점을 도움말 드롭다운에 조용히(강조 없이) 추가. 실제 드롭다운 노출은 백엔드 `/menus/mine` 시딩(`docs/history/back/usr/UserMenu_Modified.md` HIST-20260722-001)이 함께 있어야 함 — 이 파일의 `USER_FALLBACK_NAV`는 API 실패 시에만 쓰이는 폴백
+
+### 복원 방법
+이 ID(HIST-20260722-001)로 복원 시 `ICON_MAP.support`, `USER_FALLBACK_NAV`의 `개발자 응원하기` 자식, `ALWAYS_ALLOWED`의 `/user/support`를 제거한다.
+
+---
+
 ## HIST-20260717-001
 
 - **날짜**: 2026-07-17

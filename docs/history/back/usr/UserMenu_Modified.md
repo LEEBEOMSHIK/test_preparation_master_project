@@ -1,3 +1,26 @@
+## HIST-20260722-001
+
+- **날짜**: 2026-07-22
+- **수정 범위**: 사용자 백엔드 / 메뉴 시딩(DataInitializer)
+- **수정 개요**: '개발자 응원하기'(`/user/support`) 메뉴를 도움말 그룹 하위에 추가 — 후원 안내 신규 페이지 진입점.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java` | 수정 | `ensureUserMenuGroups()`에 개발자 응원하기 메뉴 생성(멱등) + 도움말 그룹(helpId) 하위 order 5로 재배치 |
+
+### 수정 상세
+- `existsByUrl("/user/support")` 가드로 개발자 응원하기 메뉴(USER, allowedRoles "USER,ADMIN", icon `support`) 생성 — 이후 `ensurePermissionMenuAssociations()`에서 GENERAL_USER 부여.
+- `reparentMenu("/user/support", helpId, 5)`로 도움말 그룹 하위 마지막(설정 다음)에 배치.
+- 프론트엔드 `UserLayoutShell.tsx`도 함께 수정(`docs/history/front/usr/UserLayout_Modified.md` HIST-20260722-001, `docs/history/front/usr/UserSupport_Modified.md` HIST-20260722-001 참고) — `ICON_MAP.support` 아이콘, 폴백 네비게이션, `ALWAYS_ALLOWED` 접근 예외.
+- **검증**: `GET /api/menus/mine?menuType=USER` 결과 도움말 그룹에 개발자 응원하기 포함 여부는 백엔드 재기동 후 확인 필요(로컬 gradle bootRun이 이미 실행 중이라 `DataInitializer`의 `run()` 재실행을 위해 재기동 필요 — 강제 종료 대신 사용자 확인 요청).
+
+### 복원 방법
+이 ID(HIST-20260722-001)로 복원 시 개발자 응원하기 메뉴 생성/재배치 라인 제거 + DB에서 `/user/support` 메뉴 행 삭제.
+
+---
+
 ## HIST-20260615-001
 
 - **날짜**: 2026-06-15

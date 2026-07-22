@@ -412,6 +412,12 @@ public class DataInitializer implements ApplicationRunner {
             log.info("[DataInitializer] 설정 사용자 메뉴 추가 완료");
         }
 
+        // 0d) 도움말 그룹에 들어갈 '개발자 응원하기' 메뉴 생성 (멱등)
+        if (!menuConfigRepository.existsByUrl("/user/support")) {
+            saveMenu(null, "개발자 응원하기", "/user/support", "support", 0, MenuConfig.MenuType.USER, "USER,ADMIN");
+            log.info("[DataInitializer] 개발자 응원하기 사용자 메뉴 추가 완료");
+        }
+
         // 1) 그룹 부모 생성 (멱등)
         ensureGroupMenu("학습",    "/user/group/learning", "learn",   2);
         ensureGroupMenu("내 기록", "/user/group/records",  "records", 3);
@@ -445,6 +451,7 @@ public class DataInitializer implements ApplicationRunner {
         reparentMenu("/user/faq",          helpId,     2);
         reparentMenu("/user/inquiries",    helpId,     3);
         reparentMenu("/user/settings",     helpId,     4);
+        reparentMenu("/user/support",      helpId,     5);
 
         log.info("[DataInitializer] USER 메뉴 그룹 구조(학습/내 기록/도움말) 정리 완료");
     }

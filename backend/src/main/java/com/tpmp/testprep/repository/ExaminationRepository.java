@@ -20,12 +20,13 @@ public interface ExaminationRepository extends JpaRepository<Examination, Long> 
            "ORDER BY e.createdAt DESC")
     Page<Examination> findAllWithDetailsByDelYn(@Param("delYn") String delYn, Pageable pageable);
 
-    /** 사용자 목록용 — 삭제되지 않고 활성(del_yn='N' AND use_yn='Y')인 시험만. 카테고리·시험지 페치 조인 (N+1 방지) */
+    /** 사용자 목록용 — 삭제되지 않고 활성(del_yn='N' AND use_yn='Y')인 시험만. 카테고리·시험지 페치 조인 (N+1 방지)
+     *  정렬: 시험 연도·회차 최신순(내림차순, NULL은 맨 뒤) → 동일 연도·회차 시 등록 시각 최신순 타이브레이커 */
     @Query("SELECT e FROM Examination e " +
            "LEFT JOIN FETCH e.category " +
            "LEFT JOIN FETCH e.examPaper " +
            "WHERE e.delYn = 'N' AND e.useYn = 'Y' " +
-           "ORDER BY e.createdAt DESC")
+           "ORDER BY e.examYear DESC NULLS LAST, e.examRound DESC NULLS LAST, e.createdAt DESC")
     Page<Examination> findAllWithDetailsActive(Pageable pageable);
 
     /** 슬레이브 ID가 category로 참조되는 시험(삭제되지 않은 것만)이 있는지 확인 */

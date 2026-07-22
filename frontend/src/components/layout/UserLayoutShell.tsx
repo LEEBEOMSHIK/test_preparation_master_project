@@ -86,6 +86,11 @@ const ICON_MAP: Record<string, React.ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   ),
+  support: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21c-4.5-2.6-9-6.1-9-10.5A5 5 0 0112 6a5 5 0 019 4.5c0 4.4-4.5 7.9-9 10.5z" />
+    </svg>
+  ),
 };
 
 const DEFAULT_ICON = (
@@ -126,6 +131,7 @@ const USER_FALLBACK_NAV: MenuConfig[] = [
     leaf(105, 'FAQ',       '/user/faq',        'faq',      2),
     leaf(106, '1:1 문의',  '/user/inquiries',  'inquiry',  3),
     leaf(113, '설정',      '/user/settings',   'settings', 4),
+    leaf(114, '개발자 응원하기', '/user/support', 'support', 5),
   ]),
 ];
 
@@ -197,7 +203,7 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
             ...(m.children ?? []).map((c) => c.url),
           ]);
           // 메뉴와 무관하게 모든 로그인 사용자가 접근 가능한 계정/지원 페이지
-          const ALWAYS_ALLOWED = ['/user/inquiries', '/user/settings'];
+          const ALWAYS_ALLOWED = ['/user/inquiries', '/user/settings', '/user/support'];
           const isAccessible = accessibleUrls.some((url) => pathname.startsWith(url))
             || ALWAYS_ALLOWED.some((p) => pathname.startsWith(p));
           if (!isAccessible) {

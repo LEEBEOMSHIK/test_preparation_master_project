@@ -1,3 +1,45 @@
+## HIST-20260722-004
+
+- **날짜**: 2026-07-22
+- **수정 범위**: 사용자 백엔드 / 시험 목록 (`/user/exams`)
+- **수정 개요**: 사용자가 `/user/exams`에서 AI 커스텀 필터를 적용하면 "TPMP 모의고사 6회, 1회, 2회, 3회, 4회, 5회" 순으로 뒤죽박죽 나온다고 지적. 원인은 사용자 목록 조회 쿼리(`findAllWithDetailsActive`)가 `exam_year`/`exam_round`(시험 연도·회차)가 아니라 `created_at`(등록 시각) 역순으로 정렬하고 있었기 때문. 등록 순서가 실제 회차 순서와 달랐던 시험들이 뒤섞여 노출됨. `ORDER BY exam_year DESC NULLS LAST, exam_round DESC NULLS LAST, created_at DESC`로 변경해 "연도·회차 최신순"(2026년→2025년→2024년, TPMP 모의고사 6회→1회) 정렬로 수정. 관리자 목록(`/admin/exams`, `findAllWithDetailsByDelYn`)은 이번 스코프에서 제외하고 기존 등록 시각 최신순을 그대로 유지(관리 목적상 자연스러움).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| backend/src/main/java/com/tpmp/testprep/repository/ExaminationRepository.java | 수정 | `findAllWithDetailsActive` 쿼리의 `ORDER BY` 절을 `e.createdAt DESC`에서 `e.examYear DESC NULLS LAST, e.examRound DESC NULLS LAST, e.createdAt DESC`로 변경 |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/repository/ExaminationRepository.java`
+- 변경 전:
+  ```java
+  /** 사용자 목록용 — 삭제되지 않고 활성(del_yn='N' AND use_yn='Y')인 시험만. 카테고리·시험지 페치 조인 (N+1 방지) */
+  @Query("SELECT e FROM Examination e " +
+         "LEFT JOIN FETCH e.category " +
+         "LEFT JOIN FETCH e.examPaper " +
+         "WHERE e.delYn = 'N' AND e.useYn = 'Y' " +
+         "ORDER BY e.createdAt DESC")
+  Page<Examination> findAllWithDetailsActive(Pageable pageable);
+  ```
+- 변경 후:
+  ```java
+  /** 사용자 목록용 — 삭제되지 않고 활성(del_yn='N' AND use_yn='Y')인 시험만. 카테고리·시험지 페치 조인 (N+1 방지)
+   *  정렬: 시험 연도·회차 최신순(내림차순, NULL은 맨 뒤) → 동일 연도·회차 시 등록 시각 최신순 타이브레이커 */
+  @Query("SELECT e FROM Examination e " +
+         "LEFT JOIN FETCH e.category " +
+         "LEFT JOIN FETCH e.examPaper " +
+         "WHERE e.delYn = 'N' AND e.useYn = 'Y' " +
+         "ORDER BY e.examYear DESC NULLS LAST, e.examRound DESC NULLS LAST, e.createdAt DESC")
+  Page<Examination> findAllWithDetailsActive(Pageable pageable);
+  ```
+- 이유: 사용자 노출 목록은 등록 순서가 아니라 시험 자체의 연도·회차 최신순으로 보이는 것이 자연스럽다는 사용자 요구. `exam_year`/`exam_round`가 둘 다 같은 시험이 생길 경우를 대비해 `createdAt DESC`를 타이브레이커로 유지.
+- 검증: `UserExamApplicationRepository`에 "Hibernate 버전 간 JPQL NULLS LAST 지원 여부에 기대지 않는다"는 과거 주석이 있어, 실제로 로컬 tpmp DB(PostgreSQL, Hibernate 6.5.2)에 대해 임시 `@SpringBootTest` 리포지토리 테스트를 작성·실행해 쿼리를 검증한 뒤 삭제함. 생성된 SQL은 `order by e1_0.exam_year desc nulls last, e1_0.exam_round desc nulls last, e1_0.created_at desc`로 정상 변환되었고, 실행 결과가 "2026-2회 → 2026-1회 → 2025-3회 → 2025-2회 → 2025-1회 → 2024-3회"(=TPMP 모의고사 6회→1회) 순으로 정확히 나옴을 확인. Hibernate 6.5.2 기준으로는 NULLS LAST가 정상 지원됨.
+
+### 복원 방법
+이 ID(HIST-20260722-004)만으로 복원 시 `ExaminationRepository.java`의 `findAllWithDetailsActive` 쿼리 `ORDER BY` 절을 `e.createdAt DESC`로 되돌린다.
+
 ## HIST-20260722-003
 
 - **날짜**: 2026-07-22
