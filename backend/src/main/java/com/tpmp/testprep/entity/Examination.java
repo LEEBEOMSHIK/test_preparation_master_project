@@ -57,6 +57,14 @@ public class Examination {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /** 소프트 삭제 여부: 'N' = 정상, 'Y' = 삭제됨(거의 비가역) */
+    @Column(name = "del_yn", nullable = false, length = 1)
+    private String delYn = "N";
+
+    /** 사용 여부: 'Y' = 사용중, 'N' = 비사용(가역) */
+    @Column(name = "use_yn", nullable = false, length = 1)
+    private String useYn = "Y";
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -86,4 +94,8 @@ public class Examination {
         this.examRound = examRound;
         this.isAiCustom = isAiCustom;
     }
+
+    public void softDelete() { this.delYn = "Y"; }
+
+    public void toggleUseYn() { this.useYn = "Y".equals(this.useYn) ? "N" : "Y"; }
 }

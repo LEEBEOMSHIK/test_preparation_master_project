@@ -59,11 +59,13 @@ public class UserExaminationService {
      */
     @Transactional
     public ExamSessionResponse startExam(Long examinationId, String email, boolean reset) {
-        Examination examination = examinationRepository.findByIdWithPaper(examinationId)
+        // 응시 시작(진입점) — 삭제되지 않고 활성(del_yn='N' AND use_yn='Y')인 시험만 시작할 수 있다.
+        Examination examination = examinationRepository.findActiveByIdWithPaper(examinationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EXAMINATION_NOT_FOUND));
 
         // 동기화 apply와 동일한 Exam 행 잠금을 먼저 잡아 세션 생성/문항 갱신의 TOCTOU를 막는다.
-        examRepository.findByIdForUpdate(examination.getExamPaper().getId())
+        // 시험지 역시 삭제되지 않고 활성인 것만 허용한다.
+        examRepository.findActiveByIdForUpdate(examination.getExamPaper().getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.EXAM_NOT_FOUND));
 
         User user = userRepository.findByEmail(email)
@@ -91,20 +93,20 @@ public class UserExaminationService {
         return ExamSessionResponse.of(session, remainingSeconds);
     }
 
-    /** 시험 목록 조회 */
+    /** 시험 목록 조회 — 삭제되지 않고 활성(del_yn='N' AND use_yn='Y')인 시험만 노출 */
     public Page<ExaminationResponse> getExaminations(Pageable pageable) {
-        return examinationRepository.findAllWithDetails(pageable)
+        return examinationRepository.findAllWithDetailsActive(pageable)
                 .map(ExaminationResponse::from);
     }
 
-    /** 시험 상세 조회 (문항 포함, RANDOM 모드 시 셔플) */
+    /** 시험 상세 조회 (문항 포함, RANDOM 모드 시 셔플) — 진입점이므로 삭제되지 않고 활성인 시험·문항만 노출 */
     public ExaminationDetailResponse getExaminationDetail(Long id) {
-        Examination examination = examinationRepository.findByIdWithPaper(id)
+        Examination examination = examinationRepository.findActiveByIdWithPaper(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EXAMINATION_NOT_FOUND));
 
         Exam paper = examination.getExamPaper();
         List<Question> questions = new ArrayList<>(
-                questionRepository.findByExamIdOrderBySeqAsc(paper.getId())
+                questionRepository.findActiveByExamIdOrderBySeqAsc(paper.getId())
         );
         if (paper.getQuestionMode() == Exam.QuestionMode.RANDOM) {
             Collections.shuffle(questions);
@@ -112,10 +114,11 @@ public class UserExaminationService {
         return ExaminationDetailResponse.of(examination, questions);
     }
 
-    /** 시험 제출·채점·이력 저장 (문항별 스냅샷 포함) */
+    /** 시험 제출·채점·이력 저장 (문항별 스냅샷 포함) — 진행 중 세션 종료이므로 del_yn만 필터(use_yn 미필터,
+     *  응시 도중 관리자가 비활성화해도 이미 시작한 응시자의 채점이 깨지지 않도록) */
     @Transactional
     public ExaminationSubmitResponse submitExam(Long id, Map<Long, String> answers, String email) {
-        Examination examination = examinationRepository.findByIdWithPaper(id)
+        Examination examination = examinationRepository.findByIdWithPaperAndDelYn(id, "N")
                 .orElseThrow(() -> new BusinessException(ErrorCode.EXAMINATION_NOT_FOUND));
 
         // category·sourceQuestionBank LEFT JOIN FETCH — 카테고리/원본 제목·ID N+1 방지

@@ -26,8 +26,10 @@
 | `create_uno` | BIGINT | ✅ | — | 생성 사용자 번호 (users.id FK) |
 | `modified_dt` | TIMESTAMP | ✅ | 현재 시각 | 최종 수정 일시 |
 | `modified_uno` | BIGINT | ✅ | — | 최종 수정 사용자 번호 (users.id FK) |
-| `del_yn` | CHAR(1) | ✅ | `'N'` | 삭제 여부 (Y: 삭제됨, N: 정상) |
-| `use_yn` | CHAR(1) | ✅ | `'Y'` | 사용 여부 (Y: 사용중, N: 비사용) |
+| `del_yn` | VARCHAR(1)\* | ✅ | `'N'` | 삭제 여부 (Y: 삭제됨, N: 정상) |
+| `use_yn` | VARCHAR(1)\* | ✅ | `'Y'` | 사용 여부 (Y: 사용중, N: 비사용) |
+
+\* **실제 물리 타입은 VARCHAR(1)이다(CHAR(1) 아님)**. `BaseEntity`/`Exam`/`Examination`/`Question`의 `delYn`/`useYn` 필드는 `@Column(columnDefinition` 없이 `length = 1`만 지정하며, Hibernate는 이 경우 `String` 필드를 VARCHAR로 매핑한다. 과거 `exams.del_yn`을 CHAR(1)로 만들었다가 prod `ddl-auto=validate` 기동 실패로 VARCHAR(1)로 되돌린 전례가 있다(`20260701_01_exams_del_yn_char_to_varchar.sql`). 신규 테이블에 del_yn/use_yn 컬럼을 추가하는 마이그레이션 SQL은 반드시 `VARCHAR(1)`로 작성한다.
 
 ### UNO (User Number)
 
@@ -110,7 +112,7 @@ repository.findAllByDelYn("N", pageable);
 | `BIGINT` | `Long` |
 | `VARCHAR` | `String` |
 | `TEXT` | `String` + `@Column(columnDefinition = "TEXT")` |
-| `CHAR(1)` | `String` (길이 1로 제한) |
+| `CHAR(1)` | `String` (길이 1로 제한) — del_yn/use_yn은 실제로 `VARCHAR(1)` 사용, §2 각주 참고 |
 | `TIMESTAMP` | `LocalDateTime` |
 | `JSONB` | `List<?>` + `@JdbcTypeCode(SqlTypes.JSON)` |
 
@@ -121,12 +123,12 @@ repository.findAllByDelYn("N", pageable);
 | 테이블 | 설명 | 공통 컬럼 적용 | 비고 |
 |--------|------|---------------|------|
 | `users` | 사용자 계정 | 미적용 (레거시) | email, password, role, name |
-| `exams` | 시험지 (문항 묶음) | 미적용 (레거시) | title, order_no, question_mode, created_by FK |
-| `questions` | 시험지 내 문항 스냅샷 | 미적용 (레거시) | exam_id FK, nullable source_question_bank_id FK, instruction, content, question_type, options(jsonb), answer(TEXT), explanation, code, language, scheduling_data(jsonb), sql_data(jsonb) |
+| `exams` | 시험지 (문항 묶음) | 부분 적용 (del_yn/use_yn만) | title, order_no, question_mode, created_by FK |
+| `questions` | 시험지 내 문항 스냅샷 | 부분 적용 (del_yn/use_yn만) | exam_id FK, nullable source_question_bank_id FK, instruction, content, question_type, options(jsonb), answer(TEXT), explanation, code, language, scheduling_data(jsonb), sql_data(jsonb) |
 | `question_bank` | 글로벌 문항 풀 | ✅ **적용** | category_id FK → domain_slave |
 | `domain_master` | 도메인 마스터 (분류 그룹) | 미적용 (단순 코드 테이블) | name |
 | `domain_slave` | 도메인 슬레이브 (분류 값) | 미적용 (단순 코드 테이블) | master_id FK, name, display_order |
-| `examinations` | 시험 이벤트 | 미적용 | title, exam_paper_id FK → exams, category_id FK → domain_slave, time_limit, created_by FK, created_at |
+| `examinations` | 시험 이벤트 | 부분 적용 (del_yn/use_yn만) | title, exam_paper_id FK → exams, category_id FK → domain_slave, time_limit, created_by FK, created_at |
 | `concept_notes` | 개념 노트 | 미적용 (레거시) | |
 | `inquiries` | 문의 | 미적용 (레거시) | |
 | `user_exam_applications` | 사용자 직접 입력 시험 접수 정보 | 미적용 (신규, created_at/updated_at만 자체 관리) | user_id FK → users(CASCADE), exam_info_id nullable FK → exam_info(SET NULL), exam_name 스냅샷 |
@@ -135,12 +137,12 @@ repository.findAllByDelYn("N", pageable);
 
 - `question_bank`: BaseEntity 상속 → 소프트 삭제(del_yn) 포함 완전 적용
 - `domain_master` / `domain_slave`: 단순 코드/분류 테이블 — 가이드라인 §3 예외 적용 (공통 컬럼 생략 허용)
-- `examinations`: 신규 테이블이지만 created_at + created_by로 최소 감사 컬럼만 적용; Flyway 도입 시 BaseEntity 마이그레이션 예정
+- `exams` / `examinations` / `questions`: BaseEntity 완전 전환 대신 `del_yn`(exams는 기존 보유, examinations/questions는 신규)·`use_yn`(3개 테이블 모두 신규) 두 컬럼만 개별 추가(2026-07-22, `20260722_02_add_audit_flags_exam_examination_question.sql`). create_dt/create_uno/modified_dt/modified_uno는 미적용 상태 유지.
 - 나머지 레거시 테이블: Flyway 마이그레이션 도입 시 공통 컬럼 추가 예정
 
 ### 향후 계획
 
-1. Flyway 마이그레이션 도입 후 레거시 테이블에 공통 컬럼 ALTER TABLE 적용
+1. Flyway 마이그레이션 도입 후 레거시 테이블에 create_dt/create_uno/modified_dt/modified_uno 공통 컬럼 ALTER TABLE 적용
 2. `Examination`, `DomainMaster`, `DomainSlave` 엔티티를 BaseEntity 또는 경량 감사 추상 클래스로 전환
 
 ---
@@ -209,6 +211,8 @@ exam_round     INT          NULLABLE  — 시험 회차
 is_ai_custom   BOOLEAN      NOT NULL DEFAULT false  — AI 커스텀 문항 시험 여부
 created_by     BIGINT       NOT NULL FK → users.id
 created_at     TIMESTAMP    NOT NULL
+del_yn         VARCHAR(1)   NOT NULL  DEFAULT 'N'
+use_yn         VARCHAR(1)   NOT NULL  DEFAULT 'Y'
 ```
 
 ### user_exam_applications
@@ -259,6 +263,8 @@ updated_at        TIMESTAMP    NULLABLE
 | 컬럼 | 설명 |
 |------|------|
 | `created_by` | FK → users.id (생성자) |
+| `del_yn` | 삭제 여부 (Y/N) |
+| `use_yn` | 사용 여부 (Y/N) |
 
 #### `questions`
 | 컬럼 | 설명 |
@@ -269,6 +275,8 @@ updated_at        TIMESTAMP    NULLABLE
 | `question_type` | MULTIPLE_CHOICE / SHORT_ANSWER / OX / CODE / SCHEDULING / SQL |
 | `scheduling_data` | CPU 스케줄링 구조화 데이터 스냅샷 (JSONB, nullable) |
 | `sql_data` | SQL 테이블·기대 결과 구조화 데이터 스냅샷 (JSONB, nullable) |
+| `del_yn` | 삭제 여부 (Y/N) — 원본 question_bank와 독립 관리(자동 전파 없음) |
+| `use_yn` | 사용 여부 (Y/N) — 원본 question_bank와 독립 관리(자동 전파 없음) |
 
 #### `exam_history_details`
 | 컬럼 | 설명 |
@@ -306,6 +314,8 @@ updated_at        TIMESTAMP    NULLABLE
 | `exam_round` | 시험 회차 — 레거시 데이터는 title 파싱 백필, NULL 가능 |
 | `is_ai_custom` | AI 커스텀 문항 시험 여부 — 레거시 데이터는 title 파싱 백필 |
 | `created_by` | FK → users.id (생성자) |
+| `del_yn` | 삭제 여부 (Y/N) |
+| `use_yn` | 사용 여부 (Y/N) |
 
 #### `user_exam_applications`
 | 컬럼 | 설명 |

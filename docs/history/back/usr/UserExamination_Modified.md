@@ -1,3 +1,37 @@
+## HIST-20260722-001
+
+- **날짜**: 2026-07-22
+- **수정 범위**: 사용자 백엔드 / 시험 응시 (UserExaminationService) — 삭제·비활성 시험/문항 노출 누락 수정
+- **수정 개요**: `UserExaminationService`의 4개 메서드(`getExaminations`, `startExam`, `getExaminationDetail`, `submitExam`)에 지금까지 전혀 없었던 활성 상태 필터를 추가했다. 진입점(목록·시작·상세)은 삭제되지 않고 활성(del_yn='N' AND use_yn='Y')인 시험·시험지·문항만 노출하고, 제출·채점(진행 중 세션 종료)은 del_yn만 필터해(use_yn 미필터) 응시 도중 관리자가 비활성화해도 이미 시작한 응시자의 채점이 깨지지 않도록 했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| backend/src/main/java/com/tpmp/testprep/service/UserExaminationService.java | 수정 | 4개 메서드가 신규 리포지토리 메서드(findActiveByIdWithPaper/findAllWithDetailsActive/findByIdWithPaperAndDelYn/findActiveByExamIdOrderBySeqAsc/findActiveByIdForUpdate)를 사용하도록 교체 |
+| backend/src/main/java/com/tpmp/testprep/dto/response/ExaminationResponse.java | 수정 | useYn 필드 추가(AdminExamination_Modified.md HIST-20260722-001과 동일 파일, 사용자·관리자 공용) |
+| backend/src/test/java/com/tpmp/testprep/service/UserExaminationSessionLifecycleTest.java | 수정 | startExam 테스트는 findActiveByIdWithPaper/findActiveByIdForUpdate 목킹으로, submitExam 3개 테스트는 findByIdWithPaperAndDelYn(id,"N") 목킹으로 갱신(리포지토리 메서드 개명에 맞춘 회귀 테스트 유지) |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/service/UserExaminationService.java`
+- 변경 전(4개 메서드 모두 활성 필터 전무):
+  - `getExaminations`: `examinationRepository.findAllWithDetails(pageable)`
+  - `startExam`: `examinationRepository.findByIdWithPaper(examinationId)` + `examRepository.findByIdForUpdate(...)`
+  - `getExaminationDetail`: `examinationRepository.findByIdWithPaper(id)` + `questionRepository.findByExamIdOrderBySeqAsc(paper.getId())`
+  - `submitExam`: `examinationRepository.findByIdWithPaper(id)`
+- 변경 후(재확인 결과, 요구된 필터대로 정확히 반영):
+  - `getExaminations` → `findAllWithDetailsActive(pageable)` — del_yn='N' AND use_yn='Y'
+  - `startExam` → `findActiveByIdWithPaper(examinationId)`(del_yn='N' AND use_yn='Y') + `examRepository.findActiveByIdForUpdate(examPaperId)`(del_yn='N' AND use_yn='Y', PESSIMISTIC_WRITE 락 유지)
+  - `getExaminationDetail` → `findActiveByIdWithPaper(id)`(del_yn='N' AND use_yn='Y') + `questionRepository.findActiveByExamIdOrderBySeqAsc(paper.getId())`(del_yn='N' AND use_yn='Y')
+  - `submitExam` → `findByIdWithPaperAndDelYn(id, "N")`(del_yn만, use_yn 미필터) — 문항 채점에 쓰이는 `questionRepository.findByExamIdOrderBySeqAscWithCategory`는 쿼리 자체에 `AND q.delYn = 'N'`이 추가되어(AdminExamPaper_Modified.md 참고) 서비스 코드 변경 없이 동일 정책 적용됨
+- 이유: 지금까지 사용자가 실제로 읽는 4개 경로에 활성 상태 필터가 전혀 없어 "비활성화했는데 사용자에게 계속 보임" 결함이 있었음. 진입점은 del_yn+use_yn 둘 다, 제출·채점은 del_yn만 필터해 진행 중 세션을 보호
+
+### 복원 방법
+이 ID(HIST-20260722-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다.
+
+---
+
 ## HIST-20260721-009
 
 - **날짜**: 2026-07-21

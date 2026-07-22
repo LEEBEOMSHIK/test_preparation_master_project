@@ -120,13 +120,31 @@ public class ExamService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
         if (!q.getExam().getId().equals(examId))
             throw new BusinessException(ErrorCode.INVALID_INPUT);
-        questionRepository.delete(q);
+        q.softDelete();
     }
 
     @Transactional
     public void deleteExam(Long id) {
         Exam exam = getExamDetail(id);
         exam.softDelete();
+    }
+
+    @Transactional
+    public ExamSummaryResponse toggleUseYn(Long id) {
+        Exam exam = getExamDetail(id);
+        exam.toggleUseYn();
+        int count = questionRepository.countByExamId(id);
+        return ExamSummaryResponse.from(exam, count);
+    }
+
+    @Transactional
+    public QuestionDetailResponse toggleQuestionUseYn(Long examId, Long questionId) {
+        Question q = questionRepository.findById(questionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
+        if (!q.getExam().getId().equals(examId))
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        q.toggleUseYn();
+        return QuestionDetailResponse.from(q);
     }
 
     @Transactional

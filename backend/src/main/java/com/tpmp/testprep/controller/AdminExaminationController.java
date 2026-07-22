@@ -52,4 +52,9 @@ public class AdminExaminationController {
         examinationService.deleteExamination(id);
         return ResponseEntity.ok(ApiResponse.success());
     }
+
+    @PatchMapping("/{id}/toggle")
+    public ResponseEntity<ApiResponse<ExaminationResponse>> toggleExaminationUseYn(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(examinationService.toggleUseYn(id)));
+    }
 }

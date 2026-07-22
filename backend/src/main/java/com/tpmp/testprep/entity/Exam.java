@@ -41,6 +41,10 @@ public class Exam {
     @Column(name = "del_yn", nullable = false, length = 1)
     private String delYn = "N";
 
+    /** 사용 여부: 'Y' = 사용중, 'N' = 비사용(가역). 삭제(del_yn)와 달리 다시 켤 수 있다. */
+    @Column(name = "use_yn", nullable = false, length = 1)
+    private String useYn = "Y";
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -60,6 +64,8 @@ public class Exam {
     }
 
     public void softDelete() { this.delYn = "Y"; }
+
+    public void toggleUseYn() { this.useYn = "Y".equals(this.useYn) ? "N" : "Y"; }
 
     public enum QuestionMode {
         RANDOM, SEQUENTIAL

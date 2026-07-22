@@ -80,6 +80,17 @@ public class AdminExamController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+    @PatchMapping("/{id}/toggle")
+    public ResponseEntity<ApiResponse<ExamSummaryResponse>> toggleExamUseYn(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(examService.toggleUseYn(id)));
+    }
+
+    @PatchMapping("/{id}/questions/{questionId}/toggle")
+    public ResponseEntity<ApiResponse<QuestionDetailResponse>> toggleQuestionUseYn(
+            @PathVariable Long id, @PathVariable Long questionId) {
+        return ResponseEntity.ok(ApiResponse.success(examService.toggleQuestionUseYn(id, questionId)));
+    }
+
     @PostMapping("/{id}/questions")
     public ResponseEntity<ApiResponse<Void>> addQuestion(
             @PathVariable Long id,

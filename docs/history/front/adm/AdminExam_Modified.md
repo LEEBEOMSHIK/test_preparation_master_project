@@ -1,3 +1,43 @@
+## HIST-20260722-001
+
+- **날짜**: 2026-07-22
+- **수정 범위**: 관리자 프론트엔드 / 시험지·시험 관리 — 사용여부 토글 UI 추가
+- **수정 개요**: 시험지 관리 목록, 응시 시험 관리 목록, 시험지 수정 화면의 "현재 문항" 목록에 `Quote` 관리 화면과 동일한 초록/회색 pill 토글 배지를 추가했다. 컬럼이 1개씩 늘어난 두 목록 화면은 `useColumnResize` localStorage 키를 v2→v3로 올렸다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| frontend/src/types/index.ts | 수정 | ExamSummary/Examination/ExamQuestion에 `useYn: 'Y' \| 'N'` 필드 추가 |
+| frontend/src/services/examService.ts | 수정 | adminToggleExam(id)/adminToggleQuestion(examId, questionId) 추가 |
+| frontend/src/services/examinationService.ts | 수정 | adminToggleExamination(id) 추가 |
+| frontend/src/app/admin/exams/papers/page.tsx | 수정 | 사용여부 토글 컬럼 추가, col-widths 키 v2→v3, TableSkeleton cols 6→7 |
+| frontend/src/app/admin/exams/page.tsx | 수정 | 사용여부 토글 컬럼 추가, col-widths 키 v2→v3, TableSkeleton cols 7→8 |
+| frontend/src/app/admin/exams/papers/[id]/edit/page.tsx | 수정 | "현재 문항" 목록 각 행에 사용여부 토글 배지 추가(상세·제거 버튼 사이) |
+| frontend/src/data/tableComments.ts | 수정 | exams/questions/examinations 컬럼 코멘트에 del_yn/use_yn 설명 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/exams/papers/page.tsx`
+- 변경 전: `useColumnResize('tpmp:admin-exam-papers:col-widths:v2', [48, 280, 96, 72, 100, 200])`, 컬럼 6개(No/제목/방식/문항수/등록일/관리)
+- 변경 후: 키 `v3`, 폭 `[48, 280, 96, 72, 90, 100, 200]`, "사용여부" 컬럼을 문항 수와 등록일 사이에 추가. `handleToggle(id)`가 `examService.adminToggleExam(id)` 호출 후 로컬 state를 갱신
+- 이유: 시험지 비활성화 토글 UI 제공. 컬럼 추가로 기존 저장된 폭 배열과 개수가 안 맞아 버전 키를 올림(파일 내 기존 v1→v2 관례 확인 후 동일 패턴 적용)
+
+#### `frontend/src/app/admin/exams/page.tsx`
+- 변경 전: `useColumnResize('tpmp:admin-exams:col-widths:v2', [48, 240, 140, 200, 88, 100, 200])`, 컬럼 7개
+- 변경 후: 키 `v3`, 폭 `[48, 240, 140, 200, 88, 90, 100, 200]`, "사용여부" 컬럼을 제한 시간과 등록일 사이에 추가. `handleToggle(id)`가 `examinationService.adminToggleExamination(id)` 호출
+- 이유: 시험(Examination) 비활성화 토글 UI 제공
+
+#### `frontend/src/app/admin/exams/papers/[id]/edit/page.tsx`
+- 변경 전: "현재 문항" 각 행에 상세·제거 버튼만 존재
+- 변경 후: 상세 버튼과 제거 버튼 사이에 사용여부 pill 버튼 추가, `handleToggleQuestion(questionId)`가 `examService.adminToggleQuestion(id, questionId)` 호출 후 로컬 state 갱신
+- 이유: 문항 개별 비활성화 토글 UI 제공
+
+### 복원 방법
+이 ID(HIST-20260722-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다.
+
+---
+
 ## HIST-20260721-001
 
 - **날짜**: 2026-07-21

@@ -1,3 +1,88 @@
+## HIST-20260722-002
+
+- **날짜**: 2026-07-22
+- **수정 범위**: 관리자 백엔드 / 시험 관리 (Examination) — del_yn/use_yn 기능 부팅 실패 긴급 수정
+- **수정 개요**: HIST-20260722-001에서 `ExaminationRepository.findByIdAndDelYn(Long id, String delYn)`을 추가하며 메서드 시그니처에는 `delYn` 파라미터를 선언했지만 `@Query`의 JPQL 문자열 안에서는 `:delYn` 바인딩을 쓰지 않고 `AND e.delYn = 'N'` 리터럴을 그대로 남겨두는 실수가 있었다. Spring Data JPA는 "선언된 파라미터가 쿼리에서 사용되지 않음"을 부팅 시점에 `IllegalStateException`으로 검증하므로 `bootRun`/`test` 전체가 기동조차 되지 않는 상태였다. `AND e.delYn = :delYn`으로 수정해 파라미터 바인딩을 사용하도록 고쳤다(CLAUDE.md "SQL 직접 작성 시 파라미터 바인딩 사용" 규칙 준수). 같은 세션에서 신규 추가된 `ExamRepository`/`ExaminationRepository`/`QuestionRepository`의 나머지 `@Query` 메서드를 전수 대조한 결과, 이 메서드 외 다른 파라미터-쿼리 불일치는 없었다(다른 메서드들은 메서드 시그니처가 애초에 `delYn`/`useYn`을 파라미터로 선언하지 않고 고정 리터럴만 쓰거나, `@Query` 없는 파생 쿼리 메서드라 문제가 없음).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| backend/src/main/java/com/tpmp/testprep/repository/ExaminationRepository.java | 수정 | `findByIdAndDelYn`의 `@Query` JPQL에서 리터럴 `'N'`을 파라미터 바인딩 `:delYn`으로 교체 |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/repository/ExaminationRepository.java`
+- 변경 전:
+  ```java
+  @Query("SELECT e FROM Examination e " +
+         "JOIN FETCH e.examPaper " +
+         "LEFT JOIN FETCH e.category " +
+         "WHERE e.id = :id AND e.delYn = 'N'")
+  Optional<Examination> findByIdAndDelYn(@Param("id") Long id, @Param("delYn") String delYn);
+  ```
+- 변경 후:
+  ```java
+  @Query("SELECT e FROM Examination e " +
+         "JOIN FETCH e.examPaper " +
+         "LEFT JOIN FETCH e.category " +
+         "WHERE e.id = :id AND e.delYn = :delYn")
+  Optional<Examination> findByIdAndDelYn(@Param("id") Long id, @Param("delYn") String delYn);
+  ```
+- 이유: 선언된 `@Param("delYn")`을 JPQL이 실제로 사용하지 않아 Spring Data JPA가 애플리케이션 부팅 시점에 `IllegalStateException`을 던져 `bootRun`이 죽는 결함을 수정. 파라미터 바인딩을 사용해야 한다는 CLAUDE.md 보안/코드 규칙에도 부합.
+
+### 복원 방법
+이 ID(HIST-20260722-002)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 `ExaminationRepository.java`에 적용한다(단, 복원하면 HIST-20260722-001에서 발생했던 부팅 실패가 재현되므로 실제로는 복원하지 않는 것을 권장).
+
+---
+
+## HIST-20260722-001
+
+- **날짜**: 2026-07-22
+- **수정 범위**: 관리자 백엔드 / 시험 관리 (Examination) — del_yn/use_yn 소프트 삭제·비활성화 플래그 추가
+- **수정 개요**: `examinations`에 `del_yn`·`use_yn`을 신규 추가하고, 관리자 시험 삭제를 하드 delete에서 소프트 삭제로 전환했다. 사용여부 토글 API(`PATCH /admin/examinations/{id}/toggle`)를 추가하고, 관리자 목록/단건 조회에 `del_yn='N'` 필터를 반영했다(기존에는 필터가 전혀 없었음). 카테고리(domain_slave) 삭제 가능 여부를 판단하는 `DomainService.isSlaveInUse`도 소프트 삭제된 examinations를 참조로 치지 않도록 `del_yn='N'` 필터를 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| docs/db-migration/20260722_02_add_audit_flags_exam_examination_question.sql | 추가 | examinations.del_yn/use_yn 컬럼 추가 (VARCHAR(1)) — exams/questions 컬럼도 같은 파일에 포함(AdminExamPaper_Modified.md HIST-20260722-001 참고) |
+| backend/src/main/java/com/tpmp/testprep/entity/Examination.java | 수정 | delYn/useYn 필드 + softDelete()/toggleUseYn() 추가 |
+| backend/src/main/java/com/tpmp/testprep/repository/ExaminationRepository.java | 수정 | findAllWithDetails를 findAllWithDetailsByDelYn(관리자)/findAllWithDetailsActive(사용자)로 분리, existsByCategoryId → existsByCategoryIdAndDelYn, findByIdWithPaper를 findByIdAndDelYn(관리자 단건)/findActiveByIdWithPaper(사용자 진입점)/findByIdWithPaperAndDelYn(사용자 제출·채점)로 분리 |
+| backend/src/main/java/com/tpmp/testprep/service/ExaminationService.java | 수정 | getExaminations가 findAllWithDetailsByDelYn("N", ...) 사용, deleteExamination을 하드 delete에서 softDelete()로 교체, toggleUseYn(id) 신규, private findById가 findByIdAndDelYn(id,"N") 사용(관리자 단건 조회에 del_yn 필터 신규 반영) |
+| backend/src/main/java/com/tpmp/testprep/service/DomainService.java | 수정 | isSlaveInUse의 examinationRepository.existsByCategoryId → existsByCategoryIdAndDelYn(slaveId, "N") |
+| backend/src/main/java/com/tpmp/testprep/controller/AdminExaminationController.java | 수정 | PATCH /{id}/toggle 엔드포인트 추가 |
+| backend/src/main/java/com/tpmp/testprep/dto/response/ExaminationResponse.java | 수정 | useYn 필드 추가(사용자·관리자 공용 응답 DTO — UserExamination_Modified.md HIST-20260722-001에서도 동일 파일 참조) |
+| backend/src/test/java/com/tpmp/testprep/service/ExaminationServiceAuditFlagsTest.java | 추가 | deleteExamination 소프트 삭제·이미 삭제된 항목 재삭제 시 EXAMINATION_NOT_FOUND·toggleUseYn 회귀 테스트 |
+| backend/src/test/java/com/tpmp/testprep/service/DomainServiceTest.java | 추가 | 소프트 삭제된 examinations만 참조하는 슬레이브는 삭제 허용, 활성 examinations가 참조하면 DOMAIN_IN_USE 회귀 테스트 |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/entity/Examination.java`
+- 변경 전: delYn/useYn 없음(created_at/created_by만 감사 컬럼)
+- 변경 후: `delYn`(기본 "N")/`useYn`(기본 "Y") 필드, `softDelete()`, `toggleUseYn()` 추가
+- 이유: 시험 이벤트 소프트 삭제·비활성화 지원
+
+#### `backend/src/main/java/com/tpmp/testprep/repository/ExaminationRepository.java`
+- 변경 전: `findAllWithDetails`(필터 없음, 관리자·사용자 공유), `findByIdWithPaper`(필터 없음, startExam/getExaminationDetail/submitExam 3곳에서 공유), `existsByCategoryId`(필터 없음)
+- 변경 후: 관리자용 `findAllWithDetailsByDelYn`/`findByIdAndDelYn`(del_yn='N'만), 사용자 진입점용 `findAllWithDetailsActive`/`findActiveByIdWithPaper`(del_yn='N' AND use_yn='Y'), 사용자 제출·채점용 `findByIdWithPaperAndDelYn`(del_yn만, use_yn 미필터), `existsByCategoryIdAndDelYn` 신규
+- 이유: 관리자 조회는 del_yn만, 사용자 진입점은 del_yn+use_yn 둘 다, 제출·채점은 del_yn만(진행 중 세션 보호) — 3가지 필터 요구사항이 서로 달라 메서드를 분리해야 함
+
+#### `backend/src/main/java/com/tpmp/testprep/service/ExaminationService.java`
+- 변경 전: `deleteExamination`이 `examinationRepository.delete(...)` 하드 delete, `findById`가 `examinationRepository.findById(id)`(del_yn 미필터)
+- 변경 후: `deleteExamination`은 `examination.softDelete()`로 교체, `toggleUseYn(id)` 신규, `findById` 사설 헬퍼가 `findByIdAndDelYn(id, "N")` 사용(fetch join도 함께 적용되어 N+1도 부수적으로 개선됨)
+- 이유: 시험 삭제를 가역적으로 만들고, 관리자 상세·수정·삭제가 이미 소프트 삭제된 항목에 대해 EXAMINATION_NOT_FOUND를 반환하도록 일관화
+
+#### `backend/src/main/java/com/tpmp/testprep/service/DomainService.java`
+- 변경 전: `existsByCategoryId(slaveId)` — 소프트 삭제된 examinations도 참조로 집계되어 카테고리 삭제를 막음
+- 변경 후: `existsByCategoryIdAndDelYn(slaveId, "N")`
+- 이유: 소프트 삭제된 examinations는 더 이상 "사용 중"이 아니므로 domain_slave 삭제를 막지 않아야 함
+
+### 복원 방법
+이 ID(HIST-20260722-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다.
+
+---
+
 ## HIST-20260721-001
 
 - **날짜**: 2026-07-21

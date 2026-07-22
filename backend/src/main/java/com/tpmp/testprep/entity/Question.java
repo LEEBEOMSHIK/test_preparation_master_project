@@ -82,6 +82,14 @@ public class Question {
     @Column(name = "disable_alternative_answer", nullable = false)
     private boolean disableAlternativeAnswer;
 
+    /** 소프트 삭제 여부: 'N' = 정상, 'Y' = 삭제됨(거의 비가역). 원본 question_bank와 독립 관리(자동 전파 없음). */
+    @Column(name = "del_yn", nullable = false, length = 1)
+    private String delYn = "N";
+
+    /** 사용 여부: 'Y' = 사용중, 'N' = 비사용(가역). 원본 question_bank와 독립 관리(자동 전파 없음). */
+    @Column(name = "use_yn", nullable = false, length = 1)
+    private String useYn = "Y";
+
     @Builder
     public Question(Exam exam, QuestionBank sourceQuestionBank, Integer seq, String instruction,
                     String content, QuestionType questionType,
@@ -153,6 +161,10 @@ public class Question {
     public Long getSourceQuestionBankId() {
         return sourceQuestionBank != null ? sourceQuestionBank.getId() : null;
     }
+
+    public void softDelete() { this.delYn = "Y"; }
+
+    public void toggleUseYn() { this.useYn = "Y".equals(this.useYn) ? "N" : "Y"; }
 
     public enum QuestionType {
         MULTIPLE_CHOICE, SHORT_ANSWER, OX, CODE, SCHEDULING, SQL

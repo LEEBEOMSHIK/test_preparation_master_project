@@ -65,10 +65,10 @@ class UserExaminationSessionLifecycleTest {
 
     @Test
     void startExamLocksPaperBeforeReadingOrCreatingSession() {
-        when(examinationRepository.findByIdWithPaper(7L)).thenReturn(Optional.of(examination));
+        when(examinationRepository.findActiveByIdWithPaper(7L)).thenReturn(Optional.of(examination));
         when(examination.getExamPaper()).thenReturn(exam);
         when(exam.getId()).thenReturn(1L);
-        when(examRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(exam));
+        when(examRepository.findActiveByIdForUpdate(1L)).thenReturn(Optional.of(exam));
         when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(user));
         when(user.getId()).thenReturn(2L);
         when(examSessionRepository.findByUser_IdAndExamination_Id(2L, 7L)).thenReturn(Optional.of(session));
@@ -80,13 +80,13 @@ class UserExaminationSessionLifecycleTest {
         service.startExam(7L, "user@test.com", false);
 
         InOrder order = inOrder(examRepository, examSessionRepository);
-        order.verify(examRepository).findByIdForUpdate(1L);
+        order.verify(examRepository).findActiveByIdForUpdate(1L);
         order.verify(examSessionRepository).findByUser_IdAndExamination_Id(2L, 7L);
     }
 
     @Test
     void successfulSubmitDeletesSessionInSameFlow() {
-        when(examinationRepository.findByIdWithPaper(7L)).thenReturn(Optional.of(examination));
+        when(examinationRepository.findByIdWithPaperAndDelYn(7L, "N")).thenReturn(Optional.of(examination));
         when(examination.getExamPaper()).thenReturn(exam);
         when(exam.getId()).thenReturn(1L);
         when(questionRepository.findByExamIdOrderBySeqAscWithCategory(1L)).thenReturn(List.of());
@@ -108,7 +108,7 @@ class UserExaminationSessionLifecycleTest {
                         List.of("id", "name"),
                         List.of(List.of("1", "Alice"), List.of("2", "Bob")),
                         false));
-        when(examinationRepository.findByIdWithPaper(7L)).thenReturn(Optional.of(examination));
+        when(examinationRepository.findByIdWithPaperAndDelYn(7L, "N")).thenReturn(Optional.of(examination));
         when(examination.getExamPaper()).thenReturn(exam);
         when(exam.getId()).thenReturn(1L);
         when(questionRepository.findByExamIdOrderBySeqAscWithCategory(1L)).thenReturn(List.of(question));
@@ -132,7 +132,7 @@ class UserExaminationSessionLifecycleTest {
 
     @Test
     void submitReturnsSourceTitleAndStoresSameSnapshot() {
-        when(examinationRepository.findByIdWithPaper(7L)).thenReturn(Optional.of(examination));
+        when(examinationRepository.findByIdWithPaperAndDelYn(7L, "N")).thenReturn(Optional.of(examination));
         when(examination.getExamPaper()).thenReturn(exam);
         when(exam.getId()).thenReturn(1L);
         when(questionRepository.findByExamIdOrderBySeqAscWithCategory(1L)).thenReturn(List.of(question));

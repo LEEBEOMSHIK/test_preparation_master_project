@@ -11,12 +11,13 @@ import { ColResizeHandle } from '@/components/ui/ColResizeHandle';
 
 export default function AdminExamsPage() {
   const router = useRouter();
-  // 관리 컬럼(수정/삭제 버튼) 클리핑 방지 위해 140→200 확대 + localStorage 키 v2 갱신
-  const { widths, startResize } = useColumnResize('tpmp:admin-exams:col-widths:v2', [48, 240, 140, 200, 88, 100, 200]);
+  // 사용여부 토글 컬럼 추가로 열 구성이 바뀌어 localStorage 키 v2→v3 갱신
+  const { widths, startResize } = useColumnResize('tpmp:admin-exams:col-widths:v3', [48, 240, 140, 200, 88, 90, 100, 200]);
   const [allExams, setAllExams]   = useState<Examination[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   // 검색 조건 (입력)
   const [keyword, setKeyword]             = useState('');
@@ -43,6 +44,21 @@ export default function AdminExamsPage() {
       setError('시험 삭제에 실패했습니다.');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleToggle = async (id: number) => {
+    setTogglingId(id);
+    try {
+      const res = await examinationService.adminToggleExamination(id);
+      const updated = res.data.data;
+      if (updated) {
+        setAllExams((prev) => prev.map((e) => (e.id === id ? { ...e, useYn: updated.useYn } : e)));
+      }
+    } catch {
+      setError('사용여부 변경에 실패했습니다.');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -128,7 +144,7 @@ export default function AdminExamsPage() {
       {/* 목록 */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
-          <TableSkeleton rows={5} cols={7} />
+          <TableSkeleton rows={5} cols={8} />
         ) : error ? (
           <div className="p-10 text-center text-red-400 text-sm">{error}</div>
         ) : allExams.length === 0 ? (
@@ -151,7 +167,8 @@ export default function AdminExamsPage() {
                 <th className="px-4 py-3 whitespace-nowrap relative">시험 유형<ColResizeHandle onMouseDown={(e) => startResize(2, e)} /></th>
                 <th className="px-4 py-3 relative">사용 시험지<ColResizeHandle onMouseDown={(e) => startResize(3, e)} /></th>
                 <th className="px-4 py-3 text-center whitespace-nowrap relative">제한 시간<ColResizeHandle onMouseDown={(e) => startResize(4, e)} /></th>
-                <th className="px-4 py-3 whitespace-nowrap relative">등록일<ColResizeHandle onMouseDown={(e) => startResize(5, e)} /></th>
+                <th className="px-4 py-3 text-center whitespace-nowrap relative">사용여부<ColResizeHandle onMouseDown={(e) => startResize(5, e)} /></th>
+                <th className="px-4 py-3 whitespace-nowrap relative">등록일<ColResizeHandle onMouseDown={(e) => startResize(6, e)} /></th>
                 <th className="px-4 py-3 text-center whitespace-nowrap">관리</th>
               </tr>
             </thead>
@@ -172,6 +189,20 @@ export default function AdminExamsPage() {
                   </td>
                   <td className="px-4 py-3.5 text-center text-gray-600 whitespace-nowrap">
                     {exam.timeLimit}분
+                  </td>
+                  <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                    <button
+                      onClick={() => handleToggle(exam.id)}
+                      disabled={togglingId === exam.id}
+                      className={[
+                        'px-2 py-1 rounded-full text-xs font-medium transition disabled:opacity-50',
+                        exam.useYn === 'Y'
+                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
+                      ].join(' ')}
+                    >
+                      {exam.useYn === 'Y' ? '사용' : '미사용'}
+                    </button>
                   </td>
                   <td className="px-4 py-3.5 text-gray-400 whitespace-nowrap">
                     {new Date(exam.createdAt).toLocaleDateString('ko-KR')}

@@ -26,6 +26,12 @@ export const examService = {
   adminDeleteExam: (id: number) =>
     apiClient.delete<ApiResponse<void>>(`/admin/exams/${id}`),
 
+  adminToggleExam: (id: number) =>
+    apiClient.patch<ApiResponse<ExamSummary>>(`/admin/exams/${id}/toggle`),
+
+  adminToggleQuestion: (examId: number, questionId: number) =>
+    apiClient.patch<ApiResponse<ExamQuestion>>(`/admin/exams/${examId}/questions/${questionId}/toggle`),
+
   adminAddQuestion: (examId: number, question: Record<string, unknown>) =>
     apiClient.post<ApiResponse<void>>(`/admin/exams/${examId}/questions`, question),
 

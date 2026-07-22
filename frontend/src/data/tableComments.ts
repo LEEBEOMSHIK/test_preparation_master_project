@@ -34,6 +34,8 @@ export const TABLE_COMMENTS: TableComment[] = [
       order_no: '정렬 순서',
       question_mode: '출제 방식 (RANDOM/SEQUENCE)',
       created_by: 'FK → users.id (생성자)',
+      del_yn: '삭제 여부 (Y/N)',
+      use_yn: '사용 여부 (Y/N)',
     },
     fkRelations: [
       { column: 'created_by', foreignTable: 'users', foreignColumn: 'id', displayColumn: 'name' },
@@ -57,6 +59,8 @@ export const TABLE_COMMENTS: TableComment[] = [
       language: '코드 언어',
       scheduling_data: 'CPU 스케줄링 구조화 데이터 스냅샷 (JSONB)',
       sql_data: 'SQL 테이블·기대 결과 구조화 데이터 스냅샷 (JSONB)',
+      del_yn: '삭제 여부 (Y/N) — 원본 question_bank와 독립 관리(자동 전파 없음)',
+      use_yn: '사용 여부 (Y/N) — 원본 question_bank와 독립 관리(자동 전파 없음)',
     },
     fkRelations: [
       { column: 'exam_id', foreignTable: 'exams', foreignColumn: 'id', displayColumn: 'title' },
@@ -133,6 +137,8 @@ export const TABLE_COMMENTS: TableComment[] = [
       is_ai_custom: 'AI 커스텀 문항 시험 여부 — 레거시 데이터는 title 파싱 백필',
       created_by: 'FK → users.id (생성자)',
       created_at: '생성 일시',
+      del_yn: '삭제 여부 (Y/N)',
+      use_yn: '사용 여부 (Y/N)',
     },
     fkRelations: [
       { column: 'exam_paper_id', foreignTable: 'exams', foreignColumn: 'id', displayColumn: 'title' },

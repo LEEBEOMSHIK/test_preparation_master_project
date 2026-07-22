@@ -73,4 +73,8 @@ export const examinationService = {
   /** 시험 삭제 */
   adminDeleteExamination: (id: number) =>
     apiClient.delete<ApiResponse<void>>(`/admin/examinations/${id}`),
+
+  /** 시험 사용여부 토글 */
+  adminToggleExamination: (id: number) =>
+    apiClient.patch<ApiResponse<Examination>>(`/admin/examinations/${id}/toggle`),
 };

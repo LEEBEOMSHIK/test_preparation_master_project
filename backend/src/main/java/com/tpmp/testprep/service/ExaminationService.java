@@ -29,7 +29,7 @@ public class ExaminationService {
     private final UserRepository userRepository;
 
     public Page<ExaminationResponse> getExaminations(Pageable pageable) {
-        return examinationRepository.findAllWithDetails(pageable)
+        return examinationRepository.findAllWithDetailsByDelYn("N", pageable)
                 .map(ExaminationResponse::from);
     }
 
@@ -74,11 +74,19 @@ public class ExaminationService {
 
     @Transactional
     public void deleteExamination(Long id) {
-        examinationRepository.delete(findById(id));
+        Examination examination = findById(id);
+        examination.softDelete();
+    }
+
+    @Transactional
+    public ExaminationResponse toggleUseYn(Long id) {
+        Examination examination = findById(id);
+        examination.toggleUseYn();
+        return ExaminationResponse.from(examination);
     }
 
     private Examination findById(Long id) {
-        return examinationRepository.findById(id)
+        return examinationRepository.findByIdAndDelYn(id, "N")
                 .orElseThrow(() -> new BusinessException(ErrorCode.EXAMINATION_NOT_FOUND));
     }
 }

@@ -16,12 +16,13 @@ const MODE_LABEL: Record<string, string> = {
 
 export default function AdminExamPapersPage() {
   const router = useRouter();
-  // 관리 컬럼(수정/삭제 버튼) 클리핑 방지 위해 160→200 확대 + localStorage 키 v2 갱신
-  const { widths, startResize } = useColumnResize('tpmp:admin-exam-papers:col-widths:v2', [48, 280, 96, 72, 100, 200]);
+  // 사용여부 토글 컬럼 추가로 열 구성이 바뀌어 localStorage 키 v2→v3 갱신
+  const { widths, startResize } = useColumnResize('tpmp:admin-exam-papers:col-widths:v3', [48, 280, 96, 72, 90, 100, 200]);
   const [allPapers, setAllPapers] = useState<ExamSummary[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   // 검색 조건 (입력)
   const [keyword, setKeyword]     = useState('');
@@ -48,6 +49,21 @@ export default function AdminExamPapersPage() {
       setError('시험지 삭제에 실패했습니다.');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleToggle = async (id: number) => {
+    setTogglingId(id);
+    try {
+      const res = await examService.adminToggleExam(id);
+      const updated = res.data.data;
+      if (updated) {
+        setAllPapers((prev) => prev.map((p) => (p.id === id ? { ...p, useYn: updated.useYn } : p)));
+      }
+    } catch {
+      setError('사용여부 변경에 실패했습니다.');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -132,7 +148,7 @@ export default function AdminExamPapersPage() {
       {/* 목록 */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
-          <TableSkeleton rows={5} cols={6} />
+          <TableSkeleton rows={5} cols={7} />
         ) : error ? (
           <div className="p-10 text-center text-red-400 text-sm">{error}</div>
         ) : allPapers.length === 0 ? (
@@ -154,7 +170,8 @@ export default function AdminExamPapersPage() {
                 <th className="px-4 py-3 relative">시험지 제목<ColResizeHandle onMouseDown={(e) => startResize(1, e)} /></th>
                 <th className="px-4 py-3 text-center whitespace-nowrap relative">출제 방식<ColResizeHandle onMouseDown={(e) => startResize(2, e)} /></th>
                 <th className="px-4 py-3 text-center whitespace-nowrap relative">문항 수<ColResizeHandle onMouseDown={(e) => startResize(3, e)} /></th>
-                <th className="px-4 py-3 whitespace-nowrap relative">등록일<ColResizeHandle onMouseDown={(e) => startResize(4, e)} /></th>
+                <th className="px-4 py-3 text-center whitespace-nowrap relative">사용여부<ColResizeHandle onMouseDown={(e) => startResize(4, e)} /></th>
+                <th className="px-4 py-3 whitespace-nowrap relative">등록일<ColResizeHandle onMouseDown={(e) => startResize(5, e)} /></th>
                 <th className="px-4 py-3 text-center whitespace-nowrap">관리</th>
               </tr>
             </thead>
@@ -179,6 +196,20 @@ export default function AdminExamPapersPage() {
                   </td>
                   <td className="px-4 py-3.5 text-center text-gray-600 whitespace-nowrap">
                     {paper.questionCount}
+                  </td>
+                  <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                    <button
+                      onClick={() => handleToggle(paper.id)}
+                      disabled={togglingId === paper.id}
+                      className={[
+                        'px-2 py-1 rounded-full text-xs font-medium transition disabled:opacity-50',
+                        paper.useYn === 'Y'
+                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
+                      ].join(' ')}
+                    >
+                      {paper.useYn === 'Y' ? '사용' : '미사용'}
+                    </button>
                   </td>
                   <td className="px-4 py-3.5 text-gray-400 whitespace-nowrap">
                     {new Date(paper.createdAt).toLocaleDateString('ko-KR')}

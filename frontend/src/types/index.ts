@@ -153,6 +153,7 @@ export interface ExamSummary {
   orderNo: number;
   questionMode: QuestionMode;
   questionCount: number;
+  useYn: 'Y' | 'N';
   createdAt: string;
 }
 
@@ -191,6 +192,7 @@ export interface ExamQuestion {
   categoryName?: string;
   schedulingData?: SchedulingData;
   sqlData?: SqlData;
+  useYn: 'Y' | 'N';
 }
 
 export interface ExamQuestionSyncItem {
@@ -280,6 +282,7 @@ export interface Examination {
   examYear?: number;
   examRound?: number;
   isAiCustom: boolean;
+  useYn: 'Y' | 'N';
   createdAt: string;
 }
 

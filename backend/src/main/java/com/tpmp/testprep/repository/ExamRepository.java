@@ -14,6 +14,11 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
     @Query("SELECT e FROM Exam e WHERE e.id = :id AND e.delYn = 'N'")
     java.util.Optional<Exam> findByIdForUpdate(@Param("id") Long id);
 
+    /** 사용자 응시 시작용 — 삭제되지 않고 활성(use_yn='Y')인 시험지만 잠근다. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT e FROM Exam e WHERE e.id = :id AND e.delYn = 'N' AND e.useYn = 'Y'")
+    java.util.Optional<Exam> findActiveByIdForUpdate(@Param("id") Long id);
+
     Page<Exam> findAll(Pageable pageable);
 
     Page<Exam> findAllByDelYn(String delYn, Pageable pageable);

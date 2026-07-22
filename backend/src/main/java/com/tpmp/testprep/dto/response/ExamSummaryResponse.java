@@ -10,6 +10,7 @@ public record ExamSummaryResponse(
         Integer orderNo,
         String questionMode,
         int questionCount,
+        String useYn,
         LocalDateTime createdAt
 ) {
     public static ExamSummaryResponse from(Exam exam) {
@@ -19,6 +20,7 @@ public record ExamSummaryResponse(
                 exam.getOrderNo(),
                 exam.getQuestionMode().name(),
                 exam.getQuestions().size(),
+                exam.getUseYn(),
                 exam.getCreatedAt()
         );
     }
@@ -30,6 +32,7 @@ public record ExamSummaryResponse(
                 exam.getOrderNo(),
                 exam.getQuestionMode().name(),
                 questionCount,
+                exam.getUseYn(),
                 exam.getCreatedAt()
         );
     }

@@ -110,6 +110,6 @@ public class DomainService {
 
     private boolean isSlaveInUse(Long slaveId) {
         return questionBankRepository.existsByCategoryIdOrExamTypeId(slaveId, slaveId)
-                || examinationRepository.existsByCategoryId(slaveId);
+                || examinationRepository.existsByCategoryIdAndDelYn(slaveId, "N");
     }
 }

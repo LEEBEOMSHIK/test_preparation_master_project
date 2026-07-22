@@ -1,3 +1,57 @@
+## HIST-20260722-001
+
+- **날짜**: 2026-07-22
+- **수정 범위**: 관리자 백엔드 / 시험지·문항 (Exam/Question) — del_yn/use_yn 소프트 삭제·비활성화 플래그 추가
+- **수정 개요**: `exams`에 `use_yn`(`del_yn`은 기존 보유), `questions`에 `del_yn`·`use_yn`을 신규 추가하고, 관리자 시험지 문항 제거를 하드 delete에서 소프트 삭제로 전환했다. 시험지·문항 각각의 사용여부 토글 API(`PATCH /admin/exams/{id}/toggle`, `PATCH /admin/exams/{id}/questions/{questionId}/toggle`)를 추가했다. 마이그레이션 SQL은 계획서에 명시된 `CHAR(1)`이 아닌 `VARCHAR(1)`로 작성했다 — Hibernate가 `columnDefinition` 없는 `String` 필드를 VARCHAR로 매핑하기 때문이며, 과거 `exams.del_yn`을 CHAR(1)로 만들었다가 prod `ddl-auto=validate` 기동 실패로 VARCHAR(1)로 되돌린 전례(HIST-20260701-001)를 반복하지 않기 위해 로컬 DB 실제 컬럼 타입을 확인 후 정정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| docs/db-migration/20260722_02_add_audit_flags_exam_examination_question.sql | 추가 | exams.use_yn, examinations.del_yn/use_yn, questions.del_yn/use_yn 컬럼 추가 (VARCHAR(1)) |
+| backend/src/main/java/com/tpmp/testprep/entity/Exam.java | 수정 | useYn 필드(VARCHAR(1), 기본 'Y') + toggleUseYn() 추가 |
+| backend/src/main/java/com/tpmp/testprep/entity/Question.java | 수정 | delYn/useYn 필드 + softDelete()/toggleUseYn() 추가 |
+| backend/src/main/java/com/tpmp/testprep/repository/ExamRepository.java | 수정 | findActiveByIdForUpdate(사용자 응시 시작용, del_yn='N' AND use_yn='Y' + PESSIMISTIC_WRITE) 추가 |
+| backend/src/main/java/com/tpmp/testprep/repository/QuestionRepository.java | 수정 | findActiveByExamIdOrderBySeqAsc 신규 추가(기존 findByExamIdOrderBySeqAsc 대체·제거), countByExamId/findByExamIdOrderBySeqAscWithCategory/findByExamIdOrderBySeqAscWithSyncSource에 `q.delYn = 'N'` 조건 추가 |
+| backend/src/main/java/com/tpmp/testprep/service/ExamService.java | 수정 | removeQuestion을 하드 delete에서 `q.softDelete()`로 교체, toggleUseYn(exam)/toggleQuestionUseYn(exam+question) 신규 |
+| backend/src/main/java/com/tpmp/testprep/controller/AdminExamController.java | 수정 | PATCH /{id}/toggle, PATCH /{id}/questions/{questionId}/toggle 엔드포인트 추가 |
+| backend/src/main/java/com/tpmp/testprep/dto/response/ExamSummaryResponse.java | 수정 | useYn 필드 추가 |
+| backend/src/main/java/com/tpmp/testprep/dto/response/QuestionDetailResponse.java | 수정 | useYn 필드 추가(끝에 추가해 positional 생성자 호출부 영향 최소화) |
+| backend/src/test/java/com/tpmp/testprep/service/ExamServiceAuditFlagsTest.java | 추가 | removeQuestion 소프트 삭제·toggleUseYn·toggleQuestionUseYn·소유권 검증 회귀 테스트 |
+| docs/db-guidelines.md | 수정 | §2 각주(del_yn/use_yn 실제 타입 VARCHAR(1) 명시), §6.3, §7 exams/questions 적용 현황을 "부분 적용", §9.2 exams/questions 컬럼 코멘트 표 갱신 |
+
+### 수정 상세
+
+#### `docs/db-migration/20260722_02_add_audit_flags_exam_examination_question.sql`
+- 변경 전: 파일 없음
+- 변경 후: `ALTER TABLE exams ADD COLUMN use_yn VARCHAR(1) NOT NULL DEFAULT 'Y'`, `ALTER TABLE questions ADD COLUMN del_yn VARCHAR(1) NOT NULL DEFAULT 'N', ADD COLUMN use_yn VARCHAR(1) NOT NULL DEFAULT 'Y'` (examinations 컬럼은 같은 파일에 포함, 상세는 AdminExamination_Modified.md HIST-20260722-001 참고). 로컬 tpmp-db(docker exec)에 적용 완료, `information_schema.columns`로 `character varying(1)` 확인.
+- 이유: 소프트 삭제(del_yn)·비활성화(use_yn) 지원. 컬럼 타입을 VARCHAR(1)로 정정한 이유는 위 "수정 개요" 참고.
+
+#### `backend/src/main/java/com/tpmp/testprep/entity/Exam.java`
+- 변경 전: delYn만 존재
+- 변경 후: `useYn`(기본 "Y") 필드와 `toggleUseYn()`(`Quote.toggleUseYn()`과 동일 패턴) 추가
+- 이유: 시험지 비활성화(가역) 지원
+
+#### `backend/src/main/java/com/tpmp/testprep/entity/Question.java`
+- 변경 전: delYn/useYn 없음
+- 변경 후: `delYn`(기본 "N")/`useYn`(기본 "Y") 필드, `softDelete()`, `toggleUseYn()` 추가
+- 이유: 시험지 문항 개별 소프트 삭제·비활성화 지원(원본 question_bank와 독립 관리, 자동 전파 없음)
+
+#### `backend/src/main/java/com/tpmp/testprep/repository/QuestionRepository.java`
+- 변경 전: `findByExamIdOrderBySeqAsc(Long)` (필터 없음), `countByExamId`/`findByExamIdOrderBySeqAscWithCategory`/`findByExamIdOrderBySeqAscWithSyncSource`도 필터 없음
+- 변경 후: `findByExamIdOrderBySeqAsc` 제거하고 `findActiveByExamIdOrderBySeqAsc`(del_yn='N' AND use_yn='Y') 신규 추가. 나머지 3개 메서드에 `AND q.delYn = 'N'`만 추가(use_yn은 미필터 — 관리자 조회·채점 경로이므로 비활성 문항도 봐야 함)
+- 이유: 사용자 진입점(시험 상세)에서 삭제·비활성 문항이 노출되던 누락을 막고, 관리자·채점 경로는 del_yn만 필터해 이미 시작한 응시자의 채점이 깨지지 않도록 함
+
+#### `backend/src/main/java/com/tpmp/testprep/service/ExamService.java`
+- 변경 전: `removeQuestion`이 `questionRepository.delete(q)` 하드 delete
+- 변경 후: `q.softDelete()`로 교체. `toggleUseYn(id)`/`toggleQuestionUseYn(examId, questionId)` 신규(소유권 검증 후 토글)
+- 이유: 문항 제거를 가역적으로 만들고, 시험지·문항 개별 비활성화 API 제공
+
+### 복원 방법
+이 ID(HIST-20260722-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다. `docs/db-migration/20260722_02_add_audit_flags_exam_examination_question.sql`의 롤백 SQL(파일 하단 주석)로 `exams.use_yn`/`questions.del_yn`/`questions.use_yn` 컬럼을 DROP한다.
+
+---
+
 ## HIST-20260717-003
 
 - **날짜**: 2026-07-17

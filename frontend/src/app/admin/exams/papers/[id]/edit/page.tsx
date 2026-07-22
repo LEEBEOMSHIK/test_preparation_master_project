@@ -40,6 +40,7 @@ export default function AdminExamPaperEditPage() {
   const [examQuestions,    setExamQuestions]    = useState<ExamQuestion[]>([]);
   const [qListLoading,     setQListLoading]     = useState(true);
   const [removingId,       setRemovingId]       = useState<number | null>(null);
+  const [togglingQId,      setTogglingQId]      = useState<number | null>(null);
 
   // ── 문항 추가 (문항 풀) ──
   const [allQuestions,  setAllQuestions]  = useState<QuestionSummary[]>([]);
@@ -150,6 +151,22 @@ export default function AdminExamPaperEditPage() {
       // 로컬에서 이미 삭제 반영했으므로 best-effort 재조회 실패는 무시한다.
     } finally {
       setRemovingId(null);
+    }
+  };
+
+  // ── 문항 사용여부 토글 ──
+  const handleToggleQuestion = async (questionId: number) => {
+    setTogglingQId(questionId);
+    try {
+      const res = await examService.adminToggleQuestion(id, questionId);
+      const updated = res.data.data;
+      if (updated) {
+        setExamQuestions((prev) => prev.map((q) => (q.id === questionId ? { ...q, useYn: updated.useYn } : q)));
+      }
+    } catch {
+      setError('문항 사용여부 변경에 실패했습니다.');
+    } finally {
+      setTogglingQId(null);
     }
   };
 
@@ -497,6 +514,19 @@ export default function AdminExamPaperEditPage() {
                   className="shrink-0 mt-0.5 px-2 py-1 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 text-xs font-medium transition whitespace-nowrap"
                 >
                   상세
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleQuestion(q.id)}
+                  disabled={togglingQId === q.id}
+                  className={[
+                    'shrink-0 mt-0.5 px-2 py-1 rounded-full text-xs font-medium transition disabled:opacity-50 whitespace-nowrap',
+                    q.useYn === 'Y'
+                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
+                  ].join(' ')}
+                >
+                  {q.useYn === 'Y' ? '사용' : '미사용'}
                 </button>
                 <button
                   type="button"

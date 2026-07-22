@@ -15,6 +15,7 @@ public record ExaminationResponse(
         Integer examYear,
         Integer examRound,
         boolean isAiCustom,
+        String useYn,
         LocalDateTime createdAt
 ) {
     public static ExaminationResponse from(Examination e) {
@@ -29,6 +30,7 @@ public record ExaminationResponse(
                 e.getExamYear(),
                 e.getExamRound(),
                 e.isAiCustom(),
+                e.getUseYn(),
                 e.getCreatedAt()
         );
     }
