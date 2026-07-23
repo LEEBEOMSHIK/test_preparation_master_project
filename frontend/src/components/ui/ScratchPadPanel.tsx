@@ -24,6 +24,14 @@ interface ScratchPadPanelProps {
   /** true면 '코드 트레이싱' 탭을 노출 */
   isCodeQuestion?: boolean;
   className?: string;
+  /**
+   * FAB(우하단 원형 버튼)의 `bottom-*` 위치 클래스 전체를 교체한다. 기본값 `'bottom-5'`(기존 위치, 20px).
+   * 페이지 하단에 고정 액션바/버튼이 있어 FAB와 겹치는 경우에만 넘긴다(예: `'bottom-24 lg:bottom-5'`).
+   * 데스크톱(`lg:` 이상)에서는 항상 기존 위치로 복귀해야 하므로 넘기는 문자열 자체에 `lg:bottom-5`를
+   * 포함시켜야 한다. Tailwind JIT는 리터럴 클래스 문자열만 스캔하므로 템플릿 리터럴 보간(`bottom-[${x}px]`)
+   * 금지 — 반드시 완전한 클래스 문자열을 하드코딩해서 넘길 것.
+   */
+  fabBottomClassName?: string;
 }
 
 interface ScratchPadData {
@@ -224,7 +232,12 @@ function saveData(key: string, data: ScratchPadData): void {
  * 데스크톱(lg↑): 우측 비모달 슬라이드 드로어
  * 모바일(lg 미만): 기존 답안 Bottom Sheet 컨벤션 재사용(딤 배경 + rounded-t-2xl)
  */
-export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className = '' }: ScratchPadPanelProps) {
+export function ScratchPadPanel({
+  storageKey,
+  isCodeQuestion = false,
+  className = '',
+  fabBottomClassName = 'bottom-5',
+}: ScratchPadPanelProps) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabKey>('note');
   const [data, setData] = useState<ScratchPadData>(() => loadData(storageKey));
@@ -644,7 +657,7 @@ export function ScratchPadPanel({ storageKey, isCodeQuestion = false, className 
         <button
           onClick={() => setOpen(true)}
           aria-label="풀이 스크래치패드 열기"
-          className={`fixed bottom-5 right-5 z-40 w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg flex items-center justify-center transition ${className}`}
+          className={`fixed ${fabBottomClassName} right-5 z-40 w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg flex items-center justify-center transition ${className}`}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />

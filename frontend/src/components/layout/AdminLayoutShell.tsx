@@ -91,6 +91,11 @@ const ICON_MAP: Record<string, React.ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
     </svg>
   ),
+  support: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21c-4.5-2.6-9-6.1-9-10.5A5 5 0 0112 6a5 5 0 019 4.5c0 4.4-4.5 7.9-9 10.5z" />
+    </svg>
+  ),
 };
 
 const DEFAULT_ICON = (
@@ -125,6 +130,7 @@ const FALLBACK_NAV: MenuConfig[] = [
     { id: 111, parentId: 11, name: '규칙 관리', url: '/admin/practice/rules',   iconKey: undefined, displayOrder: 1, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
     { id: 112, parentId: 11, name: '기록 관리', url: '/admin/practice/history', iconKey: undefined, displayOrder: 2, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   ]},
+  { id: 12, parentId: undefined, name: '후원 링크 관리', url: '/admin/support-settings', iconKey: 'support', displayOrder: 12, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 9901, parentId: undefined, name: '테스트 케이스', url: '/admin/test-cases', iconKey: 'test',       displayOrder: 99, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
 ];
 

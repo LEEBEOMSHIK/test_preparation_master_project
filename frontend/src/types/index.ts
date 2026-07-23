@@ -315,6 +315,15 @@ export interface Quote {
 }
 
 // ──────────────────────────────────────────
+// SupportSettings
+// ──────────────────────────────────────────
+export interface SupportSettings {
+  tossUrl?: string | null;
+  kakaopayUrl?: string | null;
+  kakaoGiftUrl?: string | null;
+}
+
+// ──────────────────────────────────────────
 // ConceptNote
 // ──────────────────────────────────────────
 export interface ConceptNote {

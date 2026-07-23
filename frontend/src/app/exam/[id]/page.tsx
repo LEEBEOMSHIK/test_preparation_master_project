@@ -596,8 +596,16 @@ export default function ExamTakingPage() {
         />
       )}
 
-      {/* 풀이 스크래치패드 — 자유 메모 / 코드 트레이싱 / 계산기, localStorage 영속 */}
-      <ScratchPadPanel storageKey={`tpmp_scratchpad:exam:${examId}:${q.id}`} isCodeQuestion={isCode} />
+      {/* 풀이 스크래치패드 — 자유 메모 / 코드 트레이싱 / 계산기, localStorage 영속
+          모바일에서 FAB가 문제 카드 하단의 "다음" 버튼과 겹치는 것을 막기 위해 bottom-24(96px)로 올림.
+          390x844 뷰포트 실측: "다음" 버튼 top≈761px, 기본 bottom-5(20px)일 때 FAB(48px 높이)의
+          top≈776/bottom≈824px로 겹침 확인 → bottom-24로 FAB bottom≈748px가 되어 13px 여유 확보.
+          데스크톱(lg 이상)은 겹치는 하단 고정 버튼이 없으므로 lg:bottom-5로 기존 위치 복귀. */}
+      <ScratchPadPanel
+        storageKey={`tpmp_scratchpad:exam:${examId}:${q.id}`}
+        isCodeQuestion={isCode}
+        fabBottomClassName="bottom-24 lg:bottom-5"
+      />
 
       {/* 헤더 */}
       <header className="fixed top-0 inset-x-0 z-40 h-14 bg-white border-b border-gray-200 shadow-sm">

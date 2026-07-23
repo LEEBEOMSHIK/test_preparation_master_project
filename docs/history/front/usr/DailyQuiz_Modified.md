@@ -1,3 +1,32 @@
+## HIST-20260723-001
+
+- **날짜**: 2026-07-23
+- **수정 범위**: 사용자 프론트엔드 / 데일리 퀴즈 풀이 (`/user/quiz/[categoryId]`) — 모바일 FAB·하단 탭바 겹침 수정
+- **수정 개요**: `ScratchPadPanel`(풀이 스크래치패드) FAB가 모바일 뷰포트(390×844)에서 `fixed bottom-5`(20px) 고정 위치라, 데일리 퀴즈 풀이 화면에서 `UserLayoutShell`의 모바일 전용 하단 탭바(`sm:hidden`, h-16=64px)와 겹쳐 보이는 버그를 수정했다(`ScratchPadPanel`은 `/exam/[id]`에서도 사용되므로 공용 컴포넌트에 `fabBottomClassName` prop을 신설, 해당 변경은 `docs/history/front/usr/UserExamination_Modified.md`의 HIST-20260723-001에도 함께 기록). 이 화면에서는 실측 기반으로 `bottom-20 lg:bottom-5`를 전달했다. 데스크톱(`lg` 이상)은 기존 위치(20px)를 그대로 유지한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| frontend/src/components/ui/ScratchPadPanel.tsx | 수정 | `fabBottomClassName?: string`(기본값 `'bottom-5'`) prop 추가, FAB `className`의 하드코딩된 `bottom-5`를 이 prop으로 대체(`/exam/[id]`와 공용 변경, 상세는 `UserExamination_Modified.md` HIST-20260723-001 참고) |
+| frontend/src/app/user/quiz/[categoryId]/page.tsx | 수정 | `<ScratchPadPanel>` 호출에 `fabBottomClassName="bottom-20 lg:bottom-5"` 전달 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: FAB `className`이 `` `fixed bottom-5 right-5 z-40 ...` ``로 하드코딩되어 페이지별 조정 불가
+- 변경 후: `fabBottomClassName = 'bottom-5'` prop을 추가하고 `` `fixed ${fabBottomClassName} right-5 z-40 ...` ``로 대체. 나머지(`right-5`, `z-40` 등)는 그대로 유지
+- 이유: 여러 페이지에서 공용으로 쓰이는 컴포넌트라 페이지별 하단 고정 요소와의 충돌을 해당 페이지에서만 개별적으로 회피할 수 있어야 함
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx`
+- 변경 전: `<ScratchPadPanel storageKey={...} isCodeQuestion={isCode} />` (fabBottomClassName 미전달 → 기본값 `bottom-5`)
+- 변경 후: `<ScratchPadPanel storageKey={...} isCodeQuestion={isCode} fabBottomClassName="bottom-20 lg:bottom-5" />`
+- 실측 근거(chrome-devtools MCP, 390×844 뷰포트, `/user/quiz/5` 실제 퀴즈 풀이 화면): 기존 `bottom-5`일 때 FAB `top=776px / bottom=824px`(48px 높이), `UserLayoutShell`의 모바일 하단 탭바(`nav.sm:hidden`) `top=780px / bottom=844px`(64px 높이) — FAB가 탭바 영역 안쪽 상단부에 걸쳐 시각적으로 겹침 확인. `bottom-20`(80px)로 변경 후 FAB `top=716px / bottom=764px`이 되어 탭바 top(780px)까지 16px 여유가 생겨 겹침이 해소됨을 브라우저 스크린샷으로 재확인. "정답확인"(문제 카드 흐름 내 위치, 실측 `top≈427~471px`)과 "다음 문제"(정답 확인 후 흐름 내 위치, 실측 `top≈644~696px`) 버튼은 항상 탭바보다 위쪽에 렌더되어 FAB와 별도 겹침이 없음을 확인
+- 이유: 모바일에서 FAB가 하단 탭바 아이콘과 겹쳐 보이는 시각적 버그 수정
+
+### 복원 방법
+이 ID(HIST-20260723-001)만으로 복원 시 `frontend/src/app/user/quiz/[categoryId]/page.tsx`의 `<ScratchPadPanel>` 호출에서 `fabBottomClassName="bottom-20 lg:bottom-5"`를 제거한다. `ScratchPadPanel.tsx`의 `fabBottomClassName` prop 자체는 `/exam/[id]`와 공용이므로, prop 정의까지 되돌리려면 `docs/history/front/usr/UserExamination_Modified.md`의 HIST-20260723-001도 함께 복원해야 한다.
+
 ## HIST-20260718-003
 
 - **날짜**: 2026-07-18

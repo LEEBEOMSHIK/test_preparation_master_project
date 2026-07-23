@@ -64,6 +64,7 @@ public class DataInitializer implements ApplicationRunner {
         ensureExamHistoryMenu();
         ensureDashboardMenu();
         ensurePracticeAdminMenus();
+        ensureSupportSettingsMenu();
         ensureUserMenuGroups();
         ensurePermissionMenuAssociations();
         ensureQnetPracticalExamInfo();
@@ -476,6 +477,13 @@ public class DataInitializer implements ApplicationRunner {
         jdbcTemplate.update(
                 "UPDATE menu_config SET parent_id = ?, display_order = ? WHERE url = ?",
                 parentId, order, url);
+    }
+
+    private void ensureSupportSettingsMenu() {
+        if (!menuConfigRepository.existsByUrl("/admin/support-settings")) {
+            saveMenu(null, "후원 링크 관리", "/admin/support-settings", "support", 12, MenuConfig.MenuType.ADMIN, "ADMIN");
+            log.info("[DataInitializer] 후원 링크 관리 메뉴 추가 완료");
+        }
     }
 
     private void ensurePracticeAdminMenus() {

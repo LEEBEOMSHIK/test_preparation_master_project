@@ -543,8 +543,18 @@ function QuizPlayContent() {
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       {/* 풀이 스크래치패드 — 자유 메모 / 코드 트레이싱 / 계산기, localStorage 영속
-          (북마크 재풀이 모드는 categoryId가 NaN이므로 rawCategoryId('bookmarks')를 키에 사용) */}
-      <ScratchPadPanel storageKey={`tpmp_scratchpad:quiz:${rawCategoryId}:${q.id}`} isCodeQuestion={isCode} />
+          (북마크 재풀이 모드는 categoryId가 NaN이므로 rawCategoryId('bookmarks')를 키에 사용)
+          모바일에서 FAB가 UserLayoutShell의 하단 탭바(sm 미만, h-16=64px)와 겹치는 것을 막기 위해
+          bottom-20(80px)로 올림. 390x844 뷰포트 실측: 하단 탭바 top=780px, 기본 bottom-5(20px)일 때
+          FAB(48px 높이)의 top=776/bottom=824px로 탭바 영역과 겹침 확인 → bottom-20으로
+          FAB bottom=764px가 되어 탭바 top(780px)까지 16px 여유 확보. "정답확인"/"다음 문제" 버튼은
+          문제 카드 흐름 안에 있어 탭바보다 항상 위에 위치하므로 별도 겹침 없음.
+          데스크톱(sm 이상은 탭바 자체가 없고 lg 이상은 우측 드로어)은 lg:bottom-5로 기존 위치 복귀. */}
+      <ScratchPadPanel
+        storageKey={`tpmp_scratchpad:quiz:${rawCategoryId}:${q.id}`}
+        isCodeQuestion={isCode}
+        fabBottomClassName="bottom-20 lg:bottom-5"
+      />
       {/* 헤더: 카테고리 + 진행상태 + 종료 버튼 */}
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-3">

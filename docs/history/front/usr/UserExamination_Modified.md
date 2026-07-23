@@ -1,3 +1,32 @@
+## HIST-20260723-001
+
+- **날짜**: 2026-07-23
+- **수정 범위**: 사용자 프론트엔드 / 시험 응시 (`/exam/[id]`) — 모바일 FAB·"다음" 버튼 겹침 수정
+- **수정 개요**: `ScratchPadPanel`(풀이 스크래치패드) FAB가 모바일 뷰포트(390×844)에서 `fixed bottom-5`(20px) 고정 위치라, 시험 응시 화면에서 스크롤해 마주하는 문제 카드 하단 "다음" 버튼과 겹쳐 클릭이 막히는 버그를 수정했다. `ScratchPadPanel`에 FAB 하단 오프셋을 페이지별로 override할 수 있는 `fabBottomClassName` prop을 추가하고, 이 화면에서는 실측 기반으로 `bottom-24 lg:bottom-5`를 전달했다. 데스크톱(`lg` 이상)은 기존 위치(20px)를 그대로 유지한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| frontend/src/components/ui/ScratchPadPanel.tsx | 수정 | `fabBottomClassName?: string`(기본값 `'bottom-5'`) prop 추가, FAB `className`의 하드코딩된 `bottom-5`를 이 prop으로 대체(`/user/concepts/[id]`, `/user/concepts/explore/[id]`는 prop 미전달로 기존 동작 그대로 유지) |
+| frontend/src/app/exam/[id]/page.tsx | 수정 | `<ScratchPadPanel>` 호출에 `fabBottomClassName="bottom-24 lg:bottom-5"` 전달 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/ScratchPadPanel.tsx`
+- 변경 전: FAB `className`이 `` `fixed bottom-5 right-5 z-40 ...` ``로 하드코딩되어 페이지별 조정 불가
+- 변경 후: `fabBottomClassName = 'bottom-5'` prop을 추가하고 `` `fixed ${fabBottomClassName} right-5 z-40 ...` ``로 대체. 나머지(`right-5`, `z-40` 등)는 그대로 유지
+- 이유: 여러 페이지에서 공용으로 쓰이는 컴포넌트라 페이지별 하단 고정 버튼과의 충돌을 해당 페이지에서만 개별적으로 회피할 수 있어야 함
+
+#### `frontend/src/app/exam/[id]/page.tsx`
+- 변경 전: `<ScratchPadPanel storageKey={...} isCodeQuestion={isCode} />` (fabBottomClassName 미전달 → 기본값 `bottom-5`)
+- 변경 후: `<ScratchPadPanel storageKey={...} isCodeQuestion={isCode} fabBottomClassName="bottom-24 lg:bottom-5" />`
+- 실측 근거(chrome-devtools MCP, 390×844 뷰포트, `/exam/20` 실제 시험 응시 화면, 문제 카드 최하단까지 스크롤): 기존 `bottom-5`일 때 FAB `top≈776px / bottom≈824px`(48px 높이), 같은 시점 "다음" 버튼 `top≈761px / bottom≈803px` — 두 사각형이 `top 776~803` 구간에서 겹침 확인. `bottom-24`(96px)로 변경 후 FAB `top≈700px / bottom≈748px`이 되어 "다음" 버튼 top(761px)까지 13px 여유가 생겨 겹침이 완전히 해소됨을 브라우저에서 스크린샷으로 재확인
+- 이유: 모바일에서 FAB가 시험 응시의 핵심 조작 버튼("다음")을 가려 클릭을 막는 버그 수정
+
+### 복원 방법
+이 ID(HIST-20260723-001)만으로 복원 시 `frontend/src/components/ui/ScratchPadPanel.tsx`에서 `fabBottomClassName` prop과 FAB `className`의 템플릿 치환을 되돌리고(다시 `bottom-5` 하드코딩), `frontend/src/app/exam/[id]/page.tsx`의 `<ScratchPadPanel>` 호출에서 `fabBottomClassName="bottom-24 lg:bottom-5"`를 제거한다. 단, `/user/quiz/[categoryId]/page.tsx`도 같은 prop을 쓰므로 `docs/history/front/usr/DailyQuiz_Modified.md`의 HIST-20260723-001도 함께 복원해야 컴포넌트 prop 정의가 일관된다.
+
 ## HIST-20260722-001
 
 - **날짜**: 2026-07-22
