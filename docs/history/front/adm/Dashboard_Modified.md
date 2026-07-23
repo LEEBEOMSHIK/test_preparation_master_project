@@ -1,3 +1,41 @@
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 관리자 프론트엔드 / 대시보드 — 모바일 대응
+- **수정 개요**: 기간 토글("7일/30일/3개월") 버튼에 `whitespace-nowrap`이 빠져 좁은 화면에서 "7\n일"처럼 세로로 줄바꿈되던 문제 수정. 사용자 대시보드(`user/dashboard/page.tsx`)에서 동일 패턴을 고친 방식과 동일하게 적용.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/dashboard/page.tsx` | 수정 | 기간 토글 버튼 className에 `whitespace-nowrap` 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/dashboard/page.tsx`
+- 변경 전:
+  ```tsx
+  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+    period === value
+      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+  }`}
+  ```
+- 변경 후:
+  ```tsx
+  className={`px-3 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
+    period === value
+      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+  }`}
+  ```
+- 이유: 좁은 화면(모바일 390px)에서 버튼 텍스트가 세로로 줄바꿈되어 가독성이 크게 저하됨. `user/dashboard/page.tsx`의 동일 토글에 이미 적용된 패턴을 그대로 이식.
+
+### 복원 방법
+이 ID(HIST-20260724-001)만으로 복원 시 `frontend/src/app/admin/dashboard/page.tsx`의 기간 토글 버튼 className에서 `whitespace-nowrap`을 제거한다.
+
+---
+
 ## HIST-20260611-003
 
 - **날짜**: 2026-06-11

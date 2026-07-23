@@ -1,3 +1,39 @@
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 관리자 프론트엔드 / 레이아웃 셸 — 모바일 최소 방어
+- **수정 개요**: `AdminLayoutShell.tsx`의 사이드바가 항상 `w-56` 고정폭으로 펼쳐져 있어 모바일(390px)에서 본문이 심하게 눌리고 메뉴 텍스트가 세로로 쪼개지던 문제를, `lg` 미만에서 사이드바를 기본적으로 접고 햄버거 버튼으로 오버레이 토글하는 방식으로 최소 방어. 데스크톱(`lg` 이상)은 기존 동작 100% 유지.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/AdminLayoutShell.tsx` | 수정 | `mobileSidebarOpen` 상태 추가, 사이드바에 `-translate-x-full`/`lg:translate-x-0` 토글 클래스 적용, 모바일 전용 backdrop 오버레이 추가, 본문 마진을 `ml-0 lg:ml-56`으로 변경, 헤더에 `lg:hidden` 햄버거 토글 버튼 추가, 경로 이동 시 자동 닫힘 useEffect 추가 |
+
+### 수정 상세
+
+#### `frontend/src/components/layout/AdminLayoutShell.tsx`
+- 변경 전:
+  - 사이드바: `<aside className="fixed inset-y-0 left-0 z-40 w-56 ... flex flex-col shadow-sm">` — 반응형 분기 없이 항상 펼쳐짐
+  - 본문: `<div className="flex-1 flex flex-col min-w-0 ml-56">`
+  - 헤더: 햄버거 버튼 없음, `<h1>` 타이틀만 존재
+  - state: `mobileSidebarOpen` 없음
+- 변경 후:
+  - state 추가: `const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);` + `useEffect(() => { setMobileSidebarOpen(false); }, [pathname]);`(경로 이동 시 자동 닫힘)
+  - backdrop: `mobileSidebarOpen`이 true일 때만 `fixed inset-0 z-40 bg-black/30 lg:hidden` 오버레이 렌더, 클릭 시 닫힘
+  - 사이드바: `z-40` → `z-50`, `transform transition-transform duration-200 lg:translate-x-0` + `mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'` 추가 — `lg` 이상은 `lg:translate-x-0`가 항상 우선해 기존과 동일하게 펼쳐짐
+  - 본문: `ml-56` → `ml-0 lg:ml-56`
+  - 헤더: `px-6` → `px-4 sm:px-6`, 타이틀 좌측에 `lg:hidden` 햄버거 버튼(`aria-label="메뉴 열기"`) 추가, 부제 "TPMP 관리자 콘솔"은 `hidden sm:block`으로 모바일에서 숨김
+- 이유: 관리자는 기본적으로 데스크톱 사용 환경이므로 전면 반응형 재설계 대신 "모바일에서 안 깨지는 최소 방어"만 적용. 사용자 화면(`UserLayoutShell.tsx`)의 모바일 그룹 패널이 backdrop+bottom sheet 오버레이로 처리되는 톤을 참고해, 사이드바도 본문 위에 겹치는 오버레이 방식으로 통일.
+
+### 복원 방법
+이 ID(HIST-20260724-001)만으로 복원 시 `AdminLayoutShell.tsx`에서:
+- `mobileSidebarOpen` state와 관련 `useEffect`, backdrop `<div>` 블록, 헤더 햄버거 `<button>` 블록을 제거
+- 사이드바 className을 `"fixed inset-y-0 left-0 z-40 w-56 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col shadow-sm"`로 되돌림
+- 본문 className의 `ml-0 lg:ml-56`을 `ml-56`으로, 헤더 className의 `px-4 sm:px-6`을 `px-6`으로 되돌림
+
+---
+
 ## HIST-20260717-001
 
 - **날짜**: 2026-07-17

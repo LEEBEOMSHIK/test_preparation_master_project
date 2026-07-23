@@ -280,7 +280,7 @@ export default function AdminDashboardPage() {
                 <button
                   key={value}
                   onClick={() => setPeriod(value)}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
                     period === value
                       ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'

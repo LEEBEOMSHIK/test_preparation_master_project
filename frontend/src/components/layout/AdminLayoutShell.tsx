@@ -151,6 +151,10 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
   const router = useRouter();
   const { user, setAuth, clearAuth } = useAuthStore();
   const [navItems, setNavItems] = useState<MenuConfig[]>(FALLBACK_NAV);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // 경로 이동 시 모바일 사이드바 닫기
+  useEffect(() => { setMobileSidebarOpen(false); }, [pathname]);
 
   useEffect(() => {
     if (pathname === '/admin/login') {
@@ -226,8 +230,22 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex">
+      {/* ── Mobile sidebar backdrop (lg 미만에서 사이드바가 펼쳐졌을 때만) ── */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Sidebar ── */}
-      <aside className="fixed inset-y-0 left-0 z-40 w-56 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col shadow-sm">
+      <aside
+        className={[
+          'fixed inset-y-0 left-0 z-50 w-56 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col shadow-sm',
+          'transform transition-transform duration-200 lg:translate-x-0',
+          mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        ].join(' ')}
+      >
         {/* Logo */}
         <div className="h-16 flex items-center px-5 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400 tracking-tight">TPMP</span>
@@ -329,14 +347,27 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
       <PermissionDeniedModal />
 
       {/* ── Main area ── */}
-      <div className="flex-1 flex flex-col min-w-0 ml-56">
+      <div className="flex-1 flex flex-col min-w-0 ml-0 lg:ml-56">
         {/* Top header */}
-        <header className="sticky top-0 z-30 h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6 shadow-sm">
-          <div>
-            <h1 className="text-base font-semibold text-gray-800 dark:text-gray-100">
-              {getPageTitle(pathname, navItems)}
-            </h1>
-            <p className="text-xs text-gray-400 dark:text-gray-500">TPMP 관리자 콘솔</p>
+        <header className="sticky top-0 z-30 h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 sm:px-6 shadow-sm">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* 모바일 사이드바 토글(햄버거) — lg 이상에서는 사이드바가 항상 펼쳐져 있으므로 숨김 */}
+            <button
+              type="button"
+              onClick={() => setMobileSidebarOpen((v) => !v)}
+              className="lg:hidden shrink-0 p-2 -ml-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              aria-label="메뉴 열기"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold text-gray-800 dark:text-gray-100 truncate">
+                {getPageTitle(pathname, navItems)}
+              </h1>
+              <p className="text-xs text-gray-400 dark:text-gray-500 hidden sm:block">TPMP 관리자 콘솔</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
