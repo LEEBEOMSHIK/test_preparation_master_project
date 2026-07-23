@@ -75,7 +75,7 @@ export function InterestExamTypeModal({ open, onClose, onSaved }: InterestExamTy
                       return next;
                     });
                   }}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-left text-sm transition-all ${
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-left text-sm transition-all min-w-0 ${
                     sel ? 'border-indigo-500 bg-indigo-50 text-indigo-800 font-medium' : 'border-gray-100 text-gray-600 hover:border-gray-200'
                   }`}
                 >
@@ -84,7 +84,7 @@ export function InterestExamTypeModal({ open, onClose, onSaved }: InterestExamTy
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   )}
-                  {type.name}
+                  <span className="truncate" title={type.name}>{type.name}</span>
                 </button>
               );
             })}

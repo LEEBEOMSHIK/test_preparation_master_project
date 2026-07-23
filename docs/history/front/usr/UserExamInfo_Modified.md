@@ -1,3 +1,38 @@
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보 (모바일 390px CSS 오버플로우로 "관심 시험 유형 설정"·"접수 정보 입력/수정" 모달 저장 버튼 클릭 불가 버그 수정)
+- **수정 개요**: 모바일 뷰포트(390px)에서 두 모달의 grid/flex 행에 `min-w-0`가 없어 긴 라벨(예: "정보처리기사 실기")·date input이 아이템을 줄어들지 못하게 하고 모달 박스 폭을 밀어내던 문제를 수정. 검증 과정에서 `UserLayoutShell.tsx` 헤더 내비게이션(모바일에서 `hidden`으로 숨겨지는 데스크톱 nav)의 콘텐츠 오버플로우가 `overflow-x:hidden` 부재로 인해 문서 전체의 수평 스크롤을 유발하고, 이로 인해 `position:fixed` 요소(헤더·하단 내비·두 모달 wrapper 포함)의 레이아웃 뷰포트 폭 자체가 390px보다 넓게 계산되어 "저장" 버튼이 실제 화면 밖으로 11px가량 밀려나는 2차 증상을 추가로 발견 — `globals.css`에 `html, body { overflow-x: hidden }` 전역 안전장치를 추가해 함께 해소함(모달 두 개 자체 수정만으로는 완전히 해소되지 않았던 부분)
+- **재현/검증**: Chrome DevTools MCP로 390×844 모바일 에뮬레이션 + 실 로그인(user@tpmp.com) 후 두 모달 각각 열어 `document.documentElement.scrollWidth`/`clientWidth`, "저장"/"수정" 버튼 `getBoundingClientRect()` 실측. 수정 전: scrollWidth 441 vs clientWidth 390(두 모달 공통, 헤더 오버플로우 포함), 저장 버튼 일부 화면 밖. 수정 후(모달 2건 + globals.css 3건 모두 적용): scrollWidth=clientWidth=390, 저장/수정 버튼 완전히 뷰포트 내(right≤354). "접수 정보 수정" 모달은 실제로 접수일 값을 변경 후 저장 → 목록에 반영되는 것까지 end-to-end 확인(테스트 후 원래 값으로 복구). 1440px 데스크톱에서 그리드 2열 레이아웃·라벨 전체 노출(미잘림) 회귀 없음 확인
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/InterestExamTypeModal.tsx` | 수정 | 시험 유형 grid 버튼에 `min-w-0` 추가, 라벨 텍스트를 `<span className="truncate" title={type.name}>`로 감싸 좁은 폭에서 말줄임표 처리(데스크톱처럼 공간이 충분하면 전체 노출, 회귀 없음) |
+| `frontend/src/components/ui/ExamApplicationFormModal.tsx` | 수정 | 접수일·시험일 date input 각각의 wrapper(`space-y-1`)와 input 자체에 `min-w-0` 추가해 grid-cols-2 상태에서 date input 기본 min-content 폭이 모달을 밀어내지 못하도록 수정 |
+| `frontend/src/app/globals.css` | 수정 | `html`, `body`에 `overflow-x: hidden` 전역 규칙 추가. 검증 중 발견한 헤더 내비 오버플로우(별도 기존 버그)가 `position:fixed` 요소들의 레이아웃 뷰포트 폭을 왜곡시켜 모달 "저장" 버튼을 화면 밖으로 밀어내는 2차 피해를 차단하는 안전장치 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/InterestExamTypeModal.tsx`
+- 변경 전: `<button ... className="flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-left text-sm transition-all ${...}">...{type.name}</button>` — `min-w-0` 없음, `{type.name}`을 span 없이 직접 렌더
+- 변경 후: button className에 `min-w-0` 추가, `{type.name}`을 `<span className="truncate" title={type.name}>{type.name}</span>`로 교체
+- 이유: `grid grid-cols-2`의 자식은 기본적으로 `min-width: auto`(min-content)라 긴 라벨이 셀 폭을 넘겨 모달 박스 자체를 밀어냄. `min-w-0`로 축소를 허용하고 `truncate`로 넘치는 텍스트를 말줄임 처리
+
+#### `frontend/src/components/ui/ExamApplicationFormModal.tsx`
+- 변경 전: `<div className="grid grid-cols-2 gap-3"><div className="space-y-1">...<input type="date" className="w-full border ...">...`
+- 변경 후: 각 date wrapper `<div className="space-y-1 min-w-0">`, input className에 `min-w-0` 추가
+- 이유: 브라우저 기본 date input UI가 flex/grid 축소를 막아 `grid-cols-2` 상태에서 모달 폭을 초과시킴
+
+#### `frontend/src/app/globals.css`
+- 변경 전: `html` 셀렉터 규칙 없음, `body { font-family: ...; background-color: ...; color: ...; }`(overflow-x 미설정)
+- 변경 후: `html { overflow-x: hidden; }` 규칙 신설, `body`에 `overflow-x: hidden;` 추가
+- 이유: 위 두 모달을 고쳐도 페이지의 다른 곳(헤더 내비 등)에서 수평 오버플로우가 발생하면 모바일 브라우저가 `position:fixed` 요소의 레이아웃 뷰포트를 넓혀 모달까지 화면 밖으로 밀어내는 것을 실측(1440px)으로 확인 — 전역 방어 규칙으로 근본 차단
+
+### 복원 방법
+이 ID(HIST-20260724-001)만으로 복원 시: `InterestExamTypeModal.tsx`의 button className에서 `min-w-0` 제거하고 `<span className="truncate" title={type.name}>{type.name}</span>`를 `{type.name}`으로 되돌림. `ExamApplicationFormModal.tsx`의 date wrapper·input에서 `min-w-0` 제거. `globals.css`에서 `html { overflow-x: hidden; }` 블록 삭제, `body`의 `overflow-x: hidden;` 삭제.
+
 ## HIST-20260722-001
 
 - **날짜**: 2026-07-22

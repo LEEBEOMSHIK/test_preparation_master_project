@@ -1,5 +1,25 @@
 # 사용자 설정 화면 수정 이력
 
+## HIST-20260724-002
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 사용자 프론트엔드 / 설정 페이지 (모바일 390px CSS 오버플로우로 "관심 시험 유형 설정" 모달 저장 버튼 클릭 불가 버그 수정 — `/user/exam-info`와 공용)
+- **수정 개요**: `/user/settings`의 "관심 시험 유형 → 변경" 버튼으로 여는 `InterestExamTypeModal`이 `/user/exam-info`와 동일 컴포넌트를 공용하므로, 모바일(390px)에서 grid 버튼에 `min-w-0`가 없어 긴 라벨이 모달 폭을 밀어내 "저장" 버튼이 화면 밖으로 밀려나는 문제를 함께 해소. 검증 중 헤더 내비 오버플로우가 `overflow-x:hidden` 부재로 `position:fixed` 요소(이 모달 포함)의 레이아웃 뷰포트 폭을 왜곡시키는 2차 증상도 발견해 `globals.css`에 전역 `overflow-x:hidden` 안전장치 추가로 함께 해소(상세 원인·수정 코드는 `UserExamInfo_Modified.md`의 HIST-20260724-001 참고, 파일 실체는 동일)
+- **재검증**: `/user/settings`에서 "변경" 클릭 → 390×844에서 `scrollWidth`=`clientWidth`=390, "저장" 버튼 완전히 뷰포트 내(right:350) 확인. 1440px 데스크톱 회귀 없음(그리드 2열·라벨 전체 노출 유지) 확인
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/InterestExamTypeModal.tsx` | 수정 | grid 버튼 `min-w-0` + 라벨 `<span className="truncate" title={type.name}>` 적용(`/user/exam-info`와 공용 컴포넌트, 코드 변경은 HIST-20260724-001과 동일 파일) |
+| `frontend/src/app/globals.css` | 수정 | `html`, `body`에 `overflow-x: hidden` 전역 규칙 추가(HIST-20260724-001과 동일 변경) |
+
+### 수정 상세
+파일 실체가 `/user/exam-info`와 동일 공용 컴포넌트·전역 CSS이므로 상세 diff는 `docs/history/front/usr/UserExamInfo_Modified.md`의 HIST-20260724-001 항목을 참고.
+
+### 복원 방법
+이 ID(HIST-20260724-002)만으로 복원 시 `UserExamInfo_Modified.md`의 HIST-20260724-001 "복원 방법"과 동일하게 `InterestExamTypeModal.tsx`·`globals.css`를 되돌린다.
+
 ## HIST-20260724-001
 
 - **날짜**: 2026-07-24
