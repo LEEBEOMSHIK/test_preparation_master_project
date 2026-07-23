@@ -29,6 +29,7 @@ export default function UserExamsPage() {
   const [filterYear, setFilterYear] = useState('ALL');
   const [filterRound, setFilterRound] = useState('ALL');
   const [filterAiCustom, setFilterAiCustom] = useState<'ALL' | 'ORIGINAL' | 'AI_CUSTOM'>('ALL');
+  const [filterExpanded, setFilterExpanded] = useState(false);
   const [showAllExams, setShowAllExams] = useState(false);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<PageSize>(20);
@@ -90,6 +91,13 @@ export default function UserExamsPage() {
       (filterAiCustom === 'ORIGINAL' && !exam.isAiCustom);
     return titleMatch && categoryMatch && interestedMatch && yearMatch && roundMatch && aiCustomMatch;
   });
+
+  const activeFilterCount = [
+    filterCategory !== 'ALL',
+    filterYear !== 'ALL',
+    filterRound !== 'ALL',
+    filterAiCustom !== 'ALL',
+  ].filter(Boolean).length;
 
   const totalPages = Math.max(1, Math.ceil(filteredExams.length / pageSize));
   const pagedExams = filteredExams.slice(page * pageSize, (page + 1) * pageSize);
@@ -203,46 +211,76 @@ export default function UserExamsPage() {
 
       {/* 필터 */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col sm:flex-row gap-3">
-        <input
-          type="text"
-          value={searchTitle}
-          onChange={e => { setSearchTitle(e.target.value); resetPage(); }}
-          placeholder="시험 제목 검색..."
-          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-        />
-        <select
-          value={filterCategory}
-          onChange={e => { setFilterCategory(e.target.value); resetPage(); }}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+        <div className="flex gap-2 sm:flex-1">
+          <input
+            type="text"
+            value={searchTitle}
+            onChange={e => { setSearchTitle(e.target.value); resetPage(); }}
+            placeholder="시험 제목 검색..."
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          />
+          <button
+            type="button"
+            onClick={() => setFilterExpanded(v => !v)}
+            aria-expanded={filterExpanded}
+            className={[
+              'sm:hidden shrink-0 flex items-center gap-1 text-xs px-3 py-2 rounded-lg border transition',
+              filterExpanded
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-300'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50',
+            ].join(' ')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M6 12h12M10 20h4" />
+            </svg>
+            필터
+            {activeFilterCount > 0 && (
+              <span className="ml-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] font-semibold">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+        </div>
+        <div
+          className={[
+            filterExpanded ? 'grid grid-cols-2' : 'hidden',
+            'gap-2 sm:flex sm:flex-row sm:gap-3',
+          ].join(' ')}
         >
-          <option value="ALL">전체 유형</option>
-          {comboOptions.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-        </select>
-        <select
-          value={filterYear}
-          onChange={e => { setFilterYear(e.target.value); resetPage(); }}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
-        >
-          <option value="ALL">전체 연도</option>
-          {yearOptions.map(y => <option key={y} value={y}>{y}년</option>)}
-        </select>
-        <select
-          value={filterRound}
-          onChange={e => { setFilterRound(e.target.value); resetPage(); }}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
-        >
-          <option value="ALL">전체 회차</option>
-          {roundOptions.map(r => <option key={r} value={r}>{r}회</option>)}
-        </select>
-        <select
-          value={filterAiCustom}
-          onChange={e => { setFilterAiCustom(e.target.value as 'ALL' | 'ORIGINAL' | 'AI_CUSTOM'); resetPage(); }}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
-        >
-          <option value="ALL">전체</option>
-          <option value="ORIGINAL">기출</option>
-          <option value="AI_CUSTOM">AI 커스텀</option>
-        </select>
+          <select
+            value={filterCategory}
+            onChange={e => { setFilterCategory(e.target.value); resetPage(); }}
+            className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+          >
+            <option value="ALL">전체 유형</option>
+            {comboOptions.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+          </select>
+          <select
+            value={filterYear}
+            onChange={e => { setFilterYear(e.target.value); resetPage(); }}
+            className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+          >
+            <option value="ALL">전체 연도</option>
+            {yearOptions.map(y => <option key={y} value={y}>{y}년</option>)}
+          </select>
+          <select
+            value={filterRound}
+            onChange={e => { setFilterRound(e.target.value); resetPage(); }}
+            className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+          >
+            <option value="ALL">전체 회차</option>
+            {roundOptions.map(r => <option key={r} value={r}>{r}회</option>)}
+          </select>
+          <select
+            value={filterAiCustom}
+            onChange={e => { setFilterAiCustom(e.target.value as 'ALL' | 'ORIGINAL' | 'AI_CUSTOM'); resetPage(); }}
+            className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+          >
+            <option value="ALL">전체</option>
+            <option value="ORIGINAL">기출</option>
+            <option value="AI_CUSTOM">AI 커스텀</option>
+          </select>
+        </div>
       </div>
 
       {loading ? (

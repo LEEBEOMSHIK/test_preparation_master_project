@@ -1,3 +1,33 @@
+## HIST-20260723-002
+
+- **날짜**: 2026-07-23
+- **수정 범위**: 사용자 프론트엔드 / 시험 목록 (`/user/exams`) — 모바일 필터 바 접이식(collapsible) 개편
+- **수정 개요**: 모바일 뷰포트(390×844)에서 검색 input 1개 + select 4개가 전부 세로로 쌓여 필터 바가 화면 상단 상당 부분을 차지하던 문제를 해결했다. 모바일 기본 상태는 검색 input과 "필터" 토글 버튼(활성 필터 개수 배지 포함)만 노출하고, 토글을 누르면 select 4개가 2×2 그리드로 펼쳐지는 구조로 변경했다. `sm:` 이상(1440px 실측 확인)에서는 `sm:flex sm:flex-row sm:gap-3`로 강제 오버라이드되어 토글 상태와 무관하게 기존 한 줄 레이아웃을 그대로 유지한다. 필터 상태(`searchTitle`/`filterCategory`/`filterYear`/`filterRound`/`filterAiCustom`)와 `filteredExams` 계산 로직은 변경하지 않았고, 배지 표시용 `activeFilterCount` 파생값만 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| frontend/src/app/user/exams/page.tsx | 수정 | `filterExpanded` 로컬 상태, `activeFilterCount` 파생값 추가. 필터 바 마크업을 (검색 input + 모바일 전용 필터 토글 버튼) / (select 4개 래퍼: 모바일은 접힘·2×2 그리드, `sm:` 이상은 기존 flex-row 강제 유지)로 재구성 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exams/page.tsx`
+- 변경 전: `<div className="... flex flex-col sm:flex-row gap-3">` 아래 검색 input과 select 4개가 형제 요소로 나열되어, 모바일에서 5개 요소가 전부 세로로 풀 너비 스택됨
+- 변경 후: 검색 input과 "필터" 토글 버튼(`sm:hidden`, `activeFilterCount > 0`일 때 배지 표시)을 한 줄 래퍼(`flex gap-2 sm:flex-1`)로 묶고, select 4개는 별도 래퍼(`filterExpanded ? 'grid grid-cols-2' : 'hidden'` + `sm:flex sm:flex-row sm:gap-3`)로 묶어 모바일에서는 토글로 펼침/접힘, `sm:` 이상에서는 항상 기존과 동일한 한 줄 레이아웃이 되도록 구성. 각 select에 `w-full sm:w-auto` 추가(모바일 그리드 셀 채움, 데스크톱은 기존처럼 auto 너비)
+- 이유: 모바일에서 필터 바가 과도한 세로 공간을 차지해 실제 시험 목록을 보려면 큰 스크롤이 필요했던 UX 문제 해결. 접이식 구조로 기본 노출 영역을 최소화하면서 데스크톱 레이아웃은 완전히 보존
+
+### 검증 근거
+- `npx tsc --noEmit` 통과(에러 없음)
+- chrome-devtools MCP 브라우저 확인(user@tpmp.com 로그인):
+  - 390×844: 필터 바가 검색 input + "필터" 버튼 한 줄로 축소되어 목록이 즉시 노출됨(기존 대비 세로 공간 대폭 감소)
+  - "필터" 토글 클릭 → select 4개가 2×2 그리드로 펼쳐짐(선택형 유형/연도/회차/전체)
+  - 연도 필터를 "2025년"으로 선택 → 새로고침 없이 목록이 6건→3건으로 즉시 재필터링됨, 토글 버튼에 배지 "1" 표시 확인
+  - 1440px로 리사이즈 → 토글 버튼 미노출, 검색 input + select 4개가 기존과 동일한 한 줄 레이아웃으로 표시되어 회귀 없음 확인
+
+### 복원 방법
+이 ID(HIST-20260723-002)만으로 복원 시 `frontend/src/app/user/exams/page.tsx`에서 `filterExpanded` 상태 선언과 `activeFilterCount` 파생값을 제거하고, 필터 바 마크업을 원래의 단일 `<div className="... flex flex-col sm:flex-row gap-3">` 아래 검색 input + select 4개가 형제로 나열된 구조로 되돌린다(각 select의 `w-full sm:w-auto` 클래스도 제거).
+
 ## HIST-20260723-001
 
 - **날짜**: 2026-07-23
