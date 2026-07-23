@@ -274,7 +274,7 @@ function UserSettingsContent() {
                     <button
                       onClick={handleSaveNickname}
                       disabled={isSaveDisabled}
-                      className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                     >
                       {nicknameSaving ? '저장 중…' : '저장'}
                     </button>
@@ -412,13 +412,13 @@ function UserSettingsContent() {
                     return (
                     <div key={app.id} className="flex items-center justify-between gap-3 bg-gray-50 rounded-lg px-3 py-2.5">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate flex items-center gap-1.5">
+                        <p className="text-sm font-medium text-gray-800 flex items-center gap-1.5">
                           {app.examType && (
                             <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-100 text-indigo-700 shrink-0">
                               {app.examType}
                             </span>
                           )}
-                          <span className="truncate">{app.examName}</span>
+                          <span className="truncate min-w-0 flex-1" title={app.examName}>{app.examName}</span>
                           {dDayLabel && (
                             <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${getExamDDayBadgeClass(app.applicationDate, app.examDate)}`}>
                               {dDayLabel}

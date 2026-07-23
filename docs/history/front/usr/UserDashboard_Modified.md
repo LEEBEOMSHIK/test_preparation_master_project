@@ -1,3 +1,25 @@
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 사용자 프론트엔드 / 통계 대시보드 (모바일 390×844 텍스트 줄바꿈 버그 수정)
+- **수정 개요**: 모바일 뷰포트(390×844)에서 기간 토글("7일" 등) 버튼 텍스트가 세로로 줄바꿈되던 문제 수정
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/dashboard/page.tsx` | 수정 | `PageHeader` 컴포넌트 내 기간 토글 버튼 className에 `whitespace-nowrap` 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/dashboard/page.tsx`
+- 변경 전: `` className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${ ... }`} `` — 좁은 폭에서 "7일" 버튼 텍스트가 "7\n일"로 세로 줄바꿈됨
+- 변경 후: `` className={`px-3 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${ ... }`} `` — 공통 클래스 부분에 `whitespace-nowrap` 추가하여 줄바꿈 금지
+- 이유: 모바일(390×844) 실기기 테스트에서 발견된 텍스트 줄바꿈/잘림 버그 3건 중 1건(사용자 요청 조사 결과 반영)
+
+### 복원 방법
+이 ID(HIST-20260724-001)만으로 복원 시 `frontend/src/app/user/dashboard/page.tsx`의 `PageHeader` 컴포넌트 내 기간 토글 버튼 className에서 `whitespace-nowrap`을 제거한다.
+
 ## HIST-20260624-001
 
 - **날짜**: 2026-06-24

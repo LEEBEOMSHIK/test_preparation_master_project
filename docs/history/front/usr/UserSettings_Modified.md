@@ -1,5 +1,29 @@
 # 사용자 설정 화면 수정 이력
 
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 사용자 프론트엔드 / 설정 페이지 (모바일 390×844 텍스트 줄바꿈·잘림 버그 수정)
+- **수정 개요**: 모바일 뷰포트(390×844)에서 발견된 버그 2건 수정 — (1) 닉네임 수정 카드 "저장" 버튼이 좁은 폭에서 "저\n장"으로 세로 줄바꿈되던 문제, (2) "내 시험 접수 정보" 카드에서 flex 컨테이너 + `truncate` 조합 오류로 시험명이 말줄임표 없이 하드클립되던 문제
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/settings/page.tsx` | 수정 | "저장" 버튼에 `whitespace-nowrap` 추가, "내 시험 접수 정보" 카드의 시험명 표시 구조를 flex-item 기준으로 수정(`truncate`+`title` 속성 이동) |
+
+### 수정 상세
+
+#### `frontend/src/app/user/settings/page.tsx`
+- 변경 전(저장 버튼): `className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"` — 좁은 폭에서 버튼 내부 "저장" 텍스트가 두 글자 사이에서 세로로 줄바꿈됨
+- 변경 후(저장 버튼): 위 className 끝에 `whitespace-nowrap` 추가하여 텍스트 줄바꿈 금지
+- 변경 전(시험명 표시): 부모 `<p>`가 `flex items-center gap-1.5`와 `truncate`를 동시에 가짐(`text-sm font-medium text-gray-800 truncate flex items-center gap-1.5`) — flex 컨테이너에는 `text-overflow: ellipsis`가 정상 동작하지 않아 자식 `<span className="truncate">{app.examName}</span>`이 flex item 기본 `min-width: auto`로 인해 실제로 줄어들지 않고, 부모의 `overflow:hidden`에 의해 말줄임표 없이 하드클립됨
+- 변경 후(시험명 표시): 부모 `<p>`에서 `truncate` 제거(`flex items-center gap-1.5`만 유지), `examName`을 감싼 `<span>`에 `min-w-0 flex-1`을 추가해 flex row 안에서 실제로 줄어들며 자체 `truncate`가 정상 동작하도록 수정, 전체 시험명 확인용 `title={app.examName}` 속성 추가
+- 이유: 모바일(390×844) 실기기 테스트에서 발견된 텍스트 줄바꿈/잘림 버그 3건 중 2건(사용자 요청 조사 결과 반영)
+
+### 복원 방법
+이 ID(HIST-20260724-001)만으로 복원 시 `frontend/src/app/user/settings/page.tsx`에서 "저장" 버튼 className의 `whitespace-nowrap`을 제거하고, "내 시험 접수 정보" 카드의 시험명 표시부를 `<p className="text-sm font-medium text-gray-800 truncate flex items-center gap-1.5">`(truncate 포함)와 `<span className="truncate">{app.examName}</span>`(min-w-0·flex-1·title 없음)으로 되돌린다.
+
 ## HIST-20260722-001
 
 - **날짜**: 2026-07-22
