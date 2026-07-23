@@ -233,7 +233,7 @@ export default function AdminDbDataPage() {
         <select
           value={selectedTable}
           onChange={e => handleSelectTable(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 min-w-0 max-w-full sm:max-w-none"
         >
           <option value="">— 테이블 선택 —</option>
           {filteredTables.map(t => {

@@ -1,3 +1,52 @@
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 관리자 프론트엔드 / 메뉴 관리 — 모바일(390px) "메뉴 추가" 버튼 줄바꿈 수정
+- **수정 개요**: 모바일 UI/UX 2차 조사에서 발견된 버그. 헤더 영역(`flex items-center justify-between`)에서 좌측 제목 블록과 "메뉴 추가" 버튼이 한 행을 다투면서 버튼 텍스트가 "메뉴 추\n가"로 줄바꿈되던 문제. 버튼에 `shrink-0 whitespace-nowrap`을 추가하고, 헤더 컨테이너에 `flex-wrap gap-3`을 추가해 좁은 화면에서는 버튼이 다음 줄로 자연스럽게 내려가도록(줄바꿈이 아닌 행바꿈) 했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/menus/page.tsx` | 수정 | 헤더 컨테이너에 `flex-wrap gap-3` 추가, "메뉴 추가" 버튼에 `shrink-0 whitespace-nowrap` 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/menus/page.tsx`
+- 변경 전:
+  ```tsx
+  <div className="flex items-center justify-between">
+    <div>
+      <h2 className="text-xl font-semibold text-gray-900">메뉴 관리</h2>
+      ...
+    </div>
+    <button ... className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-1.5">
+      ...메뉴 추가
+    </button>
+  </div>
+  ```
+- 변경 후:
+  ```tsx
+  <div className="flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h2 className="text-xl font-semibold text-gray-900">메뉴 관리</h2>
+      ...
+    </div>
+    <button ... className="shrink-0 whitespace-nowrap px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-1.5">
+      ...메뉴 추가
+    </button>
+  </div>
+  ```
+- 이유: 좁은 화면에서 버튼이 압축되며 텍스트가 글자 단위로 줄바꿈되는 것을 방지. `flex-wrap`으로 공간이 부족하면 버튼이 다음 줄로 내려가도록 해 텍스트 자체는 항상 한 줄을 유지한다.
+
+### 검증
+- `npx tsc --noEmit` 통과.
+- 브라우저 실측(390×844): "메뉴 추가" 버튼 한 줄 표시, `document.documentElement.scrollWidth === clientWidth === 390`.
+- 데스크톱(1440×900): 기존과 동일하게 헤더 한 줄 표시, 레이아웃 변화 없음.
+
+### 복원 방법
+이 ID(HIST-20260724-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 파일에 적용한다.
+
 ## HIST-20260503-001
 
 - **날짜**: 2026-05-03

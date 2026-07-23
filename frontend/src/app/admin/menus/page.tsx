@@ -152,7 +152,7 @@ export default function AdminMenusPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-xl font-semibold text-gray-900">메뉴 관리</h2>
           <p className="text-sm text-gray-500 mt-1">사용자/관리자 메뉴를 추가·수정·삭제합니다.</p>
@@ -160,7 +160,7 @@ export default function AdminMenusPage() {
         <button
           type="button"
           onClick={() => { setShowAdd((v) => !v); resetForm(); }}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-1.5"
+          className="shrink-0 whitespace-nowrap px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-1.5"
         >
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />

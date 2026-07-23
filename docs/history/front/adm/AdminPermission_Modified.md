@@ -1,3 +1,55 @@
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 관리자 프론트엔드 / 권한 관리 — 모바일(390px) 그룹명·세부권한명 텍스트 세로 쪼개짐 수정
+- **수정 개요**: 모바일 UI/UX 2차 조사에서 발견된 버그. 권한 그룹(마스터) 이름·설명과 세부 권한 이름이 좁은 flex 컬럼(`flex-1 min-w-0`)에서 CJK 기본 줄바꿈 규칙에 의해 글자 단위로 쪼개져 "사\n용\n자"처럼 세로로 표시되던 문제. `break-keep`(word-break: keep-all)을 적용해 최소한 단어 단위로 줄바꿈되도록 했다. 세부 권한 행의 경우 이름 span에 걸려 있던 `flex-1`을 제거(자연폭으로 렌더 — flex-basis:0 기반 강제 압축을 없애 배지·설명과 겹치는 현상 방지)하고, 행 컨테이너에 `flex-wrap`을 추가해 좁은 화면에서 메뉴접근/수정/삭제 버튼이 다음 줄로 자연스럽게 넘어가도록 했다.
+- **참고**: 세부 권한 행은 아이콘+이름+코드배지+설명+메뉴접근버튼+수정+삭제가 모두 인라인으로 배치되어 있어 모바일에서 여전히 다소 빽빽하다. 리팩토링 없이 개별 수정만 진행하라는 지시에 따라 텍스트 줄바꿈 버그만 해결했고, 행 전체 레이아웃 재구성은 범위 밖으로 남겨둔다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/permissions/page.tsx` | 수정 | master.name/description에 `break-keep` 추가, detail.name span `flex-1`→자연폭+`break-keep`, 세부 권한 행 컨테이너에 `flex-wrap` 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/permissions/page.tsx`
+- 변경 전:
+  ```tsx
+  <div className="flex-1 min-w-0">
+    <p className="text-base font-bold text-gray-900">{master.name}</p>
+    {master.description && (
+      <p className="text-xs text-gray-500 mt-0.5">{master.description}</p>
+    )}
+  </div>
+  ...
+  <div className="flex items-center gap-3 px-4 py-3">
+    ...
+    <span className="flex-1 text-sm font-medium text-gray-800">{detail.name}</span>
+  ```
+- 변경 후:
+  ```tsx
+  <div className="flex-1 min-w-0">
+    <p className="text-base font-bold text-gray-900 break-keep">{master.name}</p>
+    {master.description && (
+      <p className="text-xs text-gray-500 mt-0.5 break-keep">{master.description}</p>
+    )}
+  </div>
+  ...
+  <div className="flex items-center flex-wrap gap-3 px-4 py-3">
+    ...
+    <span className="text-sm font-medium text-gray-800 break-keep">{detail.name}</span>
+  ```
+- 이유: `flex-1`(flex-basis:0)로 강제 압축된 텍스트 요소가 CJK 기본 줄바꿈 규칙상 글자 단위로 쪼개지는 버그. `break-keep`으로 단어 단위 줄바꿈을 보장하고, 세부 권한 이름은 `flex-1`을 제거해 압축 자체를 없애 배지와의 겹침을 방지했다.
+
+### 검증
+- `npx tsc --noEmit` 통과.
+- 브라우저 실측(390×844): "사용자" 그룹명 한 줄 표시, "일반 사용자 권한" 설명 단어 단위 줄바꿈, "일반 사용자" 세부권한명 한 줄 표시(배지와 겹침 없음), 메뉴접근/수정/삭제 버튼 다음 줄로 자연스럽게 배치.
+- 데스크톱(1440×900): 기존과 동일하게 한 줄 표시, 레이아웃 변화 없음.
+
+### 복원 방법
+이 ID(HIST-20260724-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 파일에 적용한다.
+
 ## HIST-20260502-005
 
 - **날짜**: 2026-05-02

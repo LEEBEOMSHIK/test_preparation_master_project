@@ -58,18 +58,18 @@ export default function ConceptExploreListPage() {
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleSearch()}
-          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
         />
         <button
           onClick={handleSearch}
-          className="px-4 py-2 bg-gray-100 border border-gray-300 text-sm rounded-lg hover:bg-gray-200"
+          className="shrink-0 whitespace-nowrap px-4 py-2 bg-gray-100 border border-gray-300 text-sm rounded-lg hover:bg-gray-200"
         >
           검색
         </button>
         <select
           value={pageSize}
           onChange={e => handlePageSizeChange(Number(e.target.value))}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none"
+          className="shrink-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none"
         >
           {PAGE_SIZE_OPTIONS.map(s => (
             <option key={s} value={s}>{s}개</option>

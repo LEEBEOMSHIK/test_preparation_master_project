@@ -522,9 +522,9 @@ export default function AdminPermissionsPage() {
                     {master.code}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-base font-bold text-gray-900">{master.name}</p>
+                    <p className="text-base font-bold text-gray-900 break-keep">{master.name}</p>
                     {master.description && (
-                      <p className="text-xs text-gray-500 mt-0.5">{master.description}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 break-keep">{master.description}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
@@ -584,12 +584,12 @@ export default function AdminPermissionsPage() {
                       ) : (
                         <>
                           {/* 세부 권한 행 */}
-                          <div className="flex items-center gap-3 px-4 py-3">
+                          <div className="flex items-center flex-wrap gap-3 px-4 py-3">
                             {/* ▸ 아이콘으로 하위 항목임을 표시 */}
                             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-gray-300 shrink-0">
                               <path d="M6 3l5 5-5 5V3z" />
                             </svg>
-                            <span className="flex-1 text-sm font-medium text-gray-800">{detail.name}</span>
+                            <span className="text-sm font-medium text-gray-800 break-keep">{detail.name}</span>
                             {detail.code && (
                               <span className="px-2 py-0.5 rounded text-xs font-mono bg-gray-100 text-gray-600 shrink-0">
                                 {detail.code}

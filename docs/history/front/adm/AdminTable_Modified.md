@@ -1,3 +1,44 @@
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 관리자 프론트엔드 / 테이블 관리 > DB 조회 — 모바일(390px) 테이블 선택 select 잘림·페이지 가로 스크롤 수정
+- **수정 개요**: 모바일 UI/UX 2차 조사에서 발견된 버그. "테이블 선택" select가 폭 제약 없이 가장 긴 option(테이블명+코멘트) 기준으로 렌더되어 뷰포트 밖으로 잘리는 문제. select에 `min-w-0 max-w-full sm:max-w-none`을 추가해 모바일에서는 뷰포트 폭 이내로 제한하고, `sm:` 이상(≥640px, 데스크톱 포함)에서는 기존과 동일하게 폭 제약을 두지 않도록(원래 동작 유지) 복원했다. 실측 결과 이 select 폭 수정만으로 그리드 선택 후 발생하던 페이지 레벨 가로 스크롤도 함께 해소됨을 확인했다(그리드 자체는 `overflow-x-auto` 컨테이너 안에서만 내부 스크롤).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/tables/data/page.tsx` | 수정 | "테이블 선택" select에 `min-w-0 max-w-full sm:max-w-none` 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/tables/data/page.tsx`
+- 변경 전:
+  ```tsx
+  <select
+    value={selectedTable}
+    onChange={e => handleSelectTable(e.target.value)}
+    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+  >
+  ```
+- 변경 후:
+  ```tsx
+  <select
+    value={selectedTable}
+    onChange={e => handleSelectTable(e.target.value)}
+    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 min-w-0 max-w-full sm:max-w-none"
+  >
+  ```
+- 이유: 폭 제약이 없는 네이티브 select가 가장 긴 option 텍스트 기준으로 렌더되며 모바일 뷰포트를 벗어나 잘리고, 이로 인해 페이지 레벨 가로 스크롤까지 유발했다. `sm:max-w-none`으로 데스크톱은 기존 동작(제약 없음)을 그대로 유지해 회귀를 방지했다.
+
+### 검증
+- `npx tsc --noEmit` 통과.
+- 브라우저 실측(390×844, 긴 option `user_exam_applications (사용자 직접 입력 시험 접수 정보)` 선택): select 잘림 없음(342px, 뷰포트 이내), 그리드 로드 후에도 `document.documentElement.scrollWidth === clientWidth === 390`, 그리드 자체는 내부 `overflow-x-auto`(scrollWidth 2063 vs clientWidth 340)로 정상 스크롤.
+- 데스크톱(1440×900): select 폭 402px로 기존과 동일(제약 없음), `scrollWidth === clientWidth === 1440`.
+
+### 복원 방법
+이 ID(HIST-20260724-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 파일에 적용한다.
+
 ## HIST-20260707-001
 
 - **날짜**: 2026-07-07

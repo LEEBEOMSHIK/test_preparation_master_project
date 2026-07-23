@@ -1,3 +1,41 @@
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 사용자 프론트엔드 / 개념노트 — 내 노트 목록·공개 탐색 목록 검색바 모바일 가로 스크롤 수정
+- **수정 개요**: 모바일 UI/UX 2차 조사에서 발견된 버그(scrollWidth 400 vs clientWidth 390, 390px 뷰포트 기준) 수정. 검색바(제목 검색 input + 검색 버튼 + 페이지 크기 select) 3요소가 한 행에서 서로 밀어내며 "검색" 버튼이 "검\n색"으로 세로 줄바꿈되고 페이지 크기 select가 뷰포트 오른쪽 밖으로 잘리는 문제. input에 `min-w-0`(flex-1 항목이 내용 기준 최소폭 대신 실제로 줄어들 수 있게), 검색 버튼에 `shrink-0 whitespace-nowrap`, select에 `shrink-0`을 추가해 세 요소가 안정적으로 한 줄 안에 들어오도록 했다. 두 화면이 검색바 구조를 공유하는 공용 컴포넌트를 쓰지 않고 각자 인라인으로 구현되어 있어 두 파일을 각각 수정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/concepts/page.tsx` | 수정 | 검색바 input/버튼/select에 `min-w-0`·`shrink-0 whitespace-nowrap`·`shrink-0` 추가 |
+| `frontend/src/app/user/concepts/explore/page.tsx` | 수정 | 동일 검색바 구조에 동일 클래스 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/concepts/page.tsx`, `frontend/src/app/user/concepts/explore/page.tsx`
+- 변경 전:
+  ```tsx
+  <input ... className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm ..." />
+  <button onClick={handleSearch} className="px-4 py-2 bg-gray-100 border border-gray-300 text-sm rounded-lg hover:bg-gray-200">검색</button>
+  <select ... className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none">
+  ```
+- 변경 후:
+  ```tsx
+  <input ... className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm ..." />
+  <button onClick={handleSearch} className="shrink-0 whitespace-nowrap px-4 py-2 bg-gray-100 border border-gray-300 text-sm rounded-lg hover:bg-gray-200">검색</button>
+  <select ... className="shrink-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none">
+  ```
+- 이유: 모바일(390px)에서 검색바 3요소의 합산 최소폭이 뷰포트를 넘어서면서 버튼 텍스트가 글자 단위로 줄바꿈되고 select가 화면 밖으로 잘리는 현상 수정. 데스크톱은 이미 여유 폭이 있어 시각적 변화 없음(실측 확인).
+
+### 검증
+- `npx tsc --noEmit` 통과.
+- 브라우저 실측(390×844, chrome-devtools MCP): 두 화면 모두 `document.documentElement.scrollWidth === clientWidth === 390`, 검색 버튼 한 줄, select 잘림 없음.
+- 데스크톱(1440×900): `scrollWidth === clientWidth === 1440`, 레이아웃 변화 없음.
+
+### 복원 방법
+이 ID(HIST-20260724-001)만으로 복원 시 위 "수정 상세"의 "변경 전" 내용을 각 파일에 적용한다.
+
 ## HIST-20260710-001
 
 - **날짜**: 2026-07-10
