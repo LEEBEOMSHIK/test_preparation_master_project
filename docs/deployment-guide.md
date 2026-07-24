@@ -94,7 +94,8 @@ fork 에이전트를 통해 9개 영역(시크릿 관리, docs/security.md 완�
 
 **⑨ AI(Anthropic) 비용 리스크는 낮음** — `AdminQuestionController`가 클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")`으로 보호되어 일반 사용자가 트리거 불가. 별도 조치 불요.
 
-**⑩ `.dockerignore` 부재**(backend/frontend) — 큰 문제는 아니나 빌드 컨텍스트에 불필요 파일 포함 가능(선택 사항).
+**⑩ (완료) `.dockerignore` 부재**(backend/frontend) — 큰 문제는 아니나 빌드 컨텍스트에 불필요 파일 포함 가능(선택 사항).
+→ 수정: `backend/.dockerignore`(build/·.gradle/·bin/·logs/·uploads/·*.class·*.jar(gradle-wrapper.jar 예외)·.env* 등 제외, src/test/는 `./gradlew bootJar` 컴파일에 필요해 유지) / `frontend/.dockerignore`(node_modules/·.next/·out/·build/·.env*.local·coverage/ 등 제외) 신규 작성.
 
 ### 4-4. 양호 확인된 부분
 - 비밀키 관리: `.env*`가 `.gitignore`에 모두 등록, git 이력에 커밋된 적 없음, 코드에 하드코딩된 시크릿 없음.

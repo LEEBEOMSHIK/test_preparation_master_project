@@ -1,0 +1,31 @@
+# 의존성 (deps 스테이지가 npm ci로 새로 설치 — 로컬 node_modules는 OS/아키텍처가 다르면 오히려 위험)
+node_modules/
+
+# 빌드 산출물
+.next/
+out/
+build/
+
+# 환경변수 (시크릿 — 빌드 컨텍스트에 포함 금지)
+.env.local
+.env*.local
+
+# git
+.git
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 로그
+*.log
+
+# 테스트 커버리지 산출물
+coverage/
+
+# 빌드 캐시
+tsconfig.tsbuildinfo
