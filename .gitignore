@@ -61,3 +61,6 @@ frontend/images/
 
 # 로컬 참고 자료 이미지 (커밋 대상 아님)
 references/images/
+
+# DB 백업 파일 (scripts/backup-db.sh 산출물 — 커밋 대상 아님)
+/backups/

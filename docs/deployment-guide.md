@@ -89,7 +89,8 @@ fork 에이전트를 통해 9개 영역(시크릿 관리, docs/security.md 완�
 **⑦ (완료) 로그인 rate limiting 없음** — 무차별 대입 방어 없음. 배포 직후 필수는 아니나 조기 권장.
 → 수정: `POST /api/auth/login`에 IP 기준 5분/5회 고정 윈도우 rate limiting 추가(인메모리 `ConcurrentHashMap`, 단일 VM 배포 전제로 Redis 미도입). 초과 시 자격증명 검사 없이 즉시 429 반환. `docs/history/back/usr/Auth_Modified.md` HIST-20260724-001
 
-**⑧ 프로덕션 DB 백업 전략 부재** — `docs/sql`은 마이그레이션용 콘텐츠 덤프이지 운영 자동 백업이 아님. 단일 VM + Docker named volume(`postgres_data`) 구조라 VM 손실 시 데이터 전체 유실. 최소 cron `pg_dump` + 외부(S3 등) 보관 스크립트 필요.
+**⑧ (완료) 프로덕션 DB 백업 전략 부재** — `docs/sql`은 마이그레이션용 콘텐츠 덤프이지 운영 자동 백업이 아님. 단일 VM + Docker named volume(`postgres_data`) 구조라 VM 손실 시 데이터 전체 유실.
+→ 수정: `scripts/backup-db.sh`(pg_dump + gzip 압축, 로컬 14일 보관 정책, `BACKUP_REMOTE_UPLOAD_CMD` 환경변수로 임의 원격 업로드 명령 주입 가능) / `scripts/restore-db.sh`(대화형 확인 프롬프트, `-y`/`--yes`로 생략 가능) 신규 작성. crontab 자동 실행 예시와 상세 사용법은 §6 참고.
 
 **⑨ AI(Anthropic) 비용 리스크는 낮음** — `AdminQuestionController`가 클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")`으로 보호되어 일반 사용자가 트리거 불가. 별도 조치 불요.
 
@@ -115,6 +116,59 @@ fork 에이전트를 통해 9개 영역(시크릿 관리, docs/security.md 완�
 | `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET` / `NOTION_REDIRECT_URI` | Notion 연동 | 사용 시 실제 값 필요 |
 | `ANTHROPIC_API_KEY` | Claude API 키 | §2 변동비 주의 참고 |
 | `NEXT_PUBLIC_API_URL` | 프론트가 호출할 API 베이스 URL | 실제 도메인 기준으로 설정 |
+
+---
+
+## 6. DB 백업/복구
+
+`postgres_data` named volume은 VM 자체에 종속되므로, VM이 사라지면(디스크 장애, 실수로 인스턴스 삭제 등) 데이터가 함께 사라진다. 이를 대비해 `scripts/backup-db.sh` / `scripts/restore-db.sh`를 준비했다.
+
+### 6-1. 백업 (`scripts/backup-db.sh`)
+
+```bash
+chmod +x scripts/backup-db.sh scripts/restore-db.sh
+./scripts/backup-db.sh
+```
+
+- `docker exec tpmp-db pg_dump`로 덤프한 뒤 gzip 압축해 `backups/tpmp_YYYYMMDD_HHMMSS.sql.gz`로 저장한다(저장소 루트 기준, `BACKUP_DIR` 환경변수로 변경 가능).
+- 실행할 때마다 `BACKUP_RETENTION_DAYS`(기본 14일)를 초과한 로컬 백업 파일을 자동 삭제한다.
+- `backups/`는 `.gitignore`에 등록되어 있어 커밋되지 않는다.
+- 컨테이너명/DB명/유저명은 각각 `DB_CONTAINER_NAME`/`DB_NAME`/`DB_USERNAME` 환경변수로 오버라이드 가능(기본값은 `docker-compose.yml`과 동일하게 `tpmp-db`/`tpmp`/`tpmp`).
+
+**원격 업로드(선택 사항).** 외부 오브젝트 스토리지(S3, Backblaze B2, rclone이 지원하는 임의 원격지 등) 계정이 준비되면, 벤더에 상관없이 `BACKUP_REMOTE_UPLOAD_CMD` 환경변수에 업로드 명령 전체를 넣으면 백업 직후 자동 실행된다. 백업 파일 경로는 그 명령 안에서 `$BACKUP_FILE`로 참조한다.
+
+```bash
+# 예: AWS S3
+export BACKUP_REMOTE_UPLOAD_CMD='aws s3 cp "$BACKUP_FILE" s3://my-bucket/tpmp-backups/'
+# 예: rclone (임의 원격지)
+export BACKUP_REMOTE_UPLOAD_CMD='rclone copy "$BACKUP_FILE" remote:tpmp-backups/'
+./scripts/backup-db.sh
+```
+
+`BACKUP_REMOTE_UPLOAD_CMD`가 설정되지 않으면 "원격 업로드 미설정 — 로컬 백업만 수행" 로그만 남기고 정상 종료한다(실패로 취급하지 않음). 스토리지 계정이 정해지면 서버의 crontab 환경(아래 6-3)에 이 환경변수를 등록하면 된다.
+
+### 6-2. 복구 (`scripts/restore-db.sh`)
+
+```bash
+./scripts/restore-db.sh backups/tpmp_20260724_030000.sql.gz
+```
+
+- **되돌릴 수 없는 파괴적 작업이다** — 대상 DB(`tpmp-db` 컨테이너)의 기존 데이터를 덮어쓴다. 실행 시 `yes` 입력을 요구하는 확인 프롬프트가 뜬다.
+- 자동화 파이프라인 등 확인 프롬프트를 생략해야 하면 `-y`/`--yes` 플래그를 붙인다: `./scripts/restore-db.sh -y backups/tpmp_20260724_030000.sql.gz`
+- 내부적으로 gzip 압축을 해제한 뒤 `docker exec -i tpmp-db psql`로 복원한다.
+- 컨테이너명/DB명/유저명 오버라이드는 백업 스크립트와 동일하게 `DB_CONTAINER_NAME`/`DB_NAME`/`DB_USERNAME` 환경변수를 사용한다.
+
+### 6-3. 자동 실행 (crontab)
+
+서버에 매일 새벽 자동 백업을 등록하려면:
+
+```bash
+crontab -e
+# 아래 줄 추가 (매일 새벽 3시 실행, 로그는 /var/log/tpmp-backup.log에 누적)
+0 3 * * * /path/to/scripts/backup-db.sh >> /var/log/tpmp-backup.log 2>&1
+```
+
+원격 업로드를 crontab에서도 사용하려면 `BACKUP_REMOTE_UPLOAD_CMD` 등 환경변수를 crontab 상단에 함께 선언하거나, 이 값들을 export하는 wrapper 스크립트를 만들어 그 wrapper를 cron에 등록한다(cron은 로그인 쉘의 환경변수를 상속하지 않음에 유의).
 
 ---
 
