@@ -4,3 +4,10 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
+    ports: !reset []
+
+  frontend:
+    ports: !reset []
+
+  db:
+    ports: !reset []
