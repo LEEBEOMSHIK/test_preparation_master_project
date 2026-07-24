@@ -191,6 +191,7 @@ rg --files frontend/src/app/admin backend/src/main/java
 | 함수/컴포넌트 | 위치 | 역할 |
 |-------------|------|------|
 | `stripHtml(html)` | `src/lib/html.ts` | HTML → 순수 텍스트 |
+| `extractApiErrorMessage(err, fallback)` | `src/lib/apiError.ts` | axios 에러에서 백엔드 메시지 추출 — `err.response.data.error.message`를 읽는다(백엔드 `ApiResponse.fail()`은 `@JsonInclude(NON_NULL)`로 인해 최상위 `message`가 아닌 `error.message`에만 메시지를 채움). 추출 실패 시 `fallback` 반환 — `user/login`·`admin/login` 로그인 실패 메시지(rate limit 등) 표시에 사용 |
 | `parseLocalDate(s)` | `src/lib/date.ts` | `"YYYY-MM-DD"`를 로컬 자정 기준으로 파싱(`new Date(s)`의 UTC 파싱으로 인한 KST 하루 밀림 버그 방지) |
 | `getExamDDayLabel(applicationDate?, examDate?)` / `getExamDDayBadgeClass(applicationDate?, examDate?)` / `isExamDDayUrgent(applicationDate?, examDate?)` | `src/lib/date.ts` | `UserExamApplication`(개인 접수 정보) D-day 라벨·배지 클래스 계산 — examDate 우선(`시험까지 D-N`/`오늘 시험일`/`시험 종료`), 없으면 applicationDate만으로(`접수 예정 D-N`/`접수 완료`), 둘 다 없으면 빈 문자열(호출부는 배지 미렌더). 오늘 포함 7일 이내면 urgent(빨강), 그 외 중립(회색) — `user/exam-info`·`user/settings` 공용 |
 | `useIsDarkMode()` | `src/lib/useIsDarkMode.ts` | 현재 다크모드 여부(html `dark` 클래스 기준, MutationObserver 반응) |

@@ -1,3 +1,43 @@
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 사용자 프론트엔드 / 로그인 화면 (에러 메시지 처리)
+- **수정 개요**: 로그인 실패 시 에러 종류와 무관하게 항상 "이메일 또는 비밀번호가 올바르지 않습니다."만 표시하던 문제를 수정. 백엔드가 로그인 rate limiting(5분 내 5회 실패 시 `TOO_MANY_LOGIN_ATTEMPTS` 429)을 추가하면서 구체적 에러 메시지를 내려주는데, 프론트가 이를 무시하고 있어 사용자가 실제 원인을 알 수 없었음. 백엔드 응답 메시지를 안전하게 추출하는 공용 유틸 `extractApiErrorMessage`를 신규 작성해 적용(관리자 로그인 화면에도 동일 적용, 해당 변경은 `docs/history/front/adm/Login_Modified.md` HIST-20260724-001 참고)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/apiError.ts` | 추가 | `extractApiErrorMessage(err, fallback)` 공용 유틸 신규 작성 — axios 에러의 `err.response.data.error.message`를 안전하게 추출, 실패 시 `fallback` 반환 |
+| `frontend/src/app/user/login/page.tsx` | 수정 | `catch { setError('고정 문구') }` → `catch (err: unknown) { setError(extractApiErrorMessage(err, '고정 문구')) }` |
+
+### 수정 상세
+
+#### `frontend/src/lib/apiError.ts`
+- 변경 전: 파일 없음(신규)
+- 변경 후: `ApiResponse<T>`(`@/types`) 타입 가드로 `err.response.data.error.message`를 읽어 반환, 조건 불충족 시 `fallback` 반환
+- 이유: 백엔드 `GlobalExceptionHandler`가 `ApiResponse.fail(code, message)`로 실패 응답을 생성하는데, `ApiResponse`가 `@JsonInclude(NON_NULL)`이라 최상위 `message` 필드는 채워지지 않고 생략되며, 실제 메시지는 `error.message`에만 담긴다(`backend/src/main/java/com/tpmp/testprep/dto/response/ApiResponse.java`, `backend/src/main/java/com/tpmp/testprep/exception/GlobalExceptionHandler.java` 확인). 동일 로직이 `user/login`·`admin/login` 2곳에서 필요해 CLAUDE.md Shared Utilities 정책에 따라 공용 함수로 추출
+
+#### `frontend/src/app/user/login/page.tsx`
+- 변경 전:
+  ```tsx
+  } catch {
+    setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+  }
+  ```
+- 변경 후:
+  ```tsx
+  } catch (err: unknown) {
+    setError(extractApiErrorMessage(err, '이메일 또는 비밀번호가 올바르지 않습니다.'));
+  }
+  ```
+- 이유: rate limit 등 백엔드가 내려주는 구체적 에러 메시지를 사용자에게 그대로 노출하기 위함. 메시지 추출 실패(네트워크 오류 등) 시에는 기존 기본 문구로 폴백
+
+### 복원 방법
+이 ID(HIST-20260724-001)만으로 복원 시: `frontend/src/app/user/login/page.tsx`의 catch 블록을 "변경 전" 코드로 되돌리고 `import { extractApiErrorMessage } from '@/lib/apiError';` 라인을 제거한다. `frontend/src/lib/apiError.ts`는 `admin/login/page.tsx`에서도 사용 중이므로(HIST-20260724-001, adm) 그쪽 복원도 함께 진행하지 않는 한 파일 자체는 삭제하지 않는다.
+
+---
+
 ## HIST-20260717-002
 
 - **날짜**: 2026-07-17

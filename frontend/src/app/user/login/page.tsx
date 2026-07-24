@@ -7,6 +7,7 @@ import { authService } from '@/services/authService';
 import { useAuthStore } from '@/store/authStore';
 import { Skeleton } from '@/components/ui/Skeleton';
 import ThemeToggle from '@/components/ui/ThemeToggle';
+import { extractApiErrorMessage } from '@/lib/apiError';
 
 function UserLoginFallback() {
   return (
@@ -61,8 +62,8 @@ function UserLoginContent() {
       } else {
         router.push('/user/exam-info');
       }
-    } catch {
-      setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, '이메일 또는 비밀번호가 올바르지 않습니다.'));
     } finally {
       setLoading(false);
     }

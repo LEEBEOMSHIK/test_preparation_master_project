@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { authService } from '@/services/authService';
 import { useAuthStore } from '@/store/authStore';
 import ThemeToggle from '@/components/ui/ThemeToggle';
+import { extractApiErrorMessage } from '@/lib/apiError';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -30,8 +31,8 @@ export default function AdminLoginPage() {
       }
       setAuth(user, accessToken);
       router.push('/admin/dashboard');
-    } catch {
-      setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, '이메일 또는 비밀번호가 올바르지 않습니다.'));
     } finally {
       setLoading(false);
     }

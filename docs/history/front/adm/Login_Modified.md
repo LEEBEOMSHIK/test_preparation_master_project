@@ -1,3 +1,38 @@
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 관리자 프론트엔드 / 로그인 화면 (에러 메시지 처리)
+- **수정 개요**: 로그인 실패 시 에러 종류와 무관하게 항상 "이메일 또는 비밀번호가 올바르지 않습니다."만 표시하던 문제를 수정. 백엔드 로그인 rate limiting(5분 내 5회 실패 시 `TOO_MANY_LOGIN_ATTEMPTS` 429)의 구체적 메시지를 그대로 노출하도록 공용 유틸 `extractApiErrorMessage`(신규)를 적용(사용자 로그인 화면에도 동일 적용, 유틸 신규 작성 상세는 `docs/history/front/usr/Login_Modified.md` HIST-20260724-001 참고)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/lib/apiError.ts` | 추가(공용) | `extractApiErrorMessage(err, fallback)` — `user/login`과 공용, 신규 작성 상세는 `docs/history/front/usr/Login_Modified.md` HIST-20260724-001 참고 |
+| `frontend/src/app/admin/login/page.tsx` | 수정 | `catch { setError('고정 문구') }` → `catch (err: unknown) { setError(extractApiErrorMessage(err, '고정 문구')) }` |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/login/page.tsx`
+- 변경 전:
+  ```tsx
+  } catch {
+    setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+  }
+  ```
+- 변경 후:
+  ```tsx
+  } catch (err: unknown) {
+    setError(extractApiErrorMessage(err, '이메일 또는 비밀번호가 올바르지 않습니다.'));
+  }
+  ```
+- 이유: 백엔드 `ApiResponse.fail()`은 메시지를 최상위 `message`가 아닌 `error.message`에 담아 응답한다(`backend/src/main/java/com/tpmp/testprep/dto/response/ApiResponse.java` 확인). rate limit 등 구체적 원인을 관리자에게도 그대로 보여주기 위해 적용, 추출 실패 시 기존 기본 문구로 폴백
+
+### 복원 방법
+이 ID(HIST-20260724-001)만으로 복원 시: `frontend/src/app/admin/login/page.tsx`의 catch 블록을 "변경 전" 코드로 되돌리고 `import { extractApiErrorMessage } from '@/lib/apiError';` 라인을 제거한다. `frontend/src/lib/apiError.ts`는 `user/login/page.tsx`에서도 사용 중이므로(HIST-20260724-001, usr) 그쪽 복원도 함께 진행하지 않는 한 파일 자체는 삭제하지 않는다.
+
+---
+
 ## HIST-20260717-001
 
 - **날짜**: 2026-07-17
