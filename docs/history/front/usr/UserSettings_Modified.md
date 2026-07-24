@@ -1,5 +1,95 @@
 # 사용자 설정 화면 수정 이력
 
+## HIST-20260724-003
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 사용자 프론트엔드 / 설정 페이지 + 시험 접수 정보 모달 (공용 컴포넌트, `/user/exam-info`와 공유) — API 에러 메시지 추출 경로 버그 수정
+- **수정 개요**: 백엔드 `ApiResponse`(`@JsonInclude(NON_NULL)`)는 실패 응답에서 최상위 `message` 필드를 채우지 않고 생략하며, 실제 메시지는 `error.message`에만 담긴다(`{ success: false, error: { code, message } }`). 그런데 닉네임 저장 실패 처리(`settings/page.tsx`)와 시험 접수 정보 등록/수정 모달(`ExamApplicationFormModal.tsx`) 2곳이 존재하지 않는 최상위 `data.message`를 찾는 타입가드를 쓰고 있어 항상 실패하고, 서버가 내려준 구체적 실패 사유(예: 닉네임 중복 409) 대신 하드코딩된 기본 문구만 사용자에게 노출되던 버그를 수정. 로그인 화면(`user/login`, `admin/login`) 수정 시 만든 공용 유틸 `extractApiErrorMessage(err, fallback)`(`src/lib/apiError.ts`)를 재사용하도록 교체
+- **재검증**: `npx tsc --noEmit` 통과. 프로젝트 전체(`frontend/src`)에서 동일 오패턴(`'message' in err.response.data` 형태로 최상위 `message`를 찾는 타입가드) 재검색 — 위 2곳 외 추가 발견 없음(참고: `admin/tables/domains/page.tsx`는 이미 올바르게 `error.message` 경로를 직접 읽고 있어 버그 아님, 이번 수정 범위 외)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/settings/page.tsx` | 수정 | 닉네임 저장 실패 catch 블록의 수동 타입가드(최상위 `data.message` 조회, 항상 실패) 제거하고 `extractApiErrorMessage(err, fallback)` 호출로 교체 |
+| `frontend/src/components/ui/ExamApplicationFormModal.tsx` | 수정 | 접수 정보 등록/수정 실패 catch 블록 동일 수정(`extractApiErrorMessage` 사용). 이 컴포넌트는 `/user/exam-info`와 공용이므로 두 화면 모두에 적용됨 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/settings/page.tsx`
+- 변경 전:
+  ```tsx
+  } catch (err: unknown) {
+    // 서버 에러 응답에서 message 추출 (409 중복 등 4xx 포함)
+    let errorMsg = '저장에 실패했습니다. 다시 시도해 주세요.';
+    if (
+      err !== null &&
+      typeof err === 'object' &&
+      'response' in err &&
+      err.response !== null &&
+      typeof err.response === 'object' &&
+      'data' in err.response &&
+      err.response.data !== null &&
+      typeof err.response.data === 'object' &&
+      'message' in err.response.data &&
+      typeof (err.response.data as { message: unknown }).message === 'string'
+    ) {
+      errorMsg = (err.response.data as { message: string }).message;
+    }
+    setNicknameFeedback({ type: 'error', msg: errorMsg });
+  } finally {
+  ```
+- 변경 후:
+  ```tsx
+  } catch (err: unknown) {
+    // 서버 에러 응답에서 message 추출 (409 중복 등 4xx 포함)
+    const errorMsg = extractApiErrorMessage(err, '저장에 실패했습니다. 다시 시도해 주세요.');
+    setNicknameFeedback({ type: 'error', msg: errorMsg });
+  } finally {
+  ```
+- import 추가: `import { extractApiErrorMessage } from '@/lib/apiError';`
+- 이유: 존재하지 않는 최상위 `data.message`를 찾던 타입가드가 항상 실패해 기본 문구로만 폴백되던 버그 수정. 닉네임 409 중복 등 서버의 구체적 실패 사유가 이제 정상적으로 노출됨
+
+#### `frontend/src/components/ui/ExamApplicationFormModal.tsx`
+- 변경 전:
+  ```tsx
+  } catch (err: unknown) {
+    let errorMsg = '저장에 실패했습니다. 다시 시도해 주세요.';
+    if (
+      err !== null &&
+      typeof err === 'object' &&
+      'response' in err &&
+      err.response !== null &&
+      typeof err.response === 'object' &&
+      'data' in err.response &&
+      err.response.data !== null &&
+      typeof err.response.data === 'object' &&
+      'message' in err.response.data &&
+      typeof (err.response.data as { message: unknown }).message === 'string'
+    ) {
+      errorMsg = (err.response.data as { message: string }).message;
+    }
+    setError(errorMsg);
+  } finally {
+    setSaving(false);
+  }
+  ```
+- 변경 후:
+  ```tsx
+  } catch (err: unknown) {
+    setError(extractApiErrorMessage(err, '저장에 실패했습니다. 다시 시도해 주세요.'));
+  } finally {
+    setSaving(false);
+  }
+  ```
+- import 추가: `import { extractApiErrorMessage } from '@/lib/apiError';`
+- 이유: 동일한 오패턴 버그. 접수일/시험일 유효성 오류 외 서버 측 검증 실패(예: 중복 등록) 사유가 사용자에게 전달되지 않던 문제 해소
+
+### 복원 방법
+이 ID(HIST-20260724-003)만으로 복원 시 위 "수정 상세"의 "변경 전" 코드를 각 파일에 그대로 적용하고, 두 파일에서 `import { extractApiErrorMessage } from '@/lib/apiError';`를 제거한다.
+
+---
+
 ## HIST-20260724-002
 
 - **날짜**: 2026-07-24

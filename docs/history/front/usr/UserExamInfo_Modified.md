@@ -1,3 +1,23 @@
+## HIST-20260724-002
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 사용자 프론트엔드 / 시험 정보 (공용 컴포넌트 `ExamApplicationFormModal` — API 에러 메시지 추출 경로 버그 수정, `/user/settings`와 공용)
+- **수정 개요**: `ExamApplicationFormModal.tsx`(접수 정보 등록/수정 모달, `/user/exam-info`와 `/user/settings` 공용)의 저장 실패 처리가 존재하지 않는 최상위 `err.response.data.message`를 찾는 타입가드를 쓰고 있어 항상 실패하고 하드코딩된 기본 문구만 노출되던 버그를 공용 유틸 `extractApiErrorMessage`(`src/lib/apiError.ts`)로 교체해 수정. 파일 실체는 `/user/settings`와 동일 컴포넌트이므로 상세 diff는 `UserSettings_Modified.md`의 HIST-20260724-003 참고
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/ExamApplicationFormModal.tsx` | 수정 | catch 블록을 `extractApiErrorMessage(err, fallback)` 호출로 교체(상세는 HIST-20260724-003과 동일 파일) |
+
+### 수정 상세
+파일 실체가 `/user/settings`와 동일 공용 컴포넌트이므로 상세 diff는 `docs/history/front/usr/UserSettings_Modified.md`의 HIST-20260724-003 항목을 참고.
+
+### 복원 방법
+이 ID(HIST-20260724-002)만으로 복원 시 `UserSettings_Modified.md`의 HIST-20260724-003 "복원 방법"과 동일하게 `ExamApplicationFormModal.tsx`를 되돌린다.
+
+---
+
 ## HIST-20260724-001
 
 - **날짜**: 2026-07-24

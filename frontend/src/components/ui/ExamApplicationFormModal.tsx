@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { examApplicationService } from '@/services/examApplicationService';
+import { extractApiErrorMessage } from '@/lib/apiError';
 import type { UserExamApplication } from '@/types';
 
 export interface ExamApplicationPrefill {
@@ -84,22 +85,7 @@ export function ExamApplicationFormModal({ open, onClose, onSaved, editing, pref
         onClose();
       }
     } catch (err: unknown) {
-      let errorMsg = '저장에 실패했습니다. 다시 시도해 주세요.';
-      if (
-        err !== null &&
-        typeof err === 'object' &&
-        'response' in err &&
-        err.response !== null &&
-        typeof err.response === 'object' &&
-        'data' in err.response &&
-        err.response.data !== null &&
-        typeof err.response.data === 'object' &&
-        'message' in err.response.data &&
-        typeof (err.response.data as { message: unknown }).message === 'string'
-      ) {
-        errorMsg = (err.response.data as { message: string }).message;
-      }
-      setError(errorMsg);
+      setError(extractApiErrorMessage(err, '저장에 실패했습니다. 다시 시도해 주세요.'));
     } finally {
       setSaving(false);
     }
