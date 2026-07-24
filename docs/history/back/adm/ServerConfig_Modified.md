@@ -1,3 +1,49 @@
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 관리자 백엔드 / 공통 서버 설정 (SecurityConfig, application-prod)
+- **수정 개요**: `docs/deployment-guide.md` §4-2 배포 전 보안 점검 "중요" 이슈 대응 — 프로덕션 Swagger/OpenAPI 문서 비활성화(④), actuator permitAll 범위를 health 엔드포인트로 축소(⑥)
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/resources/application-prod.yml` | 수정 | `springdoc.api-docs.enabled: false`, `springdoc.swagger-ui.enabled: false` 추가 |
+| `backend/src/main/java/com/tpmp/testprep/config/SecurityConfig.java` | 수정 | `/api/actuator/**` permitAll → `/api/actuator/health` permitAll로 축소 |
+
+### 수정 상세
+
+#### `backend/src/main/resources/application-prod.yml`
+- **배경**: base `application.yml`이 `springdoc.api-docs.path: /api/v3/api-docs`, `springdoc.swagger-ui.path: /api/swagger-ui.html`을 정의하고 `SecurityConfig`가 해당 경로를 permitAll하고 있어, prod 프로필에 비활성화 오버라이드가 없으면 전체 API 스펙(엔드포인트·DTO 구조)이 인증 없이 공개됨.
+- **변경 전**: springdoc 관련 설정 없음(base 설정이 그대로 적용됨)
+- **변경 후**:
+  ```yaml
+  springdoc:
+    api-docs:
+      enabled: false
+    swagger-ui:
+      enabled: false
+  ```
+- **이유**: prod 프로필에서 springdoc 자체를 비활성화하면 `/api/v3/api-docs/**`, `/api/swagger-ui/**` 경로가 404가 되어, SecurityConfig의 permitAll 규칙과 무관하게 문서가 노출되지 않는다. base `application.yml`은 건드리지 않아 local/개발 프로필에서는 Swagger를 계속 사용할 수 있다.
+
+#### `backend/src/main/java/com/tpmp/testprep/config/SecurityConfig.java`
+- **배경**: `management.endpoints.web.exposure.include: health`로 현재는 health만 노출되어 당장은 안전하지만, `.requestMatchers("/api/actuator/**").permitAll()`은 향후 exposure 범위를 넓히면 즉시 인증 없이 전체 actuator가 공개되는 구조적 위험이 있었다. docker-compose의 healthcheck(`curl -f http://localhost:8080/api/actuator/health`)와 `application.yml`의 `management.endpoint.health` 설정을 확인해 실제 헬스체크 경로가 `/api/actuator/health`임을 검증함.
+- **변경 전**:
+  ```java
+  .requestMatchers("/api/actuator/**").permitAll()
+  ```
+- **변경 후**:
+  ```java
+  .requestMatchers("/api/actuator/health").permitAll()
+  ```
+- **이유**: health 엔드포인트만 명시적으로 허용하고, 나머지 actuator 하위 경로는 기존 `.anyRequest().authenticated()`에 걸려 인증이 필요해진다. docker-compose healthcheck는 계속 정상 동작한다(health는 permitAll 유지).
+
+### 복원 방법
+
+이 ID(HIST-20260724-001)만으로 복원 시:
+- `application-prod.yml`: 추가한 `springdoc` 블록 제거
+- `SecurityConfig.java`: `.requestMatchers("/api/actuator/health").permitAll()`을 `.requestMatchers("/api/actuator/**").permitAll()`로 되돌린다
+
 ## HIST-20260625-001
 
 - **날짜**: 2026-06-25

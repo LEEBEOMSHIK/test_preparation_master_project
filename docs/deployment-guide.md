@@ -72,17 +72,17 @@ fork 에이전트를 통해 9개 영역(시크릿 관리, docs/security.md 완�
 
 ### 4-2. 중요
 
-**④ Swagger/OpenAPI 문서가 프로덕션에서도 인증 없이 공개됨**
+**④ (완료) Swagger/OpenAPI 문서가 프로덕션에서도 인증 없이 공개됨**
 `SecurityConfig.java:55` `/api/v3/api-docs/**`, `/api/swagger-ui/**`가 permitAll이고 `application-prod.yml`에 비활성화 설정 없음 → 전체 API 스펙(엔드포인트·DTO 구조)이 공개 노출.
-→ 수정: `application-prod.yml`에 `springdoc.api-docs.enabled: false` / `swagger-ui.enabled: false` 추가.
+→ 수정: `application-prod.yml`에 `springdoc.api-docs.enabled: false` / `swagger-ui.enabled: false` 추가. (base `application.yml`은 그대로 두어 local/개발 프로필은 Swagger 계속 사용 가능. `docs/history/back/adm/ServerConfig_Modified.md` HIST-20260724-001)
 
-**⑤ 파일 업로드 확장자 화이트리스트 미검증** (CLAUDE.md 정책 위반)
+**⑤ (완료) 파일 업로드 확장자 화이트리스트 미검증** (CLAUDE.md 정책 위반)
 `AttachmentService.java:36-45` — MIME 타입만 클라이언트 `Content-Type` 헤더로 검사(스푸핑 가능)하고, 저장 확장자는 원본 파일명에서 그대로 추출(화이트리스트 없음). `/uploads/**`가 permitAll로 정적 서빙되므로, `evil.svg`를 `image/jpeg`로 위장 업로드 시 stored XSS 벡터가 될 수 있음.
-→ 수정: 확장자 화이트리스트(jpg/jpeg/png/gif/webp) 추가 검증.
+→ 수정: 확장자 화이트리스트(jpg/jpeg/png/gif/webp) 추가 검증(MIME 검사는 기존대로 병행 유지). `docs/history/back/adm/AdminAttachment_Modified.md` HIST-20260724-001
 
-**⑥ actuator 전체가 permitAll**
+**⑥ (완료) actuator 전체가 permitAll**
 `SecurityConfig.java:54` — 현재 `exposure.include: health`뿐이라 당장은 안전하지만, 향후 디버깅 목적으로 exposure를 넓히면 즉시 무방비 공개됨.
-→ 수정: `/api/actuator/health`만 permitAll하고 나머지는 인증 요구, 또는 현재 구조 유지 시 확장 금지 주석 명시.
+→ 수정: `/api/actuator/health`만 permitAll하고 나머지는 `anyRequest().authenticated()`로 인증 요구(docker-compose healthcheck 경로와 동일함을 확인). `docs/history/back/adm/ServerConfig_Modified.md` HIST-20260724-001
 
 ### 4-3. 참고 (배포 직후 필수는 아님)
 

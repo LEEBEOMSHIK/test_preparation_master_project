@@ -30,6 +30,9 @@ public class AttachmentService {
     private static final List<String> ALLOWED_IMAGE_MIME =
             List.of("image/jpeg", "image/png", "image/gif", "image/webp");
 
+    private static final List<String> ALLOWED_IMAGE_EXTENSIONS =
+            List.of("jpg", "jpeg", "png", "gif", "webp");
+
     @Transactional
     public Attachment saveImage(MultipartFile file, Attachment.RefType refType) {
         if (file.isEmpty()) throw new BusinessException(ErrorCode.INVALID_INPUT);
@@ -41,6 +44,8 @@ public class AttachmentService {
         String ext = (original != null && original.contains("."))
                 ? original.substring(original.lastIndexOf('.') + 1).toLowerCase()
                 : "jpg";
+        if (!ALLOWED_IMAGE_EXTENSIONS.contains(ext))
+            throw new BusinessException(ErrorCode.UNSUPPORTED_FILE_TYPE);
 
         String storedFilename = UUID.randomUUID() + "." + ext;
         Path dest = Paths.get(uploadPath, "images", storedFilename);
