@@ -44,7 +44,31 @@ class DomainServiceTest {
         when(domainSlaveRepository.findById(1L)).thenReturn(Optional.of(slave));
         when(slave.getMaster()).thenReturn(master);
         when(master.getId()).thenReturn(100L);
-        when(questionBankRepository.existsByCategoryIdOrExamTypeId(1L, 1L)).thenReturn(false);
+        when(questionBankRepository.existsActiveByCategoryIdOrExamTypeId(1L)).thenReturn(false);
+    }
+
+    /**
+     * HIST-20260724 — questionBankRepository 쪽 판정이 소프트 삭제된(del_yn='Y') question_bank만 남아있어도
+     * "사용 중 아님"으로 정확히 판단하는지 검증한다(버그: 과거에는 del_yn 필터가 없어 소프트 삭제된 문항만
+     * 남아도 영구 삭제가 막혔음). 서비스는 리포지토리가 반환한 값을 그대로 신뢰하므로, 여기서는
+     * existsActiveByCategoryIdOrExamTypeId가 false를 반환하면(=활성 문항 없음) 삭제가 허용되는지 확인한다.
+     */
+    @Test
+    void deleteSlaveAllowedWhenOnlySoftDeletedQuestionBankReferencesIt() {
+        when(questionBankRepository.existsActiveByCategoryIdOrExamTypeId(1L)).thenReturn(false);
+        when(examinationRepository.existsByCategoryIdAndDelYn(1L, "N")).thenReturn(false);
+
+        assertThatCode(() -> service.deleteSlave(100L, 1L)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void deleteSlaveBlockedWhenActiveQuestionBankReferencesIt() {
+        when(questionBankRepository.existsActiveByCategoryIdOrExamTypeId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.deleteSlave(100L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(error -> assertThat(((BusinessException) error).getErrorCode())
+                        .isEqualTo(ErrorCode.DOMAIN_IN_USE));
     }
 
     @Test

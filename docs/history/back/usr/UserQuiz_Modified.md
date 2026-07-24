@@ -1,3 +1,27 @@
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 사용자 백엔드 / 데일리 퀴즈 랜덤 출제
+- **수정 개요**: `QuestionBankRepository`의 랜덤 출제 네이티브 쿼리 4종이 `del_yn = 'N'`만 필터하고 `use_yn` 조건이 없어, 관리자가 문항관리에서 "미사용"으로 비활성화한 문항도 데일리 퀴즈 랜덤 출제에 계속 노출되던 버그를 수정. 4개 쿼리 모두에 `AND use_yn = 'Y'` 조건을 추가(파라미터 바인딩 방식은 그대로, WHERE 절만 확장). `ExamRepository`/`ExaminationRepository`의 `findActiveBy*` 계열이 이미 `del_yn='N' AND use_yn='Y'`를 함께 검사하도록 설계돼 있는 패턴과 일치시킴. 호출부는 `UserQuizService.getQuizQuestions`(데일리 퀴즈) 단독.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `backend/src/main/java/com/tpmp/testprep/repository/QuestionBankRepository.java` | 수정 | `findRandomByCategory`/`findRandomByCategoryExcluding`/`findRandomBySourceOnly`/`findRandomBySourceOnlyExcluding` 네이티브 쿼리 4개에 `AND use_yn = 'Y'` 추가 |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/repository/QuestionBankRepository.java`
+- 변경 전: 4개 네이티브 쿼리 모두 `WHERE ... AND del_yn = 'N' AND (:language ...) AND (:source ...) ORDER BY RANDOM() LIMIT :limit` — use_yn 조건 없음.
+- 변경 후: `del_yn = 'N'` 바로 다음 줄에 `AND use_yn = 'Y'` 조건을 추가.
+- 이유: 관리자가 문항을 "미사용" 처리해도 데일리 퀴즈 랜덤 출제에서 계속 나오는 버그(webapp-planner가 코드 직접 확인). 로컬 DB(tpmp-db)에서 롤백 트랜잭션으로 실측 검증: 문항 1건을 임시로 `use_yn='N'`으로 바꾼 뒤 `del_yn='N'`만 필터하면 399건, `del_yn='N' AND use_yn='Y'`까지 필터하면 398건으로 정확히 1건 줄어드는 것을 확인 후 롤백(데이터 변경 없음).
+
+### 복원 방법
+이 ID(HIST-20260724-001)만으로 복원 시 `QuestionBankRepository.java`의 4개 네이티브 쿼리에서 `AND use_yn = 'Y'` 줄을 각각 제거한다.
+
+---
+
 ## HIST-20260718-002
 
 - **날짜**: 2026-07-18

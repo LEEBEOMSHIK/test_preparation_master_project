@@ -1,3 +1,34 @@
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 관리자 백엔드 / 도메인(카테고리·시험유형) 삭제 가드
+- **수정 개요**: `DomainService.isSlaveInUse()`가 호출하는 `QuestionBankRepository.existsByCategoryIdOrExamTypeId`에 `del_yn` 필터가 없어, 참조 문항이 전부 소프트 삭제(`del_yn='Y'`)돼도 해당 카테고리/시험유형 슬레이브를 영구 삭제할 수 없던 버그를 수정. 파생 쿼리 메서드명으로는 `CategoryIdOrExamTypeIdAndDelYn` 형태로 만들면 Spring Data가 `(categoryId = ?) OR (examTypeId = ? AND delYn = ?)`로 잘못 그루핑하므로(Or로 먼저 분리 후 각 세그먼트에 And 적용), `(category.id = :slaveId OR examType.id = :slaveId) AND delYn = 'N'`을 명시적으로 표현하는 JPQL `@Query`로 신규 메서드 `existsActiveByCategoryIdOrExamTypeId(Long slaveId)`를 추가하고 기존 `existsByCategoryIdOrExamTypeId`는 제거, 유일한 호출부(`DomainService.isSlaveInUse`)를 교체했다. 다른 호출부 없음(grep 확인).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `backend/src/main/java/com/tpmp/testprep/repository/QuestionBankRepository.java` | 수정 | `existsByCategoryIdOrExamTypeId(Long, Long)` 파생 쿼리 제거, `existsActiveByCategoryIdOrExamTypeId(Long slaveId)` JPQL `@Query`로 대체(del_yn='N' 필터 포함) |
+| `backend/src/main/java/com/tpmp/testprep/service/DomainService.java` | 수정 | `isSlaveInUse`가 신규 메서드 `existsActiveByCategoryIdOrExamTypeId(slaveId)` 호출로 변경 |
+| `backend/src/test/java/com/tpmp/testprep/service/DomainServiceTest.java` | 수정 | 기존 스텁을 신규 메서드명으로 교체, "소프트 삭제된 question_bank만 남으면 삭제 허용/활성 문항 있으면 삭제 차단" 회귀 테스트 2건 추가 |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/repository/QuestionBankRepository.java`
+- 변경 전: `boolean existsByCategoryIdOrExamTypeId(Long categoryId, Long examTypeId);` — 파생 쿼리, del_yn 조건 없음.
+- 변경 후: `@Query("SELECT CASE WHEN COUNT(qb) > 0 THEN true ELSE false END FROM QuestionBank qb WHERE (qb.category.id = :slaveId OR qb.examType.id = :slaveId) AND qb.delYn = 'N'") boolean existsActiveByCategoryIdOrExamTypeId(@Param("slaveId") Long slaveId);`
+- 이유: 소프트 삭제된 문항만 남아있으면 카테고리/시험유형을 영구 삭제할 수 있어야 하는데, del_yn 필터가 없어 항상 "사용 중"으로 오판(webapp-planner가 코드 직접 확인). 로컬 DB(tpmp-db)에서 롤백 트랜잭션으로 실측 검증: 슬레이브 하나를 참조하는 문항 64건을 임시로 `del_yn='Y'` 처리 후 기존 쿼리는 true(삭제 불가), 신규 쿼리는 false(삭제 가능)를 반환함을 확인 후 롤백(데이터 변경 없음).
+
+#### `backend/src/main/java/com/tpmp/testprep/service/DomainService.java`
+- 변경 전: `questionBankRepository.existsByCategoryIdOrExamTypeId(slaveId, slaveId)`
+- 변경 후: `questionBankRepository.existsActiveByCategoryIdOrExamTypeId(slaveId)`
+- 이유: 리포지토리 메서드 교체에 따른 호출부 반영.
+
+### 복원 방법
+이 ID(HIST-20260724-001)만으로 복원 시 `QuestionBankRepository.java`의 `existsActiveByCategoryIdOrExamTypeId`를 제거하고 `boolean existsByCategoryIdOrExamTypeId(Long categoryId, Long examTypeId);` 파생 쿼리로 되돌린 뒤, `DomainService.isSlaveInUse`의 호출을 `existsByCategoryIdOrExamTypeId(slaveId, slaveId)`로 되돌린다.
+
+---
+
 ## HIST-20260529-001
 
 - **날짜**: 2026-05-29

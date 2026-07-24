@@ -33,8 +33,16 @@ public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long
             @Param("questionNo") Integer questionNo,
             @Param("examTypeId") Long examTypeId);
 
-    /** 슬레이브 ID가 category 또는 examType으로 참조되는지 확인 */
-    boolean existsByCategoryIdOrExamTypeId(Long categoryId, Long examTypeId);
+    /** 슬레이브 ID가 category 또는 examType으로 참조되는 활성(del_yn='N') 문항이 있는지 확인.
+     *  소프트 삭제된 문항만 남아있으면 false를 반환해 카테고리/시험유형 영구 삭제를 허용해야 하므로
+     *  del_yn 필터를 반드시 포함한다(단일 호출부 {@link com.tpmp.testprep.service.DomainService#isSlaveInUse}). */
+    @Query("""
+            SELECT CASE WHEN COUNT(qb) > 0 THEN true ELSE false END
+            FROM QuestionBank qb
+            WHERE (qb.category.id = :slaveId OR qb.examType.id = :slaveId)
+              AND qb.delYn = 'N'
+            """)
+    boolean existsActiveByCategoryIdOrExamTypeId(@Param("slaveId") Long slaveId);
 
     /** 활성 문항 중 동일 시험 그룹의 최대 문항번호 조회 */
     @Query("""
@@ -135,6 +143,7 @@ public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long
         value = "SELECT * FROM question_bank " +
             "WHERE (category_id = :categoryId OR exam_type_id = :categoryId) " +
             "AND del_yn = 'N' " +
+            "AND use_yn = 'Y' " +
             "AND (:language IS NULL OR (question_type = 'CODE' AND LOWER(language) = LOWER(:language))) " +
             "AND (:source IS NULL OR (:source = 'AI_CUSTOM' AND exam_year IS NULL AND exam_round IS NULL) OR (:source = 'EXAM' AND (exam_year IS NOT NULL OR exam_round IS NOT NULL))) " +
             "ORDER BY RANDOM() LIMIT :limit",
@@ -152,6 +161,7 @@ public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long
         value = "SELECT * FROM question_bank " +
             "WHERE (category_id = :categoryId OR exam_type_id = :categoryId) " +
             "AND del_yn = 'N' " +
+            "AND use_yn = 'Y' " +
             "AND (:language IS NULL OR (question_type = 'CODE' AND LOWER(language) = LOWER(:language))) " +
             "AND (:source IS NULL OR (:source = 'AI_CUSTOM' AND exam_year IS NULL AND exam_round IS NULL) OR (:source = 'EXAM' AND (exam_year IS NOT NULL OR exam_round IS NOT NULL))) " +
             "AND id NOT IN (:excludeIds) " +
@@ -173,6 +183,7 @@ public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long
     @Query(
         value = "SELECT * FROM question_bank " +
             "WHERE del_yn = 'N' " +
+            "AND use_yn = 'Y' " +
             "AND (:language IS NULL OR (question_type = 'CODE' AND LOWER(language) = LOWER(:language))) " +
             "AND (:source IS NULL OR (:source = 'AI_CUSTOM' AND exam_year IS NULL AND exam_round IS NULL) OR (:source = 'EXAM' AND (exam_year IS NOT NULL OR exam_round IS NOT NULL))) " +
             "ORDER BY RANDOM() LIMIT :limit",
@@ -188,6 +199,7 @@ public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long
     @Query(
         value = "SELECT * FROM question_bank " +
             "WHERE del_yn = 'N' " +
+            "AND use_yn = 'Y' " +
             "AND (:language IS NULL OR (question_type = 'CODE' AND LOWER(language) = LOWER(:language))) " +
             "AND (:source IS NULL OR (:source = 'AI_CUSTOM' AND exam_year IS NULL AND exam_round IS NULL) OR (:source = 'EXAM' AND (exam_year IS NOT NULL OR exam_round IS NOT NULL))) " +
             "AND id NOT IN (:excludeIds) " +
