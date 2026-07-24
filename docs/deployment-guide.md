@@ -86,7 +86,8 @@ fork 에이전트를 통해 9개 영역(시크릿 관리, docs/security.md 완�
 
 ### 4-3. 참고 (배포 직후 필수는 아님)
 
-**⑦ 로그인 rate limiting 없음** — 무차별 대입 방어 없음. 배포 직후 필수는 아니나 조기 권장.
+**⑦ (완료) 로그인 rate limiting 없음** — 무차별 대입 방어 없음. 배포 직후 필수는 아니나 조기 권장.
+→ 수정: `POST /api/auth/login`에 IP 기준 5분/5회 고정 윈도우 rate limiting 추가(인메모리 `ConcurrentHashMap`, 단일 VM 배포 전제로 Redis 미도입). 초과 시 자격증명 검사 없이 즉시 429 반환. `docs/history/back/usr/Auth_Modified.md` HIST-20260724-001
 
 **⑧ 프로덕션 DB 백업 전략 부재** — `docs/sql`은 마이그레이션용 콘텐츠 덤프이지 운영 자동 백업이 아님. 단일 VM + Docker named volume(`postgres_data`) 구조라 VM 손실 시 데이터 전체 유실. 최소 cron `pg_dump` + 외부(S3 등) 보관 스크립트 필요.
 

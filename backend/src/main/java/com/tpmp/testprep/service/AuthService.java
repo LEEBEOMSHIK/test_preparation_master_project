@@ -11,6 +11,7 @@ import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.UserInterestedExamRepository;
 import com.tpmp.testprep.repository.UserRepository;
+import com.tpmp.testprep.security.LoginRateLimiter;
 import com.tpmp.testprep.security.jwt.JwtTokenProvider;
 import com.tpmp.testprep.security.jwt.RefreshTokenCookieProvider;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,6 +34,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final LoginHistoryService loginHistoryService;
     private final RefreshTokenCookieProvider refreshTokenCookieProvider;
+    private final LoginRateLimiter loginRateLimiter;
 
     @Transactional
     public void signup(SignupRequest request) {
@@ -53,10 +55,17 @@ public class AuthService {
 
     @Transactional
     public LoginResponse login(LoginRequest request, HttpServletResponse response, HttpServletRequest httpRequest) {
+        String ip = resolveClientIp(httpRequest);
+        loginRateLimiter.checkAllowed(ip);
+
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
+                .orElseThrow(() -> {
+                    loginRateLimiter.recordFailure(ip);
+                    return new BusinessException(ErrorCode.INVALID_CREDENTIALS);
+                });
 
         if (user.getPassword() == null || !passwordEncoder.matches(request.password(), user.getPassword())) {
+            loginRateLimiter.recordFailure(ip);
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
 
@@ -71,7 +80,8 @@ public class AuthService {
         // role 분리 이전 발급된 레거시 refresh_token 쿠키가 남아 있으면 즉시 만료시켜 정리한다.
         response.addCookie(refreshTokenCookieProvider.createLegacyExpiredCookie());
 
-        String ip = resolveClientIp(httpRequest);
+        loginRateLimiter.recordSuccess(ip);
+
         String userAgent = httpRequest.getHeader("User-Agent");
         if (user.getRole() == User.Role.USER) {
             loginHistoryService.recordLogin(user.getName(), user.getEmail(), ip, userAgent);

@@ -1,3 +1,53 @@
+## HIST-20260724-001
+
+- **날짜**: 2026-07-24
+- **수정 범위**: 사용자 백엔드 / 인증 (로그인 rate limiting 신설)
+- **수정 개요**: `POST /api/auth/login`에 IP 기준 고정 윈도우(5분/5회) rate limiting 추가 — 배포 전 보안 점검(`docs/deployment-guide.md` §4-3 ⑦)에서 지적된 "로그인 rate limiting 없음 — 무차별 대입 방어 없음" 항목 조치. 단일 VM docker-compose(수평 확장 없음) 배포 구조라 Redis 등 외부 저장소 없이 순수 인메모리 `ConcurrentHashMap`으로 구현.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/exception/ErrorCode.java` | 수정 | `TOO_MANY_LOGIN_ATTEMPTS(429)` 추가 |
+| `backend/src/main/java/com/tpmp/testprep/security/LoginRateLimiter.java` | 추가 | IP 기준 고정 윈도우 rate limiter (`checkAllowed`/`recordFailure`/`recordSuccess` + 1시간 주기 정리 스케줄러) |
+| `backend/src/main/java/com/tpmp/testprep/TestprepApplication.java` | 수정 | `@EnableScheduling` 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/AuthService.java` | 수정 | `login()`에서 IP resolve를 최상단으로 이동, `checkAllowed`/`recordFailure`/`recordSuccess` 연동 |
+| `backend/src/test/java/com/tpmp/testprep/security/LoginRateLimiterTest.java` | 추가 | `LoginRateLimiter` 단위 테스트 4건 |
+
+### 수정 상세
+
+#### `exception/ErrorCode.java`
+- 변경 전: `// Auth` 섹션에 `TOO_MANY_LOGIN_ATTEMPTS` 없음
+- 변경 후: `TOO_MANY_LOGIN_ATTEMPTS(HttpStatus.TOO_MANY_REQUESTS, "로그인 시도가 너무 많습니다. 5분 후 다시 시도해주세요.")` 추가
+- 이유: rate limit 초과 시 429로 응답하기 위한 전용 에러 코드 필요
+
+#### `security/LoginRateLimiter.java` (신규)
+- 내용: `@Component`. IP별 `{count, windowStart}` 엔트리를 `ConcurrentHashMap<String, Entry>`로 관리. `checkAllowed(ip)`는 윈도우(5분) 내 실패 카운트가 5 이상이면 `BusinessException(TOO_MANY_LOGIN_ATTEMPTS)`를 던지고, 윈도우가 지났으면 조회 시점에 통과(레이지 리셋, 별도 스케줄러로 즉시 초기화하지 않음). `recordFailure(ip)`는 윈도우 만료 시 1부터 재시작, 아니면 증가. `recordSuccess(ip)`는 엔트리 제거. 엔트리 단위 `synchronized` 블록으로 스레드 안전성 확보. `@Scheduled(fixedRate = 1시간)` `cleanupStaleEntries()`가 windowStart 1시간 경과 엔트리를 제거해 메모리 누수 방지. 테스트 전용 package-private `forceWindowStart(ip, Instant)`로 윈도우 만료를 강제 재현 가능.
+- 이유: 키를 이메일이 아닌 IP로 한정해, 공격자가 타인 이메일로 의도적으로 실패시켜 정상 사용자를 잠그는 DoS를 방지
+
+#### `TestprepApplication.java`
+- 변경 전: `@SpringBootApplication`만 존재
+- 변경 후: `@EnableScheduling` 추가
+- 이유: `LoginRateLimiter`의 정리 스케줄러(`@Scheduled`)를 동작시키기 위해 필요(프로젝트 전체에서 최초로 스케줄링 활성화)
+
+#### `service/AuthService.java`
+- 변경 전: `login()`에서 이메일 조회·비밀번호 검증을 먼저 수행하고, `ip` 변수는 토큰 발급 이후(74번째 줄)에 선언
+- 변경 후: 메서드 최상단에서 `ip`를 resolve하고 `loginRateLimiter.checkAllowed(ip)` 호출 후 자격증명 검사 진행. 사용자 없음/비밀번호 불일치 두 `INVALID_CREDENTIALS` throw 지점 모두 직전에 `recordFailure(ip)` 호출. 토큰 발급·쿠키 세팅 이후 성공 확정 시점에 `recordSuccess(ip)` 호출. 기존 하단의 중복 `ip` 재선언 제거(위에서 선언한 변수 재사용)
+- 이유: rate limit 체크가 자격증명 검사보다 먼저 실행되어야 차단 시 불필요한 DB 조회·비밀번호 해시 비교를 건너뛸 수 있음
+
+#### `security/LoginRateLimiterTest.java` (신규)
+- 내용: 5회 미만 실패는 계속 허용, 5회 실패 후 6번째 호출은 차단(`TOO_MANY_LOGIN_ATTEMPTS`), `recordSuccess` 후 카운터 리셋, 윈도우 만료(`forceWindowStart`로 시간 강제 이동) 후 카운터 리셋 4개 케이스 검증
+
+### 검증
+- `./gradlew compileJava compileTestJava` 통과
+- `./gradlew test --tests "*LoginRateLimiter*"` 통과 (4건)
+- `./gradlew test`(전체) 통과, 회귀 없음
+
+### 복원 방법
+이 ID(HIST-20260724-001)로 복원 시 `AuthService.login()`의 rate limiter 연동 코드(`checkAllowed`/`recordFailure`/`recordSuccess` 호출, `ip` 변수 위치 이동)를 되돌리고, `TestprepApplication.java`에서 `@EnableScheduling`을 제거하고, `ErrorCode.TOO_MANY_LOGIN_ATTEMPTS`를 삭제하고, `security/LoginRateLimiter.java`와 `security/LoginRateLimiterTest.java`를 삭제한다.
+
+---
+
 ## HIST-20260717-002
 
 - **날짜**: 2026-07-17
