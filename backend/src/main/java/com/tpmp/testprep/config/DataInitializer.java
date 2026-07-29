@@ -68,6 +68,8 @@ public class DataInitializer implements ApplicationRunner {
         ensureUserMenuGroups();
         ensurePermissionMenuAssociations();
         ensureQnetPracticalExamInfo();
+        ensureLinuxMasterExamInfo();
+        ensureSqldExamInfo();
         ensurePracticeSchema();
     }
 
@@ -563,6 +565,119 @@ public class DataInitializer implements ApplicationRunner {
                 officialUrl,
                 null,
                 22
+        );
+    }
+
+    @Transactional
+    public void ensureLinuxMasterExamInfo() {
+        String examType = "리눅스마스터 1급";
+        String description = """
+                한국정보통신진흥협회(KAIT) 주관 리눅스마스터 1급 자격검정 시험정보입니다.
+                검정방법: 필기시험(시험시간 100분)
+                응시료 등 세부사항은 공식 사이트(ihd.or.kr)를 참고하시기 바랍니다.
+                출처: 리눅스마스터 자격검정 공식 사이트(ihd.or.kr) 2026년 일정
+                """;
+        String officialUrl = "https://www.ihd.or.kr/guidecert1.do";
+
+        ensureExamInfo(
+                examType,
+                "리눅스마스터 1급 2026년 1회(2601) 1차",
+                description,
+                "2026-01-26 ~ 2026-02-06",
+                "2026-03-14",
+                "2026-04-03",
+                officialUrl,
+                null,
+                23
+        );
+        ensureExamInfo(
+                examType,
+                "리눅스마스터 1급 2026년 1회(2601) 2차",
+                description,
+                "2026-04-06 ~ 2026-04-17",
+                "2026-05-09",
+                "2026-05-29",
+                officialUrl,
+                null,
+                24
+        );
+        ensureExamInfo(
+                examType,
+                "리눅스마스터 1급 2026년 2회(2602) 1차",
+                description,
+                "2026-07-27 ~ 2026-08-07",
+                "2026-09-12",
+                "2026-10-02",
+                officialUrl,
+                null,
+                25
+        );
+        ensureExamInfo(
+                examType,
+                "리눅스마스터 1급 2026년 2회(2602) 2차",
+                description,
+                "2026-10-05 ~ 2026-10-16",
+                "2026-11-14",
+                "2026-12-04",
+                officialUrl,
+                null,
+                26
+        );
+    }
+
+    @Transactional
+    public void ensureSqldExamInfo() {
+        String examType = "SQLD";
+        String description = """
+                한국데이터산업진흥원(한국데이터자격검정) 주관 SQLD(SQL 개발자) 자격시험 시험정보입니다.
+                응시료 등 세부사항은 공식 사이트(dataq.or.kr)를 참고하시기 바랍니다.
+                출처: 한국데이터자격검정 SQLD 시험일정 공식 페이지(dataq.or.kr) 2026년 일정
+                """;
+        String officialUrl = "https://www.dataq.or.kr/www/accept/schedule.do";
+
+        ensureExamInfo(
+                examType,
+                "SQLD 2026년 제60회",
+                description,
+                "2026-02-02 ~ 2026-02-06",
+                "2026-03-07",
+                "2026-03-27",
+                officialUrl,
+                null,
+                27
+        );
+        ensureExamInfo(
+                examType,
+                "SQLD 2026년 제61회",
+                description,
+                "2026-04-27 ~ 2026-05-01",
+                "2026-05-31",
+                "2026-06-19",
+                officialUrl,
+                null,
+                28
+        );
+        ensureExamInfo(
+                examType,
+                "SQLD 2026년 제62회",
+                description,
+                "2026-07-20 ~ 2026-07-24",
+                "2026-08-22",
+                "2026-09-11",
+                officialUrl,
+                null,
+                29
+        );
+        ensureExamInfo(
+                examType,
+                "SQLD 2026년 제63회",
+                description,
+                "2026-10-12 ~ 2026-10-16",
+                "2026-11-14",
+                "2026-12-04",
+                officialUrl,
+                null,
+                30
         );
     }
 

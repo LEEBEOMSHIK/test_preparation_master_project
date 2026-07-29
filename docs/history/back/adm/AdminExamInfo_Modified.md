@@ -1,3 +1,34 @@
+## HIST-20260728-001
+
+- **날짜**: 2026-07-28
+- **수정 범위**: 관리자 백엔드 / 시험 정보
+- **수정 개요**: 리눅스마스터 1급·SQLD 2026년 시험 일정 시드 데이터 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java` | 수정 | `ensureLinuxMasterExamInfo()`, `ensureSqldExamInfo()` 메서드 신규 추가, `run()`에 호출 2줄 추가 |
+
+### 수정 상세
+
+#### `config/DataInitializer.java`
+- 변경 전: `run()`은 `ensureQnetPracticalExamInfo();` 호출까지만 있었고, `ensureLinuxMasterExamInfo()`/`ensureSqldExamInfo()` 메서드는 존재하지 않았음
+- 변경 후:
+  - `run()`의 `ensureQnetPracticalExamInfo();` 다음 줄에 `ensureLinuxMasterExamInfo();`, `ensureSqldExamInfo();` 호출 추가
+  - `ensureLinuxMasterExamInfo()`(`@Transactional`) 신규 추가 — examType "리눅스마스터 1급", officialUrl `https://www.ihd.or.kr/guidecert1.do`, `ensureExamInfo()` 4회 호출(2026년 1회 1차/2차, 2회 1차/2차, displayOrder 23~26)
+  - `ensureSqldExamInfo()`(`@Transactional`) 신규 추가 — examType "SQLD", officialUrl `https://www.dataq.or.kr/www/accept/schedule.do`, `ensureExamInfo()` 4회 호출(2026년 제60~63회, displayOrder 27~30)
+  - 기존 `ensureExamInfo()` 헬퍼는 수정하지 않고 그대로 재사용
+- 이유: `EXAM_TYPE` 도메인 슬레이브에 이미 등록된 "SQLD"·"리눅스마스터 1급"에 대응하는 실제 시험 일정 데이터가 없어 사용자 관심 시험 유형 필터링 시 노출할 데이터가 없었음. 공식 사이트(ihd.or.kr, dataq.or.kr) 2026년 일정 기준으로 시드 추가
+
+### 복원 방법
+HIST-20260728-001 복원 시:
+- `DataInitializer.java`: `run()`에서 `ensureLinuxMasterExamInfo();`, `ensureSqldExamInfo();` 호출 2줄 제거
+- `DataInitializer.java`: `ensureLinuxMasterExamInfo()`, `ensureSqldExamInfo()` 메서드 전체 제거
+- DB: 이미 시드된 레코드가 있다면 `DELETE FROM exam_info WHERE display_order BETWEEN 23 AND 30;` (필요 시)
+
+---
+
 ## HIST-20260624-001
 
 - **날짜**: 2026-06-24
