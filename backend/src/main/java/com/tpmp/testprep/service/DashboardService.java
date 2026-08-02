@@ -16,7 +16,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -56,26 +58,40 @@ public class DashboardService {
         if (days != 7 && days != 30 && days != 90) days = 7;
 
         LocalDate today = LocalDate.now();
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MM/dd");
+        LocalDateTime from = today.minusDays(days - 1L).atStartOfDay();
+        LocalDateTime to = today.plusDays(1).atStartOfDay();
 
+        Map<LocalDate, Long> loginCounts = toDailyCountMap(loginHistoryRepository.countDailyByLoginAtBetween(from, to));
+        Map<LocalDate, Long> examCounts = toDailyCountMap(examHistoryRepository.countDailyByTakenAtBetween(from, to));
+        Map<LocalDate, Long> inquiryCounts = toDailyCountMap(inquiryRepository.countDailyByCreatedAtBetween(from, to));
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MM/dd");
         List<DashboardTrendResponse.DayCount> loginTrend = new ArrayList<>();
         List<DashboardTrendResponse.DayCount> examTrend = new ArrayList<>();
         List<DashboardTrendResponse.DayCount> inquiryTrend = new ArrayList<>();
 
         for (int i = days - 1; i >= 0; i--) {
             LocalDate date = today.minusDays(i);
-            LocalDateTime from = date.atStartOfDay();
-            LocalDateTime to = date.plusDays(1).atStartOfDay();
             String label = date.format(fmt);
 
-            loginTrend.add(new DashboardTrendResponse.DayCount(label,
-                    loginHistoryRepository.countByLoginAtBetween(from, to)));
-            examTrend.add(new DashboardTrendResponse.DayCount(label,
-                    examHistoryRepository.countByTakenAtBetween(from, to)));
-            inquiryTrend.add(new DashboardTrendResponse.DayCount(label,
-                    inquiryRepository.countByCreatedAtBetween(from, to)));
+            loginTrend.add(new DashboardTrendResponse.DayCount(label, loginCounts.getOrDefault(date, 0L)));
+            examTrend.add(new DashboardTrendResponse.DayCount(label, examCounts.getOrDefault(date, 0L)));
+            inquiryTrend.add(new DashboardTrendResponse.DayCount(label, inquiryCounts.getOrDefault(date, 0L)));
         }
 
         return new DashboardTrendResponse(loginTrend, examTrend, inquiryTrend);
+    }
+
+    // CAST(... AS date) 결과가 Hibernate 경로에 따라 java.sql.Date/LocalDate 둘 다로 올 수 있어 함께 처리
+    private Map<LocalDate, Long> toDailyCountMap(List<Object[]> rows) {
+        Map<LocalDate, Long> map = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row[0] == null) continue;
+            LocalDate date = (row[0] instanceof java.sql.Date sqlDate)
+                    ? sqlDate.toLocalDate()
+                    : (LocalDate) row[0];
+            map.put(date, ((Number) row[1]).longValue());
+        }
+        return map;
     }
 }

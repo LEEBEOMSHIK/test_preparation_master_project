@@ -71,4 +71,15 @@ public interface ExamHistoryRepository extends JpaRepository<ExamHistory, Long> 
     List<Object[]> aggregateDailyStatsByUserAndPeriod(
             @Param("userId") Long userId,
             @Param("from") LocalDateTime from);
+
+    /** 기간 내 날짜별 응시 건수 집계 (관리자 대시보드 추이 — 전체 사용자) */
+    @Query("""
+            SELECT CAST(h.takenAt AS date), COUNT(h)
+            FROM ExamHistory h
+            WHERE h.takenAt >= :from AND h.takenAt < :to
+            GROUP BY CAST(h.takenAt AS date)
+            """)
+    List<Object[]> countDailyByTakenAtBetween(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
 }
