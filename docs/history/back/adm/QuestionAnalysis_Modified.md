@@ -1,3 +1,32 @@
+## HIST-20260803-001
+
+- **날짜**: 2026-08-03
+- **수정 범위**: 관리자 백엔드 / AI 문항 분석 데이터 — 리눅스마스터/SQLD 237건 일괄 채움
+- **수정 개요**: 리눅스마스터 1급(105)·2급(80)·SQLD(52) `question_bank` 총 237건이 AI 키워드·도메인 분석 미실행 상태였다(`ai_keywords` 전부 NULL). 로컬 환경에 `AI_PROVIDER`(Ollama 미설치, Anthropic 키 미설정) 둘 다 사용 불가해 비용 발생 없이 이 세션에서 직접 문항 내용을 읽고 분석해 채웠다(사용자 요청: "비용 때문에 로컬인 너한테 요청하는거야").
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `docs/sql/tpmp_content_data.sql` | 수정 | `question_bank AI 분석 결과 갱신` 섹션 신규 추가 — 237건 `UPDATE ... SET ai_keywords/ai_domains/ai_difficulty/ai_summary`(INSERT가 아니므로 `ON CONFLICT DO NOTHING`과 무관하게 항상 최신값 반영, 재실행 안전) |
+
+### 수정 상세
+
+- 각 문항의 `content`(HTML 제거)·`code`·`options`를 직접 읽고 `QuestionAnalysisService.buildAnalyzePrompt`가 요구하는 것과 동일한 형식(keywords 5~8개, domains 1~3개, difficulty 하/중/상, summary 1~2문장, 전부 한국어)으로 작성했다.
+- domains는 대체로 `question_bank.category`(운영체제/네트워크/정보보안/SQL/관계형 DB 이론)를 그대로 매핑하되, 여러 영역에 걸친 문항은 2개까지 부여(예: SetUID 문항 → 운영체제+정보보안).
+- SQL/DB 이론 문항(관계형 DB 이론 포함)은 domains를 "데이터베이스"로 통일.
+
+### 검증
+
+- 3개 배치(96/96/45건)로 나눠 순차 적용, 매 배치 후 `SELECT count(*) FILTER (WHERE ai_keywords IS NOT NULL)`로 진행 상황 확인 — 최종 SQLD 52/52, 리눅스마스터 1급 105/105, 리눅스마스터 2급 80/80.
+- 임시 검증 DB(`tpmp_verify_final`, 원본 `tpmp` DB에는 영향 없음)에서 베이스라인 → 시드 계정 → 콘텐츠 덤프 전체를 재현해 ERROR 0건, 최종 AI 분석 237/237 반영 확인 후 삭제.
+
+### 복원 방법
+
+`docs/sql/tpmp_content_data.sql`의 `question_bank AI 분석 결과 갱신` 섹션(237개 UPDATE문)을 제거하면 되돌아간다. 실제 DB에서는 해당 237개 `question_bank.id`의 `ai_keywords`/`ai_domains`/`ai_difficulty`/`ai_summary`를 NULL로 되돌리면 된다.
+
+---
+
 ## HIST-20260702-002
 
 - **날짜**: 2026-07-02

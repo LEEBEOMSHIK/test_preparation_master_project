@@ -1,3 +1,37 @@
+## HIST-20260803-001
+
+- **날짜**: 2026-08-03
+- **수정 범위**: 관리자 백엔드 / 시험 관리 (Exam/Examination/Question) — 데이터 신규 생성
+- **수정 개요**: `question_bank`에 리눅스마스터 1급(2023년 1회, 100문항)·2급(2023년 1회, 80문항)·SQLD(2026년 제60회, 50문항) 기출문제가 이미 적재돼 있었으나, 이를 패키징한 `examinations`가 한 건도 없어 "정보처리기사 실기" 카테고리 외에는 응시할 수 있는 시험이 없었다(사용자 리포트: "리눅스/SQLD 문항들이 있을텐데 해당 문항들에 대한 시험이 없다"). `question_bank` → `exams`/`examinations`/`questions`로 복제하는 SQL 마이그레이션을 작성·적용해 3개 시험을 신규 생성했다. 회차 정보(`exam_year`/`exam_round`)가 없는 문항 7건(리눅스마스터 1급 5건, SQLD 2건 — 정식 회차 문항이 아닌 개별 등록 문항으로 판단)은 이번 시험 구성에서 제외했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `docs/db-migration/20260802_01_create_linux_sqld_exams.sql` | 신규 | `question_bank`(exam_type_id=9/34/6, 지정 exam_year·exam_round)를 조회해 `exams`+`examinations`+`questions`를 생성하는 재실행 안전 스크립트(examinations.title 존재 여부로 가드) |
+| `docs/sql/tpmp_content_data.sql` | 수정 | 신규 생성된 exams(id 16~18)·examinations(id 24~26)·questions(id 301~530, 230건)를 각 섹션 끝에 추가(기존 12/12/240건 행은 변경 없음) |
+| `docs/sql/README.md` | 수정 | 델타 목록에 #35 추가, 상단 "마지막 갱신" 갱신 |
+
+### 수정 상세
+
+- **리눅스마스터 1급** — `exams`(id=16, title="2023년 1회 리눅스마스터 1급") → `examinations`(id=24, category_id=9, time_limit=100분 — 실제 KAIT 공식 필기시험 시간, `exam_info` id=4~7 설명 참고) → `questions` 100건(전부 MULTIPLE_CHOICE).
+- **리눅스마스터 2급** — `exams`(id=17) → `examinations`(id=25, category_id=34, time_limit=90분) → `questions` 80건.
+- **SQLD** — `exams`(id=18, title="2026년 제60회 SQLD") → `examinations`(id=26, category_id=6, exam_year=2026, exam_round=60, time_limit=90분) → `questions` 50건.
+- `questions`는 `question_bank`의 `content`/`options`/`answer`/`explanation`/`code`/`instruction`/`scheduling_data`/`sql_data`/`category_id`를 그대로 복제하고 `source_question_bank_id`로 원본을 연결, `seq`는 `question_no` 순서로 부여.
+- **부수 발견**: `tpmp_content_data.sql` 갱신 과정에서 `grep`으로 멀티라인 INSERT 문(문항 content/code에 실제 개행이 포함된 경우)을 라인 단위로 추출하면 문장이 중간에 잘리는 문제를 발견 — Python 정규식(`^INSERT INTO public\.\w+ \(` lookahead)으로 문장 단위 재추출 후 완전성(재분할 시 문장 수 일치, 모든 문장이 `NOTHING;`으로 종료) 검증하는 방식으로 대체했다. 또한 문항 콘텐츠 자체에 예시로 포함된 `INSERT INTO T(VAL) ...` 같은 리터럴 텍스트가 느슨한 정규식(`^INSERT INTO `)과 오매칭되는 것도 확인해 `public\.\w+ \(`까지 포함한 엄격한 패턴으로 교정했다.
+
+### 검증
+
+- 마이그레이션 재실행(멱등성): 2차 실행 시 "이미 존재 — 건너뜀" 확인.
+- API 검증: `POST /api/auth/login` → `GET /api/admin/exams/{16,17,18}/questions`로 문항 100/80/50건, content/questionType 정상 확인.
+- **임시 검증 DB 3회 생성/삭제**(`tpmp_verify_test`~`test3`, 원본 `tpmp` DB에는 영향 없음) — 베이스라인 → 시드 계정 최소 삽입 → 전체 콘텐츠 덤프 로드 e2e를 처음부터 재현해 ERROR 0건, 최종 건수(exams 15/examinations 15/questions 470/question_bank 636/domain_slave 33) 실제 로컬 DB와 완전 일치 확인.
+
+### 복원 방법
+
+`examinations.title IN ('2023년 1회 리눅스마스터 1급','2023년 1회 리눅스마스터 2급','2026년 제60회 SQLD')`로 조회한 `examinations`·연결된 `exam_paper_id`(`exams`)·해당 `exam_id`의 `questions`를 삭제하고, `tpmp_content_data.sql`의 추가된 3섹션 끝부분(exams id 16~18/examinations id 24~26/questions id 301~530)을 제거.
+
+---
+
 ## HIST-20260722-002
 
 - **날짜**: 2026-07-22
