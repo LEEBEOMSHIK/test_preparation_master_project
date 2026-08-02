@@ -65,8 +65,9 @@ Oracle 가입/리전 문제가 있을 경우:
 - [ ] 도메인 구매(§2 가성비 도메인 참고) + DNS A레코드를 서버 IP로 연결
 - [ ] 서버에 Docker + Docker Compose 설치
 - [ ] `.env` 파일 작성 (아래 §5 필수 환경변수 참고, `.env`는 git에 커밋하지 않음 — 이미 `.gitignore` 등록 확인됨)
-- [ ] `docs/db-migration/*.sql` **34개 파일을 파일명 순서대로** 신규 DB에 적용
-- [ ] `docs/sql/tpmp_content_data.sql` 적용 (콘텐츠 시드 데이터 — `docs/sql/README.md`의 "마이그레이션 먼저, 콘텐츠 덤프 나중" 순서 준수)
+- [ ] `docs/db-migration/00000000_00_baseline_schema.sql` **1개만** 신규 DB에 적용 (33개 테이블 전체 생성). ⚠️ 나머지 델타 34개는 기존 콘텐츠를 전제로 한 변경 이력이라 빈 DB에서는 10개가 실패합니다 — 신규 DB에는 적용하지 않습니다.
+- [ ] 백엔드 최초 1회 기동 → `DataInitializer`가 시드 계정(admin=1, user=2)·메뉴·권한 생성
+- [ ] `docs/sql/tpmp_content_data.sql` 적용 (콘텐츠 시드 데이터 — `docs/sql/README.md`의 "베이스라인 → 백엔드 기동 → 콘텐츠 덤프" 3단계 순서 준수)
 - [ ] §4-1 ② HTTPS: Let's Encrypt 인증서 발급 + nginx 443 설정(도메인 확보 후 진행)
 - [ ] §6 참고해 `scripts/backup-db.sh` crontab 자동 실행 등록
 - [ ] 배포 후 실제 회원가입/로그인/시험응시 e2e 스모크 테스트
@@ -196,6 +197,6 @@ crontab -e
 
 ## 관련 문서
 - [`docs/db-guidelines.md`](db-guidelines.md) — DB 컨벤션, del_yn/use_yn 정책
-- [`docs/db-migration/`](db-migration) — 마이그레이션 파일 34개 (순서대로 적용)
+- [`docs/db-migration/`](db-migration) — 베이스라인 스키마 1개(신규 DB용) + 델타 이력 34개(보존용)
 - [`docs/sql/README.md`](sql/README.md) — 콘텐츠 데이터 덤프 및 로드 순서
 - [`docs/security.md`](security.md) — 보안 정책 전반

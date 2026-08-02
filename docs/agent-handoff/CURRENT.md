@@ -1,47 +1,61 @@
 # Agent Handoff - CURRENT
 
+> 최종 갱신: 2026-08-02
+
 ## 현재 목표와 사용자 결정 사항
 
-- 리눅스마스터 1급(100문항)·2급(80문항) + SQLD 제60회(50문항) 기출문제 등록 및 리눅스마스터/SQLD 시험 일정(exam_info) 추가 작업을, **다른 로컬 환경에서도 동일하게 재현**되도록 정리(사용자 요청: "현재 데이터 기준으로 타 로컬에서도 동일한 데이터 마이그 될 수 있도록 정리해").
-- 기존 프로젝트 관례(`docs/sql/README.md`)를 그대로 따름: exam_info는 `DataInitializer`(코드, idempotent) + 콘텐츠 덤프 이중 반영, question_bank/domain_slave는 콘텐츠 덤프(`docs/sql/tpmp_content_data.sql`)로만 반영.
+- 마이그레이션 파일이 최신인지 점검 → 신규 DB 구축이 불가능한 구조적 결함 발견.
+- 사용자 요청: 베이스라인 스키마 파일을 만들고, **다른 컴퓨터(일부 스키마·데이터가 이미 있는 환경)** 에서 작업을 이어받는 절차도 함께 정리할 것.
+
+## 점검 결과 (착수 전 진단)
+
+- **델타 마이그레이션 34개는 최신** — 마지막 `20260722_06`(support_settings). 이후 변경된 엔티티는 `SupportSettings.java` 하나이고 해당 마이그레이션이 이미 존재. 디렉터리 34개 = `docs/sql/README.md` 표 = `deployment-guide.md` 기재 수 일치.
+- **콘텐츠 덤프도 최신** — `tpmp_content_data.sql`(2026-07-29)과 라이브 DB 행 수 완전 일치.
+- **결함** — 베이스 스키마(CREATE TABLE)를 담은 파일이 없었음. `docs/sql/tpmp_dump.sql`은 2026-05-12자 17테이블뿐인데 실제는 33테이블(`exam_info.application_url` 등은 어느 파일에도 없었음). prod은 `ddl-auto: validate`라 신규 DB 배포 시 첫 마이그레이션부터 실패하는 상태였음.
 
 ## 완료한 작업 (미커밋 — 사용자 확인 후 커밋 필요)
 
-- `backend/.../config/DataInitializer.java`: `ensureLinuxMasterExamInfo()`(리눅스마스터 1급 4회차) + `ensureSqldExamInfo()`(SQLD 4회차) 추가 — 순수 추가만, 기존 로직 변경 없음.
-- `docs/history/back/adm/AdminExamInfo_Modified.md`: HIST-20260728-001 이력 추가.
-- 로컬 백엔드(`./gradlew bootRun`)를 기동해 위 DataInitializer 변경을 실제 DB에 반영 확인(exam_info 3건→11건).
-- `docs/sql/tpmp_content_data.sql` 전체 재생성 — `docs/sql/README.md`의 "재생성 방법"(테이블별 `pg_dump --data-only --column-inserts --on-conflict-do-nothing`을 FK 순서로 이어붙임) 그대로 수행. 신규 domain_slave "리눅스마스터 2급"(id 34), question_bank 230건(리눅스마스터 180 + SQLD60 50), exam_info 8건 포함.
-  - **주의**: 단순 `grep "^INSERT INTO"`로 라인만 추출하면 `<pre>` 코드블록처럼 값 내부에 실제 줄바꿈이 있는 다중행 INSERT 문이 잘려서 깨진다(1차 시도에서 실제로 이 버그 발생 → 스크립트를 라인번호 기반 블록 추출로 재작성해 수정). 향후 재생성 시 동일 실수 주의.
-  - `docker exec tpmp-db psql -f`로 실제 로드 테스트 완료(에러 없이 COMMIT 확인).
-- `docs/sql/README.md`의 "마지막 갱신" 라인을 2026-07-29 내용으로 갱신.
+1. `docs/db-migration/00000000_00_baseline_schema.sql` **신규** — 33테이블 전체 정의, 재실행 안전.
+2. `docs/sql/README.md` — 로드 순서 2단계 → 3단계 정정, 델타 34개 실행 금지 경고, 상황별 절차표 추가, 마이그레이션 목록을 베이스라인/델타 이력으로 분리.
+3. `docs/deployment-guide.md` — 배포 체크리스트 정정.
+4. `docs/db-guidelines.md` §10 — "베이스라인 스키마" 하위 절 추가.
+5. `docs/history/back/adm/DbSchemaBaseline_Modified.md` **신규** — HIST-20260802-001.
+
+## 실행한 검증과 결과
+
+임시 DB(`tpmp_base_test`/`tpmp_partial_test`/`tpmp_e2e`/`tpmp_e2e2`/`tpmp_final`)를 만들어 검증 후 전부 삭제함.
+원본 `tpmp` DB에는 **아무 SQL도 실행하지 않았음** — 확인 완료(33테이블 / question_bank 636행 유지).
+
+| 시나리오 | 결과 |
+|----------|------|
+| 빈 DB 1회 적용 | 33테이블 / 279컬럼 / PK 33 · FK 31 · UNIQUE 9 · CHECK 9, ERROR 0 |
+| 빈 DB 4회 연속 적용 | ERROR 0 (멱등성 OK) |
+| 원본 `pg_dump --schema-only` 와 비교 | 구조 완전 일치. CHECK 제약 표현식 렌더링 표기만 상이(의미 동일) |
+| 구 스키마(`tpmp_dump.sql` 17테이블) + 기존 데이터에 적용 | 17테이블 131컬럼 → 33테이블 280컬럼 수렴, 데이터 보존, nullable 드리프트 0 |
+| 전체 절차 e2e (베이스라인 → 시드계정 → 콘텐츠 덤프) | 원본 라이브 DB와 콘텐츠 행 수 완전 일치 |
+
+## 주의사항 / 알게 된 것
+
+- **델타 34개 중 10개는 빈 DB에서 실패한다** (`20260717_03`, `20260717_05`, `20260720_01·02·04`, `20260721_01·03·05·07`, `20260722_02`). 스키마 변경이 아니라 기존 콘텐츠 대상 데이터 보정(백필·재채점·AI 커스텀 시험 생성)이기 때문. **신규 DB에는 적용하지 말 것.**
+- PK 중복은 `duplicate_object` 가 아니라 `invalid_table_definition` 으로 실패한다. `EXCEPTION WHEN duplicate_object` 로 안 잡히므로 `pg_constraint` 사전 조회 가드를 써야 한다.
+- 구 스키마 수렴 시 `users.interested_exam_types` 가 잔여 컬럼으로 남지만 정상(레거시 컬럼, Hibernate `validate` 는 여분 컬럼을 문제 삼지 않음).
+- Git Bash에서 `docker exec ... -f /tmp/x.sql` 은 경로가 Windows 경로로 변환되므로 `export MSYS_NO_PATHCONV=1` 필요.
 
 ## 미완료 작업
 
-- **커밋/푸시 안 됨** — 사용자가 명시적으로 요청하면 진행(메모리: 이 프로젝트는 커밋 요청 시에만 수행, main 직접 커밋 가능).
-- 브라우저 육안 확인은 하지 않음(데이터 등록/마이그레이션 작업이라 API·DB 레벨 검증만 수행, CLAUDE.md 비용 규칙상 문서/데이터 작업은 빌드·UI 테스트 불필요).
-
-## 수정된 파일 (git status 기준)
-
-```
-M backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java
-M docs/history/back/adm/AdminExamInfo_Modified.md
-M docs/sql/README.md
-M docs/sql/tpmp_content_data.sql
-```
-
-## 실행한 검증 명령과 결과
-
-- `docker exec tpmp-db psql -U tpmp -d tpmp -c "SELECT count(*) FROM question_bank;"` → 636 (기존 406 + 신규 230)
-- `docker exec tpmp-db psql ... exam_info` → 11건, display_order 20~30 정상
-- 테이블별 행수 대조(파일 vs DB): domain_master/domain_slave/exams/examinations/questions/exam_info/dialect_conversion_rules/prac_*/concept_notes/support_settings 전부 일치. question_bank는 문항 지문 내 예시 SQL(`INSERT INTO T(VAL) ...`)이 카운트 스크립트에 오검출되어 636 vs 639로 보였으나 실제 데이터는 정상(원인 확인 완료, 데이터 이상 아님).
-- `docker exec tpmp-db psql -f /tmp/dump_check.sql -v ON_ERROR_STOP=1` → 에러 없이 COMMIT (신규 덤프 파일 자체 로드 테스트 통과, ON CONFLICT DO NOTHING이라 기존 로컬엔 실제 삽입 0건).
+- 커밋/푸시 안 함 (사용자 승인 대기).
 
 ## 다음 세션이 바로 실행할 명령
 
-- 사용자가 커밋을 요청하면: 위 4개 파일만 `git add` 후 `[INFRA] feat: ...` 형식으로 커밋 (히스토리 정책상 FE/BE 4분류에 속하지 않는 INFRA 성격 — 별도 history 파일 불필요, `AdminExamInfo_Modified.md`는 이미 이전 세션에서 작성됨).
-- 신규 로컬 환경에서 데이터 재현 시: `docs/sql/README.md` 순서(스키마 마이그레이션 34개 → 백엔드 최초 기동 → `tpmp_content_data.sql` 로드) 그대로 따르면 됨. 별도 신규 스키마 마이그레이션 파일은 이번 작업에서 추가되지 않았음(question_bank/domain_slave/exam_info 모두 기존 컬럼만 사용).
+```powershell
+git status --short
 
-## 건드리면 안 되는 파일 / 기존 미추적 파일
+# 사용자 승인 후
+git add docs/db-migration/00000000_00_baseline_schema.sql docs/history/back/adm/DbSchemaBaseline_Modified.md docs/sql/README.md docs/deployment-guide.md docs/db-guidelines.md
+```
 
-- 없음(스크래치패드 스크립트는 전부 세션 임시 디렉터리에만 존재, repo 밖).
-- 로컬 백엔드 프로세스(`./gradlew bootRun`, PID는 세션 시작 시 배경 실행)가 현재 8080에서 계속 실행 중 — 강제 종료 시 사용자에게 먼저 확인.
+## 건드리면 안 되는 것
+
+- `docs/db-migration/` 의 기존 델타 34개 — 변경 이력이므로 수정·삭제 금지.
+- `docs/sql/tpmp_content_data.sql` — 이번 작업에서 변경하지 않았고 최신 상태.
+- `docs/sql/tpmp_dump.sql` — 2026-05-12자 구 스키마. 베이스라인으로 대체되었으나 이력 목적으로 남겨둠.
