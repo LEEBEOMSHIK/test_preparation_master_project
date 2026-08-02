@@ -2731,6 +2731,46 @@ EXCEPTION
     WHEN duplicate_object THEN NULL;
 END $$;
 
+-- CHECK 제약 갱신 — question_type 허용값이 SCHEDULING/SQL 추가 전(구버전)으로
+-- 남아있는 기존 테이블(문항 유형 CHECK만 좁게 존재하던 로컬)을 최신 정의로 승격.
+-- CREATE TABLE IF NOT EXISTS는 테이블이 이미 있으면 스킵되므로 위 [1]의 CHECK 정의가
+-- 적용되지 않는 로컬을 위한 보정.
+DO $$ BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint c
+        JOIN pg_namespace n ON n.oid = c.connamespace
+        WHERE n.nspname = 'public'
+          AND c.conrelid = 'public.question_bank'::regclass
+          AND c.conname = 'question_bank_question_type_check'
+          AND pg_get_constraintdef(c.oid) NOT ILIKE '%SCHEDULING%'
+    ) THEN
+        ALTER TABLE public.question_bank DROP CONSTRAINT question_bank_question_type_check;
+        ALTER TABLE public.question_bank ADD CONSTRAINT question_bank_question_type_check
+            CHECK (question_type IN ('MULTIPLE_CHOICE', 'SHORT_ANSWER', 'OX', 'CODE', 'SCHEDULING', 'SQL'));
+    END IF;
+EXCEPTION
+    WHEN duplicate_table THEN NULL;
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint c
+        JOIN pg_namespace n ON n.oid = c.connamespace
+        WHERE n.nspname = 'public'
+          AND c.conrelid = 'public.questions'::regclass
+          AND c.conname = 'questions_question_type_check'
+          AND pg_get_constraintdef(c.oid) NOT ILIKE '%SCHEDULING%'
+    ) THEN
+        ALTER TABLE public.questions DROP CONSTRAINT questions_question_type_check;
+        ALTER TABLE public.questions ADD CONSTRAINT questions_question_type_check
+            CHECK (question_type IN ('MULTIPLE_CHOICE', 'SHORT_ANSWER', 'OX', 'CODE', 'SCHEDULING', 'SQL'));
+    END IF;
+EXCEPTION
+    WHEN duplicate_table THEN NULL;
+    WHEN duplicate_object THEN NULL;
+END $$;
+
 -- ─────────────────────────────────────────────────────────────
 -- [6] 인덱스
 -- ─────────────────────────────────────────────────────────────

@@ -4,58 +4,46 @@
 
 ## 현재 목표와 사용자 결정 사항
 
-- 마이그레이션 파일이 최신인지 점검 → 신규 DB 구축이 불가능한 구조적 결함 발견.
-- 사용자 요청: 베이스라인 스키마 파일을 만들고, **다른 컴퓨터(일부 스키마·데이터가 이미 있는 환경)** 에서 작업을 이어받는 절차도 함께 정리할 것.
+- 사용자가 `main`을 pull 받은 뒤(0fc3f73 포함), 이 로컬 DB(`tpmp-db-local`, docker-compose.local.yml)에 아직 반영 안 된 마이그를 적용해달라고 요청.
+- `docs/sql/README.md`의 "다른 컴퓨터에 일부 스키마·데이터가 이미 있음" 케이스(1→3: 베이스라인 → 콘텐츠 덤프)로 진행.
 
-## 점검 결과 (착수 전 진단)
+## 완료한 작업
 
-- **델타 마이그레이션 34개는 최신** — 마지막 `20260722_06`(support_settings). 이후 변경된 엔티티는 `SupportSettings.java` 하나이고 해당 마이그레이션이 이미 존재. 디렉터리 34개 = `docs/sql/README.md` 표 = `deployment-guide.md` 기재 수 일치.
-- **콘텐츠 덤프도 최신** — `tpmp_content_data.sql`(2026-07-29)과 라이브 DB 행 수 완전 일치.
-- **결함** — 베이스 스키마(CREATE TABLE)를 담은 파일이 없었음. `docs/sql/tpmp_dump.sql`은 2026-05-12자 17테이블뿐인데 실제는 33테이블(`exam_info.application_url` 등은 어느 파일에도 없었음). prod은 `ddl-auto: validate`라 신규 DB 배포 시 첫 마이그레이션부터 실패하는 상태였음.
-
-## 완료한 작업 (미커밋 — 사용자 확인 후 커밋 필요)
-
-1. `docs/db-migration/00000000_00_baseline_schema.sql` **신규** — 33테이블 전체 정의, 재실행 안전.
-2. `docs/sql/README.md` — 로드 순서 2단계 → 3단계 정정, 델타 34개 실행 금지 경고, 상황별 절차표 추가, 마이그레이션 목록을 베이스라인/델타 이력으로 분리.
-3. `docs/deployment-guide.md` — 배포 체크리스트 정정.
-4. `docs/db-guidelines.md` §10 — "베이스라인 스키마" 하위 절 추가.
-5. `docs/history/back/adm/DbSchemaBaseline_Modified.md` **신규** — HIST-20260802-001.
+1. `tpmp-db-local` 컨테이너 기동(기존 볼륨 `test_preparation_master_project_postgres_data_local` 사용, 이미지 최초 pull).
+2. 베이스라인 스키마(`docs/db-migration/00000000_00_baseline_schema.sql`) 적용 — 31→33테이블.
+3. 콘텐츠 덤프(`docs/sql/tpmp_content_data.sql`) 적용 중 `questions_question_type_check` CHECK 위반으로 실패(SCHEDULING 문항 INSERT) — 베이스라인 스크립트가 PK/FK/UNIQUE만 가드하고 CHECK는 갱신하지 않는 버그 발견.
+4. 원인 수정: `docs/db-migration/00000000_00_baseline_schema.sql`의 `[5]`~`[6]` 사이에 `question_bank_question_type_check`/`questions_question_type_check`를 최신 정의(SCHEDULING/SQL 포함)로 승격하는 가드 블록 추가.
+5. 제약 수동 보정 후 콘텐츠 덤프 재실행(멱등) → 끝까지 성공. 수정된 베이스라인 스크립트 재실행으로 멱등성 재확인.
+6. `docs/history/back/adm/DbSchemaBaseline_Modified.md`에 `HIST-20260802-002` 추가.
 
 ## 실행한 검증과 결과
 
-임시 DB(`tpmp_base_test`/`tpmp_partial_test`/`tpmp_e2e`/`tpmp_e2e2`/`tpmp_final`)를 만들어 검증 후 전부 삭제함.
-원본 `tpmp` DB에는 **아무 SQL도 실행하지 않았음** — 확인 완료(33테이블 / question_bank 636행 유지).
-
-| 시나리오 | 결과 |
-|----------|------|
-| 빈 DB 1회 적용 | 33테이블 / 279컬럼 / PK 33 · FK 31 · UNIQUE 9 · CHECK 9, ERROR 0 |
-| 빈 DB 4회 연속 적용 | ERROR 0 (멱등성 OK) |
-| 원본 `pg_dump --schema-only` 와 비교 | 구조 완전 일치. CHECK 제약 표현식 렌더링 표기만 상이(의미 동일) |
-| 구 스키마(`tpmp_dump.sql` 17테이블) + 기존 데이터에 적용 | 17테이블 131컬럼 → 33테이블 280컬럼 수렴, 데이터 보존, nullable 드리프트 0 |
-| 전체 절차 e2e (베이스라인 → 시드계정 → 콘텐츠 덤프) | 원본 라이브 DB와 콘텐츠 행 수 완전 일치 |
-
-## 주의사항 / 알게 된 것
-
-- **델타 34개 중 10개는 빈 DB에서 실패한다** (`20260717_03`, `20260717_05`, `20260720_01·02·04`, `20260721_01·03·05·07`, `20260722_02`). 스키마 변경이 아니라 기존 콘텐츠 대상 데이터 보정(백필·재채점·AI 커스텀 시험 생성)이기 때문. **신규 DB에는 적용하지 말 것.**
-- PK 중복은 `duplicate_object` 가 아니라 `invalid_table_definition` 으로 실패한다. `EXCEPTION WHEN duplicate_object` 로 안 잡히므로 `pg_constraint` 사전 조회 가드를 써야 한다.
-- 구 스키마 수렴 시 `users.interested_exam_types` 가 잔여 컬럼으로 남지만 정상(레거시 컬럼, Hibernate `validate` 는 여분 컬럼을 문제 삼지 않음).
-- Git Bash에서 `docker exec ... -f /tmp/x.sql` 은 경로가 Windows 경로로 변환되므로 `export MSYS_NO_PATHCONV=1` 필요.
+| 항목 | 결과 |
+|------|------|
+| 베이스라인 적용(수정 전) | 33테이블/279컬럼/PK33·FK31·UNIQUE9·CHECK9, ERROR 0 |
+| 콘텐츠 덤프 1차 | 라인 3885에서 `questions_question_type_check` 위반으로 중단 (그 앞 내용은 트랜잭션 커밋/개별 autocommit으로 이미 반영됨) |
+| 제약 보정 후 콘텐츠 덤프 재실행 | 끝까지 성공(COMMIT) |
+| 베이스라인 스크립트(수정본) 재실행 | ERROR 0, 33테이블/279컬럼/PK33·FK31·UNIQUE9·CHECK9 유지 (멱등성 확인) |
+| 최종 데이터 건수 | table 33 / question_bank 636 / domain_slave 33 / exam_info 11 / questions 240 / support_settings 1 / user_exam_applications 0 |
 
 ## 미완료 작업
 
-- 커밋/푸시 안 함 (사용자 승인 대기).
+- 변경 사항(베이스라인 스크립트 수정, 히스토리 파일) 커밋/푸시 안 함 — 사용자 승인 대기.
+- 로컬 백엔드 기동 후 실제 화면 동작 확인은 안 함(요청 범위가 DB 마이그였음).
 
 ## 다음 세션이 바로 실행할 명령
 
 ```powershell
 git status --short
+git diff docs/db-migration/00000000_00_baseline_schema.sql
 
 # 사용자 승인 후
-git add docs/db-migration/00000000_00_baseline_schema.sql docs/history/back/adm/DbSchemaBaseline_Modified.md docs/sql/README.md docs/deployment-guide.md docs/db-guidelines.md
+git add docs/db-migration/00000000_00_baseline_schema.sql docs/history/back/adm/DbSchemaBaseline_Modified.md
+git commit -m "[INFRA] fix: 베이스라인 스크립트 CHECK 제약 미갱신 버그 수정"
 ```
 
-## 건드리면 안 되는 것
+## 주의사항 / 건드리면 안 되는 것
 
-- `docs/db-migration/` 의 기존 델타 34개 — 변경 이력이므로 수정·삭제 금지.
-- `docs/sql/tpmp_content_data.sql` — 이번 작업에서 변경하지 않았고 최신 상태.
-- `docs/sql/tpmp_dump.sql` — 2026-05-12자 구 스키마. 베이스라인으로 대체되었으나 이력 목적으로 남겨둠.
+- `tpmp-db-local` 컨테이너는 이번 세션에서 새로 기동했고 계속 실행 중(볼륨은 기존 데이터 보존).
+- `docs/db-migration/`의 델타 34개 파일 — 수정·삭제 금지(이번에도 건드리지 않음).
+- 베이스라인 스크립트의 CHECK 가드는 이번에 실제로 문제가 된 2개(`question_bank`/`questions`의 `question_type`)만 추가함. 다른 7개 CHECK 제약(예: `users_role_check` 등)은 델타 이력상 값 목록이 바뀐 적이 없어 손대지 않았음 — 향후 CHECK 값 목록을 바꾸는 델타를 추가할 때는 같은 패턴(정의 문자열 비교 후 DROP/ADD)을 베이스라인에도 반영해야 함.

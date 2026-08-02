@@ -4,6 +4,34 @@
 
 ---
 
+## HIST-20260802-002
+
+- **날짜**: 2026-08-02
+- **수정 범위**: 관리자 백엔드 / DB 스키마·마이그레이션
+- **수정 개요**: 다른 로컬(31테이블·question_bank 266행 상태)에 베이스라인+콘텐츠 덤프 실제 적용 중 발견된 베이스라인 스크립트의 CHECK 제약 미갱신 버그 수정
+
+### 문제 배경
+
+- `HIST-20260802-001`의 베이스라인 스크립트 `[5] 제약조건` 섹션은 헤더에 "PK / FK / UNIQUE / CHECK"라고 명시했지만 실제로는 PK/FK/UNIQUE만 가드 처리했고 CHECK 제약은 전혀 다루지 않았다.
+- `questions_question_type_check`/`question_bank_question_type_check`처럼 값 목록이 델타 이력 중 확장된(`SCHEDULING`/`SQL` 추가) CHECK 제약은 `CREATE TABLE IF NOT EXISTS` 내부에만 최신 정의로 존재해, **이미 테이블이 있던 로컬**에서는 옛 정의(`MULTIPLE_CHOICE`/`SHORT_ANSWER`/`OX`/`CODE`만 허용)가 그대로 남아 있었다.
+- 검증 당시(HIST-20260802-001) 사용한 테스트 DB들은 이 드리프트를 재현하지 못해 발견되지 않았고, 실제로 델타를 일부만 적용받은 로컬에 적용하면서 `docs/sql/tpmp_content_data.sql` 로드 중 SCHEDULING 문항 INSERT가 `questions_question_type_check` 위반으로 실패했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `docs/db-migration/00000000_00_baseline_schema.sql` | 수정 | `[5]`~`[6]` 사이에 `question_bank_question_type_check`/`questions_question_type_check`를 정의에 `SCHEDULING`이 없으면 DROP 후 재생성하는 가드 블록 추가 |
+
+### 검증
+
+- 로컬 DB(`tpmp-db-local`, 볼륨 `test_preparation_master_project_postgres_data_local`)에 실제 적용:
+  - 베이스라인 적용 전: 31테이블, `questions_question_type_check`가 SCHEDULING/SQL 미포함 구버전
+  - 베이스라인 1차 적용 → 33테이블/279컬럼/PK33·FK31·UNIQUE9·CHECK9, ERROR 0 (이때는 아직 CHECK 갱신 로직 없이 실행했었음)
+  - 콘텐츠 덤프 로드 중 `questions_question_type_check` 위반으로 실패(라인 3885, SCHEDULING 문항) → 원인 확인 후 스크립트에 위 가드 블록 추가
+  - 제약 수동 보정 후 콘텐츠 덤프 재실행(멱등, `ON CONFLICT DO NOTHING`) → 끝까지 성공
+  - 수정된 베이스라인 스크립트를 이 로컬에 재실행 → ERROR 0, 33테이블/279컬럼/PK33·FK31·UNIQUE9·CHECK9 유지(멱등성 확인)
+  - 최종 데이터: `question_bank` 636행, `domain_slave` 33행, `exam_info` 11행, `questions` 240행, `support_settings` 1행 — 라이브 DB 기준과 일치
+
 ## HIST-20260802-001
 
 - **날짜**: 2026-08-02
