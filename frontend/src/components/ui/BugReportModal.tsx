@@ -6,8 +6,8 @@ import { stripHtml } from '@/lib/html';
 
 export interface BugReportContext {
   /** 신고 진입 화면 */
-  source: 'QUIZ' | 'EXAM';
-  /** 카테고리명(퀴즈) 또는 시험지명(시험) */
+  source: 'QUIZ' | 'EXAM' | 'CONCEPT_NOTE';
+  /** 카테고리명(퀴즈) · 시험지명(시험) · 노트 제목(개념노트) */
   label: string;
   questionId?: number | string;
   questionContent?: string;
@@ -21,11 +21,12 @@ interface Props {
 const SOURCE_LABEL: Record<BugReportContext['source'], string> = {
   QUIZ: '데일리 퀴즈',
   EXAM: '시험',
+  CONCEPT_NOTE: '개념노트',
 };
 
 /**
- * 퀴즈·시험 풀이 화면에서 문항 단위로 빠르게 버그를 신고하는 모달.
- * 문항 정보를 자동으로 채워 1:1 문의(BUG 유형)로 등록한다 — user/inquiries/new 전체 폼 대신
+ * 퀴즈·시험 풀이 화면 및 개념노트 상세 화면에서 문항(또는 노트) 단위로 빠르게 버그를 신고하는 모달.
+ * 컨텍스트 정보를 자동으로 채워 1:1 문의(BUG 유형)로 등록한다 — user/inquiries/new 전체 폼 대신
  * 설명 한 줄만 입력하면 되는 축약 경로.
  */
 export function BugReportModal({ context, onClose }: Props) {

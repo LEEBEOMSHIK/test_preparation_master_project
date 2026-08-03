@@ -7,13 +7,25 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { RichContent } from '@/components/ui/RichContent';
 import { LinkedQuestionBox } from '@/components/ui/LinkedQuestionBox';
 import { ScratchPadPanel } from '@/components/ui/ScratchPadPanel';
+import { BugReportModal, type BugReportContext } from '@/components/ui/BugReportModal';
 import type { ConceptNote } from '@/types';
+
+/** 노트에 연결된 시험·퀴즈 문항이 있으면 그 내용을, 없으면 노트 본문을 신고 컨텍스트로 사용 */
+function toBugReportContext(note: ConceptNote): BugReportContext {
+  return {
+    source: 'CONCEPT_NOTE',
+    label: note.title,
+    questionId: note.questionId ?? note.questionBankId,
+    questionContent: note.questionContent ?? note.questionBankContent ?? note.content,
+  };
+}
 
 export default function ConceptExploreDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const [note, setNote] = useState<ConceptNote | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showBugReport, setShowBugReport] = useState(false);
 
   useEffect(() => {
     conceptNoteService.getPublicNote(Number(id))
@@ -47,12 +59,21 @@ export default function ConceptExploreDetailPage() {
         </div>
       ) : !note ? null : (
         <div className="bg-white border border-gray-200 rounded-xl p-6">
-          {/* 제목 + 공개뱃지 */}
+          {/* 제목 + 공개뱃지 + 버그 신고 */}
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-xl font-bold text-gray-800 flex-1">{note.title}</h1>
             <span className="text-xs px-2 py-0.5 rounded-full shrink-0 bg-green-50 text-green-600 border border-green-200">
               공개
             </span>
+            <button
+              onClick={() => setShowBugReport(true)}
+              title="이 노트에 오류가 있나요? 버그 신고"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition shrink-0"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
           </div>
 
           {/* 작성자 + 수정일 */}
@@ -73,6 +94,11 @@ export default function ConceptExploreDetailPage() {
 
       {/* 풀이 스크래치패드 — 내 노트 상세와 같은 노트 단위 키 공유 (같은 노트면 어느 화면에서든 같은 메모) */}
       {note && <ScratchPadPanel storageKey={`tpmp_scratchpad:concept:${id}`} />}
+
+      {/* 버그 신고 모달 */}
+      {showBugReport && note && (
+        <BugReportModal context={toBugReportContext(note)} onClose={() => setShowBugReport(false)} />
+      )}
     </div>
   );
 }

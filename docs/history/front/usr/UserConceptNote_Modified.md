@@ -1,3 +1,32 @@
+## HIST-20260804-001
+
+- **날짜**: 2026-08-04
+- **수정 범위**: 사용자 프론트엔드 / 개념노트 — 버그 신고 기능 확대 적용
+- **수정 개요**: 퀴즈·시험 풀이 화면에 추가한 문항 단위 버그 신고 기능(→ `docs/history/front/usr/UserQuizExam_Modified.md` HIST-20260804-001)을 사용자 요청("개념노트에도 추가해")에 따라 개념노트 상세 화면(내 노트 `user/concepts/[id]`, 공개 탐색 `user/concepts/explore/[id]`) 2곳에도 동일하게 적용했다. `BugReportModal`의 `source` 유니온에 `'CONCEPT_NOTE'`를 추가하고, 노트에 연결된 시험·퀴즈 문항이 있으면 그 문항 내용을, 없으면(자유 작성 노트) 노트 본문 자체를 신고 컨텍스트로 사용하는 `toBugReportContext(note)` 헬퍼를 두 페이지에 각각 두었다(두 페이지가 별도 컴포넌트라 `ConceptNote` 타입 기반의 순수 함수만 로컬 중복 — 로직이 3줄 내외로 짧아 공용 유틸 추출 기준에는 못 미침).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/BugReportModal.tsx` | 수정 | `BugReportContext.source`에 `'CONCEPT_NOTE'` 추가, `SOURCE_LABEL.CONCEPT_NOTE = '개념노트'`, 컴포넌트 상단 설명 주석을 퀴즈·시험·개념노트 공용으로 갱신 |
+| `frontend/src/app/user/concepts/[id]/page.tsx` | 수정 | `toBugReportContext(note)` 헬퍼 추가, `showBugReport` 상태 추가, 뷰 모드 헤더 버튼 그룹(수정·삭제 옆)에 버그 신고 아이콘 추가, 모달 렌더 추가 |
+| `frontend/src/app/user/concepts/explore/[id]/page.tsx` | 수정 | 동일한 `toBugReportContext(note)` 헬퍼 추가, 제목+공개뱃지 행에 버그 신고 아이콘 추가, 모달 렌더 추가 |
+| `CLAUDE.md` | 수정 | `BugReportModal` 표 설명에 개념노트 화면·`CONCEPT_NOTE` source 반영 |
+
+### 수정 상세
+
+#### `toBugReportContext(note)` (두 페이지 동일 로직)
+- `note.questionId`(연결된 시험 문항) 또는 `note.questionBankId`(연결된 퀴즈 문항)가 있으면 해당 `questionContent`/`questionBankContent`(이미 `ConceptNote`에 임베드되어 있어 추가 API 호출 불필요)를 신고 컨텍스트로 사용
+- 연결된 문항이 없는 자유 작성 노트는 `note.content`를 대신 사용해 관리자가 어떤 노트인지 파악 가능하게 함
+- `label`은 두 경우 모두 `note.title`(퀴즈/시험 화면처럼 카테고리명·시험지명이 아닌 노트 제목 사용 — 개념노트는 그 자체가 식별 단위이므로)
+
+### 검증
+
+- `npx tsc --noEmit` 통과
+- 브라우저 확인(테스트 사용자 로그인): 퀴즈 문항에 연결된 노트 상세 화면에서 아이콘 클릭 → 모달에 "개념노트 · [노트 제목]" + 연결된 퀴즈 문항 내용 정상 표시 → 제출 → `GET /api/admin/inquiries`에서 `[버그신고] 개념노트 - ...`(inquiryType=BUG, 문항 ID 83) 정상 등록 확인 후 삭제
+
+---
+
 ## HIST-20260724-001
 
 - **날짜**: 2026-07-24

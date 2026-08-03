@@ -6,8 +6,19 @@ import { conceptNoteService } from '@/services/conceptNoteService';
 import { notionService, type NotionStatus } from '@/services/notionService';
 import { LinkedQuestionBox } from '@/components/ui/LinkedQuestionBox';
 import { ScratchPadPanel } from '@/components/ui/ScratchPadPanel';
+import { BugReportModal, type BugReportContext } from '@/components/ui/BugReportModal';
 import { Skeleton } from '@/components/ui/Skeleton';
 import type { ConceptNote } from '@/types';
+
+/** 노트에 연결된 시험·퀴즈 문항이 있으면 그 내용을, 없으면 노트 본문을 신고 컨텍스트로 사용 */
+function toBugReportContext(note: ConceptNote): BugReportContext {
+  return {
+    source: 'CONCEPT_NOTE',
+    label: note.title,
+    questionId: note.questionId ?? note.questionBankId,
+    questionContent: note.questionContent ?? note.questionBankContent ?? note.content,
+  };
+}
 
 export default function ConceptNoteDetailPage() {
   const router = useRouter();
@@ -26,6 +37,9 @@ export default function ConceptNoteDetailPage() {
   // Notion 연동
   const [notion, setNotion] = useState<NotionStatus | null>(null);
   const [exporting, setExporting] = useState(false);
+
+  // 버그 신고 모달 표시 여부
+  const [showBugReport, setShowBugReport] = useState(false);
 
   useEffect(() => {
     if (isNew) return;
@@ -102,6 +116,17 @@ export default function ConceptNoteDetailPage() {
         </button>
         {!isNew && !editing && (
           <div className="flex gap-2">
+            {note && (
+              <button
+                onClick={() => setShowBugReport(true)}
+                title="이 노트에 오류가 있나요? 버그 신고"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+            )}
             {notion?.connected && (
               <button
                 onClick={handleExportNotion}
@@ -219,6 +244,11 @@ export default function ConceptNoteDetailPage() {
 
       {/* 풀이 스크래치패드 — 노트 단위 localStorage 저장 (신규 작성 화면은 id가 'new'라 노트 간 섞이므로 제외) */}
       {!isNew && <ScratchPadPanel storageKey={`tpmp_scratchpad:concept:${id}`} />}
+
+      {/* 버그 신고 모달 */}
+      {showBugReport && note && (
+        <BugReportModal context={toBugReportContext(note)} onClose={() => setShowBugReport(false)} />
+      )}
     </div>
   );
 }
