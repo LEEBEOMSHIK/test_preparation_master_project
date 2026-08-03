@@ -1,3 +1,22 @@
+## HIST-20260803-001
+
+- **날짜**: 2026-08-03
+- **수정 범위**: 관리자 백엔드 / 시험 정보 — 리눅스마스터 2급 2026년 일정 시드 데이터 추가
+- **수정 개요**: `domain_slave "리눅스마스터 2급"`(EXAM_TYPE)은 존재했지만 `exam_info`에는 대응하는 시험 일정 데이터가 한 건도 없어, 사용자가 관심 시험에 리눅스마스터 2급을 추가해도 `/user/exam-info` 필터 결과가 항상 비어 있었다(→ `docs/history/front/usr/UserExamInfo_Modified.md` HIST-20260803-001에서 프론트 필터 탭 버그와 함께 진단). `ensureLinuxMasterExamInfo`/`ensureSqldExamInfo`와 동일한 패턴으로 `ensureLinuxMaster2ExamInfo()`를 추가해 ihd.or.kr 공식 2026년 일정(4회차 × 1차·2차, 1차는 필기 60분·2차는 필기 100분) 8건을 시드했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java` | 수정 | `ensureLinuxMaster2ExamInfo()` 신규 추가(`ensureExamInfo` 공용 헬퍼로 8건 등록, title 기준 idempotent), `run()`에 호출 1줄 추가 |
+
+### 검증
+
+- `./gradlew compileJava`/`./gradlew test` 통과.
+- 로컬 DB에 8건을 먼저 수동 반영한 뒤 백엔드 재기동 → 로그에 8건 모두 "이미 존재 — 건너뜀" 확인(멱등성, 신규 DB에서는 정상 생성됨).
+
+---
+
 ## HIST-20260728-001
 
 - **날짜**: 2026-07-28

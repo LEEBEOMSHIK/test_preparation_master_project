@@ -69,6 +69,7 @@ public class DataInitializer implements ApplicationRunner {
         ensurePermissionMenuAssociations();
         ensureQnetPracticalExamInfo();
         ensureLinuxMasterExamInfo();
+        ensureLinuxMaster2ExamInfo();
         ensureSqldExamInfo();
         ensurePracticeSchema();
     }
@@ -623,6 +624,42 @@ public class DataInitializer implements ApplicationRunner {
                 null,
                 26
         );
+    }
+
+    @Transactional
+    public void ensureLinuxMaster2ExamInfo() {
+        String examType = "리눅스마스터 2급";
+        String officialUrl = "https://www.ihd.or.kr/guidecert1.do";
+
+        String desc60 = """
+                한국정보통신진흥협회(KAIT) 주관 리눅스마스터 2급 자격검정 시험정보입니다.
+                검정방법: 필기시험(시험시간 60분)
+                응시료 등 세부사항은 공식 사이트(ihd.or.kr)를 참고하시기 바랍니다.
+                출처: 리눅스마스터 자격검정 공식 사이트(ihd.or.kr) 2026년 일정
+                """;
+        String desc100 = """
+                한국정보통신진흥협회(KAIT) 주관 리눅스마스터 2급 자격검정 시험정보입니다.
+                검정방법: 필기시험(시험시간 100분)
+                응시료 등 세부사항은 공식 사이트(ihd.or.kr)를 참고하시기 바랍니다.
+                출처: 리눅스마스터 자격검정 공식 사이트(ihd.or.kr) 2026년 일정
+                """;
+
+        ensureExamInfo(examType, "리눅스마스터 2급 2026년 1회(2601) 1차", desc60,
+                "2026-01-26 ~ 2026-02-04", "2026-01-27 ~ 2026-02-05", "시험종료 즉시", officialUrl, null, 31);
+        ensureExamInfo(examType, "리눅스마스터 2급 2026년 1회(2601) 2차", desc100,
+                "2026-01-27 ~ 2026-02-06", "2026-03-14", "2026-04-03", officialUrl, null, 32);
+        ensureExamInfo(examType, "리눅스마스터 2급 2026년 2회(2602) 1차", desc60,
+                "2026-04-06 ~ 2026-04-17", "2026-05-02", "시험종료 즉시", officialUrl, null, 33);
+        ensureExamInfo(examType, "리눅스마스터 2급 2026년 2회(2602) 2차", desc100,
+                "2026-04-28 ~ 2026-05-08", "2026-06-13", "2026-07-03", officialUrl, null, 34);
+        ensureExamInfo(examType, "리눅스마스터 2급 2026년 3회(2603) 1차", desc60,
+                "2026-07-06 ~ 2026-07-17", "2026-08-01", "2026-08-05", officialUrl, null, 35);
+        ensureExamInfo(examType, "리눅스마스터 2급 2026년 3회(2603) 2차", desc100,
+                "2026-07-28 ~ 2026-08-07", "2026-09-12", "2026-10-02", officialUrl, null, 36);
+        ensureExamInfo(examType, "리눅스마스터 2급 2026년 4회(2604) 1차", desc60,
+                "2026-10-05 ~ 2026-10-16", "2026-10-31", "2026-11-04", officialUrl, null, 37);
+        ensureExamInfo(examType, "리눅스마스터 2급 2026년 4회(2604) 2차", desc100,
+                "2026-10-27 ~ 2026-11-06", "2026-12-12", "2026-12-31", officialUrl, null, 38);
     }
 
     @Transactional

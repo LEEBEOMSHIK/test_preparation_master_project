@@ -6459,6 +6459,38 @@ INSERT INTO public.exam_info (id, application_period, created_at, description, d
 응시료 등 세부사항은 공식 사이트(dataq.or.kr)를 참고하시기 바랍니다.
 출처: 한국데이터자격검정 SQLD 시험일정 공식 페이지(dataq.or.kr) 2026년 일정
 ', 30, '2026-11-14', 'SQLD', true, 'https://www.dataq.or.kr/www/accept/schedule.do', '2026-12-04', 'SQLD 2026년 제63회', '2026-07-29 09:35:45.145104', NULL) ON CONFLICT DO NOTHING;
+INSERT INTO public.exam_info (id, application_period, application_url, created_at, description, display_order, exam_schedule, exam_type, is_active, official_url, result_date, title, updated_at) VALUES (12, '2026-01-26 ~ 2026-02-04', NULL, '2026-08-03 00:50:39.535613', '한국정보통신진흥협회(KAIT) 주관 리눅스마스터 2급 자격검정 시험정보입니다.
+검정방법: 필기시험(시험시간 60분)
+응시료 등 세부사항은 공식 사이트(ihd.or.kr)를 참고하시기 바랍니다.
+출처: 리눅스마스터 자격검정 공식 사이트(ihd.or.kr) 2026년 일정', 31, '2026-01-27 ~ 2026-02-05', '리눅스마스터 2급', true, 'https://www.ihd.or.kr', '시험종료 즉시', '리눅스마스터 2급 2026년 1회(2601) 1차', '2026-08-03 00:50:39.535613') ON CONFLICT DO NOTHING;
+INSERT INTO public.exam_info (id, application_period, application_url, created_at, description, display_order, exam_schedule, exam_type, is_active, official_url, result_date, title, updated_at) VALUES (13, '2026-01-27 ~ 2026-02-06', NULL, '2026-08-03 00:50:39.535613', '한국정보통신진흥협회(KAIT) 주관 리눅스마스터 2급 자격검정 시험정보입니다.
+검정방법: 필기시험(시험시간 100분)
+응시료 등 세부사항은 공식 사이트(ihd.or.kr)를 참고하시기 바랍니다.
+출처: 리눅스마스터 자격검정 공식 사이트(ihd.or.kr) 2026년 일정', 32, '2026-03-14', '리눅스마스터 2급', true, 'https://www.ihd.or.kr', '2026-04-03', '리눅스마스터 2급 2026년 1회(2601) 2차', '2026-08-03 00:50:39.535613') ON CONFLICT DO NOTHING;
+INSERT INTO public.exam_info (id, application_period, application_url, created_at, description, display_order, exam_schedule, exam_type, is_active, official_url, result_date, title, updated_at) VALUES (14, '2026-04-06 ~ 2026-04-17', NULL, '2026-08-03 00:50:39.535613', '한국정보통신진흥협회(KAIT) 주관 리눅스마스터 2급 자격검정 시험정보입니다.
+검정방법: 필기시험(시험시간 60분)
+응시료 등 세부사항은 공식 사이트(ihd.or.kr)를 참고하시기 바랍니다.
+출처: 리눅스마스터 자격검정 공식 사이트(ihd.or.kr) 2026년 일정', 33, '2026-05-02', '리눅스마스터 2급', true, 'https://www.ihd.or.kr', '시험종료 즉시', '리눅스마스터 2급 2026년 2회(2602) 1차', '2026-08-03 00:50:39.535613') ON CONFLICT DO NOTHING;
+INSERT INTO public.exam_info (id, application_period, application_url, created_at, description, display_order, exam_schedule, exam_type, is_active, official_url, result_date, title, updated_at) VALUES (15, '2026-04-28 ~ 2026-05-08', NULL, '2026-08-03 00:50:39.535613', '한국정보통신진흥협회(KAIT) 주관 리눅스마스터 2급 자격검정 시험정보입니다.
+검정방법: 필기시험(시험시간 100분)
+응시료 등 세부사항은 공식 사이트(ihd.or.kr)를 참고하시기 바랍니다.
+출처: 리눅스마스터 자격검정 공식 사이트(ihd.or.kr) 2026년 일정', 34, '2026-06-13', '리눅스마스터 2급', true, 'https://www.ihd.or.kr', '2026-07-03', '리눅스마스터 2급 2026년 2회(2602) 2차', '2026-08-03 00:50:39.535613') ON CONFLICT DO NOTHING;
+INSERT INTO public.exam_info (id, application_period, application_url, created_at, description, display_order, exam_schedule, exam_type, is_active, official_url, result_date, title, updated_at) VALUES (16, '2026-07-06 ~ 2026-07-17', NULL, '2026-08-03 00:50:39.535613', '한국정보통신진흥협회(KAIT) 주관 리눅스마스터 2급 자격검정 시험정보입니다.
+검정방법: 필기시험(시험시간 60분)
+응시료 등 세부사항은 공식 사이트(ihd.or.kr)를 참고하시기 바랍니다.
+출처: 리눅스마스터 자격검정 공식 사이트(ihd.or.kr) 2026년 일정', 35, '2026-08-01', '리눅스마스터 2급', true, 'https://www.ihd.or.kr', '2026-08-05', '리눅스마스터 2급 2026년 3회(2603) 1차', '2026-08-03 00:50:39.535613') ON CONFLICT DO NOTHING;
+INSERT INTO public.exam_info (id, application_period, application_url, created_at, description, display_order, exam_schedule, exam_type, is_active, official_url, result_date, title, updated_at) VALUES (17, '2026-07-28 ~ 2026-08-07', NULL, '2026-08-03 00:50:39.535613', '한국정보통신진흥협회(KAIT) 주관 리눅스마스터 2급 자격검정 시험정보입니다.
+검정방법: 필기시험(시험시간 100분)
+응시료 등 세부사항은 공식 사이트(ihd.or.kr)를 참고하시기 바랍니다.
+출처: 리눅스마스터 자격검정 공식 사이트(ihd.or.kr) 2026년 일정', 36, '2026-09-12', '리눅스마스터 2급', true, 'https://www.ihd.or.kr', '2026-10-02', '리눅스마스터 2급 2026년 3회(2603) 2차', '2026-08-03 00:50:39.535613') ON CONFLICT DO NOTHING;
+INSERT INTO public.exam_info (id, application_period, application_url, created_at, description, display_order, exam_schedule, exam_type, is_active, official_url, result_date, title, updated_at) VALUES (18, '2026-10-05 ~ 2026-10-16', NULL, '2026-08-03 00:50:39.535613', '한국정보통신진흥협회(KAIT) 주관 리눅스마스터 2급 자격검정 시험정보입니다.
+검정방법: 필기시험(시험시간 60분)
+응시료 등 세부사항은 공식 사이트(ihd.or.kr)를 참고하시기 바랍니다.
+출처: 리눅스마스터 자격검정 공식 사이트(ihd.or.kr) 2026년 일정', 37, '2026-10-31', '리눅스마스터 2급', true, 'https://www.ihd.or.kr', '2026-11-04', '리눅스마스터 2급 2026년 4회(2604) 1차', '2026-08-03 00:50:39.535613') ON CONFLICT DO NOTHING;
+INSERT INTO public.exam_info (id, application_period, application_url, created_at, description, display_order, exam_schedule, exam_type, is_active, official_url, result_date, title, updated_at) VALUES (19, '2026-10-27 ~ 2026-11-06', NULL, '2026-08-03 00:50:39.535613', '한국정보통신진흥협회(KAIT) 주관 리눅스마스터 2급 자격검정 시험정보입니다.
+검정방법: 필기시험(시험시간 100분)
+응시료 등 세부사항은 공식 사이트(ihd.or.kr)를 참고하시기 바랍니다.
+출처: 리눅스마스터 자격검정 공식 사이트(ihd.or.kr) 2026년 일정', 38, '2026-12-12', '리눅스마스터 2급', true, 'https://www.ihd.or.kr', '2026-12-31', '리눅스마스터 2급 2026년 4회(2604) 2차', '2026-08-03 00:50:39.535613') ON CONFLICT DO NOTHING;
 
 
 

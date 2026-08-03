@@ -131,7 +131,11 @@ export default function UserExamInfoPage() {
       .finally(() => setLoading(false));
   };
 
-  const allTypes = ['전체', ...Array.from(new Set(items.map(i => i.examType)))];
+  // 탭 목록은 관심 시험 유형 기준으로 만든다 — 관심 유형에 아직 등록된 시험 정보가 없어도
+  // (예: exam_info 데이터 누락) 탭 자체가 사라지지 않고 "표시할 시험 정보가 없습니다" 빈 상태로 안내한다.
+  const itemTypes = Array.from(new Set(items.map(i => i.examType)));
+  const baseTypes = userInterests.length > 0 ? userInterests : itemTypes;
+  const allTypes = ['전체', ...Array.from(new Set([...baseTypes, ...itemTypes]))];
   const displayed = filterType === '전체' ? items : items.filter(i => i.examType === filterType);
 
   return (
