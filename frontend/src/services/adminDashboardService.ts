@@ -5,6 +5,7 @@ export interface DashboardStats {
   todayLoginCount: number;
   todayInquiryCount: number;
   pendingInquiryCount: number;
+  pendingBugCount: number;
   totalExamCount: number;
   totalMemberCount: number;
   todayExamAttemptCount: number;

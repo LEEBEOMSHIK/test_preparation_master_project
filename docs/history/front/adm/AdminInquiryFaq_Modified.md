@@ -1,3 +1,22 @@
+## HIST-20260804-001
+
+- **날짜**: 2026-08-04
+- **수정 범위**: 관리자 프론트엔드 / 1:1 문의 관리 — 유형 필터 추가
+- **수정 개요**: 대시보드에 "버그 신고 대기" 카드(→ `docs/history/front/adm/Dashboard_Modified.md` HIST-20260804-001)를 추가하면서, 클릭 시 이동할 문의 관리 화면에 유형별 필터가 없어 만들었다. `useSearchParams`로 URL의 `?type=BUG` 쿼리를 읽어 초기 필터값으로 반영하도록 해, 대시보드 카드 클릭 시 자동으로 해당 유형만 필터링된 목록이 뜬다. `useSearchParams` 사용으로 인해 컴포넌트를 `Suspense` 경계로 감싸는 이 프로젝트의 기존 패턴(`user/settings/page.tsx` 등)을 그대로 따랐다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/inquiries/page.tsx` | 수정 | `typeFilter`(InquiryType \| '') state 추가, URL `?type=` 쿼리로 초기값 설정. 검색 조건 영역에 "유형" select 추가(`INQUIRY_TYPE_LABEL` 기반 옵션). `filtered` 로직에 유형 필터 반영. 컴포넌트를 `AdminInquiriesContent`로 분리하고 `Suspense`로 감싼 `AdminInquiriesPage` 기본 export 추가(`useSearchParams` 사용에 따른 필수 패턴) |
+
+### 검증
+
+- `npx tsc --noEmit` 통과.
+- 브라우저 확인: `/admin/inquiries?type=BUG` 접속 시 유형 드롭다운이 "버그 신고"로 자동 선택되고 목록도 정확히 필터링됨을 확인.
+
+---
+
 ## HIST-20260708-001
 
 - **날짜**: 2026-07-08

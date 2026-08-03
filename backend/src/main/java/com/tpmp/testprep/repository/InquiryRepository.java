@@ -16,6 +16,7 @@ public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
     Page<Inquiry> findByUserIdAndStatus(Long userId, Inquiry.Status status, Pageable pageable);
     long countByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
     long countByStatus(Inquiry.Status status);
+    long countByStatusAndInquiryType(Inquiry.Status status, Inquiry.InquiryType inquiryType);
 
     /** 기간 내 날짜별 문의 건수 집계 (관리자 대시보드 추이) */
     @Query("""

@@ -1,3 +1,23 @@
+## HIST-20260804-001
+
+- **날짜**: 2026-08-04
+- **수정 범위**: 관리자 프론트엔드 / 대시보드 — "버그 신고 대기" 카드 추가
+- **수정 개요**: 문의 섹션에 "버그 신고 대기" `StatCard`를 추가해 대기 상태 버그 신고 건수를 바로 확인할 수 있게 했다(경고 아이콘, 빨간색 강조로 다른 카드와 구분). 클릭 시 `/admin/inquiries?type=BUG`로 이동해 유형 필터가 자동 적용된 목록으로 연결된다(→ `docs/history/front/adm/AdminInquiryFaq_Modified.md` 또는 문의 관리 히스토리에서 유형 필터 추가 부분 참고).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/adminDashboardService.ts` | 수정 | `DashboardStats`에 `pendingBugCount: number` 필드 추가 |
+| `frontend/src/app/admin/dashboard/page.tsx` | 수정 | 문의 섹션에 "버그 신고 대기" `StatCard` 추가(경고 삼각형 아이콘, red 색상), `href="/admin/inquiries?type=BUG"` |
+
+### 검증
+
+- `npx tsc --noEmit` 통과.
+- 브라우저 확인: 카드에 "1"(대기 중 버그 신고 건수) 정상 표시, 클릭 시 문의 관리 화면으로 이동하며 유형 필터가 "버그 신고"로 자동 선택되고 목록도 정확히 필터링됨을 확인.
+
+---
+
 ## HIST-20260724-001
 
 - **날짜**: 2026-07-24

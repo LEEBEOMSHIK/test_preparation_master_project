@@ -1,14 +1,17 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { Suspense, useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { inquiryService } from '@/services/inquiryService';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useColumnResize } from '@/lib/useColumnResize';
 import { ColResizeHandle } from '@/components/ui/ColResizeHandle';
 import { Pagination } from '@/components/ui/Pagination';
-import type { Inquiry, InquiryStatus } from '@/types';
+import type { Inquiry, InquiryStatus, InquiryType } from '@/types';
 import { INQUIRY_STATUS_LABEL, INQUIRY_TYPE_LABEL } from '@/types';
+
+const INQUIRY_TYPE_OPTIONS = Object.keys(INQUIRY_TYPE_LABEL) as InquiryType[];
 
 const STATUS_TABS: { label: string; value: InquiryStatus | '' }[] = [
   { label: '전체', value: '' },
@@ -25,10 +28,17 @@ const STATUS_COLOR: Record<InquiryStatus, string> = {
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 
-export default function AdminInquiriesPage() {
+// ── Inner component (useSearchParams 사용) ────────────────────────────────────
+function AdminInquiriesContent() {
+  const searchParams = useSearchParams();
+  const initialType = searchParams.get('type');
+
   const [allInquiries, setAllInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading]           = useState(true);
   const [statusFilter, setStatusFilter] = useState<InquiryStatus | ''>('');
+  const [typeFilter, setTypeFilter]     = useState<InquiryType | ''>(
+    initialType && (INQUIRY_TYPE_OPTIONS as string[]).includes(initialType) ? (initialType as InquiryType) : ''
+  );
   const [page, setPage]                 = useState(0);
   const [pageSize, setPageSize]         = useState<10 | 20 | 50>(10);
   const [holding, setHolding]           = useState<number | null>(null);
@@ -56,14 +66,16 @@ export default function AdminInquiriesPage() {
   }, []);
 
   const handleSearch = () => { setAppliedKeyword(keyword); setPage(0); };
-  const handleReset  = () => { setKeyword(''); setAppliedKeyword(''); setPage(0); };
+  const handleReset  = () => { setKeyword(''); setAppliedKeyword(''); setTypeFilter(''); setPage(0); };
 
   const handleStatusChange = (s: InquiryStatus | '') => { setStatusFilter(s); setPage(0); };
+  const handleTypeChange = (t: InquiryType | '') => { setTypeFilter(t); setPage(0); };
   const handlePageSizeChange = (s: 10 | 20 | 50) => { setPageSize(s); setPage(0); };
 
   const filtered = useMemo(() => {
     let result = allInquiries;
     if (statusFilter) result = result.filter((i) => i.status === statusFilter);
+    if (typeFilter) result = result.filter((i) => i.inquiryType === typeFilter);
     if (appliedKeyword) {
       const kw = appliedKeyword.toLowerCase();
       result = result.filter((i) =>
@@ -71,7 +83,7 @@ export default function AdminInquiriesPage() {
       );
     }
     return result;
-  }, [allInquiries, statusFilter, appliedKeyword]);
+  }, [allInquiries, statusFilter, typeFilter, appliedKeyword]);
 
   const totalElements = filtered.length;
   const totalPages    = Math.ceil(totalElements / pageSize);
@@ -142,13 +154,26 @@ export default function AdminInquiriesPage() {
               className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
             />
           </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">유형</label>
+            <select
+              value={typeFilter}
+              onChange={(e) => handleTypeChange(e.target.value as InquiryType | '')}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            >
+              <option value="">전체</option>
+              {INQUIRY_TYPE_OPTIONS.map((t) => (
+                <option key={t} value={t}>{INQUIRY_TYPE_LABEL[t]}</option>
+              ))}
+            </select>
+          </div>
           <button
             onClick={handleSearch}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
           >
             검색
           </button>
-          {(keyword || appliedKeyword) && (
+          {(keyword || appliedKeyword || typeFilter) && (
             <button
               onClick={handleReset}
               className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
@@ -264,5 +289,14 @@ export default function AdminInquiriesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// ── Page export (Suspense 경계) ───────────────────────────────────────────────
+export default function AdminInquiriesPage() {
+  return (
+    <Suspense fallback={<TableSkeleton rows={5} cols={5} />}>
+      <AdminInquiriesContent />
+    </Suspense>
   );
 }

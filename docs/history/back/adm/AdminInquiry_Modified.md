@@ -1,3 +1,24 @@
+## HIST-20260804-001
+
+- **날짜**: 2026-08-04
+- **수정 범위**: 관리자 백엔드 / 대시보드 — 버그 신고 대기 건수 통계 추가
+- **수정 개요**: 대시보드 문의 섹션이 유형 구분 없이 전체 문의 건수만 보여줘 버그 신고를 별도로 확인할 방법이 없다는 피드백에 따라, `DashboardStatsResponse`에 `pendingBugCount`(대기 상태 버그 신고 건수)를 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/InquiryRepository.java` | 수정 | `countByStatusAndInquiryType(status, inquiryType)` 파생 쿼리 메서드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/DashboardStatsResponse.java` | 수정 | `pendingBugCount` 필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/DashboardService.java` | 수정 | `getStats()`에서 `countByStatusAndInquiryType(PENDING, BUG)` 조회 후 응답에 반영 |
+
+### 검증
+
+- `./gradlew compileJava`/`./gradlew test` 통과.
+- 백엔드 재기동 후 `GET /api/admin/dashboard/stats` 응답에 `pendingBugCount:1`(기존 테스트용 버그 신고 1건과 일치) 확인.
+
+---
+
 ## HIST-20260803-001
 
 - **날짜**: 2026-08-03
