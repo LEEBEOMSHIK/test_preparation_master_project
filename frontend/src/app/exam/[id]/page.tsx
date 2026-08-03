@@ -9,6 +9,7 @@ import { RichContent } from '@/components/ui/RichContent';
 import { QuizCardSkeleton } from '@/components/ui/Skeleton';
 import { ExamResultDisplay } from '@/components/ui/ExamResultDisplay';
 import { ConceptNoteModal } from '@/components/ui/ConceptNoteModal';
+import { BugReportModal } from '@/components/ui/BugReportModal';
 import { CodeBlock } from '@/components/ui/CodeBlock';
 import { CodeAnswerInput } from '@/components/ui/CodeAnswerInput';
 import { ScratchPadPanel } from '@/components/ui/ScratchPadPanel';
@@ -140,6 +141,9 @@ export default function ExamTakingPage() {
 
   // 개념노트 모달 — 대상 문항(없으면 닫힘)
   const [noteTarget, setNoteTarget] = useState<{ question: Question; idx: number } | null>(null);
+
+  // 버그 신고 모달 표시 여부
+  const [showBugReport, setShowBugReport] = useState(false);
   const [questionNotes, setQuestionNotes] = useState<Record<number, ConceptNote>>({});
 
   // ── 마운트 effect: 순차 await ────────────────────────────────────────────────
@@ -270,7 +274,7 @@ export default function ExamTakingPage() {
   // 문항 풀이 중일 때만 동작 — 로딩/결과/게이트 화면이거나 모달(나가기·플래그·개념노트)이 열려 있으면 무시.
   useEffect(() => {
     const shortcutsActive = !loading && !result && !pendingResult && !!exam
-      && !leaveConfirm && !flagAlert && !noteTarget;
+      && !leaveConfirm && !flagAlert && !noteTarget && !showBugReport;
     if (!shortcutsActive) return;
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -288,7 +292,7 @@ export default function ExamTakingPage() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [loading, result, pendingResult, exam, leaveConfirm, flagAlert, noteTarget, questions.length]);
+  }, [loading, result, pendingResult, exam, leaveConfirm, flagAlert, noteTarget, showBugReport, questions.length]);
 
   // ── 타이머 effect ─────────────────────────────────────────────────────────
   // 조건: 결과/게이트 없이 secondsLeft > 0 일 때 틱
@@ -596,6 +600,14 @@ export default function ExamTakingPage() {
         />
       )}
 
+      {/* 버그 신고 모달 */}
+      {showBugReport && q && (
+        <BugReportModal
+          context={{ source: 'EXAM', label: exam?.title ?? '시험', questionId: q.id, questionContent: q.content }}
+          onClose={() => setShowBugReport(false)}
+        />
+      )}
+
       {/* 풀이 스크래치패드 — 자유 메모 / 코드 트레이싱 / 계산기, localStorage 영속
           모바일에서 FAB가 문제 카드 하단의 "다음" 버튼과 겹치는 것을 막기 위해 bottom-24(96px)로 올림.
           390x844 뷰포트 실측: "다음" 버튼 top≈761px, 기본 bottom-5(20px)일 때 FAB(48px 높이)의
@@ -705,6 +717,16 @@ export default function ExamTakingPage() {
                   {questionNotes[q.id] ? '개념 정리됨' : '개념 정리'}
                 </button>
                 <span className="text-xs text-gray-400">{current + 1} / {questions.length}</span>
+                {/* 버그 신고 아이콘 — 퀴즈 화면과 동일한 디자인, 카드 우측 끝 */}
+                <button
+                  onClick={() => setShowBugReport(true)}
+                  title="이 문제에 오류가 있나요? 버그 신고"
+                  className="w-6 h-6 flex items-center justify-center rounded-full text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
               </div>
 
               {q.instruction && (

@@ -1,3 +1,37 @@
+## HIST-20260804-001
+
+- **날짜**: 2026-08-04
+- **수정 범위**: 사용자 프론트엔드 / 퀴즈·시험 풀이 — 문항 단위 축약 버그 신고 기능 추가
+- **수정 개요**: 관리자가 1:1 문의에 "버그 신고" 카테고리를 추가한 뒤(→ `docs/history/front/adm/AdminInquiry_Modified.md` 관련 항목), 사용자가 실제로 버그를 겪는 지점은 문의 게시판이 아니라 퀴즈·시험 풀이 화면이라는 지적에 따라 문항 단위로 바로 신고할 수 있는 경로를 추가했다. 처음에는 공용 `ScratchPadPanel`(풀이 스크래치패드) 안에 진입점을 두는 안을 검토했으나, 스크래치패드를 열지 않는 사용자는 발견하기 어렵다는 피드백을 받아 문제 풀이 화면에 항상 보이는 아이콘으로 변경했다(AskUserQuestion으로 배치안 3개 제시 후 "문제 카드 우상단 아이콘" 선택받음). 신규 공용 모달 `BugReportModal`(`src/components/ui/BugReportModal.tsx`)이 문항 ID·문항 내용·화면 출처를 자동으로 채워 넣고, 사용자는 설명 한 줄만 입력하면 기존 `POST /user/inquiries`로 `inquiryType: 'BUG'` 문의가 즉시 등록된다(전체 문의 등록 폼 `user/inquiries/new`를 거치지 않는 축약 경로 — 백엔드 신규 API 없이 기존 엔드포인트 재사용).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/BugReportModal.tsx` | 추가 | 문항 단위 버그 신고 모달 — `context: {source: 'QUIZ'\|'EXAM', label, questionId?, questionContent?}` props, 자동 첨부 정보(화면·문항 ID·문항 내용 요약) + 설명 textarea, 제출 시 `inquiryService.create({..., inquiryType: 'BUG'})` 호출 후 900ms 뒤 자동 닫힘 |
+| `frontend/src/app/user/quiz/[categoryId]/page.tsx` | 수정 | `showBugReport` 상태 추가, 문제 카드 우측 상단 연도/회차(또는 AI 커스텀) 배지를 감싸던 개별 `absolute top-4 right-4`를 하나의 flex 컨테이너로 통합하고 그 안에 버그 신고 아이콘 버튼을 배지 왼쪽에 추가. 배지 폭 확보용 `pr-24`(3곳: 카테고리 배지 wrapper·발문·본문 RichContent)를 `pr-28`로 확장. Alt+Enter/Alt+→ 단축키 가드에 `showBugReport` 추가(모달 열려 있으면 단축키 비활성) |
+| `frontend/src/app/exam/[id]/page.tsx` | 수정 | `showBugReport` 상태 추가, 문제 번호(Q1.)+체크 버튼 행의 진행률 표시(`{current+1}/{questions.length}`) 뒤에 동일 디자인의 버그 신고 아이콘 버튼 추가. Alt+←/→/Enter 단축키 활성 조건에 `&& !showBugReport` 추가 |
+| `CLAUDE.md` | 수정 | Shared Utilities 표에 `BugReportModal` 행 추가 |
+
+### 수정 상세
+
+#### `frontend/src/components/ui/BugReportModal.tsx`
+- 변경 전: 파일 없음
+- 변경 후: `ConceptNoteModal`(문항별 모달 구조)·`AlertModal`(다크모드 클래스 컨벤션) 패턴을 조합. `SOURCE_LABEL` 맵으로 `QUIZ`→"데일리 퀴즈", `EXAM`→"시험" 표시. `content`는 `[자동 첨부 정보]` 블록(화면·문항 ID·문항 내용 200자 요약, `stripHtml` 적용)과 `[문제 설명]` 블록(사용자 입력)을 개행으로 이어붙여 전송 — 별도 백엔드 필드 없이 기존 `Inquiry.content`(TEXT) 안에서 구조화
+- 이유: 문의 게시판 전체 폼을 거치지 않고 즉시 신고 가능하게 하되, 관리자가 어떤 문항에서 발생했는지 파악할 수 있는 최소 컨텍스트는 자동으로 남겨야 함
+
+#### `frontend/src/app/user/quiz/[categoryId]/page.tsx` / `frontend/src/app/exam/[id]/page.tsx`
+- 변경 전: 버그 신고 진입점 없음(문의 게시판까지 별도 이동 필요)
+- 변경 후: 문제 풀이 중 항상 보이는 위치에 아이콘 추가, 클릭 시 현재 문항(`q.id`, `q.content`)과 카테고리명/시험지명을 `BugReportModal`에 전달
+- 이유: 사용자 피드백("스크래치패드를 열지 않으면 확인하기 힘들다") 반영 — 별도 진입 없이 항상 노출되는 위치가 필요
+
+### 검증
+
+- `npx tsc --noEmit` 통과
+- 브라우저 확인(테스트 사용자 로그인): 퀴즈 풀이 화면에서 아이콘 클릭 → 모달에 "데일리 퀴즈 · 운영체제" + 문항 내용 정상 표시 → 제출 → `GET /api/admin/inquiries`로 `[버그신고] 데일리 퀴즈 - 운영체제` 문의가 `inquiryType: BUG`로 정상 등록됨을 curl로 확인(테스트 데이터는 삭제). 시험 응시 화면(`2026년 제60회 SQLD`)에서도 동일하게 아이콘 클릭 → "시험 · 2026년 제60회 SQLD" 컨텍스트로 정상 등록 확인 후 삭제
+
+---
+
 ## HIST-20260707-001
 
 - **날짜**: 2026-07-07

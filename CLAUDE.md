@@ -210,6 +210,7 @@ rg --files frontend/src/app/admin backend/src/main/java
 | `<CodeAnswerInput value onChange disabled placeholder onCtrlEnter rows />` | `src/components/ui/CodeAnswerInput.tsx` | CODE 유형 멀티라인 monospace 답안 입력 (Tab 들여쓰기·Ctrl+Enter 제출) |
 | `<ColResizeHandle onMouseDown />` | `src/components/ui/ColResizeHandle.tsx` | th 내부 드래그 리사이즈 핸들(얇은 선+8px 히트영역) 캡슐화 |
 | `<AlertModal open message title confirmLabel onClose />` | `src/components/ui/AlertModal.tsx` | 범용 알림 팝업(확인 버튼, ESC·오버레이 클릭으로 닫힘) |
+| `<BugReportModal context={{source, label, questionId?, questionContent?}} onClose />` | `src/components/ui/BugReportModal.tsx` | 퀴즈·시험 풀이 화면 문항 단위 축약 버그 신고 모달 — 문항 정보 자동 첨부 후 설명만 입력하면 1:1 문의(BUG 유형)로 즉시 등록. `source`는 `'QUIZ'\|'EXAM'` |
 | `useColumnResize(storageKey, defaultWidths)` | `src/lib/useColumnResize.ts` | 테이블 컬럼 드래그 리사이즈 훅 — widths 배열 + startResize 핸들러 반환, localStorage 영속 |
 | `<SchedulingProblemTable data className />` | `src/components/ui/SchedulingProblemTable.tsx` | CPU 스케줄링 구조화 문항(SCHEDULING 유형) 표시용 표 — 알고리즘·타임퀀텀 배지 + 프로세스 표 |
 | `<SchedulingProblemEditor value onChange />` | `src/components/ui/SchedulingProblemEditor.tsx` | 스케줄링 문항 등록/수정 에디터 — 알고리즘 select·타임퀀텀·프로세스 행 추가/삭제 |

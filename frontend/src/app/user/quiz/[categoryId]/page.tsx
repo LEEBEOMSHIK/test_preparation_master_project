@@ -8,6 +8,7 @@ import { conceptNoteService } from '@/services/conceptNoteService';
 import { RichContent } from '@/components/ui/RichContent';
 import { QuizCardSkeleton } from '@/components/ui/Skeleton';
 import { ConceptNoteModal } from '@/components/ui/ConceptNoteModal';
+import { BugReportModal } from '@/components/ui/BugReportModal';
 import { ExamResultDisplay } from '@/components/ui/ExamResultDisplay';
 import { CodeBlock } from '@/components/ui/CodeBlock';
 import { SchedulingProblemTable } from '@/components/ui/SchedulingProblemTable';
@@ -148,6 +149,9 @@ function QuizPlayContent() {
   // 개념노트 상태 — questionBankId 기준으로 저장된 노트 맵 + 모달 대상 문항
   const [questionNotes, setQuestionNotes] = useState<Record<number, ConceptNote>>({});
   const [noteTarget, setNoteTarget] = useState<QuizQuestion | null>(null);
+
+  // 버그 신고 모달 표시 여부
+  const [showBugReport, setShowBugReport] = useState(false);
 
   // Derived from current batch
   const correctCount = Object.values(answers).filter(a => a.result?.correct).length;
@@ -371,7 +375,7 @@ function QuizPlayContent() {
   // 앞으로만 진행하는 화면이라 Alt+←는 바인딩하지 않는다.
   // 문항 풀이 화면(phase==='quiz')이고 현재 문항이 있으며 개념노트 모달이 닫혀 있을 때만 동작.
   useEffect(() => {
-    if (phase !== 'quiz' || !q || noteTarget) return;
+    if (phase !== 'quiz' || !q || noteTarget || showBugReport) return;
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (!e.altKey) return;
@@ -389,7 +393,7 @@ function QuizPlayContent() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [phase, q, noteTarget, answerState, inputValue, checking, current, questions.length, answers]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [phase, q, noteTarget, showBugReport, answerState, inputValue, checking, current, questions.length, answers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (phase === 'loading') {
@@ -603,23 +607,34 @@ function QuizPlayContent() {
 
       {/* 문제 카드 */}
       <div className="relative bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
-        {/* 연도/회차 배지 (우측 상단) */}
-        {(q.examYear != null || q.examRound != null) ? (
-          <span className="absolute top-4 right-4 text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
-            {q.examYear != null && q.examRound != null
-              ? `${q.examYear}년 ${q.examRound}회`
-              : q.examYear != null
-              ? `${q.examYear}년`
-              : `${q.examRound}회`}
-          </span>
-        ) : (
-          <span className="absolute top-4 right-4 text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100">
-            AI 커스텀
-          </span>
-        )}
+        {/* 우측 상단: 버그 신고 아이콘 + 연도/회차(또는 AI 커스텀) 배지 */}
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <button
+            onClick={() => setShowBugReport(true)}
+            title="이 문제에 오류가 있나요? 버그 신고"
+            className="w-6 h-6 flex items-center justify-center rounded-full text-gray-300 hover:text-rose-500 hover:bg-rose-50 dark:text-gray-600 dark:hover:text-rose-400 dark:hover:bg-rose-900/30 transition"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+          {(q.examYear != null || q.examRound != null) ? (
+            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+              {q.examYear != null && q.examRound != null
+                ? `${q.examYear}년 ${q.examRound}회`
+                : q.examYear != null
+                ? `${q.examYear}년`
+                : `${q.examRound}회`}
+            </span>
+          ) : (
+            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100">
+              AI 커스텀
+            </span>
+          )}
+        </div>
         {/* 문항 카테고리 배지 — AI 커스텀 전체 등 여러 카테고리가 섞여 출제되는 모드에서 구분용 */}
         {q.categoryName && (
-          <div className="pr-24">
+          <div className="pr-28">
             <span className="inline-block text-xs font-medium rounded-full px-2 py-0.5 bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
               {q.categoryName}
             </span>
@@ -628,7 +643,7 @@ function QuizPlayContent() {
 
         {/* 발문(지시문) — 문항 내용 위에 강조 표시 */}
         {q.instruction && (
-          <p className="text-gray-900 dark:text-gray-100 font-semibold text-base leading-snug whitespace-pre-wrap pr-24">
+          <p className="text-gray-900 dark:text-gray-100 font-semibold text-base leading-snug whitespace-pre-wrap pr-28">
             {q.instruction}
           </p>
         )}
@@ -636,7 +651,7 @@ function QuizPlayContent() {
         <RichContent
           html={q.content}
           className={[
-            'text-base pr-24',
+            'text-base pr-28',
             q.instruction
               ? 'text-gray-700 dark:text-gray-300 font-normal'
               : 'text-gray-800 font-medium',
@@ -877,6 +892,14 @@ function QuizPlayContent() {
           onSaved={(note) =>
             setQuestionNotes(prev => ({ ...prev, [noteTarget.id]: note }))
           }
+        />
+      )}
+
+      {/* 버그 신고 모달 */}
+      {showBugReport && q && (
+        <BugReportModal
+          context={{ source: 'QUIZ', label: categoryName, questionId: q.id, questionContent: q.content }}
+          onClose={() => setShowBugReport(false)}
         />
       )}
     </div>
