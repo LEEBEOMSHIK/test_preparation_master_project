@@ -41,7 +41,7 @@ export default function NewInquiryPage() {
         }
       })
       .catch(() => {
-        setInquiryTypes(['EXAM', 'CONCEPT_NOTE', 'DAILY_QUIZ', 'PRACTICE', 'OTHER']);
+        setInquiryTypes(['EXAM', 'CONCEPT_NOTE', 'DAILY_QUIZ', 'PRACTICE', 'BUG', 'OTHER']);
       })
       .finally(() => setTypesLoading(false));
   }, []);

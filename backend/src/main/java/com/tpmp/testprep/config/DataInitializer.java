@@ -51,7 +51,8 @@ public class DataInitializer implements ApplicationRunner {
         ensureDomainMasterWithCode("EXAM_ROUND", "시험 회차",
                 new String[]{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"});
         ensureDomainMasterWithCode("INQUIRY_CATEGORY", "문의 카테고리",
-                new String[]{"EXAM", "CONCEPT_NOTE", "DAILY_QUIZ", "PRACTICE", "OTHER"});
+                new String[]{"EXAM", "CONCEPT_NOTE", "DAILY_QUIZ", "PRACTICE", "BUG", "OTHER"});
+        ensureInquiryCategoryBugType();
         ensurePermissionMasters();
         ensureDefaultPermissionDetails();
         ensureAdminUserPermissions();
@@ -110,7 +111,7 @@ public class DataInitializer implements ApplicationRunner {
                 "ALTER TABLE inquiries DROP CONSTRAINT IF EXISTS inquiries_inquiry_type_check");
             jdbcTemplate.execute(
                 "ALTER TABLE inquiries ADD CONSTRAINT inquiries_inquiry_type_check " +
-                "CHECK (inquiry_type IN ('EXAM','CONCEPT_NOTE','DAILY_QUIZ','PRACTICE','OTHER'))");
+                "CHECK (inquiry_type IN ('EXAM','CONCEPT_NOTE','DAILY_QUIZ','PRACTICE','BUG','OTHER'))");
             log.info("[DataInitializer] inquiries.inquiry_type_check 제약 재생성 완료");
         } catch (Exception e) {
             log.warn("[DataInitializer] inquiries.inquiry_type_check 제약 재생성 실패: {}", e.getMessage());
@@ -180,6 +181,33 @@ public class DataInitializer implements ApplicationRunner {
                     .build());
         }
         log.info("[DataInitializer] 도메인 '{}' (code={}) 생성 완료 — 슬레이브 {}개", masterName, code, slaveNames.length);
+    }
+
+    /**
+     * INQUIRY_CATEGORY 도메인 마스터는 이미 존재하는 환경이 많아 {@link #ensureDomainMasterWithCode}
+     * (마스터가 없을 때만 슬레이브 전체를 생성)로는 새 카테고리가 추가되지 않는다.
+     * 기존 마스터에 "BUG"(버그 신고) 슬레이브 하나만 없으면 채워 넣는다.
+     */
+    @Transactional
+    public void ensureInquiryCategoryBugType() {
+        var master = domainMasterRepository.findByCode("INQUIRY_CATEGORY").orElse(null);
+        if (master == null) {
+            log.debug("[DataInitializer] INQUIRY_CATEGORY 도메인 마스터가 아직 없음 — BUG 카테고리 추가 건너뜀");
+            return;
+        }
+        var slaves = domainSlaveRepository.findByMasterCode("INQUIRY_CATEGORY");
+        boolean exists = slaves.stream().anyMatch(s -> "BUG".equals(s.getName()));
+        if (exists) {
+            log.debug("[DataInitializer] 문의 카테고리 'BUG' 이미 존재 — 건너뜀");
+            return;
+        }
+        int nextOrder = slaves.stream().mapToInt(DomainSlave::getDisplayOrder).max().orElse(0) + 1;
+        domainSlaveRepository.save(DomainSlave.builder()
+                .master(master)
+                .name("BUG")
+                .displayOrder(nextOrder)
+                .build());
+        log.info("[DataInitializer] 문의 카테고리 'BUG' 신규 추가 완료");
     }
 
     @Transactional

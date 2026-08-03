@@ -4,28 +4,38 @@
 
 ## 현재 목표와 사용자 결정 사항
 
-- 이전 작업(리눅스마스터 2급 exam_info 누락 수정, 커밋 `e661273` 완료) 후 이어서, "리눅스 시험처럼 1차/2차로 나뉜 경우 정보를 빠르게 인지하기 어렵다"는 UX 피드백 처리.
-- 두 가지 대안(회차 그룹핑 vs 가벼운 배지 개선) 제시 후 사용자가 "같은 회차로 묶어서 보여줘" 선택 → 회차 그룹핑 구현.
+- 버그 수정 요청을 위한 별도 메뉴가 필요한지 문의받아, 기존 1:1 문의 재사용을 추천(카테고리만 추가) → 사용자 승인, "버그 신고" 카테고리 추가 진행.
 
 ## 완료한 작업
 
-1. `frontend/src/app/user/exam-info/page.tsx`에 `SESSION_SUFFIX_RE`(제목 끝 "N차" 매칭 정규식)와 `sessionGroups`(useMemo) 추가 — 같은 `examType`+회차(제목에서 "N차" 제거한 부분)를 그룹핑.
-2. 카드 렌더링 로직을 `renderSessionBody(item)` 로컬 함수로 추출(설명·접수/시험/발표 3박스·내 접수 정보 미니 섹션). 그룹 크기가 1이면 기존과 동일한 단일 카드, 2 이상이면 그룹 헤더 아래 1차/2차 서브패널을 `sm:grid-cols-2`로 나란히 배치.
-3. `docs/history/front/usr/UserExamInfo_Modified.md`에 `HIST-20260803-002` 추가.
+1. `Inquiry.InquiryType` enum에 `BUG` 추가.
+2. `DataInitializer.java`:
+   - `fixInquiryTypeConstraint()` CHECK 허용값에 `'BUG'` 추가(매 기동 시 자동 반영).
+   - `ensureDomainMasterWithCode("INQUIRY_CATEGORY", ...)` 시드 배열에 `"BUG"` 추가(신규 DB용).
+   - 기존 마스터에 슬레이브만 보강하는 `ensureInquiryCategoryBugType()` 신규 추가(이미 INQUIRY_CATEGORY가 존재하는 이 환경 같은 경우를 위함) 및 `run()`에 호출 추가.
+3. 프론트: `types/index.ts`(`InquiryType`/`INQUIRY_TYPE_LABEL`), `user/inquiries/new/page.tsx`(폴백 배열)에 `BUG`/"버그 신고" 반영.
+4. 문서화: `docs/history/back/adm/AdminInquiry_Modified.md`, `docs/history/front/usr/UserInquiry_Modified.md`에 각각 `HIST-20260803-001` 추가.
 
 ## 실행한 검증과 결과
 
 | 항목 | 결과 |
 |------|------|
+| `./gradlew compileJava`/`./gradlew test` | 통과 |
 | `npx tsc --noEmit` | 통과 |
-| 브라우저 확인 | 리눅스마스터 1급·2급 각 회차(2601·2602 등)가 카드 하나에 1차/2차 나란히 표시, 세션별 접수/시험/발표 상태 및 "내 접수 정보 입력"이 독립적으로 정상 동작. 정보처리기사 실기(1차/2차 없음)는 기존과 동일한 단일 카드 레이아웃 유지 확인 |
+| 백엔드 재기동 후 DB 확인 | `inquiries_inquiry_type_check`에 BUG 포함, `domain_slave`(INQUIRY_CATEGORY)에 BUG 신규 추가 로그 확인 |
+| 브라우저 e2e | 사용자 화면에서 "버그 신고" 유형으로 문의 등록 → 관리자 화면(`/admin/inquiries`)에서도 "버그 신고"로 정상 표시 확인 |
 
 ## 미완료 작업
 
-- 변경 파일 **미커밋** — 사용자 승인 필요:
-  - `frontend/src/app/user/exam-info/page.tsx`
-  - `docs/history/front/usr/UserExamInfo_Modified.md`
+- 변경 파일 전부 **미커밋** — 사용자 승인 필요:
+  - `backend/src/main/java/com/tpmp/testprep/entity/Inquiry.java`
+  - `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java`
+  - `frontend/src/types/index.ts`
+  - `frontend/src/app/user/inquiries/new/page.tsx`
+  - `docs/history/back/adm/AdminInquiry_Modified.md`
+  - `docs/history/front/usr/UserInquiry_Modified.md`
   - `docs/agent-handoff/CURRENT.md` (본 파일)
+- **알려진 이슈**: 브라우저 검증 중 관리자 문의 목록에서 테스트로 등록한 "테스트: 버그 신고 카테고리 확인" 문의(id=1, 실제 DB 기준 최신 id)를 삭제하려다 `window.confirm()` 네이티브 다이얼로그가 떠서 브라우저 탭이 응답 없음 상태가 됨 — 사용자가 브라우저에서 직접 다이얼로그를 닫아야 함. 문의 데이터 자체는 테스트용이라 남아있어도 무해하며, 원하면 관리자 화면에서 수동으로 삭제 가능.
 
 ## 다음 세션이 바로 실행할 명령
 
@@ -33,22 +43,27 @@
 git status --short
 
 # 사용자 승인 후
-git add frontend/src/app/user/exam-info/page.tsx `
-        docs/history/front/usr/UserExamInfo_Modified.md `
+git add backend/src/main/java/com/tpmp/testprep/entity/Inquiry.java `
+        backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java `
+        frontend/src/types/index.ts `
+        frontend/src/app/user/inquiries/new/page.tsx `
+        docs/history/back/adm/AdminInquiry_Modified.md `
+        docs/history/front/usr/UserInquiry_Modified.md `
         docs/agent-handoff/CURRENT.md
-git commit -m "[FE] feat: 시험정보 화면 같은 회차 1차/2차 카드 그룹핑"
+git commit -m "[FE][BE] feat: 1:1 문의에 버그 신고 카테고리 추가"
 git push origin main
 ```
 
 ## 현재 실행 중인 프로세스
 
 - `tpmp-db-local` (docker, 포트 5432)
-- 백엔드 gradle bootRun (nohup, 포트 8080) — 로그 `/tmp/backend6.log`
-- 프론트 `next dev` (nohup, 포트 3000) — 로그 `/tmp/frontend.log`(이번 변경은 hot-reload로 반영됨, 재기동 불필요했음)
+- 백엔드 gradle bootRun (nohup, 포트 8080) — 이번 변경 반영 재기동 완료, 로그 `/tmp/backend7.log`
+- 프론트 `next dev` (nohup, 포트 3000) — 로그 `/tmp/frontend.log`
+- 관리자 브라우저 탭(Chrome MCP)이 `window.confirm()` 다이얼로그로 응답 없음 상태일 수 있음 — 사용자 확인 필요
 
 ## 주의사항 / 건드리면 안 되는 것
 
 - `docs/db-migration/`의 기존 델타 34개 — 수정·삭제 금지.
-- exam_info류 시드 데이터는 `docs/db-migration/` SQL이 아니라 **`DataInitializer.java`의 `ensure*ExamInfo()` 메서드**로 관리하는 것이 이 프로젝트의 확립된 패턴.
-- 세션 그룹핑은 제목이 정확히 `"... N차"` 형식으로 끝나야 인식된다(`SESSION_SUFFIX_RE`). 향후 시험 정보 제목 컨벤션을 바꿀 경우 이 정규식도 함께 검토할 것.
+- CHECK 제약이 걸린 enum류(question_type, inquiry_type 등) 값 목록을 이 프로젝트에서 관리하는 방식은 두 갈래다: (1) `DataInitializer`의 `fix*Constraint()` 메서드(매 기동 시 DROP/재생성, inquiry_type이 이 방식) — 이 경우 baseline_schema.sql은 건드릴 필요 없음(부팅 시 자동 교정). (2) 이번 세션 초반에 발견한 `question_type`처럼 이런 자동 교정 메서드가 없던 경우는 baseline_schema.sql에 가드 블록을 직접 추가해야 함. 새 CHECK enum 값을 추가할 때 이 둘 중 어느 쪽 관리 방식인지 먼저 확인할 것.
+- 브라우저 자동화 시 `confirm()`/`alert()`를 띄우는 버튼(삭제 등)은 클릭 금지 — 클릭하면 탭이 응답 없음 상태가 되고 사용자가 직접 닫아야 함.
 - `.env`의 `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` 라인은 주석 처리된 채로 둘 것(로컬 전용).
