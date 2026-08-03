@@ -31,7 +31,19 @@ export interface QuizHistoryParams {
   size?: number;
 }
 
+export interface QuizDomainStat {
+  domainName: string;
+  totalQuestions: number;
+}
+
+export interface QuizDomainStatParams {
+  from?: string;
+  to?: string;
+}
+
 export const adminQuizHistoryService = {
   getList: (params: QuizHistoryParams) =>
     apiClient.get<ApiResponse<QuizHistoryPage>>('/admin/quiz-history', { params }),
+  getDomainStats: (params: QuizDomainStatParams) =>
+    apiClient.get<ApiResponse<QuizDomainStat[]>>('/admin/quiz-history/domain-stats', { params }),
 };

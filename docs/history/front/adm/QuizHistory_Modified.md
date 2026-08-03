@@ -1,3 +1,35 @@
+## HIST-20260804-002
+
+- **날짜**: 2026-08-04
+- **수정 범위**: 관리자 프론트엔드 / 퀴즈 이력 — 컬럼 겹침 수정 + 도메인별 풀이량 차트 추가
+- **수정 개요**: 사용자가 두 가지를 지적 — (1) "퀴즈 풀이 이력 데이터 컬럼의 겹침 현상이 있다", (2) "어떤 카테고리를 많이 푸는지 통계가 확인이 안 된다". (1)은 "유형" 컬럼에 `MULTIPLE_CHOICE`/`SHORT_ANSWER` 같은 원본 enum 문자열을 `whitespace-nowrap`으로만 표시하고 `overflow-hidden`이 없어, 컬럼 너비(90px)보다 텍스트가 길 때 옆 "정답" 컬럼 위로 겹쳐 보이는 문제였다. (2)는 `user/dashboard/page.tsx`의 "도메인별 풀이량" 수평 BarChart 패턴을 그대로 이식해 화면 상단에 추가했다(→ 백엔드 `docs/history/back/adm/QuizHistory_Modified.md` HIST-20260804-003).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/adminQuizHistoryService.ts` | 수정 | `QuizDomainStat`/`QuizDomainStatParams` 타입 + `getDomainStats(params)` 추가 (`GET /admin/quiz-history/domain-stats`) |
+| `frontend/src/app/admin/quiz/history/page.tsx` | 수정 | (1) "유형" 컬럼을 `admin/exams/questions/page.tsx`와 동일한 `TYPE_LABEL`/`TYPE_COLOR` 배지로 교체(짧은 한글 라벨 + 색상 칩) — 겹침 원인인 긴 enum 문자열 노출 제거. 모든 `td`/`th`에 `overflow-hidden` 방어적으로 추가(향후 유사 겹침 재발 방지). (2) 검색 폼 아래·목록 위에 recharts 수평 BarChart("도메인별 풀이량") 섹션 추가 — 날짜 필터(`dateFrom`/`dateTo`)와 연동되어 검색/초기화 시 함께 갱신. `useColumnResize` 키 `v1`→`v2`(컬럼 너비 값 변경) |
+
+### 수정 상세
+
+#### `frontend/src/services/adminQuizHistoryService.ts`
+- 변경 전: `getList`만 존재
+- 변경 후: `getDomainStats({from, to})` 추가, `QuizDomainStat { domainName, totalQuestions }` 타입 추가
+- 이유: 신규 백엔드 통계 엔드포인트 연동
+
+#### `frontend/src/app/admin/quiz/history/page.tsx`
+- 변경 전: "유형" `td`가 `<td ... whitespace-nowrap>{item.questionType}</td>`로 원본 문자열을 그대로 노출해 좁은 컬럼에서 옆 컬럼과 겹쳐 보임
+- 변경 후: `TYPE_LABEL`(`MULTIPLE_CHOICE`→"객관식" 등)·`TYPE_COLOR` 상수를 로컬에 정의(다른 화면과 동일한 라벨·색상 매핑, 공용 유틸 추출 기준인 "2곳 이상 동일 로직"에는 아직 못 미쳐 로컬 유지)해 배지로 렌더. 도메인별 풀이량 BarChart는 `quizDomainMaxCount`/`quizDomainChartData` 계산 방식(오름차순 정렬 후 vertical layout — 많이 푼 도메인이 위로 오도록)까지 `user/dashboard/page.tsx`와 동일하게 이식
+- 이유: 짧은 라벨로 겹침 원인 제거 + 기존 통계 시각화 컨벤션과 일관성 유지
+
+### 검증
+
+- `npx tsc --noEmit` 통과
+- 브라우저 확인: 테이블 전 행에서 "유형" 배지가 옆 "정답" 컬럼과 겹치지 않고 정상 표시됨을 확인(스크롤하며 10건 전체 확인). 상단 "도메인별 풀이량" 차트가 풀이수 내림차순(차트상으로는 오름차순 정렬 후 위로 갈수록 많음)으로 정상 렌더링되고, 날짜 필터 적용 시 차트도 함께 좁혀짐을 확인
+
+---
+
 ## HIST-20260804-001
 
 - **날짜**: 2026-08-04

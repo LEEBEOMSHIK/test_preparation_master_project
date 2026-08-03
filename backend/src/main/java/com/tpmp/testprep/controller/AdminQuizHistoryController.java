@@ -2,6 +2,7 @@ package com.tpmp.testprep.controller;
 
 import com.tpmp.testprep.dto.response.ApiResponse;
 import com.tpmp.testprep.dto.response.PagedResponse;
+import com.tpmp.testprep.dto.response.QuizDomainStatResponse;
 import com.tpmp.testprep.dto.response.QuizHistoryResponse;
 import com.tpmp.testprep.service.QuizHistoryService;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/quiz-history")
@@ -32,5 +34,12 @@ public class AdminQuizHistoryController {
 
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return ApiResponse.success(quizHistoryService.getQuizHistories(keyword, type, from, to, pageable));
+    }
+
+    @GetMapping("/domain-stats")
+    public ApiResponse<List<QuizDomainStatResponse>> getDomainStats(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ApiResponse.success(quizHistoryService.getDomainStats(from, to));
     }
 }

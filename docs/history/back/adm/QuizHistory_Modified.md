@@ -1,3 +1,41 @@
+## HIST-20260804-003
+
+- **날짜**: 2026-08-04
+- **수정 범위**: 관리자 백엔드 / 퀴즈 이력 — 도메인별 풀이량 통계 API 추가
+- **수정 개요**: 사용자가 "퀴즈 풀이 이력 화면에서 어떤 카테고리를 많이 푸는지 통계 확인이 안 된다"고 지적. 사용자용 통계 대시보드(`UserDashboardService.getDashboard()`)에 이미 있는 "도메인별 풀이량"(`aggregateDomainStatsByUserAndPeriod`, 특정 사용자 1인 기준) 집계 패턴을 참고해, 관리자 화면에서는 특정 사용자가 아닌 **전체 사용자 합산** 기준으로 도메인별 풀이량을 반환하는 신규 엔드포인트를 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/QuizHistoryRepository.java` | 수정 | `aggregateDomainStatsBetween(from, to)` 추가 — 사용자 구분 없이 기간 내 `domainName`별 `COUNT` 집계, 풀이수 내림차순 |
+| `backend/src/main/java/com/tpmp/testprep/service/QuizHistoryService.java` | 수정 | `getDomainStats(from, to)` 추가 — `getQuizHistories`와 동일한 날짜 범위 기본값 로직(from 없으면 2000-01-01, to 없으면 오늘) 재사용, 기존 `QuizDomainStatResponse` DTO(사용자 대시보드와 공용) 반환 |
+| `backend/src/main/java/com/tpmp/testprep/controller/AdminQuizHistoryController.java` | 수정 | `GET /api/admin/quiz-history/domain-stats?from=&to=` 추가 |
+
+### 수정 상세
+
+#### `backend/.../repository/QuizHistoryRepository.java`
+- 변경 전: 사용자 1인 기준 도메인 집계(`aggregateDomainStatsByUserAndPeriod`)만 존재
+- 변경 후: `WHERE q.createdAt >= :from AND q.createdAt < :to AND q.domainName IS NOT NULL GROUP BY q.domainName ORDER BY COUNT(q) DESC` — 사용자 필터 없이 전체 합산
+- 이유: 관리자는 "어떤 카테고리가 전체적으로 많이 풀리는지"가 필요하지, 특정 사용자 개인 통계가 필요한 게 아님
+
+#### `backend/.../service/QuizHistoryService.java`
+- 변경 전: `getDomainStats` 없음
+- 변경 후: `getQuizHistories`와 동일한 패턴으로 `from`/`to` 미지정 시 각각 2000-01-01/오늘로 기본값 처리 후 리포지토리 호출 결과를 `QuizDomainStatResponse` 리스트로 매핑
+- 이유: 목록 조회와 통계 조회의 기간 필터 의미를 일치시켜 사용자 혼동 방지(목록에서 기간을 좁히면 통계도 같은 기간 기준으로 좁혀짐)
+
+#### `backend/.../controller/AdminQuizHistoryController.java`
+- 변경 전: `GET /api/admin/quiz-history`만 존재
+- 변경 후: `GET /api/admin/quiz-history/domain-stats` 하위 경로 추가
+- 이유: 목록 API와 같은 리소스(퀴즈 이력) 하위의 집계 뷰이므로 별도 컨트롤러 대신 같은 컨트롤러에 엔드포인트만 추가
+
+### 검증
+
+- `./gradlew compileJava` 성공
+- 백엔드 재기동 후 curl 확인: 기간 미지정 시 전체 7개 도메인 집계 정상 반환, `from=2026-08-04&to=2026-08-04`로 좁히면 해당 날짜(KST)에 속한 2개 도메인만 정상 필터링됨을 확인
+
+---
+
 ## HIST-20260804-002
 
 - **날짜**: 2026-08-04

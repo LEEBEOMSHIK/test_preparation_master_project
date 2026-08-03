@@ -79,4 +79,17 @@ public interface QuizHistoryRepository extends JpaRepository<QuizHistory, Long> 
     List<Object[]> aggregateDailyStatsByUserAndPeriod(
             @Param("userId") Long userId,
             @Param("from") LocalDateTime from);
+
+    /** 관리자 퀴즈 이력 통계용 — 기간 내 전체 사용자 도메인별 풀이량(풀이수 내림차순), domainName 없는 행 제외 */
+    @Query("""
+            SELECT q.domainName, COUNT(q)
+            FROM QuizHistory q
+            WHERE q.createdAt >= :from AND q.createdAt < :to
+              AND q.domainName IS NOT NULL
+            GROUP BY q.domainName
+            ORDER BY COUNT(q) DESC
+            """)
+    List<Object[]> aggregateDomainStatsBetween(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
 }

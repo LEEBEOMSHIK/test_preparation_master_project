@@ -1,7 +1,15 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { adminQuizHistoryService, type QuizHistoryItem, type QuizHistoryParams } from '@/services/adminQuizHistoryService';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+} from 'recharts';
+import {
+  adminQuizHistoryService,
+  type QuizHistoryItem,
+  type QuizHistoryParams,
+  type QuizDomainStat,
+} from '@/services/adminQuizHistoryService';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useColumnResize } from '@/lib/useColumnResize';
 import { ColResizeHandle } from '@/components/ui/ColResizeHandle';
@@ -9,6 +17,24 @@ import { Pagination } from '@/components/ui/Pagination';
 import { stripHtml } from '@/lib/html';
 
 const PAGE_SIZE = 20;
+
+const TYPE_LABEL: Record<string, string> = {
+  MULTIPLE_CHOICE: '객관식',
+  SHORT_ANSWER: '주관식',
+  OX: 'O/X',
+  CODE: '코드',
+  SCHEDULING: '스케줄링',
+  SQL: 'SQL',
+};
+
+const TYPE_COLOR: Record<string, string> = {
+  MULTIPLE_CHOICE: 'bg-blue-50 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400',
+  SHORT_ANSWER:    'bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400',
+  OX:              'bg-amber-50 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400',
+  CODE:            'bg-violet-50 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400',
+  SCHEDULING:      'bg-teal-50 text-teal-600 dark:bg-teal-900/40 dark:text-teal-400',
+  SQL:             'bg-cyan-50 text-cyan-600 dark:bg-cyan-900/40 dark:text-cyan-400',
+};
 
 function formatDateTime(iso: string) {
   const d = new Date(iso);
@@ -26,12 +52,15 @@ export default function QuizHistoryPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
 
+  const [domainStats, setDomainStats] = useState<QuizDomainStat[]>([]);
+  const [domainStatsLoading, setDomainStatsLoading] = useState(true);
+
   const [keyword, setKeyword] = useState('');
   const [searchType, setSearchType] = useState<'name' | 'email' | 'domain'>('name');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  const { widths, startResize } = useColumnResize('tpmp:admin-quiz-history:col-widths:v1', [56, 100, 180, 100, 320, 90, 70, 140, 160]);
+  const { widths, startResize } = useColumnResize('tpmp:admin-quiz-history:col-widths:v2', [56, 90, 170, 110, 300, 100, 70, 130, 150]);
 
   const fetchData = useCallback((params: QuizHistoryParams) => {
     setLoading(true);
@@ -49,9 +78,22 @@ export default function QuizHistoryPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const fetchDomainStats = useCallback((from?: string, to?: string) => {
+    setDomainStatsLoading(true);
+    adminQuizHistoryService.getDomainStats({ from, to })
+      .then((res) => {
+        if (res.data.success && res.data.data) {
+          setDomainStats(res.data.data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setDomainStatsLoading(false));
+  }, []);
+
   useEffect(() => {
     fetchData({ page: 0, size: PAGE_SIZE });
-  }, [fetchData]);
+    fetchDomainStats(undefined, undefined);
+  }, [fetchData, fetchDomainStats]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +105,7 @@ export default function QuizHistoryPage() {
       page: 0,
       size: PAGE_SIZE,
     });
+    fetchDomainStats(dateFrom || undefined, dateTo || undefined);
   };
 
   const handleReset = () => {
@@ -71,6 +114,7 @@ export default function QuizHistoryPage() {
     setDateFrom('');
     setDateTo('');
     fetchData({ page: 0, size: PAGE_SIZE });
+    fetchDomainStats(undefined, undefined);
   };
 
   const handlePage = (page: number) => {
@@ -83,6 +127,11 @@ export default function QuizHistoryPage() {
       size: PAGE_SIZE,
     });
   };
+
+  const domainChartData = [...domainStats]
+    .sort((a, b) => a.totalQuestions - b.totalQuestions) // recharts vertical layout renders top-down bottom-up
+    .map((d) => ({ name: d.domainName, count: d.totalQuestions }));
+  const domainMaxCount = domainChartData.reduce((max, d) => Math.max(max, d.count), 1);
 
   return (
     <div className="space-y-4">
@@ -145,6 +194,56 @@ export default function QuizHistoryPage() {
         </div>
       </form>
 
+      {/* 도메인(카테고리)별 풀이량 */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">
+          도메인별 풀이량 {dateFrom || dateTo ? '(조회 기간 기준)' : '(전체 기간)'}
+        </p>
+        {domainStatsLoading ? (
+          <div className="h-40 animate-pulse bg-gray-100 dark:bg-gray-800 rounded-lg" />
+        ) : domainChartData.length === 0 ? (
+          <p className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">집계할 풀이 이력이 없습니다.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={Math.max(160, domainChartData.length * 36)}>
+            <BarChart
+              layout="vertical"
+              data={domainChartData}
+              margin={{ left: 8, right: 24, top: 0, bottom: 0 }}
+              barCategoryGap="30%"
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f3f4f6" />
+              <XAxis
+                type="number"
+                domain={[0, domainMaxCount]}
+                tick={{ fontSize: 10, fill: '#9ca3af' }}
+                axisLine={false}
+                tickLine={false}
+                allowDecimals={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={100}
+                tick={{ fontSize: 11, fill: '#6b7280' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                cursor={{ fill: 'rgba(0,0,0,0.03)' }}
+                contentStyle={{
+                  fontSize: 12,
+                  borderRadius: 8,
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                }}
+                formatter={(v) => [typeof v === 'number' ? `${v}문제` : '', '풀이 수']}
+              />
+              <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#6366f1" />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
       {/* 결과 수 */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -164,41 +263,48 @@ export default function QuizHistoryPage() {
             <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative">No<ColResizeHandle onMouseDown={(e) => startResize(0, e)} /></th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative">회원 이름<ColResizeHandle onMouseDown={(e) => startResize(1, e)} /></th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative">이메일<ColResizeHandle onMouseDown={(e) => startResize(2, e)} /></th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative">도메인<ColResizeHandle onMouseDown={(e) => startResize(3, e)} /></th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative">문항 내용<ColResizeHandle onMouseDown={(e) => startResize(4, e)} /></th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative">유형<ColResizeHandle onMouseDown={(e) => startResize(5, e)} /></th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative">정답<ColResizeHandle onMouseDown={(e) => startResize(6, e)} /></th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative">제출 답안<ColResizeHandle onMouseDown={(e) => startResize(7, e)} /></th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap relative">풀이 일시</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative overflow-hidden">No<ColResizeHandle onMouseDown={(e) => startResize(0, e)} /></th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative overflow-hidden">회원 이름<ColResizeHandle onMouseDown={(e) => startResize(1, e)} /></th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative overflow-hidden">이메일<ColResizeHandle onMouseDown={(e) => startResize(2, e)} /></th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative overflow-hidden">도메인<ColResizeHandle onMouseDown={(e) => startResize(3, e)} /></th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative overflow-hidden">문항 내용<ColResizeHandle onMouseDown={(e) => startResize(4, e)} /></th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative overflow-hidden">유형<ColResizeHandle onMouseDown={(e) => startResize(5, e)} /></th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative overflow-hidden">정답<ColResizeHandle onMouseDown={(e) => startResize(6, e)} /></th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative overflow-hidden">제출 답안<ColResizeHandle onMouseDown={(e) => startResize(7, e)} /></th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap relative overflow-hidden">풀이 일시</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {items.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
-                  <td className="px-4 py-3 text-gray-400 dark:text-gray-500 tabular-nums">{item.no}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100 truncate">{item.userName}</td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 truncate">{item.userEmail}</td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 truncate">{item.domainName ?? '-'}</td>
+                  <td className="px-4 py-3 text-gray-400 dark:text-gray-500 tabular-nums overflow-hidden truncate">{item.no}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100 overflow-hidden truncate" title={item.userName}>{item.userName}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 overflow-hidden truncate" title={item.userEmail}>{item.userEmail}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 overflow-hidden truncate" title={item.domainName ?? undefined}>{item.domainName ?? '-'}</td>
                   <td className="px-4 py-3 text-gray-700 dark:text-gray-300 overflow-hidden truncate" title={item.questionContent ? stripHtml(item.questionContent) : undefined}>
                     {item.questionContent ? stripHtml(item.questionContent) : <span className="text-gray-300 dark:text-gray-600">(삭제된 문항)</span>}
                   </td>
-                  <td className="px-4 py-3 text-center text-gray-500 dark:text-gray-400 whitespace-nowrap">{item.questionType}</td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-4 py-3 text-center overflow-hidden">
                     <span className={[
-                      'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+                      'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap',
+                      TYPE_COLOR[item.questionType] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+                    ].join(' ')}>
+                      {TYPE_LABEL[item.questionType] ?? item.questionType}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center overflow-hidden">
+                    <span className={[
+                      'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap',
                       item.correct ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
                                    : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400',
                     ].join(' ')}>
                       {item.correct ? '정답' : '오답'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 truncate" title={item.userAnswer ?? undefined}>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 overflow-hidden truncate" title={item.userAnswer ?? undefined}>
                     {item.userAnswer ?? <span className="text-gray-300 dark:text-gray-600">-</span>}
                   </td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 tabular-nums whitespace-nowrap">{formatDateTime(item.createdAt)}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 tabular-nums whitespace-nowrap overflow-hidden">{formatDateTime(item.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

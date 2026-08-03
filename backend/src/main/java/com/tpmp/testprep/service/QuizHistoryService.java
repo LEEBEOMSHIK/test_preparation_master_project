@@ -1,6 +1,7 @@
 package com.tpmp.testprep.service;
 
 import com.tpmp.testprep.dto.response.PagedResponse;
+import com.tpmp.testprep.dto.response.QuizDomainStatResponse;
 import com.tpmp.testprep.dto.response.QuizHistoryResponse;
 import com.tpmp.testprep.entity.QuestionBank;
 import com.tpmp.testprep.entity.QuizHistory;
@@ -63,5 +64,15 @@ public class QuizHistoryService {
         Page<QuizHistoryResponse> mapped = page.map(h -> QuizHistoryResponse.from(
                 h, counter.getAndDecrement(), questionBankById.get(h.getQuestionBankId())));
         return PagedResponse.from(mapped);
+    }
+
+    /** 관리자 퀴즈 이력 화면 — 기간 내 전체 사용자 도메인(카테고리)별 풀이량, 풀이수 내림차순 */
+    public List<QuizDomainStatResponse> getDomainStats(LocalDate from, LocalDate to) {
+        LocalDateTime fromDt = (from != null ? from : LocalDate.of(2000, 1, 1)).atStartOfDay();
+        LocalDateTime toDt = (to != null ? to : LocalDate.now()).atTime(LocalTime.MAX);
+
+        return quizHistoryRepository.aggregateDomainStatsBetween(fromDt, toDt).stream()
+                .map(row -> new QuizDomainStatResponse((String) row[0], ((Number) row[1]).longValue()))
+                .toList();
     }
 }
