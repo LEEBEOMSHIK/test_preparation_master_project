@@ -1,3 +1,30 @@
+## HIST-20260804-002
+
+- **날짜**: 2026-08-04
+- **수정 범위**: 관리자 백엔드 / 메뉴 — 퀴즈 이력 관리 사이드바 메뉴 추가
+- **수정 개요**: HIST-20260804-001에서 `/admin/quiz/history` 화면을 만들었으나 사이드바 메뉴에 등록하지 않아(`/admin/exams/history`와 동일 패턴으로 대시보드 카드로만 진입) 사용자가 "왼쪽 메뉴에 보이지 않는다"고 지적. `menu_config`를 확인한 결과 "연습장 관리 > 기록 관리"처럼 이력 화면도 사이드바에 노출되는 사례가 있어 일관성 없는 예외였음을 확인, `ensureSupportSettingsMenu()`와 동일한 패턴으로 최상위 ADMIN 메뉴 항목을 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java` | 수정 | `ensureQuizHistoryMenu()` 추가 — `menu_config`에 "퀴즈 이력 관리"(`/admin/quiz/history`, iconKey `quiz`, displayOrder 13, ADMIN 전용) idempotent 삽입, init 시퀀스에 `ensureSupportSettingsMenu()` 다음으로 호출 추가 |
+
+### 수정 상세
+
+#### `backend/.../config/DataInitializer.java`
+- 변경 전: `/admin/quiz/history`에 대응하는 `menu_config` 행 없음
+- 변경 후: `ensureQuizHistoryMenu()`가 `existsByUrl` 체크 후 없으면 `saveMenu(null, "퀴즈 이력 관리", "/admin/quiz/history", "quiz", 13, ADMIN, "ADMIN")` 실행
+- 이유: 프론트 `AdminLayoutShell.tsx`의 `ICON_MAP`에 이미 `quiz` 아이콘이 정의돼 있어(USER "데일리 퀴즈" 메뉴에서 재사용) 별도 아이콘 추가 없이 바로 적용 가능
+
+### 검증
+
+- `./gradlew compileJava` 성공
+- 백엔드 재기동 후 `menu_config` 테이블에 `id=36, 퀴즈 이력 관리, /admin/quiz/history, quiz, 13` 행이 정상 삽입됨을 SQL로 확인
+- 브라우저 확인: 사이드바 "후원 링크 관리"와 "테스트 케이스 관리" 사이에 "퀴즈 이력 관리" 항목이 표시되고, 클릭 시 `/admin/quiz/history`로 정상 이동하며 헤더 타이틀도 "퀴즈 이력 관리"로 올바르게 표시됨을 확인
+
+---
+
 ## HIST-20260804-001
 
 - **날짜**: 2026-08-04

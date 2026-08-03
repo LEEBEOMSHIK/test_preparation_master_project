@@ -66,6 +66,7 @@ public class DataInitializer implements ApplicationRunner {
         ensureDashboardMenu();
         ensurePracticeAdminMenus();
         ensureSupportSettingsMenu();
+        ensureQuizHistoryMenu();
         ensureUserMenuGroups();
         ensurePermissionMenuAssociations();
         ensureQnetPracticalExamInfo();
@@ -514,6 +515,13 @@ public class DataInitializer implements ApplicationRunner {
         if (!menuConfigRepository.existsByUrl("/admin/support-settings")) {
             saveMenu(null, "후원 링크 관리", "/admin/support-settings", "support", 12, MenuConfig.MenuType.ADMIN, "ADMIN");
             log.info("[DataInitializer] 후원 링크 관리 메뉴 추가 완료");
+        }
+    }
+
+    private void ensureQuizHistoryMenu() {
+        if (!menuConfigRepository.existsByUrl("/admin/quiz/history")) {
+            saveMenu(null, "퀴즈 이력 관리", "/admin/quiz/history", "quiz", 13, MenuConfig.MenuType.ADMIN, "ADMIN");
+            log.info("[DataInitializer] 퀴즈 이력 관리 메뉴 추가 완료");
         }
     }
 
