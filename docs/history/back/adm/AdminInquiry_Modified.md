@@ -1,3 +1,25 @@
+## HIST-20260804-002
+
+- **날짜**: 2026-08-04
+- **수정 범위**: 관리자 백엔드 / 대시보드 — 퀴즈 풀이 통계 추가
+- **수정 개요**: 대시보드에 "시험"(exam) 통계는 있는데 "퀴즈"(데일리 퀴즈) 통계가 전혀 없다는 지적에 따라, 시험 통계와 동일한 패턴(오늘 카운트 + 일별 추이)으로 퀴즈 통계를 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/QuizHistoryRepository.java` | 수정 | 관리자 대시보드용 `countByCreatedAtBetween`(파생 쿼리), `countDailyByCreatedAtBetween`(날짜별 집계, 전체 사용자 대상 — 기존 사용자별 집계 메서드들과 구분) 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/DashboardStatsResponse.java` | 수정 | `todayQuizAttemptCount` 필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/DashboardTrendResponse.java` | 수정 | `quizTrend` 필드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/DashboardService.java` | 수정 | `getStats()`/`getTrend()`에 퀴즈 집계 반영, `QuizHistoryRepository` 의존성 추가 |
+
+### 검증
+
+- `./gradlew compileJava`/`./gradlew test` 통과.
+- 실제로 퀴즈 문항 1개를 풀어 `todayQuizAttemptCount:1`, `quizTrend`의 오늘 날짜 `count:1` 정상 반영 확인 후 테스트 데이터 정리.
+
+---
+
 ## HIST-20260804-001
 
 - **날짜**: 2026-08-04

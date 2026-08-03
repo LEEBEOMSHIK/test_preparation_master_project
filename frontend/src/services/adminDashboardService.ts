@@ -9,6 +9,7 @@ export interface DashboardStats {
   totalExamCount: number;
   totalMemberCount: number;
   todayExamAttemptCount: number;
+  todayQuizAttemptCount: number;
 }
 
 export interface DayCount {
@@ -20,6 +21,7 @@ export interface DashboardTrend {
   loginTrend: DayCount[];
   examTrend: DayCount[];
   inquiryTrend: DayCount[];
+  quizTrend: DayCount[];
 }
 
 export const adminDashboardService = {

@@ -7,6 +7,7 @@ import com.tpmp.testprep.repository.ExamHistoryRepository;
 import com.tpmp.testprep.repository.ExamRepository;
 import com.tpmp.testprep.repository.InquiryRepository;
 import com.tpmp.testprep.repository.LoginHistoryRepository;
+import com.tpmp.testprep.repository.QuizHistoryRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,7 @@ public class DashboardService {
     private final InquiryRepository inquiryRepository;
     private final ExamRepository examRepository;
     private final UserRepository userRepository;
+    private final QuizHistoryRepository quizHistoryRepository;
 
     public DashboardStatsResponse getStats() {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
@@ -45,6 +47,7 @@ public class DashboardService {
         long totalExamCount = examRepository.countByDelYn("N");
         long totalMemberCount = userRepository.count();
         long todayExamAttemptCount = examHistoryService.countTodayExamAttempts();
+        long todayQuizAttemptCount = quizHistoryRepository.countByCreatedAtBetween(todayStart, todayEnd);
 
         return new DashboardStatsResponse(
                 todayLoginCount,
@@ -53,7 +56,8 @@ public class DashboardService {
                 pendingBugCount,
                 totalExamCount,
                 totalMemberCount,
-                todayExamAttemptCount
+                todayExamAttemptCount,
+                todayQuizAttemptCount
         );
     }
 
@@ -67,11 +71,13 @@ public class DashboardService {
         Map<LocalDate, Long> loginCounts = toDailyCountMap(loginHistoryRepository.countDailyByLoginAtBetween(from, to));
         Map<LocalDate, Long> examCounts = toDailyCountMap(examHistoryRepository.countDailyByTakenAtBetween(from, to));
         Map<LocalDate, Long> inquiryCounts = toDailyCountMap(inquiryRepository.countDailyByCreatedAtBetween(from, to));
+        Map<LocalDate, Long> quizCounts = toDailyCountMap(quizHistoryRepository.countDailyByCreatedAtBetween(from, to));
 
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MM/dd");
         List<DashboardTrendResponse.DayCount> loginTrend = new ArrayList<>();
         List<DashboardTrendResponse.DayCount> examTrend = new ArrayList<>();
         List<DashboardTrendResponse.DayCount> inquiryTrend = new ArrayList<>();
+        List<DashboardTrendResponse.DayCount> quizTrend = new ArrayList<>();
 
         for (int i = days - 1; i >= 0; i--) {
             LocalDate date = today.minusDays(i);
@@ -80,9 +86,10 @@ public class DashboardService {
             loginTrend.add(new DashboardTrendResponse.DayCount(label, loginCounts.getOrDefault(date, 0L)));
             examTrend.add(new DashboardTrendResponse.DayCount(label, examCounts.getOrDefault(date, 0L)));
             inquiryTrend.add(new DashboardTrendResponse.DayCount(label, inquiryCounts.getOrDefault(date, 0L)));
+            quizTrend.add(new DashboardTrendResponse.DayCount(label, quizCounts.getOrDefault(date, 0L)));
         }
 
-        return new DashboardTrendResponse(loginTrend, examTrend, inquiryTrend);
+        return new DashboardTrendResponse(loginTrend, examTrend, inquiryTrend, quizTrend);
     }
 
     // CAST(... AS date) 결과가 Hibernate 경로에 따라 java.sql.Date/LocalDate 둘 다로 올 수 있어 함께 처리

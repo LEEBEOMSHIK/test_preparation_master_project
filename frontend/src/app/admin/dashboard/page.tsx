@@ -238,6 +238,23 @@ export default function AdminDashboardPage() {
           />
         </Section>
 
+        {/* 퀴즈 */}
+        <Section title="퀴즈" dot="bg-purple-500">
+          <StatCard
+            title="오늘 퀴즈 풀이"
+            value={stats?.todayQuizAttemptCount ?? 0}
+            description="오늘 데일리 퀴즈를 풀이한 횟수"
+            href="/admin/quiz/history"
+            color="bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400"
+            loading={loadingStats}
+            icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zM12 17h.007v.008H12V17z" />
+              </svg>
+            }
+          />
+        </Section>
+
         {/* 문의 */}
         <Section title="문의" dot="bg-amber-500">
           <StatCard
@@ -305,7 +322,7 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <TrendChart
               title="로그인"
               data={trend?.loginTrend ?? empty}
@@ -317,6 +334,13 @@ export default function AdminDashboardPage() {
               title="시험 응시"
               data={trend?.examTrend ?? empty}
               barColor="#10b981"
+              loading={loadingTrend}
+              period={period}
+            />
+            <TrendChart
+              title="퀴즈 풀이"
+              data={trend?.quizTrend ?? empty}
+              barColor="#a855f7"
               loading={loadingTrend}
               period={period}
             />

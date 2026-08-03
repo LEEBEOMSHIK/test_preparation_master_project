@@ -1,3 +1,41 @@
+## HIST-20260804-003
+
+- **날짜**: 2026-08-04
+- **수정 범위**: 관리자 프론트엔드 / 대시보드 — "오늘 퀴즈 풀이" 카드 링크 변경
+- **수정 개요**: 사용자가 "퀴즈 카드가 카테고리 구분 없이 범용 DB 조회 화면(`/admin/tables/data`)으로 연결되는 게 맞냐"고 문제를 제기(의도된 카테고리 무관 집계는 맞으나, 링크 대상이 목적에 맞지 않는 화면이었음을 인정). HIST-20260804-002에서 임시로 연결했던 `/admin/tables/data`를 신규로 만든 전용 퀴즈 이력 화면 `/admin/quiz/history`(→ `docs/history/front/adm/QuizHistory_Modified.md`, `docs/history/back/adm/QuizHistory_Modified.md`)로 교체.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/dashboard/page.tsx` | 수정 | "오늘 퀴즈 풀이" `StatCard`의 `href`를 `/admin/tables/data` → `/admin/quiz/history`로 변경 |
+
+### 검증
+
+- 브라우저 확인: 대시보드에서 새 경로로 직접 접근 시 퀴즈 이력 목록 화면이 정상 렌더링됨을 확인(상세 검증은 `docs/history/front/adm/QuizHistory_Modified.md` 참고)
+
+---
+
+## HIST-20260804-002
+
+- **날짜**: 2026-08-04
+- **수정 범위**: 관리자 프론트엔드 / 대시보드 — "퀴즈" 섹션 신설
+- **수정 개요**: "시험" 섹션과 나란히 "퀴즈" 섹션을 신설해 "오늘 퀴즈 풀이" 카드를 추가했다(→ `docs/history/back/adm/AdminInquiry_Modified.md` HIST-20260804-002에서 백엔드 통계 추가 부분 참고). 추이 영역에도 "퀴즈 풀이" 차트를 추가했고, 4개 차트를 깔끔히 배치하기 위해 grid를 `sm:grid-cols-3` → `sm:grid-cols-2 lg:grid-cols-4`로 조정했다. 퀴즈 이력을 위한 전용 관리자 목록 화면이 아직 없어 카드 링크는 범용 "DB 조회"(`/admin/tables/data`) 화면으로 연결했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/adminDashboardService.ts` | 수정 | `DashboardStats`에 `todayQuizAttemptCount`, `DashboardTrend`에 `quizTrend` 필드 추가 |
+| `frontend/src/app/admin/dashboard/page.tsx` | 수정 | "퀴즈" `Section`(보라색) 신설 + "오늘 퀴즈 풀이" `StatCard`(질문 아이콘, `href="/admin/tables/data"`) 추가. 추이 grid에 "퀴즈 풀이" `TrendChart`(보라색 `#a855f7`) 추가, grid 컬럼 수 조정(`sm:grid-cols-3` → `sm:grid-cols-2 lg:grid-cols-4`) |
+
+### 검증
+
+- `npx tsc --noEmit` 통과.
+- 브라우저 확인: "오늘 퀴즈 풀이" 카드에 실제 풀이 건수 반영, 추이 영역에 4개 차트(로그인/시험 응시/퀴즈 풀이/문의 접수)가 고르게 배치되고 퀴즈 풀이 차트에 당일 막대가 정상 표시됨을 확인.
+
+---
+
 ## HIST-20260804-001
 
 - **날짜**: 2026-08-04

@@ -7,5 +7,6 @@ public record DashboardStatsResponse(
         long pendingBugCount,
         long totalExamCount,
         long totalMemberCount,
-        long todayExamAttemptCount
+        long todayExamAttemptCount,
+        long todayQuizAttemptCount
 ) {}
