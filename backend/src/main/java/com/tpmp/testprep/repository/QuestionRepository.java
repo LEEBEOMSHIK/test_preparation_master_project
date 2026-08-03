@@ -29,4 +29,18 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
     @Query("SELECT q FROM Question q LEFT JOIN FETCH q.category LEFT JOIN FETCH q.sourceQuestionBank s LEFT JOIN FETCH s.category " +
            "WHERE q.exam.id = :examId AND q.delYn = 'N' ORDER BY q.seq ASC")
     List<Question> findByExamIdOrderBySeqAscWithSyncSource(@Param("examId") Long examId);
+
+    /**
+     * 문항관리 목록의 "사용 시험" 표시용 — 문제은행 ID별로 실제 연결된 시험(examinations) 제목을 조회한다.
+     * 결과: Object[]{questionBankId(Long), examinationTitle(String)} — 한 문제은행 문항이 여러 시험에
+     * 연결될 수 있어 questionBankId당 여러 행이 나올 수 있다.
+     */
+    @Query("""
+            SELECT q.sourceQuestionBank.id, e.title
+            FROM Question q, Examination e
+            WHERE q.exam = e.examPaper
+              AND q.sourceQuestionBank.id IN :questionBankIds
+              AND q.delYn = 'N' AND e.delYn = 'N'
+            """)
+    List<Object[]> findUsedExaminationTitlesByQuestionBankIds(@Param("questionBankIds") List<Long> questionBankIds);
 }

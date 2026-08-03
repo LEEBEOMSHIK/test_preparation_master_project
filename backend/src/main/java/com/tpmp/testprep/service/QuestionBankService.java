@@ -12,6 +12,7 @@ import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.DomainSlaveRepository;
 import com.tpmp.testprep.repository.QuestionBankRepository;
+import com.tpmp.testprep.repository.QuestionRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import com.tpmp.testprep.service.support.StructuredQuestionValidator;
 import lombok.RequiredArgsConstructor;
@@ -34,19 +35,36 @@ import java.util.Set;
 public class QuestionBankService {
 
     private final QuestionBankRepository questionBankRepository;
+    private final QuestionRepository questionRepository;
     private final UserRepository userRepository;
     private final DomainSlaveRepository domainSlaveRepository;
     private final AttachmentService attachmentService;
 
-    /** 삭제되지 않은 문항 목록 조회 (페이징) */
+    /** 삭제되지 않은 문항 목록 조회 (페이징) — 문항별 "사용 시험" 목록을 일괄 조회해 N+1 없이 채운다 */
     public Page<QuestionBankResponse> getQuestions(Pageable pageable) {
-        return questionBankRepository.findAllByDelYn("N", pageable)
-                .map(QuestionBankResponse::from);
+        Page<QuestionBank> page = questionBankRepository.findAllByDelYn("N", pageable);
+        Map<Long, List<String>> usedInExamsById = loadUsedInExams(
+                page.getContent().stream().map(QuestionBank::getId).toList());
+        return page.map(qb -> QuestionBankResponse.from(qb, usedInExamsById.getOrDefault(qb.getId(), List.of())));
     }
 
     /** 문항 단건 조회 */
     public QuestionBankResponse getQuestion(Long id) {
-        return QuestionBankResponse.from(findActive(id));
+        QuestionBank qb = findActive(id);
+        List<String> usedInExams = loadUsedInExams(List.of(qb.getId())).getOrDefault(qb.getId(), List.of());
+        return QuestionBankResponse.from(qb, usedInExams);
+    }
+
+    /** 문제은행 ID별 실제 연결된 시험(examinations) 제목 목록 일괄 조회 */
+    private Map<Long, List<String>> loadUsedInExams(List<Long> questionBankIds) {
+        if (questionBankIds.isEmpty()) return Map.of();
+        Map<Long, List<String>> result = new HashMap<>();
+        for (Object[] row : questionRepository.findUsedExaminationTitlesByQuestionBankIds(questionBankIds)) {
+            Long questionBankId = (Long) row[0];
+            String examinationTitle = (String) row[1];
+            result.computeIfAbsent(questionBankId, unused -> new ArrayList<>()).add(examinationTitle);
+        }
+        return result;
     }
 
     /** 문항 단건 등록 */

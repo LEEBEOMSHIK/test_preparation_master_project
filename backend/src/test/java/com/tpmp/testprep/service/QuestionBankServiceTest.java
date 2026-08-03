@@ -10,6 +10,7 @@ import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.DomainSlaveRepository;
 import com.tpmp.testprep.repository.QuestionBankRepository;
+import com.tpmp.testprep.repository.QuestionRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +40,7 @@ import static org.mockito.Mockito.when;
 class QuestionBankServiceTest {
 
     @Mock private QuestionBankRepository questionBankRepository;
+    @Mock private QuestionRepository questionRepository;
     @Mock private UserRepository userRepository;
     @Mock private DomainSlaveRepository domainSlaveRepository;
     @Mock private AttachmentService attachmentService;
@@ -52,7 +54,7 @@ class QuestionBankServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new QuestionBankService(questionBankRepository, userRepository, domainSlaveRepository, attachmentService);
+        service = new QuestionBankService(questionBankRepository, questionRepository, userRepository, domainSlaveRepository, attachmentService);
         lenient().when(userRepository.findByEmail(ADMIN_EMAIL)).thenReturn(Optional.of(adminUser));
         lenient().when(adminUser.getId()).thenReturn(1L);
         lenient().when(domainSlaveRepository.findById(10L)).thenReturn(Optional.of(categorySlave));

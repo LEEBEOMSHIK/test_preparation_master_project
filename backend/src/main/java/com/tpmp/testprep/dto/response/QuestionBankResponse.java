@@ -35,10 +35,16 @@ public record QuestionBankResponse(
         /** true면 정답 문자열의 {@code ||}를 대체 정답 구분자로 해석하지 않음(코드 조건의
          *  논리 OR 보호용). 기본값 false. */
         boolean disableAlternativeAnswer,
+        /** 이 문항은행 원본을 실제로 사용 중인 시험(examinations) 제목 목록 — 어느 시험에도 연결되지 않았으면 빈 리스트 */
+        List<String> usedInExams,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
     public static QuestionBankResponse from(QuestionBank qb) {
+        return from(qb, List.of());
+    }
+
+    public static QuestionBankResponse from(QuestionBank qb, List<String> usedInExams) {
         return new QuestionBankResponse(
                 qb.getId(),
                 qb.getTitle(),
@@ -64,6 +70,7 @@ public record QuestionBankResponse(
                 qb.getSchedulingData(),
                 qb.getSqlData(),
                 qb.isDisableAlternativeAnswer(),
+                usedInExams,
                 qb.getCreateDt(),
                 qb.getModifiedDt()
         );

@@ -243,6 +243,8 @@ export interface QuestionSummary {
   sqlData?: SqlData;
   /** true면 정답 문자열의 `||`를 대체 정답 구분자로 해석하지 않음(코드 조건의 논리 OR 보호용) */
   disableAlternativeAnswer?: boolean;
+  /** 이 문항은행 원본을 실제로 사용 중인 시험(examinations) 제목 목록 — 어느 시험에도 연결되지 않았으면 빈 배열 */
+  usedInExams?: string[];
   createdAt: string;
   updatedAt?: string;
 }

@@ -1,3 +1,25 @@
+## HIST-20260803-002
+
+- **날짜**: 2026-08-03
+- **수정 범위**: 관리자 백엔드 / 문항 관리 — "사용 시험" 조회 지원
+- **수정 개요**: 문항관리 화면에서 특정 문항이 어떤 시험지에 실제로 사용 중인지 확인할 방법이 없었다(사용자 리포트: "어떤 시험에서 사용되는 문항인지 조회 필터와 데이터 컬럼 확인이 안돼"). `question_bank` ↔ `questions.source_question_bank_id` 역참조로 연결된 `examinations` 제목 목록을 조회해 `QuestionBankResponse`에 `usedInExams` 필드로 추가했다. 이미 응답에 있던 `examTypeId`/`examTypeName`(시험 유형)은 프론트에서 전혀 쓰이지 않고 있었는데, 함께 화면에 노출하도록 프론트만 수정(→ 프론트 히스토리 참고).
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|---|---|---|
+| `backend/src/main/java/com/tpmp/testprep/dto/response/QuestionBankResponse.java` | 수정 | `usedInExams`(List&lt;String&gt;) 필드 추가, `from(qb)`는 빈 리스트로 위임하는 `from(qb, usedInExams)` 오버로드 신설 |
+| `backend/src/main/java/com/tpmp/testprep/repository/QuestionRepository.java` | 수정 | `findUsedExaminationTitlesByQuestionBankIds` 신규 — `Question`과 `Examination`을 `exam = examPaper`로 조인(JPQL 암묵 조인)해 문제은행 ID별 연결된 시험 제목 조회 |
+| `backend/src/main/java/com/tpmp/testprep/service/QuestionBankService.java` | 수정 | `getQuestions`/`getQuestion`에서 `loadUsedInExams()`로 일괄 조회 후 응답에 반영(N+1 방지 — 페이지 내 전체 ID를 한 번에 조회) |
+| `backend/src/test/java/com/tpmp/testprep/service/QuestionBankServiceTest.java` | 수정 | 생성자 시그니처 변경(`QuestionRepository` 인자 추가)에 맞춰 `@Mock` 필드·생성 코드 수정 |
+
+### 검증
+
+- `./gradlew compileJava`/`./gradlew test` 통과.
+- 백엔드 재기동 후 `GET /api/admin/questions` 응답에서 리눅스마스터 1급 문항(예: id=407)에 `"usedInExams":["2023년 1회 리눅스마스터 1급"]` 정상 반영 확인, 미사용 문항은 `"usedInExams":[]`.
+
+---
+
 ## HIST-20260718-001
 
 - **날짜**: 2026-07-18

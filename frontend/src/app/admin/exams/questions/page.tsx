@@ -45,9 +45,12 @@ interface SavedSearchState {
   keyword: string;
   typeFilter: QuestionType | '';
   categoryFilter: string;
+  examTypeFilter: string;
   yearFilter: string;
   roundFilter: string;
   sourceFilter: '' | 'AI_CUSTOM' | 'EXAM';
+  usedExamFilter: string;
+  usageFilter: '' | 'USED' | 'UNUSED';
   dateFrom: string;
   dateTo: string;
   sortField: SortField;
@@ -105,10 +108,15 @@ export default function AdminQuestionsPage() {
   const [keyword,          setKeyword]          = useState('');
   const [typeFilter,       setTypeFilter]       = useState<QuestionType | ''>('');
   const [categoryFilter,   setCategoryFilter]   = useState('');
+  const [examTypeFilter,   setExamTypeFilter]   = useState('');
   const [yearFilter,       setYearFilter]       = useState('');
   const [roundFilter,      setRoundFilter]      = useState('');
   // 출처: '' = 전체, AI_CUSTOM = 연도·회차 없음, EXAM = 연도 또는 회차 있음 (AI 커스텀 판정 기준과 동일)
   const [sourceFilter,     setSourceFilter]     = useState<'' | 'AI_CUSTOM' | 'EXAM'>('');
+  // 사용 시험: 특정 시험명 선택(빈 문자열 = 전체)
+  const [usedExamFilter,   setUsedExamFilter]   = useState('');
+  // 사용 여부: '' = 전체, USED = 하나 이상 시험에 연결됨, UNUSED = 어느 시험에도 미연결
+  const [usageFilter,      setUsageFilter]      = useState<'' | 'USED' | 'UNUSED'>('');
   const [dateFrom,         setDateFrom]         = useState('');
   const [dateTo,           setDateTo]           = useState('');
 
@@ -116,9 +124,12 @@ export default function AdminQuestionsPage() {
   const [appliedKeyword,          setAppliedKeyword]          = useState('');
   const [appliedTypeFilter,       setAppliedTypeFilter]       = useState<QuestionType | ''>('');
   const [appliedCategoryFilter,   setAppliedCategoryFilter]   = useState('');
+  const [appliedExamTypeFilter,   setAppliedExamTypeFilter]   = useState('');
   const [appliedYearFilter,       setAppliedYearFilter]       = useState('');
   const [appliedRoundFilter,      setAppliedRoundFilter]      = useState('');
   const [appliedSourceFilter,     setAppliedSourceFilter]     = useState<'' | 'AI_CUSTOM' | 'EXAM'>('');
+  const [appliedUsedExamFilter,   setAppliedUsedExamFilter]   = useState('');
+  const [appliedUsageFilter,      setAppliedUsageFilter]      = useState<'' | 'USED' | 'UNUSED'>('');
   const [appliedDateFrom,         setAppliedDateFrom]         = useState('');
   const [appliedDateTo,           setAppliedDateTo]           = useState('');
 
@@ -130,11 +141,11 @@ export default function AdminQuestionsPage() {
   const [page,     setPage]     = useState(0);
   const [pageSize, setPageSize] = useState<10 | 20 | 50>(10);
 
-  // 컬럼 드래그 리사이즈 (No. / 문항제목 / 유형 / 카테고리 / 등록일 / 수정일 / 관리)
-  // 관리 컬럼(상세/수정/삭제 버튼 3개, ~232px) 클리핑 방지 위해 160→240 확대 + localStorage 키 v2 갱신
+  // 컬럼 드래그 리사이즈 (No. / 문항제목 / 유형 / 카테고리 / 시험유형 / 사용시험 / 등록일 / 수정일 / 관리)
+  // 시험유형·사용시험 컬럼 추가로 localStorage 키 v2→v3 갱신(기존 저장값과 컬럼 수 불일치 방지)
   const { widths, startResize } = useColumnResize(
-    'tpmp:admin-questions:col-widths:v2',
-    [56, 360, 96, 112, 112, 112, 240],
+    'tpmp:admin-questions:col-widths:v3',
+    [56, 300, 88, 100, 100, 180, 100, 100, 232],
   );
 
   // 조회 상태 복원 완료 여부 — 복원 전에 기본값으로 저장(덮어쓰기)되는 것을 방지
@@ -147,9 +158,12 @@ export default function AdminQuestionsPage() {
       setKeyword(s.keyword ?? '');                setAppliedKeyword(s.keyword ?? '');
       setTypeFilter(s.typeFilter ?? '');          setAppliedTypeFilter(s.typeFilter ?? '');
       setCategoryFilter(s.categoryFilter ?? '');  setAppliedCategoryFilter(s.categoryFilter ?? '');
+      setExamTypeFilter(s.examTypeFilter ?? '');  setAppliedExamTypeFilter(s.examTypeFilter ?? '');
       setYearFilter(s.yearFilter ?? '');          setAppliedYearFilter(s.yearFilter ?? '');
       setRoundFilter(s.roundFilter ?? '');        setAppliedRoundFilter(s.roundFilter ?? '');
       setSourceFilter(s.sourceFilter ?? '');      setAppliedSourceFilter(s.sourceFilter ?? '');
+      setUsedExamFilter(s.usedExamFilter ?? '');  setAppliedUsedExamFilter(s.usedExamFilter ?? '');
+      setUsageFilter(s.usageFilter ?? '');        setAppliedUsageFilter(s.usageFilter ?? '');
       setDateFrom(s.dateFrom ?? '');              setAppliedDateFrom(s.dateFrom ?? '');
       setDateTo(s.dateTo ?? '');                  setAppliedDateTo(s.dateTo ?? '');
       if (s.sortField) setSortField(s.sortField);
@@ -167,9 +181,12 @@ export default function AdminQuestionsPage() {
       keyword: appliedKeyword,
       typeFilter: appliedTypeFilter,
       categoryFilter: appliedCategoryFilter,
+      examTypeFilter: appliedExamTypeFilter,
       yearFilter: appliedYearFilter,
       roundFilter: appliedRoundFilter,
       sourceFilter: appliedSourceFilter,
+      usedExamFilter: appliedUsedExamFilter,
+      usageFilter: appliedUsageFilter,
       dateFrom: appliedDateFrom,
       dateTo: appliedDateTo,
       sortField,
@@ -177,14 +194,28 @@ export default function AdminQuestionsPage() {
       page,
       pageSize,
     });
-  }, [appliedKeyword, appliedTypeFilter, appliedCategoryFilter, appliedYearFilter, appliedRoundFilter, appliedSourceFilter, appliedDateFrom, appliedDateTo, sortField, sortDir, page, pageSize]);
+  }, [appliedKeyword, appliedTypeFilter, appliedCategoryFilter, appliedExamTypeFilter, appliedYearFilter, appliedRoundFilter, appliedSourceFilter, appliedUsedExamFilter, appliedUsageFilter, appliedDateFrom, appliedDateTo, sortField, sortDir, page, pageSize]);
 
   useEffect(() => {
-    examService
-      .adminGetQuestions(0, 500)
-      .then((res) => setAllQuestions(res.data.data?.content ?? []))
-      .catch(() => setError('문항 목록을 불러오지 못했습니다.'))
-      .finally(() => setLoading(false));
+    // 고정 size로는 총 문항 수가 그 값을 넘으면 뒤 페이지가 누락된다(전체 로드 후 클라이언트에서
+    // 필터·정렬하는 화면 구조라 totalPages만큼 순회해 전체를 모은다).
+    const PAGE_FETCH_SIZE = 500;
+    (async () => {
+      try {
+        const first = await examService.adminGetQuestions(0, PAGE_FETCH_SIZE);
+        const totalPages = first.data.data?.totalPages ?? 1;
+        const pages = [first.data.data?.content ?? []];
+        for (let p = 1; p < totalPages; p++) {
+          const res = await examService.adminGetQuestions(p, PAGE_FETCH_SIZE);
+          pages.push(res.data.data?.content ?? []);
+        }
+        setAllQuestions(pages.flat());
+      } catch {
+        setError('문항 목록을 불러오지 못했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   const handleDelete = async (id: number) => {
@@ -204,9 +235,12 @@ export default function AdminQuestionsPage() {
     setAppliedKeyword(keyword);
     setAppliedTypeFilter(typeFilter);
     setAppliedCategoryFilter(categoryFilter);
+    setAppliedExamTypeFilter(examTypeFilter);
     setAppliedYearFilter(yearFilter);
     setAppliedRoundFilter(roundFilter);
     setAppliedSourceFilter(sourceFilter);
+    setAppliedUsedExamFilter(usedExamFilter);
+    setAppliedUsageFilter(usageFilter);
     setAppliedDateFrom(dateFrom);
     setAppliedDateTo(dateTo);
     setPage(0);
@@ -233,6 +267,20 @@ export default function AdminQuestionsPage() {
     const names = allQuestions
       .map((q) => q.categoryName ?? null)
       .filter((n): n is string => n !== null && n.trim() !== '');
+    return Array.from(new Set(names)).sort();
+  }, [allQuestions]);
+
+  // 시험 유형(examTypeName) 옵션 — 정보처리기사 실기 / SQLD / 리눅스마스터 1급·2급 등
+  const examTypeOptions = useMemo(() => {
+    const names = allQuestions
+      .map((q) => q.examTypeName ?? null)
+      .filter((n): n is string => n !== null && n.trim() !== '');
+    return Array.from(new Set(names)).sort();
+  }, [allQuestions]);
+
+  // 사용 시험(usedInExams) 옵션 — 실제 시험지에 연결되어 사용 중인 시험 제목 전체
+  const usedExamOptions = useMemo(() => {
+    const names = allQuestions.flatMap((q) => q.usedInExams ?? []);
     return Array.from(new Set(names)).sort();
   }, [allQuestions]);
 
@@ -270,12 +318,19 @@ export default function AdminQuestionsPage() {
           if (q.categoryName !== appliedCategoryFilter) return false;
         }
       }
+      if (appliedExamTypeFilter !== '' && q.examTypeName !== appliedExamTypeFilter) return false;
       if (appliedYearFilter  !== '' && q.examYear  !== Number(appliedYearFilter))  return false;
       if (appliedRoundFilter !== '' && q.examRound !== Number(appliedRoundFilter)) return false;
       // 출처 필터 — AI 커스텀 판정은 연도·회차 없음 기준(문항번호 무관)
       const isAiCustom = q.examYear == null && q.examRound == null;
       if (appliedSourceFilter === 'AI_CUSTOM' && !isAiCustom) return false;
       if (appliedSourceFilter === 'EXAM' && isAiCustom) return false;
+      // 사용 시험 필터 — 특정 시험명 선택 시 해당 시험에 연결된 문항만
+      const usedInExams = q.usedInExams ?? [];
+      if (appliedUsedExamFilter !== '' && !usedInExams.includes(appliedUsedExamFilter)) return false;
+      // 사용 여부 필터 — 하나 이상 시험에 연결됐는지
+      if (appliedUsageFilter === 'USED'   && usedInExams.length === 0) return false;
+      if (appliedUsageFilter === 'UNUSED' && usedInExams.length > 0)  return false;
       const created = new Date(q.createdAt).getTime();
       if (fromMs && created < fromMs) return false;
       if (toMs   && created > toMs)   return false;
@@ -291,7 +346,7 @@ export default function AdminQuestionsPage() {
       const diff = new Date(av).getTime() - new Date(bv).getTime();
       return sortDir === 'asc' ? diff : -diff;
     });
-  }, [allQuestions, appliedKeyword, appliedTypeFilter, appliedCategoryFilter, appliedYearFilter, appliedRoundFilter, appliedSourceFilter, appliedDateFrom, appliedDateTo, sortField, sortDir]);
+  }, [allQuestions, appliedKeyword, appliedTypeFilter, appliedCategoryFilter, appliedExamTypeFilter, appliedYearFilter, appliedRoundFilter, appliedSourceFilter, appliedUsedExamFilter, appliedUsageFilter, appliedDateFrom, appliedDateTo, sortField, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged      = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -365,6 +420,47 @@ export default function AdminQuestionsPage() {
             </select>
           </div>
 
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">시험 유형</label>
+            <select
+              value={examTypeFilter}
+              onChange={(e) => setExamTypeFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            >
+              <option value="">전체</option>
+              {examTypeOptions.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">사용 시험</label>
+            <select
+              value={usedExamFilter}
+              onChange={(e) => setUsedExamFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            >
+              <option value="">전체</option>
+              {usedExamOptions.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="w-28">
+            <label className="block text-xs font-medium text-gray-500 mb-1">사용 여부</label>
+            <select
+              value={usageFilter}
+              onChange={(e) => setUsageFilter(e.target.value as '' | 'USED' | 'UNUSED')}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+            >
+              <option value="">전체</option>
+              <option value="USED">사용중</option>
+              <option value="UNUSED">미사용</option>
+            </select>
+          </div>
+
           <div className="w-28">
             <label className="block text-xs font-medium text-gray-500 mb-1">시험연도</label>
             <select
@@ -433,12 +529,12 @@ export default function AdminQuestionsPage() {
             검색
           </button>
 
-          {(keyword || typeFilter || categoryFilter || yearFilter || roundFilter || sourceFilter || dateFrom || dateTo ||
-            appliedKeyword || appliedTypeFilter || appliedCategoryFilter || appliedYearFilter || appliedRoundFilter || appliedSourceFilter || appliedDateFrom || appliedDateTo) && (
+          {(keyword || typeFilter || categoryFilter || examTypeFilter || yearFilter || roundFilter || sourceFilter || usedExamFilter || usageFilter || dateFrom || dateTo ||
+            appliedKeyword || appliedTypeFilter || appliedCategoryFilter || appliedExamTypeFilter || appliedYearFilter || appliedRoundFilter || appliedSourceFilter || appliedUsedExamFilter || appliedUsageFilter || appliedDateFrom || appliedDateTo) && (
             <button
               onClick={() => {
-                setKeyword(''); setTypeFilter(''); setCategoryFilter(''); setYearFilter(''); setRoundFilter(''); setSourceFilter(''); setDateFrom(''); setDateTo('');
-                setAppliedKeyword(''); setAppliedTypeFilter(''); setAppliedCategoryFilter(''); setAppliedYearFilter(''); setAppliedRoundFilter(''); setAppliedSourceFilter(''); setAppliedDateFrom(''); setAppliedDateTo('');
+                setKeyword(''); setTypeFilter(''); setCategoryFilter(''); setExamTypeFilter(''); setYearFilter(''); setRoundFilter(''); setSourceFilter(''); setUsedExamFilter(''); setUsageFilter(''); setDateFrom(''); setDateTo('');
+                setAppliedKeyword(''); setAppliedTypeFilter(''); setAppliedCategoryFilter(''); setAppliedExamTypeFilter(''); setAppliedYearFilter(''); setAppliedRoundFilter(''); setAppliedSourceFilter(''); setAppliedUsedExamFilter(''); setAppliedUsageFilter(''); setAppliedDateFrom(''); setAppliedDateTo('');
                 setPage(0);
               }}
               className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
@@ -452,7 +548,7 @@ export default function AdminQuestionsPage() {
       {/* 목록 */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
-          <TableSkeleton rows={5} cols={7} />
+          <TableSkeleton rows={5} cols={9} />
         ) : error ? (
           <div className="p-10 text-center text-red-400 text-sm">{error}</div>
         ) : filtered.length === 0 ? (
@@ -520,6 +616,14 @@ export default function AdminQuestionsPage() {
                     카테고리
                     <ColResizeHandle onMouseDown={(e) => startResize(3, e)} />
                   </th>
+                  <th className="relative px-4 py-3 text-center whitespace-nowrap">
+                    시험 유형
+                    <ColResizeHandle onMouseDown={(e) => startResize(4, e)} />
+                  </th>
+                  <th className="relative px-4 py-3 text-center whitespace-nowrap">
+                    사용 시험
+                    <ColResizeHandle onMouseDown={(e) => startResize(5, e)} />
+                  </th>
                   <th className="relative px-4 py-3 whitespace-nowrap">
                     <button
                       onClick={() => handleSort('createdAt')}
@@ -528,7 +632,7 @@ export default function AdminQuestionsPage() {
                       등록일
                       <SortIcon active={sortField === 'createdAt'} dir={sortDir} />
                     </button>
-                    <ColResizeHandle onMouseDown={(e) => startResize(4, e)} />
+                    <ColResizeHandle onMouseDown={(e) => startResize(6, e)} />
                   </th>
                   <th className="relative px-4 py-3 whitespace-nowrap">
                     <button
@@ -538,7 +642,7 @@ export default function AdminQuestionsPage() {
                       수정일
                       <SortIcon active={sortField === 'updatedAt'} dir={sortDir} />
                     </button>
-                    <ColResizeHandle onMouseDown={(e) => startResize(5, e)} />
+                    <ColResizeHandle onMouseDown={(e) => startResize(7, e)} />
                   </th>
                   <th className="relative px-4 py-3 text-center whitespace-nowrap">관리</th>
                 </tr>
@@ -591,6 +695,32 @@ export default function AdminQuestionsPage() {
                         </span>
                       ) : (
                         <span className="text-xs text-gray-300">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap overflow-hidden">
+                      {q.examTypeName ? (
+                        <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-600">
+                          {q.examTypeName}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 text-center overflow-hidden">
+                      {q.usedInExams && q.usedInExams.length > 0 ? (
+                        <div className="flex flex-wrap items-center justify-center gap-1">
+                          {q.usedInExams.map((title) => (
+                            <span
+                              key={title}
+                              title={title}
+                              className="inline-block max-w-[160px] truncate px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600"
+                            >
+                              {title}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-300">미사용</span>
                       )}
                     </td>
                     <td className="px-4 py-3.5 text-gray-400 whitespace-nowrap overflow-hidden">
