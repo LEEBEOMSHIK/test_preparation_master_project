@@ -9,7 +9,7 @@ import type {
 
 export const patchNoteService = {
   // User
-  getPatchNotes: (page = 0, size = 10) =>
+  getPublished: (page = 0, size = 10) =>
     apiClient.get<ApiResponse<PageResponse<PatchNote>>>('/user/patch-notes', { params: { page, size } }),
 
   // Admin

@@ -203,7 +203,7 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
             ...(m.children ?? []).map((c) => c.url),
           ]);
           // 메뉴와 무관하게 모든 로그인 사용자가 접근 가능한 계정/지원 페이지
-          const ALWAYS_ALLOWED = ['/user/inquiries', '/user/settings', '/user/support'];
+          const ALWAYS_ALLOWED = ['/user/inquiries', '/user/settings', '/user/support', '/user/patch-notes'];
           const isAccessible = accessibleUrls.some((url) => pathname.startsWith(url))
             || ALWAYS_ALLOWED.some((p) => pathname.startsWith(p));
           if (!isAccessible) {
@@ -308,8 +308,25 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
             })}
           </nav>
 
-          {/* Right side: theme toggle + user dropdown */}
+          {/* Right side: patch notes + theme toggle + user dropdown */}
           <div className="flex items-center gap-1">
+            <Link
+              href="/user/patch-notes"
+              aria-label="패치노트"
+              aria-current={pathname === '/user/patch-notes' ? 'page' : undefined}
+              className={[
+                'flex h-9 w-9 items-center justify-center rounded-lg transition-colors',
+                pathname === '/user/patch-notes'
+                  ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
+                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100',
+              ].join(' ')}
+              title="패치노트"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 3h7l3 3v15H7a2 2 0 01-2-2V5a2 2 0 012-2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14 3v4h4M9 12h6M9 16h6" />
+              </svg>
+            </Link>
             <ThemeToggle />
 
             {/* User dropdown */}
