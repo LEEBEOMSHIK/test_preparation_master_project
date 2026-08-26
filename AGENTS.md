@@ -214,6 +214,7 @@ rg --files frontend/src/app/admin backend/src/main/java
 | 함수/컴포넌트 | 위치 | 역할 |
 |-------------|------|------|
 | `stripHtml(html)` | `src/lib/html.ts` | HTML → 순수 텍스트 |
+| `extractApiErrorMessage(err, fallback)` / `ApiApplicationError` | `frontend/src/lib/apiError.ts` | Axios 백엔드 `error.message`와 명시적 `success=false` 앱 오류 메시지만 보존하고, 네트워크·임의 오류는 사용자용 `fallback` 사용 |
 | `isBlankOrPositiveIntegerText(value)` / `toOptionalPositiveInteger(value)` | `src/lib/questionNumber.ts` | 선택 양의 정수 입력 검증·payload 숫자 변환 |
 | `compareQuestionSourceOrder(a, b)` | `src/lib/questionSort.ts` | 문항관리 출처순 정렬(연도 DESC, 회차 ASC, 문항번호 ASC, 수정일 DESC) |
 | `<RichContent html className />` | `src/components/ui/RichContent.tsx` | 에디터 HTML 렌더링 |
