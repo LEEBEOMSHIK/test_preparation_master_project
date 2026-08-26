@@ -51,6 +51,9 @@ public enum ErrorCode {
     // FAQ
     FAQ_NOT_FOUND(HttpStatus.NOT_FOUND, "FAQ를 찾을 수 없습니다."),
 
+    // PatchNote
+    PATCH_NOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "패치노트를 찾을 수 없습니다."),
+
     // File
     UNSUPPORTED_FILE_TYPE(HttpStatus.BAD_REQUEST, "지원하지 않는 파일 형식입니다. (PDF, HWP만 허용)"),
     FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "파일 크기가 허용 범위를 초과했습니다."),

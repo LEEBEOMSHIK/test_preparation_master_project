@@ -132,6 +132,7 @@ repository.findAllByDelYn("N", pageable);
 | `concept_notes` | 개념 노트 | 미적용 (레거시) | |
 | `inquiries` | 문의 | 미적용 (레거시) | |
 | `user_exam_applications` | 사용자 직접 입력 시험 접수 정보 | 미적용 (신규, created_at/updated_at만 자체 관리) | user_id FK → users(CASCADE), exam_info_id nullable FK → exam_info(SET NULL), exam_name 스냅샷 |
+| `patch_notes` | 관리자 작성 패치노트 | ✅ 적용 | title, version, content, published_yn, published_dt |
 
 ### 적용 기준
 
@@ -342,7 +343,7 @@ Flyway/Liquibase 미사용 프로젝트이므로 스키마 변경(ALTER TABLE, C
 
 `docs/db-migration/00000000_00_baseline_schema.sql`은 **33개 테이블 전체 정의**를 담은 스키마 기준점이다(2026-08-02 기준 `pg_dump --schema-only`).
 
-- **신규(빈) DB는 이 파일 1개만 적용한다.** 델타 파일들은 "이미 테이블·콘텐츠가 있다"는 전제라 빈 DB에서 실패한다.
+- **신규(빈) DB는 이 파일을 먼저 적용한 뒤, 날짜순으로 델타 마이그레이션을 적용한다.** 새 스키마는 베이스라인에 즉시 반영하지 않고 델타 파일로 추가한다.
 - **일부 스키마만 있는 기존 로컬에도 그대로 적용 가능하다.** 없는 테이블·컬럼·제약·인덱스만 채워 넣고, 기존 데이터는 건드리지 않는다(재실행 안전).
 - 새 스키마 변경은 지금까지처럼 델타 파일로 추가하고, 베이스라인은 손대지 않는다.
 - 자세한 절차: [`docs/sql/README.md`](sql/README.md)
