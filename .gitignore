@@ -51,6 +51,8 @@ docker-compose.override.yml
 # Temp / local scripts (커밋 금지 — 로컬 토큰·임시 데이터 포함 가능)
 /add_web_cat.py
 /q_list.txt
+/.worktrees/
+/.superpowers/
 
 # Build cache
 frontend/tsconfig.tsbuildinfo
