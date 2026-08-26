@@ -51,4 +51,26 @@ describe('PatchNoteForm', () => {
     resolveSubmit?.();
     await waitFor(() => expect(screen.getByRole('button', { name: '등록' })).not.toBeNull());
   });
+
+  it('HTTP 오류 응답의 백엔드 메시지를 사용자에게 표시한다', async () => {
+    const onSubmit = jest.fn<(request: PatchNoteRequest) => Promise<void>>().mockRejectedValue({
+      message: 'Request failed with status code 400',
+      response: {
+        data: {
+          success: false,
+          error: { code: 'INVALID_PATCH_NOTE', message: '버전 형식이 올바르지 않습니다.' },
+          timestamp: '2026-08-26T09:00:00',
+        },
+      },
+    });
+
+    render(<PatchNoteForm onSubmit={onSubmit} submitLabel="등록" cancelHref="/admin/patch-notes" />);
+
+    fireEvent.change(screen.getByLabelText('제목'), { target: { value: '배포 안내' } });
+    fireEvent.change(screen.getByLabelText('버전'), { target: { value: 'v1.0.0' } });
+    fireEvent.change(screen.getByLabelText('본문'), { target: { value: '<p>변경 사항</p>' } });
+    fireEvent.click(screen.getByRole('button', { name: '등록' }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain('버전 형식이 올바르지 않습니다.');
+  });
 });

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Pagination } from '@/components/ui/Pagination';
 import { TableSkeleton } from '@/components/ui/Skeleton';
+import { extractApiErrorMessage } from '@/lib/apiError';
 import { patchNoteService } from '@/services/patchNoteService';
 import type { PatchNote, PageResponse } from '@/types';
 
@@ -30,8 +31,8 @@ export default function AdminPatchNotesPage() {
         return;
       }
       setPageData(response.data.data);
-    } catch {
-      setError('패치노트 목록을 불러오지 못했습니다. 다시 시도해 주세요.');
+    } catch (loadError: unknown) {
+      setError(extractApiErrorMessage(loadError, '패치노트 목록을 불러오지 못했습니다. 다시 시도해 주세요.'));
     } finally {
       setLoading(false);
     }
@@ -51,7 +52,7 @@ export default function AdminPatchNotesPage() {
       if (!response.data.success) throw new Error(response.data.error?.message ?? response.data.message ?? '게시 상태 변경에 실패했습니다.');
       await loadPatchNotes();
     } catch (updateError: unknown) {
-      setError(updateError instanceof Error ? updateError.message : '게시 상태 변경에 실패했습니다. 다시 시도해 주세요.');
+      setError(extractApiErrorMessage(updateError, '게시 상태 변경에 실패했습니다. 다시 시도해 주세요.'));
     } finally {
       setProcessingId(null);
     }
@@ -66,7 +67,7 @@ export default function AdminPatchNotesPage() {
       if (!response.data.success) throw new Error(response.data.error?.message ?? response.data.message ?? '패치노트 삭제에 실패했습니다.');
       await loadPatchNotes();
     } catch (deleteError: unknown) {
-      setError(deleteError instanceof Error ? deleteError.message : '패치노트 삭제에 실패했습니다. 다시 시도해 주세요.');
+      setError(extractApiErrorMessage(deleteError, '패치노트 삭제에 실패했습니다. 다시 시도해 주세요.'));
     } finally {
       setProcessingId(null);
     }

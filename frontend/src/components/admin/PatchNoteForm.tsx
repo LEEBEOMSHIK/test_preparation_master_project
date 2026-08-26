@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { extractApiErrorMessage } from '@/lib/apiError';
 import { stripHtml } from '@/lib/html';
 import type { PatchNoteRequest } from '@/types';
 
@@ -19,11 +20,6 @@ const DEFAULT_VALUE: PatchNoteRequest = {
   content: '',
   published: true,
 };
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message) return error.message;
-  return '저장에 실패했습니다. 다시 시도해 주세요.';
-}
 
 export function PatchNoteForm({ initialValue = DEFAULT_VALUE, onSubmit, submitLabel, cancelHref }: PatchNoteFormProps) {
   const [title, setTitle] = useState(initialValue.title);
@@ -57,7 +53,7 @@ export function PatchNoteForm({ initialValue = DEFAULT_VALUE, onSubmit, submitLa
     try {
       await onSubmit({ title: trimmedTitle, version: trimmedVersion, content, published });
     } catch (submitError: unknown) {
-      setError(getErrorMessage(submitError));
+      setError(extractApiErrorMessage(submitError, '저장에 실패했습니다. 다시 시도해 주세요.'));
     } finally {
       setSubmitting(false);
     }
