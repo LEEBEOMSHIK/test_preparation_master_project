@@ -131,6 +131,7 @@ const FALLBACK_NAV: MenuConfig[] = [
     { id: 112, parentId: 11, name: '기록 관리', url: '/admin/practice/history', iconKey: undefined, displayOrder: 2, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   ]},
   { id: 12, parentId: undefined, name: '후원 링크 관리', url: '/admin/support-settings', iconKey: 'support', displayOrder: 12, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  { id: 13, parentId: undefined, name: '패치노트 관리', url: '/admin/patch-notes', iconKey: 'menu', displayOrder: 14, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 9901, parentId: undefined, name: '테스트 케이스', url: '/admin/test-cases', iconKey: 'test',       displayOrder: 99, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
 ];
 

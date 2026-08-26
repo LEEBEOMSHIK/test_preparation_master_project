@@ -66,7 +66,38 @@ class DataInitializerTest {
         verify(examInfoRepository).findByTitle(eq("정보처리기사 실기 2026년 정기 기사 1회"));
     }
 
+    @Test
+    void ensurePatchNotesAdminMenuCreatesOnlyOnceAcrossRepeatedRuns() {
+        MenuConfigRepository menuConfigRepository = mock(MenuConfigRepository.class);
+        when(menuConfigRepository.existsByUrl("/admin/patch-notes"))
+                .thenReturn(false, true);
+
+        DataInitializer initializer = newInitializer(mock(ExamInfoRepository.class), menuConfigRepository);
+
+        initializer.ensurePatchNotesAdminMenu();
+        initializer.ensurePatchNotesAdminMenu();
+
+        verify(menuConfigRepository, times(2)).existsByUrl("/admin/patch-notes");
+        verify(menuConfigRepository).save(argThat(menu ->
+                "패치노트 관리".equals(menu.getName())
+                        && "/admin/patch-notes".equals(menu.getUrl())
+                        && "menu".equals(menu.getIconKey())
+                        && menu.getDisplayOrder() == 14
+                        && menu.getMenuType() == com.tpmp.testprep.entity.MenuConfig.MenuType.ADMIN
+                        && "ADMIN".equals(menu.getAllowedRoles())
+                        && menu.isActive()
+        ));
+        verify(menuConfigRepository, times(1)).save(any(com.tpmp.testprep.entity.MenuConfig.class));
+    }
+
     private DataInitializer newInitializer(ExamInfoRepository examInfoRepository) {
+        return newInitializer(examInfoRepository, mock(MenuConfigRepository.class));
+    }
+
+    private DataInitializer newInitializer(
+            ExamInfoRepository examInfoRepository,
+            MenuConfigRepository menuConfigRepository
+    ) {
         return new DataInitializer(
                 mock(UserRepository.class),
                 mock(PasswordEncoder.class),
@@ -75,7 +106,7 @@ class DataInitializerTest {
                 mock(DomainSlaveRepository.class),
                 mock(PermissionMasterRepository.class),
                 mock(PermissionDetailRepository.class),
-                mock(MenuConfigRepository.class),
+                menuConfigRepository,
                 mock(PracticeService.class),
                 examInfoRepository
         );
