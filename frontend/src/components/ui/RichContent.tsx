@@ -1,3 +1,8 @@
+'use client';
+
+import DOMPurify from 'dompurify';
+import { useEffect, useState } from 'react';
+
 interface Props {
   html: string;
   className?: string;
@@ -8,6 +13,12 @@ interface Props {
  * 에디터 출력이 필요한 모든 표시 영역에서 이 컴포넌트를 사용한다.
  */
 export function RichContent({ html, className = '' }: Props) {
+  const [sanitizedHtml, setSanitizedHtml] = useState('');
+
+  useEffect(() => {
+    setSanitizedHtml(DOMPurify.sanitize(html));
+  }, [html]);
+
   return (
     <div
       className={[
@@ -29,7 +40,7 @@ export function RichContent({ html, className = '' }: Props) {
         '[&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto',
         className,
       ].join(' ')}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
     />
   );
 }

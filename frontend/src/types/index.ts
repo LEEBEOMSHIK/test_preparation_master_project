@@ -21,6 +21,31 @@ export interface PageResponse<T> {
 }
 
 // ──────────────────────────────────────────
+// PatchNote
+// ──────────────────────────────────────────
+export interface PatchNote {
+  id: number;
+  title: string;
+  version: string;
+  content: string;
+  published: boolean;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PatchNoteRequest {
+  title: string;
+  version: string;
+  content: string;
+  published: boolean;
+}
+
+export interface PatchNotePublicationRequest {
+  published: boolean;
+}
+
+// ──────────────────────────────────────────
 // Auth
 // ──────────────────────────────────────────
 export type Role = 'USER' | 'ADMIN';
