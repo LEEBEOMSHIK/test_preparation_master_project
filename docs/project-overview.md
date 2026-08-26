@@ -62,10 +62,10 @@
 | title | 제목 |
 | version | 배포 버전 |
 | content | 본문 (HTML) |
-| published | 게시 여부 |
-| published_at | 게시 전환 일시 (nullable) |
-| created_by | 등록 관리자 FK |
-| created_at / updated_at | 일시 |
+| published_yn | 게시 여부 (`Y` / `N`) |
+| published_dt | 최초 게시 전환 일시 (nullable) |
+| create_uno | 등록 관리자 FK |
+| create_dt / modified_dt | 등록 / 최종 수정 일시 |
 
 ### 1:1 문의(Inquiry)
 | 필드 | 설명 |

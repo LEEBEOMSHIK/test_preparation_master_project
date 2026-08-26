@@ -1,6 +1,6 @@
 package com.tpmp.testprep.dto.response;
 
-import com.tpmp.testprep.domain.PatchNote;
+import com.tpmp.testprep.entity.PatchNote;
 
 import java.time.LocalDateTime;
 

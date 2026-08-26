@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Pagination } from '@/components/ui/Pagination';
 import { TableSkeleton } from '@/components/ui/Skeleton';
-import { extractApiErrorMessage } from '@/lib/apiError';
+import { ApiApplicationError, extractApiErrorMessage } from '@/lib/apiError';
 import { patchNoteService } from '@/services/patchNoteService';
 import type { PatchNote, PageResponse } from '@/types';
 
@@ -49,7 +49,9 @@ export default function AdminPatchNotesPage() {
     setProcessingId(patchNote.id);
     try {
       const response = await patchNoteService.adminUpdatePublication(patchNote.id, { published: nextPublished });
-      if (!response.data.success) throw new Error(response.data.error?.message ?? response.data.message ?? '게시 상태 변경에 실패했습니다.');
+      if (!response.data.success) {
+        throw new ApiApplicationError(response.data.error?.message ?? response.data.message ?? '게시 상태 변경에 실패했습니다.');
+      }
       await loadPatchNotes();
     } catch (updateError: unknown) {
       setError(extractApiErrorMessage(updateError, '게시 상태 변경에 실패했습니다. 다시 시도해 주세요.'));
@@ -64,8 +66,14 @@ export default function AdminPatchNotesPage() {
     setProcessingId(patchNote.id);
     try {
       const response = await patchNoteService.adminDelete(patchNote.id);
-      if (!response.data.success) throw new Error(response.data.error?.message ?? response.data.message ?? '패치노트 삭제에 실패했습니다.');
-      await loadPatchNotes();
+      if (!response.data.success) {
+        throw new ApiApplicationError(response.data.error?.message ?? response.data.message ?? '패치노트 삭제에 실패했습니다.');
+      }
+      if (page > 0 && pageData?.content.length === 1) {
+        setPage((currentPage) => currentPage - 1);
+      } else {
+        await loadPatchNotes();
+      }
     } catch (deleteError: unknown) {
       setError(extractApiErrorMessage(deleteError, '패치노트 삭제에 실패했습니다. 다시 시도해 주세요.'));
     } finally {

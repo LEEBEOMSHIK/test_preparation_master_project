@@ -1,3 +1,37 @@
+## HIST-20260826-002
+
+- **날짜**: 2026-08-26
+- **수정 범위**: 사용자 프론트엔드 / 패치노트 전체 구현
+- **수정 개요**: 상단 헤더에서 진입하는 게시 패치노트 목록, 페이지네이션, 스켈레톤·빈 상태·재시도, 안전한 HTML 렌더링을 구현했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/patch-notes/page.tsx` | 추가 | 게시 패치노트 목록·페이지네이션·상태별 UI |
+| `frontend/src/app/user/patch-notes/page.test.tsx` | 추가 | 조회·페이지 전환·재시도·게시일 fallback 테스트 |
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | 상단 헤더 패치노트 독립 아이콘·모바일 진입점 |
+| `frontend/src/components/ui/RichContent.tsx` | 수정 | 패치노트 HTML을 공통 sanitizer로 렌더링 |
+| `frontend/src/components/ui/RichContent.test.tsx` | 수정 | 허용/차단 HTML 렌더링 회귀 테스트 |
+| `frontend/src/services/patchNoteService.ts` | 수정 | 사용자 게시 패치노트 조회 API |
+| `frontend/src/types/index.ts` | 수정 | 패치노트·페이지 응답 타입 |
+| `docs/project-overview.md` | 수정 | 사용자 패치노트 기능 범위 문서화 |
+
+### 수정 상세
+
+- 변경 전: 사용자가 서비스 변경 사항을 조회할 전용 화면과 진입점이 없었다.
+- 변경 후: 게시된 항목만 0 기반 페이지로 조회하고, 데이터 페칭 중 스켈레톤과 실패 재시도·빈 상태를 구분하며 본문은 `RichContent`로 표시한다.
+- 이유: 관리자 작성 변경 사항을 사용자에게 안전하고 모바일 친화적으로 제공한다.
+
+### 검증 결과
+
+- 패치노트 관련 프론트 Jest 5개 suite, 13개 테스트 통과.
+- `npx tsc --noEmit` 통과.
+
+### 복원 방법
+
+이 ID를 복원할 때 사용자 패치노트 페이지·테스트와 헤더 진입점을 제거하고, 공통 서비스·타입·`RichContent` 변경 중 패치노트 구현분을 되돌린다.
+
 ## HIST-20260826-001
 
 - **날짜**: 2026-08-26

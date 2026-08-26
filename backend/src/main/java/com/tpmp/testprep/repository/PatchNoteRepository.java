@@ -1,6 +1,6 @@
 package com.tpmp.testprep.repository;
 
-import com.tpmp.testprep.domain.PatchNote;
+import com.tpmp.testprep.entity.PatchNote;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

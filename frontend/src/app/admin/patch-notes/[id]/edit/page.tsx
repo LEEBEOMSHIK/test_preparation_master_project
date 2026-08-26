@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { PatchNoteForm } from '@/components/admin/PatchNoteForm';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { ApiApplicationError } from '@/lib/apiError';
 import { patchNoteService } from '@/services/patchNoteService';
 import type { PatchNote, PatchNoteRequest } from '@/types';
 
@@ -45,7 +46,9 @@ export default function EditPatchNotePage() {
 
   const handleSubmit = async (request: PatchNoteRequest) => {
     const response = await patchNoteService.adminUpdate(patchNoteId, request);
-    if (!response.data.success) throw new Error(response.data.error?.message ?? response.data.message ?? '패치노트 수정에 실패했습니다.');
+    if (!response.data.success) {
+      throw new ApiApplicationError(response.data.error?.message ?? response.data.message ?? '패치노트 수정에 실패했습니다.');
+    }
     router.push('/admin/patch-notes');
   };
 

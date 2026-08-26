@@ -1,3 +1,40 @@
+## HIST-20260826-002
+
+- **날짜**: 2026-08-26
+- **수정 범위**: 사용자 백엔드 / 패치노트 전체 구현
+- **수정 개요**: 게시·사용·미삭제 패치노트만 최신 게시순으로 조회하는 사용자 API와 저장 구조를 구현했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/entity/PatchNote.java` | 추가/이동 | 패치노트 JPA 엔티티와 게시 상태 |
+| `backend/src/main/java/com/tpmp/testprep/repository/PatchNoteRepository.java` | 추가 | 사용자 공개 목록 조건·정렬 쿼리 |
+| `backend/src/main/java/com/tpmp/testprep/service/PatchNoteService.java` | 추가/수정 | 게시 패치노트 조회 서비스 |
+| `backend/src/main/java/com/tpmp/testprep/controller/UserPatchNoteController.java` | 추가 | 사용자 목록 API |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/PatchNoteResponse.java` | 추가/수정 | 사용자 공통 응답 DTO |
+| `backend/src/test/java/com/tpmp/testprep/entity/PatchNoteTest.java` | 추가/이동 | 엔티티 게시·수정 동작 테스트 |
+| `backend/src/test/java/com/tpmp/testprep/service/PatchNoteServiceTest.java` | 추가/수정 | 공개 조회 조건·정렬 테스트 |
+| `backend/src/test/java/com/tpmp/testprep/controller/UserPatchNoteControllerTest.java` | 추가 | 사용자 API 위임 테스트 |
+| `docs/db-migration/20260826_01_create_patch_notes.sql` | 추가 | `patch_notes` 테이블 DDL |
+| `docs/db-guidelines.md` | 수정 | 패치노트 테이블 등록 |
+| `docs/sql/README.md` | 수정 | 마이그레이션 적용 안내 |
+| `docs/project-overview.md` | 수정 | 사용자 패치노트 조회·DB 필드 문서화 |
+
+### 수정 상세
+
+- 변경 전: 사용자에게 제공할 패치노트 저장 모델과 조회 API가 없었다.
+- 변경 후: `del_yn=N`, `use_yn=Y`, `published_yn=Y`인 항목만 `published_dt`, `id` 내림차순으로 페이지 조회한다.
+- 이유: 비게시·삭제·비활성 항목을 노출하지 않고 최신 변경 사항을 안정적으로 제공한다.
+
+### 검증 결과
+
+- 패치노트 백엔드 집중 테스트 17개 통과(서비스·엔티티·사용자/관리자 Controller).
+
+### 복원 방법
+
+이 ID를 복원할 때 사용자 Controller와 공개 조회 서비스·Repository 메서드를 제거하고, 패치노트 엔티티·응답 DTO·DDL의 공용 구현은 관리자 범위와 함께 되돌린다.
+
 ## HIST-20260826-001
 
 - **날짜**: 2026-08-26

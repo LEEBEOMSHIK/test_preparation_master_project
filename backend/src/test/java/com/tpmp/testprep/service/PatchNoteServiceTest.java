@@ -1,9 +1,9 @@
 package com.tpmp.testprep.service;
 
-import com.tpmp.testprep.domain.PatchNote;
 import com.tpmp.testprep.dto.request.PatchNotePublicationRequest;
 import com.tpmp.testprep.dto.request.PatchNoteRequest;
 import com.tpmp.testprep.dto.response.PatchNoteResponse;
+import com.tpmp.testprep.entity.PatchNote;
 import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -80,6 +81,46 @@ class PatchNoteServiceTest {
         assertThat(response.publishedAt()).isNotNull();
         assertThat(captor.getValue().isPublished()).isTrue();
         assertThat(captor.getValue().getPublishedDt()).isNotNull();
+    }
+
+    @Test
+    void create_rejectsHtmlContainingOnlyBreaksWithBadRequest() {
+        PatchNoteRequest request = new PatchNoteRequest("패치노트", "1.0.0", "<p><br></p>", true);
+
+        assertThatThrownBy(() -> service.create(request, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> {
+                    ErrorCode errorCode = ((BusinessException) exception).getErrorCode();
+                    assertThat(errorCode).isEqualTo(ErrorCode.INVALID_INPUT);
+                    assertThat(errorCode.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                });
+        verify(patchNoteRepository, never()).save(any(PatchNote.class));
+    }
+
+    @Test
+    void update_rejectsHtmlContainingOnlyEntitiesAndNonBreakingSpacesWithBadRequest() {
+        PatchNoteRequest request = new PatchNoteRequest(
+                "패치노트", "1.0.0", "<p>&nbsp;&#160;\u00A0</p>", true);
+
+        assertThatThrownBy(() -> service.update(10L, request, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> {
+                    ErrorCode errorCode = ((BusinessException) exception).getErrorCode();
+                    assertThat(errorCode).isEqualTo(ErrorCode.INVALID_INPUT);
+                    assertThat(errorCode.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                });
+        verify(patchNoteRepository, never()).findByIdAndDelYn(any(Long.class), any(String.class));
+    }
+
+    @Test
+    void create_acceptsFormattedHtmlContainingVisibleText() {
+        PatchNoteRequest request = new PatchNoteRequest(
+                "패치노트", "1.0.0", "<p><strong>본문</strong></p>", false);
+
+        PatchNoteResponse response = service.create(request, ADMIN_EMAIL);
+
+        assertThat(response.content()).isEqualTo("<p><strong>본문</strong></p>");
+        verify(patchNoteRepository).save(any(PatchNote.class));
     }
 
     @Test

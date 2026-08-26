@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PatchNoteForm } from '@/components/admin/PatchNoteForm';
+import { ApiApplicationError } from '@/lib/apiError';
 import { patchNoteService } from '@/services/patchNoteService';
 import type { PatchNoteRequest } from '@/types';
 
@@ -11,7 +12,9 @@ export default function NewPatchNotePage() {
 
   const handleSubmit = async (request: PatchNoteRequest) => {
     const response = await patchNoteService.adminCreate(request);
-    if (!response.data.success) throw new Error(response.data.error?.message ?? response.data.message ?? '패치노트 등록에 실패했습니다.');
+    if (!response.data.success) {
+      throw new ApiApplicationError(response.data.error?.message ?? response.data.message ?? '패치노트 등록에 실패했습니다.');
+    }
     router.push('/admin/patch-notes');
   };
 

@@ -1,9 +1,9 @@
 package com.tpmp.testprep.service;
 
-import com.tpmp.testprep.domain.PatchNote;
 import com.tpmp.testprep.dto.request.PatchNotePublicationRequest;
 import com.tpmp.testprep.dto.request.PatchNoteRequest;
 import com.tpmp.testprep.dto.response.PatchNoteResponse;
+import com.tpmp.testprep.entity.PatchNote;
 import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
@@ -14,11 +14,17 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
+
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PatchNoteService {
+
+    private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]*>");
 
     private final PatchNoteRepository patchNoteRepository;
     private final UserRepository userRepository;
@@ -40,6 +46,7 @@ public class PatchNoteService {
 
     @Transactional
     public PatchNoteResponse create(PatchNoteRequest request, String adminEmail) {
+        validateVisibleContent(request.content());
         Long adminId = resolveAdminId(adminEmail);
         PatchNote patchNote = PatchNote.builder()
                 .title(request.title())
@@ -55,6 +62,7 @@ public class PatchNoteService {
 
     @Transactional
     public PatchNoteResponse update(Long id, PatchNoteRequest request, String adminEmail) {
+        validateVisibleContent(request.content());
         Long adminId = resolveAdminId(adminEmail);
         PatchNote patchNote = findActive(id);
         patchNote.update(request.title(), request.version(), request.content(), adminId);
@@ -85,5 +93,13 @@ public class PatchNoteService {
         User admin = userRepository.findByEmail(adminEmail)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         return admin.getId();
+    }
+
+    private void validateVisibleContent(String content) {
+        String withoutTags = HTML_TAG_PATTERN.matcher(content).replaceAll("");
+        String visibleText = HtmlUtils.htmlUnescape(withoutTags).replace('\u00A0', ' ');
+        if (!StringUtils.hasText(visibleText)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
     }
 }

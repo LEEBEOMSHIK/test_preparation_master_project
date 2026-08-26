@@ -1,4 +1,4 @@
-package com.tpmp.testprep.domain;
+package com.tpmp.testprep.entity;
 
 import org.junit.jupiter.api.Test;
 

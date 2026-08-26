@@ -1,6 +1,5 @@
-package com.tpmp.testprep.domain;
+package com.tpmp.testprep.entity;
 
-import com.tpmp.testprep.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

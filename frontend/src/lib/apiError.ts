@@ -1,5 +1,13 @@
 import type { ApiResponse } from '@/types';
 
+/** `success=false` 응답에서 보존한 사용자 노출용 애플리케이션 오류. */
+export class ApiApplicationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ApiApplicationError';
+  }
+}
+
 /**
  * axios 요청 실패(err)에서 백엔드가 내려준 에러 메시지를 안전하게 추출한다.
  *
@@ -9,9 +17,9 @@ import type { ApiResponse } from '@/types';
  * 응답 JSON에서 아예 생략됨). 예: 로그인 5회 실패 시 429 `TOO_MANY_LOGIN_ATTEMPTS` →
  * `{ success: false, error: { code, message: "로그인 시도가 너무 많습니다. 5분 후 다시 시도해주세요." } }`.
  *
- * `err.response.data.error.message`를 꺼낼 수 없는 경우에는 호출부가 이미 `success=false`
- * 응답의 메시지를 보존해 만든 일반 `Error.message`를 사용한다. 둘 다 없을 때만 네트워크 오류 등으로
- * 판단하고 호출부가 넘긴 `fallback` 문구를 반환한다.
+ * `err.response.data.error.message`를 꺼낼 수 없는 경우에는 호출부가 `success=false`
+ * 응답을 변환한 `ApiApplicationError.message`만 보존한다. 네트워크 오류를 포함한 그 밖의 오류는
+ * 내부 메시지를 노출하지 않고 호출부가 넘긴 `fallback` 문구를 반환한다.
  */
 export function extractApiErrorMessage(err: unknown, fallback: string): string {
   if (
@@ -29,7 +37,7 @@ export function extractApiErrorMessage(err: unknown, fallback: string): string {
       return data.error.message;
     }
   }
-  if (err instanceof Error && err.message.trim() !== '') {
+  if (err instanceof ApiApplicationError && err.message.trim() !== '') {
     return err.message;
   }
   return fallback;
