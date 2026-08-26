@@ -9,8 +9,9 @@ import type { ApiResponse } from '@/types';
  * 응답 JSON에서 아예 생략됨). 예: 로그인 5회 실패 시 429 `TOO_MANY_LOGIN_ATTEMPTS` →
  * `{ success: false, error: { code, message: "로그인 시도가 너무 많습니다. 5분 후 다시 시도해주세요." } }`.
  *
- * `err.response.data.error.message`를 꺼낼 수 없는 경우(네트워크 오류, 형식이 다른 응답 등)에는
- * 호출부가 넘긴 `fallback` 문구를 그대로 반환한다.
+ * `err.response.data.error.message`를 꺼낼 수 없는 경우에는 호출부가 이미 `success=false`
+ * 응답의 메시지를 보존해 만든 일반 `Error.message`를 사용한다. 둘 다 없을 때만 네트워크 오류 등으로
+ * 판단하고 호출부가 넘긴 `fallback` 문구를 반환한다.
  */
 export function extractApiErrorMessage(err: unknown, fallback: string): string {
   if (
@@ -27,6 +28,9 @@ export function extractApiErrorMessage(err: unknown, fallback: string): string {
     if (data.error && typeof data.error.message === 'string' && data.error.message.trim() !== '') {
       return data.error.message;
     }
+  }
+  if (err instanceof Error && err.message.trim() !== '') {
+    return err.message;
   }
   return fallback;
 }
