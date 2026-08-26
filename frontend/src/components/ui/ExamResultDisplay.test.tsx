@@ -108,7 +108,7 @@ describe('ExamResultDisplay', () => {
       />,
     );
 
-    const button = await screen.findByRole('button', { name: '복습 표시됨' });
+    const button = await screen.findByRole('button', { name: '복습 표시됨' }, { timeout: 5000 });
     expect(button.getAttribute('aria-pressed')).toBe('true');
     expect(mockedBookmarkService.getBookmarkedIds).toHaveBeenCalledTimes(1);
   });

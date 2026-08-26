@@ -1,3 +1,30 @@
+## HIST-20260826-001
+
+- **날짜**: 2026-08-26
+- **수정 범위**: 사용자 프론트엔드 / 공용 시험 결과 테스트 안정화
+- **수정 개요**: 병렬 Jest worker 경합에서 초기 북마크 조회 상태 반영이 Testing Library 기본 1초를 넘겨 간헐적으로 실패하던 테스트 한 곳에만 5초 대기 한도를 적용했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/ExamResultDisplay.test.tsx` | 수정 | 초기 `복습 표시됨` 버튼 조회의 `findByRole` timeout을 5초로 한정 |
+
+### 수정 상세
+
+- 변경 전: 즉시 resolve mock을 사용해도 병렬 전체 테스트의 worker 경합 시 해당 버튼 상태 반영이 기본 1초를 넘으면 실패했다.
+- 변경 후: 실패가 재현된 111행의 `findByRole`에만 `{ timeout: 5000 }`을 전달했다. production 코드와 다른 테스트 timeout은 변경하지 않았다.
+- 이유: 단독 18/18 및 전체 `--runInBand` 68/68 통과로 기능 로직은 정상이며, 병렬 실행에서만 발생하는 렌더링 지연을 해당 비동기 assertion 범위에서 흡수한다.
+
+### 검증 결과
+
+- `npx jest src/components/ui/ExamResultDisplay.test.tsx --runInBand` 통과 (18/18).
+- `npm test -- --watch=false` 병렬 전체 통과 (13 suite, 68/68).
+
+### 복원 방법
+
+이 ID를 복원할 때 `ExamResultDisplay.test.tsx` 111행 `findByRole`의 세 번째 인자 `{ timeout: 5000 }`만 제거해 기본 timeout으로 되돌린다.
+
 ## HIST-20260723-002
 
 - **날짜**: 2026-07-23

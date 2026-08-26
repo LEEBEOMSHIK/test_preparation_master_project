@@ -19,10 +19,11 @@
 6. 태그·HTML entity·NBSP/공백만 남은 본문을 서비스에서 `INVALID_INPUT(400)`으로 차단했다.
 7. `PatchNote` 엔티티와 테스트를 `entity` 패키지로 이동하고 모든 import를 갱신했다.
 8. 프로젝트 개요의 패치노트 필드를 실제 DB 컬럼명으로 정정하고 범위별 히스토리 `HIST-20260826-002`를 추가했다.
+9. 병렬 Jest worker 경합으로 기본 1초를 넘기던 `ExamResultDisplay` 비동기 assertion 한 곳에만 5초 timeout을 적용하고 프론트 전체 테스트를 통과시켰다.
 
 ## 미완료 작업
 
-- 정적 검증 수정 후 프론트엔드 전체 Jest 테스트와 `npm run build`가 아직 남았다.
+- 정적 검증 수정 후 프론트엔드 `npm run build`가 아직 남았다.
 - 백엔드 전체 테스트가 아직 남았다.
 
 ## 전체 패치노트 수정 파일
@@ -83,12 +84,15 @@
 | `npm test -- --runInBand src/lib/apiError.test.ts src/components/ui/RichContent.test.tsx src/app/user/patch-notes/page.test.tsx src/components/admin/PatchNoteForm.test.tsx src/app/admin/patch-notes/page.test.tsx` | 통과 (5 suite, 13 tests) |
 | `npx tsc --noEmit` | 통과 |
 | `gradlew.bat test --tests com.tpmp.testprep.service.PatchNoteServiceTest --tests com.tpmp.testprep.entity.PatchNoteTest --tests com.tpmp.testprep.controller.AdminPatchNoteControllerTest --tests com.tpmp.testprep.controller.UserPatchNoteControllerTest --rerun-tasks --console=plain` | 통과 (17 tests) |
+| `npx jest src/components/ui/ExamResultDisplay.test.tsx --runInBand` | 통과 (18 tests) |
+| `npm test -- --watch=false` | 통과 (13 suite, 68 tests) |
 
 ## 실패·경고·주의사항
 
 - 제한된 네트워크에서 Gradle wrapper 다운로드가 차단되어 권한 승인 후 집중 테스트를 실행했다.
 - 첫 백엔드 GREEN에서 `HtmlUtils` import 오기, 다음 실행에서 테스트의 불필요 Mockito stub을 발견해 수정 후 재검증했다.
 - Gradle 9 호환성 deprecated feature 경고와 기존 `ExamQuestionSyncServiceTest` unchecked 연산 경고가 출력됐다.
+- 프론트 전체 병렬 테스트에서 `ExamResultDisplay.test.tsx:111`만 기본 1초 대기 한도를 넘는 현상이 반복됐고, 해당 assertion에만 5초를 적용한 뒤 병렬 전체 테스트가 통과했다.
 - **원본 작업공간의 기존 미커밋 파일 `docs/history/front/usr/UserExamInfo_Modified.md`, `frontend/src/app/user/exam-info/page.tsx`, `CACHE_POLICY.md`는 건드리거나 병합에 포함하면 안 된다.**
 
 ## 다음 세션이 바로 실행할 명령
@@ -97,7 +101,7 @@
 cd C:\projects\test_preparation_master_project\.worktrees\feature-patch-notes
 git status --short
 git diff --check
-cd frontend; npm test -- --watch=false
+cd frontend
 npm run build
 cd ..\backend; .\gradlew.bat test
 ```
