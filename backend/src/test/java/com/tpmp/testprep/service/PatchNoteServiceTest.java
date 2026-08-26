@@ -12,6 +12,8 @@ import com.tpmp.testprep.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -109,6 +111,34 @@ class PatchNoteServiceTest {
                     assertThat(errorCode).isEqualTo(ErrorCode.INVALID_INPUT);
                     assertThat(errorCode.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
                 });
+        verify(patchNoteRepository, never()).findByIdAndDelYn(any(Long.class), any(String.class));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "<script>alert(1)</script>",
+            "<style>body { display: none; }</style>",
+            "<template><p>템플릿 본문</p></template>"
+    })
+    void create_rejectsHtmlContainingOnlyNonRenderedElementContent(String content) {
+        PatchNoteRequest request = new PatchNoteRequest("패치노트", "1.0.0", content, true);
+
+        assertThatThrownBy(() -> service.create(request, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> assertThat(((BusinessException) exception).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+        verify(patchNoteRepository, never()).save(any(PatchNote.class));
+    }
+
+    @Test
+    void update_rejectsHtmlContainingOnlyZeroWidthCharacters() {
+        PatchNoteRequest request = new PatchNoteRequest(
+                "패치노트", "1.0.0", "<p>\u200B\u200C\u200D\u2060\uFEFF</p>", true);
+
+        assertThatThrownBy(() -> service.update(10L, request, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> assertThat(((BusinessException) exception).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
         verify(patchNoteRepository, never()).findByIdAndDelYn(any(Long.class), any(String.class));
     }
 

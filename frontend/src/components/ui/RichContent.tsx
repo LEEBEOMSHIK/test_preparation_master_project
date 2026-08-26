@@ -8,16 +8,23 @@ interface Props {
   className?: string;
 }
 
+interface SanitizedContent {
+  source: string;
+  html: string;
+}
+
 /**
  * RichTextEditor(react-quill)로 작성된 HTML 콘텐츠를 렌더링한다.
  * 에디터 출력이 필요한 모든 표시 영역에서 이 컴포넌트를 사용한다.
  */
 export function RichContent({ html, className = '' }: Props) {
-  const [sanitizedHtml, setSanitizedHtml] = useState('');
+  const [sanitizedContent, setSanitizedContent] = useState<SanitizedContent | null>(null);
 
   useEffect(() => {
-    setSanitizedHtml(DOMPurify.sanitize(html));
+    setSanitizedContent({ source: html, html: DOMPurify.sanitize(html) });
   }, [html]);
+
+  const sanitizedHtml = sanitizedContent?.source === html ? sanitizedContent.html : '';
 
   return (
     <div

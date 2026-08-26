@@ -1,3 +1,30 @@
+## HIST-20260826-003
+
+- **날짜**: 2026-08-26
+- **수정 범위**: 관리자 백엔드 / 패치노트 검증·페이지·보안 체인
+- **수정 개요**: 렌더되지 않는 HTML의 빈 본문 검증, 목록 페이지 상한, 실제 Spring Security·Validation 체인 테스트를 보강했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/PatchNoteService.java` | 수정 | script/style/template 내용과 Unicode 비가시 문자를 빈 본문 판정에서 제거 |
+| `backend/src/main/java/com/tpmp/testprep/controller/PatchNotePageable.java` | 추가 | 패치노트 전용 page·size 정규화 |
+| `backend/src/main/java/com/tpmp/testprep/controller/AdminPatchNoteController.java` | 수정 | 기본 size 10 및 최대 50 적용 |
+| `backend/src/test/java/com/tpmp/testprep/service/PatchNoteServiceTest.java` | 수정 | 숨김 노드·NBSP·제로폭 차단과 유효 리치 텍스트 통과 회귀 테스트 |
+| `backend/src/test/java/com/tpmp/testprep/controller/AdminPatchNoteControllerTest.java` | 수정 | 기본값·음수 page·size 0·상한 MockMvc 테스트 |
+| `backend/src/test/java/com/tpmp/testprep/controller/AdminPatchNoteControllerWebMvcTest.java` | 추가 | 미인증 401·USER 403·ADMIN 허용·잘못된 DTO 400 실제 체인 테스트 |
+
+### 수정 상세
+
+- 변경 전: 태그만 제거해 숨김 노드 내부 문자열과 제로폭 문자만 있는 본문을 저장할 수 있었고, 관리자 목록은 전역 기본 size 20과 과대 size를 사용했다. 권한 테스트도 Controller 직접 호출과 annotation 문자열 검사에 머물렀다.
+- 변경 후: 렌더되지 않는 요소를 내용째 제거하고 entity 해제 뒤 Unicode 비가시 문자를 제거해 빈 본문을 차단한다. 관리자 목록은 기본 10·최대 50으로 제한하며, 실제 `SecurityConfig`와 Bean Validation을 MockMvc로 통과시킨다.
+- 이유: DOMPurify 렌더 규칙과 서버 저장 검증을 정렬하고 과대 조회와 보안 회귀를 실제 요청 체인에서 방지한다.
+
+### 복원 방법
+
+이 ID(`back/adm/PatchNotes_Modified.md` 기준 HIST-20260826-003)로 복원 시 숨김 요소·비가시 문자 패턴을 제거해 기존 태그/entity 검증으로 되돌리고, 페이지 annotation·정규화와 신규 MockMvc 보안 테스트 및 추가 경계 테스트를 제거한다.
+
 ## HIST-20260826-002
 
 - **날짜**: 2026-08-26

@@ -1,3 +1,26 @@
+## HIST-20260826-003
+
+- **날짜**: 2026-08-26
+- **수정 범위**: 관리자 프론트엔드 / 패치노트 수정 조회 오류
+- **수정 개요**: 수정 화면 단건 조회의 HTTP·애플리케이션 오류 메시지를 보존하고 네트워크 오류만 친화적 fallback으로 처리했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/patch-notes/[id]/edit/page.tsx` | 수정 | 조회 실패를 공용 `extractApiErrorMessage` 계약으로 통일 |
+| `frontend/src/app/admin/patch-notes/[id]/edit/page.test.tsx` | 추가 | HTTP 404·success=false·네트워크 fallback 회귀 테스트 |
+
+### 수정 상세
+
+- 변경 전: 단건 조회가 HTTP 오류로 reject되면 백엔드 404 메시지를 버리고 고정 fallback만 표시했다.
+- 변경 후: `success=false`는 `ApiApplicationError`로 변환하고 모든 조회 오류를 `extractApiErrorMessage`로 처리해 서버 메시지는 보존하고 네트워크 오류만 fallback을 표시한다.
+- 이유: 목록·저장 흐름과 동일한 API 오류 계약을 수정 화면 조회에도 적용한다.
+
+### 복원 방법
+
+이 ID(`front/adm/PatchNotes_Modified.md` 기준 HIST-20260826-003)로 복원 시 조회 실패 분기를 직접 `setError`와 고정 catch fallback으로 되돌리고 신규 수정 화면 테스트를 제거한다.
+
 ## HIST-20260826-002
 
 - **날짜**: 2026-08-26

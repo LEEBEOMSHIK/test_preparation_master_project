@@ -1,3 +1,27 @@
+## HIST-20260826-003
+
+- **날짜**: 2026-08-26
+- **수정 범위**: 사용자 백엔드 / 패치노트 목록 페이지 경계
+- **수정 개요**: 사용자 패치노트 목록의 기본 페이지 크기를 10으로 고정하고 page·size 입력을 로컬 경계에서 안전하게 정규화했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/controller/PatchNotePageable.java` | 추가 | 패치노트 전용 page 0 이상·size 1~50 정규화 |
+| `backend/src/main/java/com/tpmp/testprep/controller/UserPatchNoteController.java` | 수정 | 기본 size 10 선언 및 정규화된 Pageable 전달 |
+| `backend/src/test/java/com/tpmp/testprep/controller/UserPatchNoteControllerTest.java` | 수정 | 기본값·음수 page·size 0·상한 50 MockMvc 경계 테스트 |
+
+### 수정 상세
+
+- 변경 전: 전역 `Pageable` 기본 size 20과 과대 요청 size를 사용자 패치노트 API가 그대로 사용했다.
+- 변경 후: `@PageableDefault(size=10)`과 패치노트 전용 정규화로 page는 0 이상, size는 기본 10·최대 50을 보장한다.
+- 이유: 다른 도메인의 전역 설정을 바꾸지 않고 사용자 패치노트 목록의 응답 크기를 예측 가능하게 제한한다.
+
+### 복원 방법
+
+이 ID(`back/usr/PatchNotes_Modified.md` 기준 HIST-20260826-003)로 복원 시 사용자 Controller의 `@PageableDefault`와 정규화 호출을 제거하고, 공유 `PatchNotePageable`은 관리자 범위와 함께 제거하며 추가 테스트를 되돌린다.
+
 ## HIST-20260826-002
 
 - **날짜**: 2026-08-26

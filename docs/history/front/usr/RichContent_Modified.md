@@ -1,3 +1,26 @@
+## HIST-20260826-001
+
+- **날짜**: 2026-08-26
+- **수정 범위**: 사용자 프론트엔드 / 공용 RichContent 렌더링
+- **수정 개요**: html prop 교체 직후 이전 정제 본문이 한 프레임 노출되는 상태 불일치를 차단했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/RichContent.tsx` | 수정 | 정제 결과에 원본 source를 함께 보관하고 현재 prop 일치 시에만 렌더 |
+| `frontend/src/components/ui/RichContent.test.tsx` | 수정 | layout 시점의 이전 본문 비노출 rerender 회귀 테스트 |
+
+### 수정 상세
+
+- 변경 전: 정제 HTML 문자열만 상태에 저장해 prop이 바뀐 뒤 effect가 실행되기 전까지 이전 본문을 렌더했다.
+- 변경 후: `{ source, html }` 상태의 source가 현재 prop과 같을 때만 정제 HTML을 주입하고, 새 정제 결과가 준비되기 전에는 빈 내용을 렌더한다.
+- 이유: 패치노트를 포함한 공용 리치 콘텐츠에서 서로 다른 본문이 순간적으로 교차 노출되는 것을 방지한다.
+
+### 복원 방법
+
+이 ID(`front/usr/RichContent_Modified.md` 기준 HIST-20260826-001)로 복원 시 정제 상태를 문자열 하나로 되돌리고 source 일치 조건과 rerender 테스트를 제거한다.
+
 ## HIST-20260629-002
 
 - **날짜**: 2026-06-29

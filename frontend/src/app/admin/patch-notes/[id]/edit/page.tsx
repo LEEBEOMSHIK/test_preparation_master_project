@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { PatchNoteForm } from '@/components/admin/PatchNoteForm';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { ApiApplicationError } from '@/lib/apiError';
+import { ApiApplicationError, extractApiErrorMessage } from '@/lib/apiError';
 import { patchNoteService } from '@/services/patchNoteService';
 import type { PatchNote, PatchNoteRequest } from '@/types';
 
@@ -29,12 +29,13 @@ export default function EditPatchNotePage() {
     try {
       const response = await patchNoteService.adminGetById(patchNoteId);
       if (!response.data.success || !response.data.data) {
-        setError(response.data.error?.message ?? response.data.message ?? '패치노트를 찾을 수 없습니다.');
-        return;
+        throw new ApiApplicationError(
+          response.data.error?.message ?? response.data.message ?? '패치노트를 찾을 수 없습니다.',
+        );
       }
       setPatchNote(response.data.data);
-    } catch {
-      setError('패치노트를 불러오지 못했습니다. 다시 시도해 주세요.');
+    } catch (loadError: unknown) {
+      setError(extractApiErrorMessage(loadError, '패치노트를 불러오지 못했습니다. 다시 시도해 주세요.'));
     } finally {
       setLoading(false);
     }

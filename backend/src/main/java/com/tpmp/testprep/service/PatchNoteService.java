@@ -24,7 +24,11 @@ import java.util.regex.Pattern;
 @Transactional(readOnly = true)
 public class PatchNoteService {
 
+    private static final Pattern NON_RENDERED_ELEMENT_PATTERN = Pattern.compile(
+            "(?is)<\\s*(script|style|template)\\b[^>]*>.*?</\\s*\\1\\s*>");
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]*>");
+    private static final Pattern INVISIBLE_CHARACTER_PATTERN = Pattern.compile(
+            "[\\p{Cf}\\p{Zs}\\u034F\\u115F\\u1160\\u180B-\\u180D\\u3164\\uFE00-\\uFE0F\\uFFA0]");
 
     private final PatchNoteRepository patchNoteRepository;
     private final UserRepository userRepository;
@@ -96,8 +100,10 @@ public class PatchNoteService {
     }
 
     private void validateVisibleContent(String content) {
-        String withoutTags = HTML_TAG_PATTERN.matcher(content).replaceAll("");
-        String visibleText = HtmlUtils.htmlUnescape(withoutTags).replace('\u00A0', ' ');
+        String withoutNonRenderedElements = NON_RENDERED_ELEMENT_PATTERN.matcher(content).replaceAll("");
+        String withoutTags = HTML_TAG_PATTERN.matcher(withoutNonRenderedElements).replaceAll("");
+        String unescapedText = HtmlUtils.htmlUnescape(withoutTags);
+        String visibleText = INVISIBLE_CHARACTER_PATTERN.matcher(unescapedText).replaceAll("");
         if (!StringUtils.hasText(visibleText)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
