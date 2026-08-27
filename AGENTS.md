@@ -214,6 +214,7 @@ rg --files frontend/src/app/admin backend/src/main/java
 | 함수/컴포넌트 | 위치 | 역할 |
 |-------------|------|------|
 | `stripHtml(html)` | `src/lib/html.ts` | HTML → 순수 텍스트 |
+| `normalizeInquiryMenuNames(menus)` | `src/lib/menu.ts` | API·fallback 메뉴 트리의 문의·요청 표시명을 URL 기준으로 재귀 정규화 |
 | `isBlankOrPositiveIntegerText(value)` / `toOptionalPositiveInteger(value)` | `src/lib/questionNumber.ts` | 선택 양의 정수 입력 검증·payload 숫자 변환 |
 | `compareQuestionSourceOrder(a, b)` | `src/lib/questionSort.ts` | 문항관리 출처순 정렬(연도 DESC, 회차 ASC, 문항번호 ASC, 수정일 DESC) |
 | `<RichContent html className />` | `src/components/ui/RichContent.tsx` | 에디터 HTML 렌더링 |

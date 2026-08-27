@@ -8,6 +8,7 @@ import ThemeToggle from '@/components/ui/ThemeToggle';
 import { authService } from '@/services/authService';
 import { menuService } from '@/services/menuService';
 import { PermissionDeniedModal } from '@/components/ui/PermissionDeniedModal';
+import { normalizeInquiryMenuNames } from '@/lib/menu';
 import type { MenuConfig } from '@/types';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -207,7 +208,8 @@ export default function AdminLayoutShell({ children }: { children: React.ReactNo
 
           // DB에 없는 FALLBACK 항목 추가 후 displayOrder 기준 정렬 (대시보드 최상단 보장)
           const missing = FALLBACK_NAV.filter((m) => !coveredUrls.has(m.url));
-          const merged = [...enriched, ...missing].sort((a, b) => a.displayOrder - b.displayOrder);
+          const merged = normalizeInquiryMenuNames([...enriched, ...missing])
+            .sort((a, b) => a.displayOrder - b.displayOrder);
           setNavItems(merged);
         }
       })

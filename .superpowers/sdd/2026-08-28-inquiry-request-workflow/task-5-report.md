@@ -85,3 +85,26 @@
 ### 커밋
 
 - `[FE][BE]_fix:_close_inquiry_workflow_review_gaps`
+
+## Fix Round 3
+
+### RED
+
+- `menu.test.ts`를 먼저 추가해 API가 반환한 구형 이름을 가진 중첩 사용자 메뉴와 최상위 관리자 메뉴를 exact URL 기준으로 정규화하는 계약을 고정했다.
+- no-op helper에서 사용자 기대값 `문의·요청` 대비 `1:1 문의`, 관리자 기대값 `문의·요청 관리` 대비 `1:1 문의 관리`가 반환되어 2 tests가 assertion 실패하는 RED를 확인했다.
+
+### GREEN
+
+- `normalizeInquiryMenuNames` 순수 helper가 메뉴 트리를 재귀 복사하고 `/user/inquiries`, `/admin/inquiries` exact URL의 이름만 정규화하도록 구현했다.
+- `UserLayoutShell`은 API 응답 직후, `AdminLayoutShell`은 API와 fallback을 합친 최종 merged 배열을 `setNavItems` 전에 정규화한다.
+- `AdminInquiryFaq_Modified.md`의 orphan `HIST-20260804-001` 헤더를 실제 2026-08-04 본문 앞으로 이동해 `HIST-20260828-002`가 파일 첫 항목이 되도록 기존 내용을 보존했다.
+
+### 검증
+
+- `node_modules\.bin\jest.cmd --runTestsByPath ... --runInBand` — 문의 관련 10 suites, 25 tests 통과.
+- `node_modules\.bin\tsc.cmd --noEmit` — 통과.
+- `git diff --check` — 통과.
+
+### 커밋
+
+- `[FE]_fix:_normalize_inquiry_menu_names`

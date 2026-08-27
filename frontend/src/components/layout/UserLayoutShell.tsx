@@ -8,6 +8,7 @@ import ThemeToggle from '@/components/ui/ThemeToggle';
 import { authService } from '@/services/authService';
 import { menuService } from '@/services/menuService';
 import { PermissionDeniedModal } from '@/components/ui/PermissionDeniedModal';
+import { normalizeInquiryMenuNames } from '@/lib/menu';
 import type { MenuConfig } from '@/types';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -194,7 +195,7 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
     menuService.getMyMenus('USER')
       .then((res) => {
         if (res.data.success && res.data.data && res.data.data.length > 0) {
-          const apiMenus = res.data.data;
+          const apiMenus = normalizeInquiryMenuNames(res.data.data);
           // API 결과만 사용 — FALLBACK 보충 없음 (권한 제한이 무력화되지 않도록)
           setNavItems(apiMenus);
 

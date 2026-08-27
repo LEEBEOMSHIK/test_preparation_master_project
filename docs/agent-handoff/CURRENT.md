@@ -16,6 +16,7 @@
 - 관리자 keyword를 제목·본문·작성자명에 바인딩 검색하고 대시보드 미처리 버그를 PENDING/IN_PROGRESS/ON_HOLD 전체로 집계했다.
 - 사용자 핵심 payload와 종료 작성기·메시지 첨부 회귀 테스트, 관리자 상세·설정 테스트, 백엔드 서비스 테스트를 보강했다.
 - 메뉴 표시명과 DB 테이블 설명, 사용자/관리자 4개 히스토리 및 Task 4/5 보고서를 최종 상태로 갱신했다.
+- API 메뉴 트리도 exact URL 기준으로 정규화해 구형 `1:1 문의` 표기가 내비게이션에 노출되지 않게 했고, 관리자 프론트 히스토리의 orphan 헤더를 실제 본문 위치로 옮겼다.
 
 ## 미완료 작업
 
@@ -32,7 +33,7 @@
 
 ## 실행한 검증 명령과 결과
 
-- 사용자·관리자·공통 문의 관련 Jest 9 suites, 23 tests 통과.
+- 메뉴 정규화를 포함한 문의 관련 Jest 10 suites, 25 tests 통과.
 - `frontend\node_modules\.bin\tsc.cmd --noEmit` 통과.
 - `backend\gradlew.bat test --tests com.tpmp.testprep.service.InquiryServiceTest --tests com.tpmp.testprep.service.DashboardServiceTest` 통과.
 - 이전 통합 커밋에서 전체 백엔드 테스트, 전체 프론트 Jest 14 suites/70 tests, Next.js 52페이지 빌드 통과.
