@@ -26,7 +26,7 @@ const SOURCE_LABEL: Record<BugReportContext['source'], string> = {
 
 /**
  * 퀴즈·시험 풀이 화면 및 개념노트 상세 화면에서 문항(또는 노트) 단위로 빠르게 버그를 신고하는 모달.
- * 컨텍스트 정보를 자동으로 채워 1:1 문의(BUG 유형)로 등록한다 — user/inquiries/new 전체 폼 대신
+ * 컨텍스트 정보를 자동으로 채워 버그 신고로 등록한다 — user/inquiries/new 전체 폼 대신
  * 설명 한 줄만 입력하면 되는 축약 경로.
  */
 export function BugReportModal({ context, onClose }: Props) {
@@ -53,7 +53,9 @@ export function BugReportModal({ context, onClose }: Props) {
       await inquiryService.create({
         title: `[버그신고] ${SOURCE_LABEL[context.source]} - ${context.label}`.slice(0, 200),
         content: contentLines.join('\n'),
-        inquiryType: 'BUG',
+        requestType: 'BUG_REPORT',
+        targetArea: context.source === 'QUIZ' ? 'DAILY_QUIZ' : context.source === 'EXAM' ? 'EXAM_RESULT' : 'CONCEPT_NOTE',
+        detailLocation: `${SOURCE_LABEL[context.source]} · ${context.label}${context.questionId != null ? ` · 문항 ${context.questionId}` : ''}`.slice(0, 500),
         attachmentIds: [],
       });
       setSubmitted(true);

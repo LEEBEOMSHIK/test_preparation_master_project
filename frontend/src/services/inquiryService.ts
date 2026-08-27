@@ -1,10 +1,12 @@
 import apiClient from './apiClient';
-import type { ApiResponse, PageResponse, Inquiry, InquiryStatus, InquiryType } from '@/types';
+import type { ApiResponse, PageResponse, Inquiry, InquiryStatus, InquiryRequestType, InquiryMessage } from '@/types';
 
 export interface InquiryRequest {
   title: string;
   content: string;
-  inquiryType: InquiryType;
+  requestType: InquiryRequestType;
+  targetArea?: string;
+  detailLocation?: string;
   attachmentIds: number[];
 }
 
@@ -37,6 +39,14 @@ export const inquiryService = {
     });
   },
 
+  uploadMessageImage: (file: File) => {
+    const form = new FormData(); form.append('image', file);
+    return apiClient.post<ApiResponse<UploadImageResult>>('/user/inquiries/messages/images', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+
+  addMessage: (id: number, content: string, attachmentIds: number[]) =>
+    apiClient.post<ApiResponse<InquiryMessage>>(`/user/inquiries/${id}/messages`, { content, attachmentIds }),
+
   // Admin
   adminGetAll: (page = 0, size = 10, status?: InquiryStatus) =>
     apiClient.get<ApiResponse<PageResponse<Inquiry>>>('/admin/inquiries', {
@@ -54,4 +64,7 @@ export const inquiryService = {
 
   adminDelete: (id: number) =>
     apiClient.delete<ApiResponse<void>>(`/admin/inquiries/${id}`),
+
+  adminAddMessage: (id: number, content: string, attachmentIds: number[], sendEmail = false) =>
+    apiClient.post<ApiResponse<InquiryMessage>>(`/admin/inquiries/${id}/messages`, { content, attachmentIds, sendEmail }),
 };

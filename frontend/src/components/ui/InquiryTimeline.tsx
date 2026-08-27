@@ -1,0 +1,20 @@
+import type { Inquiry, InquiryMessage } from '@/types';
+
+type TimelineEntry = { id: number; authorRole: 'USER' | 'ADMIN' | 'SYSTEM'; content: string; createdAt: string; imageUrls: string[]; initial?: boolean };
+const ROLE_LABEL = { USER: '나', ADMIN: '관리자', SYSTEM: '시스템' } as const;
+
+export function buildInquiryTimeline(inquiry: Inquiry): TimelineEntry[] {
+  const initial: TimelineEntry = { id: 0, authorRole: 'USER', content: inquiry.content, createdAt: inquiry.createdAt, imageUrls: inquiry.imageUrls ?? [], initial: true };
+  const messages: TimelineEntry[] = (inquiry.messages ?? []).map((message: InquiryMessage) => ({ ...message }));
+  return [initial, ...messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id - b.id);
+}
+
+export function InquiryTimeline({ inquiry }: { inquiry: Inquiry }) {
+  return <ol className="space-y-3">{buildInquiryTimeline(inquiry).map((entry) => (
+    <li key={`${entry.initial ? 'initial' : 'message'}-${entry.id}`} className={`rounded-xl border p-4 ${entry.authorRole === 'ADMIN' ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-100 dark:border-indigo-900' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700'}`}>
+      <div className="flex justify-between gap-3 mb-2"><span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{ROLE_LABEL[entry.authorRole]}{entry.initial ? ' · 최초 접수' : ''}</span><time className="text-xs text-gray-400">{entry.createdAt.slice(0, 16).replace('T', ' ')}</time></div>
+      <p className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">{entry.content}</p>
+      {entry.imageUrls.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{entry.imageUrls.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 dark:text-indigo-400 underline">첨부 이미지 {index + 1}</a>)}</div>}
+    </li>
+  ))}</ol>;
+}

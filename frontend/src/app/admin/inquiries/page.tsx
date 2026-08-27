@@ -22,8 +22,11 @@ const STATUS_TABS: { label: string; value: InquiryStatus | '' }[] = [
 
 const STATUS_COLOR: Record<InquiryStatus, string> = {
   PENDING: 'bg-yellow-100 text-yellow-700',
+  IN_PROGRESS: 'bg-blue-100 text-blue-700',
   ON_HOLD: 'bg-gray-100 text-gray-600',
   ANSWERED: 'bg-green-100 text-green-700',
+  COMPLETED: 'bg-green-100 text-green-700',
+  UNABLE_TO_PROCESS: 'bg-red-100 text-red-700',
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
@@ -75,7 +78,7 @@ function AdminInquiriesContent() {
   const filtered = useMemo(() => {
     let result = allInquiries;
     if (statusFilter) result = result.filter((i) => i.status === statusFilter);
-    if (typeFilter) result = result.filter((i) => i.inquiryType === typeFilter);
+    if (typeFilter) result = result.filter((i) => (i.inquiryType ?? i.requestType) === typeFilter);
     if (appliedKeyword) {
       const kw = appliedKeyword.toLowerCase();
       result = result.filter((i) =>
@@ -222,7 +225,7 @@ function AdminInquiriesContent() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                    {INQUIRY_TYPE_LABEL[inquiry.inquiryType]}
+                    {INQUIRY_TYPE_LABEL[inquiry.inquiryType ?? inquiry.requestType]}
                   </td>
                   <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
                     {inquiry.userName}

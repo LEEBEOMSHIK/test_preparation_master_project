@@ -1,3 +1,32 @@
+## HIST-20260828-001
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 사용자 프론트엔드 / 문의·요청
+- **수정 개요**: 문의 목적·발생 영역·처리 상태를 분리하고, 최초 접수와 후속 대화를 하나의 타임라인으로 표시하도록 사용자 문의 화면을 전환했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | 백엔드 요청 유형·상태·대화 DTO 계약 반영 |
+| `frontend/src/lib/inquiry.ts` | 추가 | 문의 종료/발생 영역/관리자 상태 규칙 공통화 |
+| `frontend/src/components/ui/InquiryTimeline.tsx` | 추가 | 초기 접수와 메시지 시간순 타임라인 |
+| `frontend/src/components/ui/InquiryMessageComposer.tsx` | 추가 | 열린 접수의 후속 메시지·이미지 첨부 작성기 |
+| `frontend/src/app/user/inquiries/**` | 수정 | 목록, 조건부 접수, 상세 대화 UI 및 Skeleton 적용 |
+| `frontend/src/components/ui/BugReportModal.tsx` | 수정 | 빠른 신고를 `BUG_REPORT`와 영역/상세 위치로 전송 |
+
+### 수정 상세
+
+- 변경 전: 단일 `inquiryType`과 관리자 답변 한 건만 사용자 상세에 표시했다.
+- 변경 후: `requestType`, `targetArea`, `detailLocation`, `messages`를 백엔드 계약과 맞추고 종료 전 사용자 추가 메시지를 허용한다.
+- 이유: 일반 문의와 처리형 요청의 상태 규칙 및 다중 대화 요구사항을 지원하기 위해서다.
+
+### 복원 방법
+
+- 이력의 수정 파일을 이전 커밋 버전으로 되돌리고, 신규 `inquiry.ts`, `InquiryTimeline.tsx`, `InquiryMessageComposer.tsx` 및 각 테스트를 제거한다.
+
+---
+
 ## HIST-20260803-001
 
 - **날짜**: 2026-08-03

@@ -129,7 +129,7 @@ const USER_FALLBACK_NAV: MenuConfig[] = [
   group(112, '도움말', '/user/group/help', 'help', 4, [
     leaf(101, '시험 정보', '/user/exam-info',  'examinfo', 1),
     leaf(105, 'FAQ',       '/user/faq',        'faq',      2),
-    leaf(106, '1:1 문의',  '/user/inquiries',  'inquiry',  3),
+    leaf(106, '문의·요청',  '/user/inquiries',  'inquiry',  3),
     leaf(113, '설정',      '/user/settings',   'settings', 4),
     leaf(114, '개발자 응원하기', '/user/support', 'support', 5),
   ]),

@@ -9,8 +9,11 @@ import { INQUIRY_STATUS_LABEL, INQUIRY_TYPE_LABEL } from '@/types';
 
 const STATUS_COLOR: Record<InquiryStatus, string> = {
   PENDING: 'bg-yellow-100 text-yellow-700',
+  IN_PROGRESS: 'bg-blue-100 text-blue-700',
   ON_HOLD: 'bg-gray-100 text-gray-600',
   ANSWERED: 'bg-green-100 text-green-700',
+  COMPLETED: 'bg-green-100 text-green-700',
+  UNABLE_TO_PROCESS: 'bg-red-100 text-red-700',
 };
 
 export default function AdminInquiryDetailPage() {
@@ -128,7 +131,7 @@ export default function AdminInquiryDetailPage() {
         {/* Meta */}
         <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500">
           <span>작성자: <span className="font-medium text-gray-700">{inquiry.userName}</span></span>
-          <span>유형: <span className="font-medium text-gray-700">{INQUIRY_TYPE_LABEL[inquiry.inquiryType]}</span></span>
+          <span>유형: <span className="font-medium text-gray-700">{INQUIRY_TYPE_LABEL[inquiry.inquiryType ?? inquiry.requestType]}</span></span>
           <span>등록일: <span className="font-medium text-gray-700">{inquiry.createdAt?.slice(0, 10)}</span></span>
           {inquiry.repliedAt && (
             <span>답변일: <span className="font-medium text-gray-700">{inquiry.repliedAt.slice(0, 10)}</span></span>

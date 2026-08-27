@@ -354,31 +354,43 @@ export interface ConceptNote {
 // ──────────────────────────────────────────
 // Inquiry
 // ──────────────────────────────────────────
-export type InquiryStatus = 'PENDING' | 'ON_HOLD' | 'ANSWERED';
-export type InquiryType = 'EXAM' | 'CONCEPT_NOTE' | 'DAILY_QUIZ' | 'PRACTICE' | 'BUG' | 'OTHER';
+export type InquiryRequestType = 'GENERAL_INQUIRY' | 'BUG_REPORT' | 'EXAM_OPENING_REQUEST' | 'FEATURE_REQUEST' | 'OTHER';
+export type InquiryStatus = 'PENDING' | 'IN_PROGRESS' | 'ON_HOLD' | 'ANSWERED' | 'COMPLETED' | 'UNABLE_TO_PROCESS';
+/** @deprecated InquiryRequestType를 사용한다. */
+export type InquiryType = InquiryRequestType;
 
 export const INQUIRY_STATUS_LABEL: Record<InquiryStatus, string> = {
   PENDING: '답변 대기',
+  IN_PROGRESS: '검토 중',
   ON_HOLD: '답변 보류',
   ANSWERED: '답변 완료',
+  COMPLETED: '처리 완료',
+  UNABLE_TO_PROCESS: '처리 불가',
 };
 
 export const INQUIRY_TYPE_LABEL: Record<InquiryType, string> = {
-  EXAM: '시험',
-  CONCEPT_NOTE: '개념노트',
-  DAILY_QUIZ: '데일리 퀴즈',
-  PRACTICE: '연습장',
-  BUG: '버그 신고',
+  GENERAL_INQUIRY: '일반 문의',
+  BUG_REPORT: '버그 신고',
+  EXAM_OPENING_REQUEST: '시험 개설 요청',
+  FEATURE_REQUEST: '신규 기능 요청',
   OTHER: '기타',
 };
+
+export type InquiryAuthorRole = 'USER' | 'ADMIN' | 'SYSTEM';
+export interface InquiryMessage { id: number; authorId: number | null; authorRole: InquiryAuthorRole; content: string; createdAt: string; imageUrls: string[]; }
 
 export interface Inquiry {
   id: number;
   title: string;
   content: string;
   status: InquiryStatus;
-  inquiryType: InquiryType;
+  requestType: InquiryRequestType;
+  /** 이전 관리자 화면 호환용 별칭. 신규 화면에서는 requestType을 사용한다. */
+  inquiryType?: InquiryRequestType;
+  targetArea?: string | null;
+  detailLocation?: string | null;
   imageUrls: string[];
+  messages?: InquiryMessage[];
   reply?: string;
   repliedAt?: string;
   createdAt: string;
