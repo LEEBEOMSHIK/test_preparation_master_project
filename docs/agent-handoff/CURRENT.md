@@ -14,6 +14,7 @@
 - AFTER_COMMIT 이벤트와 `inquiryEmailExecutor`에서 SMTP를 실행하고 성공/실패·재발송 선점을 기록한다.
 - SMTP 환경변수 예제와 Compose 전달값, 사용자/관리자 백엔드 히스토리를 갱신했다.
 - 완료 커밋: `16c255b [BE]_feat:_add_inquiry_email_notifications`
+- 리뷰 수정 커밋: `5c7aabb [BE] fix: correct inquiry email templates and settings singleton`
 
 ## 미완료 작업
 
