@@ -90,7 +90,7 @@ class InquiryServiceTest {
     private InquiryService service(InquiryRepository inquiryRepository, UserRepository userRepository,
                                    InquiryMessageRepository messageRepository) {
         return new InquiryService(inquiryRepository, userRepository, mock(AttachmentService.class), messageRepository,
-                mock(DomainSlaveRepository.class));
+                mock(DomainSlaveRepository.class), mock(InquiryEmailService.class));
     }
 
     private UserRepository userRepository(User user) {

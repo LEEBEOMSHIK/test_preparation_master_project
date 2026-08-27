@@ -9,6 +9,7 @@ import com.tpmp.testprep.dto.response.InquiryMessageResponse;
 import com.tpmp.testprep.dto.response.InquirySummaryResponse;
 import com.tpmp.testprep.entity.Attachment;
 import com.tpmp.testprep.entity.Inquiry;
+import com.tpmp.testprep.entity.InquiryEmailDelivery;
 import com.tpmp.testprep.entity.InquiryMessage;
 import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.exception.BusinessException;
@@ -35,6 +36,7 @@ public class InquiryService {
     private final AttachmentService attachmentService;
     private final InquiryMessageRepository inquiryMessageRepository;
     private final DomainSlaveRepository domainSlaveRepository;
+    private final InquiryEmailService inquiryEmailService;
 
     public Page<InquirySummaryResponse> getMyInquiries(String email, Inquiry.Status status, Pageable pageable) {
         User user = findUser(email);
@@ -55,6 +57,7 @@ public class InquiryService {
         Inquiry saved = inquiryRepository.save(Inquiry.builder().user(user).title(request.title()).content(request.content())
                 .requestType(request.requestType()).targetArea(targetArea(request)).detailLocation(detailLocation(request)).build());
         attachmentService.validateAndLinkInquiryAttachments(request.attachmentIds(), Attachment.RefType.INQUIRY, saved.getId(), user);
+        inquiryEmailService.queueAdminNotification(InquiryEmailDelivery.EventType.NEW_INQUIRY, saved, null);
         return toDetail(saved);
     }
 
@@ -90,6 +93,7 @@ public class InquiryService {
         InquiryMessage message = inquiryMessageRepository.save(InquiryMessage.builder().inquiry(inquiry).author(user)
                 .authorRole(InquiryMessage.AuthorRole.USER).content(request.content()).build());
         attachmentService.validateAndLinkInquiryAttachments(request.attachmentIds(), Attachment.RefType.INQUIRY_MESSAGE, message.getId(), user);
+        inquiryEmailService.queueAdminNotification(InquiryEmailDelivery.EventType.USER_MESSAGE, inquiry, message);
         return toMessage(message);
     }
 
@@ -108,6 +112,7 @@ public class InquiryService {
                 .author(admin).authorRole(InquiryMessage.AuthorRole.ADMIN).content(request.content()).build());
         attachmentService.validateAndLinkInquiryAttachments(request.attachmentIds(), Attachment.RefType.INQUIRY_MESSAGE,
                 message.getId(), admin);
+        inquiryEmailService.queueUserNotification(InquiryEmailDelivery.EventType.ADMIN_MESSAGE, inquiry, message, request.sendEmail());
         return toMessage(message);
     }
 
@@ -116,12 +121,16 @@ public class InquiryService {
         Inquiry inquiry = findInquiry(inquiryId);
         User admin = findUser(email);
         if (!inquiry.canTransitionTo(request.status())) throw new BusinessException(ErrorCode.INVALID_INQUIRY_STATUS_TRANSITION);
+        InquiryMessage finalMessage = null;
         if (request.status().isClosed()) {
             if (request.message() == null || request.message().isBlank()) throw new BusinessException(ErrorCode.INVALID_INPUT);
-            inquiryMessageRepository.save(InquiryMessage.builder().inquiry(inquiry)
+            finalMessage = inquiryMessageRepository.save(InquiryMessage.builder().inquiry(inquiry)
                     .author(admin).authorRole(InquiryMessage.AuthorRole.ADMIN).content(request.message()).build());
         }
         inquiry.changeStatus(request.status());
+        if (request.status().isClosed()) {
+            inquiryEmailService.queueUserNotification(toEmailEvent(request.status()), inquiry, finalMessage, request.sendEmail());
+        }
         return toDetail(inquiry);
     }
 
@@ -136,6 +145,15 @@ public class InquiryService {
 
     private String targetArea(InquiryRequest request) { return request.requestType() == Inquiry.RequestType.EXAM_OPENING_REQUEST ? null : request.targetArea(); }
     private String detailLocation(InquiryRequest request) { return request.requestType() == Inquiry.RequestType.EXAM_OPENING_REQUEST ? null : request.detailLocation(); }
+
+    private InquiryEmailDelivery.EventType toEmailEvent(Inquiry.Status status) {
+        return switch (status) {
+            case ANSWERED -> InquiryEmailDelivery.EventType.ANSWERED;
+            case COMPLETED -> InquiryEmailDelivery.EventType.COMPLETED;
+            case UNABLE_TO_PROCESS -> InquiryEmailDelivery.EventType.UNABLE_TO_PROCESS;
+            default -> throw new IllegalArgumentException("종료 상태가 아닙니다.");
+        };
+    }
 
     private InquiryDetailResponse toDetail(Inquiry inquiry) {
         List<String> images = attachmentService.findByRef(Attachment.RefType.INQUIRY, inquiry.getId()).stream().map(Attachment::getFileUrl).toList();

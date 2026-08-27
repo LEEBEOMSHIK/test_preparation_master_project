@@ -4,57 +4,46 @@
 
 ## 현재 목표와 사용자 결정 사항
 
-- 기존 문의 기능을 `문의·요청` 접수 처리 구조로 확장한다.
-- 일반 문의는 `답변 완료`, 버그·시험 개설·신규 기능 요청은 `처리 완료` 또는 `처리 불가`로 종료한다.
-- 종료 전까지 사용자와 관리자가 여러 번 대화한다.
-- 관리자 수신 이메일은 복수 설정하고, 사용자에게 보내는 답변·종료 메일은 관리자가 매번 선택한다.
-- 이메일만 지원하고 SMS는 제외한다.
+- 문의·요청의 관리자 수신 설정과 커밋 후 비동기 이메일 발송(Task 3)을 구현했다.
+- SMTP가 비어 있거나 실패해도 업무 저장은 성공하고 delivery만 FAILED로 남긴다.
 
 ## 완료한 작업
 
-- 격리 워크트리와 `feature/fullstack-inquiry-workflow` 브랜치를 생성했다.
-- 승인된 1안의 데이터 모델, 상태 전이, 양방향 메시지, 이메일 발송 이력, 화면, 보안, 테스트 범위를 설계 명세로 작성했다.
-- 명세의 placeholder, 상태/유형 일관성, 기존 데이터 이관 규칙을 자체 검토했다.
-- 파일 단위 TDD 구현 계획을 `docs/superpowers/plans/2026-08-28-inquiry-request-workflow.md`에 작성하고 자체 검토했다.
-- 구현 전 기준선으로 백엔드 전체 테스트, 프론트 타입체크, 프론트 테스트 55개를 통과했다.
+- 관리자 수신 설정·수신자·발송 이력 엔티티, Repository, DTO, 관리자 전용 API를 추가했다.
+- 신규 접수·사용자 메시지는 설정된 모든 관리자에게, 관리자 메시지·종료는 `sendEmail=true`일 때만 사용자에게 큐잉한다.
+- AFTER_COMMIT 이벤트와 `inquiryEmailExecutor`에서 SMTP를 실행하고 성공/실패·재발송 선점을 기록한다.
+- SMTP 환경변수 예제와 Compose 전달값, 사용자/관리자 백엔드 히스토리를 갱신했다.
 
 ## 미완료 작업
 
-- 백엔드 DB/API/메일 구현
-- 사용자·관리자 프론트엔드 구현
-- 정적 검토, 테스트, 히스토리 기록
+- Task 4 사용자 프론트엔드와 Task 5 관리자 프론트엔드·통합 정리
 
 ## 수정한 파일
 
-- `docs/superpowers/specs/2026-08-28-inquiry-request-workflow-design.md`
-- `docs/superpowers/plans/2026-08-28-inquiry-request-workflow.md`
-- `docs/agent-handoff/CURRENT.md`
+- `backend/src/main/java/com/tpmp/testprep/{entity,repository,service,event,config,controller,dto}/`의 Task 3 메일 구성
+- `backend/src/main/java/com/tpmp/testprep/service/InquiryService.java`
+- `backend/build.gradle`, `backend/src/main/resources/application.yml`, `.env*.example`, `docker-compose.yml`
+- `docs/history/back/usr/UserInquiry_Modified.md`, `docs/history/back/adm/AdminInquiry_Modified.md`
 
 ## 실행한 검증 명령과 결과
 
-- `rg -n TBD ...`, `rg -n TODO ...`: placeholder 없음
+- `backend\\gradlew.bat test --tests '*InquiryNotificationSettingsServiceTest' --tests '*InquiryEmailServiceTest' --tests '*InquiryEmailDispatcherTest' --info`: 10 tests 통과
+- `backend\\gradlew.bat test --info`: 전체 백엔드 테스트 통과
 - `git diff --check`: 통과
-- `backend\\gradlew.bat test`: 통과
-- `frontend\\node_modules\\.bin\\tsc --noEmit`: 통과
-- `npm test -- --watch=false`: 8 suites, 55 tests 통과
 
 ## 실패·경고·주의사항
 
-- 기본 체크아웃에 사용자 소유 미커밋 파일이 있어 새 작업은 격리 워크트리에서만 진행한다.
-- 메인 체크아웃의 `frontend/src/app/user/exam-info/page.tsx`, 관련 history, `CACHE_POLICY.md`는 건드리지 않는다.
-- 운영은 `ddl-auto=validate`이므로 신규 SQL을 애플리케이션보다 먼저 적용해야 한다.
+- SMTP는 운영 환경에서 `MAIL_HOST` 등 환경변수를 설정해야 실제 발송되며, 미설정 delivery는 의도적으로 FAILED가 된다.
+- 기본 체크아웃의 사용자 소유 미커밋 파일은 건드리지 않는다.
 
 ## 다음 세션이 바로 실행할 명령
 
 ```powershell
 cd C:\projects\test_preparation_master_project\.worktrees\feature-inquiry-workflow
 git status --short --branch
-type docs\superpowers\plans\2026-08-28-inquiry-request-workflow.md
+backend\gradlew.bat test
 ```
-
-계획 Task 1부터 실패 테스트를 먼저 작성하고 구현한다.
 
 ## 건드리면 안 되는 파일 또는 기존 미추적 파일
 
 - 기본 체크아웃의 사용자 변경 파일 일체
-- 기존 `docs/db-migration/` 델타 파일은 수정·삭제하지 않고 신규 델타만 추가한다.

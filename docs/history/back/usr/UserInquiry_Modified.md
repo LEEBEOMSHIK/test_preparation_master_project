@@ -1,3 +1,31 @@
+## HIST-20260828-003
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 사용자 백엔드 / 문의·요청
+- **수정 개요**: 신규 접수와 사용자 추가 메시지에 대한 관리자 이메일 알림 발송 이력 생성을 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryService.java` | 수정 | 신규 접수·사용자 메시지 저장 트랜잭션에서 관리자 알림을 큐잉 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryEmailService.java` | 추가 | 수신 설정을 읽어 PENDING 발송 이력과 커밋 후 이벤트를 생성 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryEmailDispatcher.java` | 추가 | 커밋 후 전용 실행기에서 SMTP 결과를 SENT/FAILED로 기록 |
+| `backend/src/main/java/com/tpmp/testprep/entity/InquiryEmailDelivery.java` | 추가 | 발송 이력 상태·시도 횟수·오류·시각을 영속화 |
+
+### 수정 상세
+
+#### `InquiryService.java`
+- 변경 전: 신규 접수와 사용자 메시지가 저장된 뒤 관리자 알림 이력이 생성되지 않았다.
+- 변경 후: 같은 업무 트랜잭션에서 수신자별 PENDING 이력을 생성하고, 커밋 후 이벤트로 실제 SMTP 발송을 분리한다.
+- 이유: SMTP 장애가 사용자 접수와 메시지 저장을 롤백하지 않도록 하기 위해서다.
+
+### 복원 방법
+
+`UserInquiry_Modified.md`의 HIST-20260828-003 복원 시 사용자 접수·메시지의 관리자 알림 큐잉과 관련 발송 이력 코드를 함께 되돌린다. 이미 생성된 발송 이력은 운영 데이터이므로 삭제 전 백업한다.
+
+---
+
 ## HIST-20260828-002
 
 - **날짜**: 2026-08-28

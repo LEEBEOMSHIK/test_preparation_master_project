@@ -1,3 +1,33 @@
+## HIST-20260828-003
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 관리자 백엔드 / 문의·요청 관리
+- **수정 개요**: 복수 수신 주소 설정, 발송 이력 조회, 실패 이메일 원자적 재발송과 사용자 선택 알림을 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/controller/AdminInquiryNotificationController.java` | 추가 | 관리자 전용 수신 설정 GET/PUT API |
+| `backend/src/main/java/com/tpmp/testprep/controller/AdminInquiryEmailDeliveryController.java` | 추가 | 관리자 전용 이력 조회·실패 재발송 API |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryNotificationSettingsService.java` | 추가 | 주소 trim/lowercase·중복 제거·최대 10개 검증 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryEmailService.java` | 추가 | 사용자 선택 알림, 실패 행 조건부 재발송 선점 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryService.java` | 수정 | 관리자 중간 답변·종료 시 `sendEmail` 선택값으로 사용자 알림 큐잉 |
+| `backend/src/main/resources/application.yml` | 수정 | SMTP와 공개 URL 환경변수 기본값 추가 |
+
+### 수정 상세
+
+#### `InquiryEmailService.java`
+- 변경 전: 관리자 답변·종료에 대한 선택적 사용자 메일과 실패 재발송 기능이 없었다.
+- 변경 후: `sendEmail=true`일 때만 PENDING 이력을 생성하며 FAILED 행만 조건부 UPDATE로 PENDING 상태를 선점한다.
+- 이유: 중복 발송을 막고 SMTP 실패를 업무 처리와 격리하기 위해서다.
+
+### 복원 방법
+
+`AdminInquiry_Modified.md`의 HIST-20260828-003 복원 시 관리자 알림 설정·발송 이력 API와 이메일 서비스 연결을 함께 되돌린다. SMTP 환경변수는 비워도 서버는 기동되지만, 기존 발송 이력은 운영 감사 데이터이므로 보존한다.
+
+---
+
 ## HIST-20260828-002
 
 - **날짜**: 2026-08-28
