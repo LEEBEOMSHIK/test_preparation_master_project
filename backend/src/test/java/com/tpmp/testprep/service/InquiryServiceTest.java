@@ -12,6 +12,7 @@ import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.InquiryMessageRepository;
 import com.tpmp.testprep.repository.InquiryRepository;
 import com.tpmp.testprep.repository.UserRepository;
+import com.tpmp.testprep.repository.DomainSlaveRepository;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -74,9 +75,9 @@ class InquiryServiceTest {
         InquiryMessageRepository messageRepository = mock(InquiryMessageRepository.class);
         when(inquiryRepository.findById(1L)).thenReturn(Optional.of(inquiry));
         when(messageRepository.save(any(InquiryMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        InquiryService service = service(inquiryRepository, mock(UserRepository.class), messageRepository);
+        InquiryService service = service(inquiryRepository, userRepository(user("admin@tpmp.com")), messageRepository);
 
-        service.updateStatus(1L, new InquiryStatusUpdateRequest(Inquiry.Status.COMPLETED, "반영했습니다.", false));
+        service.updateStatus(1L, new InquiryStatusUpdateRequest(Inquiry.Status.COMPLETED, "반영했습니다.", false), "admin@tpmp.com");
 
         assertThat(inquiry.getStatus()).isEqualTo(Inquiry.Status.COMPLETED);
         verify(messageRepository).save(argThat(message -> "반영했습니다.".equals(message.getContent())));
@@ -88,7 +89,8 @@ class InquiryServiceTest {
 
     private InquiryService service(InquiryRepository inquiryRepository, UserRepository userRepository,
                                    InquiryMessageRepository messageRepository) {
-        return new InquiryService(inquiryRepository, userRepository, mock(AttachmentService.class), messageRepository);
+        return new InquiryService(inquiryRepository, userRepository, mock(AttachmentService.class), messageRepository,
+                mock(DomainSlaveRepository.class));
     }
 
     private UserRepository userRepository(User user) {

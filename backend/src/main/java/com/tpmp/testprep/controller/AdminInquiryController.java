@@ -27,10 +27,11 @@ public class AdminInquiryController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<Page<InquirySummaryResponse>>> getAll(
-            @RequestParam(required = false) Inquiry.Status status,
+            @RequestParam(required = false) Inquiry.Status status, @RequestParam(required = false) Inquiry.RequestType requestType,
+            @RequestParam(required = false) String targetArea,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(
-                inquiryService.adminGetAll(status, pageable)));
+                inquiryService.adminGetAll(status, requestType, targetArea, pageable)));
     }
 
     @GetMapping("/{id}")
@@ -48,8 +49,8 @@ public class AdminInquiryController {
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<InquiryDetailResponse>> updateStatus(@PathVariable Long id,
-            @Valid @RequestBody InquiryStatusUpdateRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(inquiryService.updateStatus(id, request)));
+            @Valid @RequestBody InquiryStatusUpdateRequest request, @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.success(inquiryService.updateStatus(id, request, email)));
     }
 
     @DeleteMapping("/{id}")

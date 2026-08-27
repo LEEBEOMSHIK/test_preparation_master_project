@@ -73,4 +73,11 @@ public class UserInquiryController {
         InquiryService.UploadResult result = inquiryService.uploadImage(image, email);
         return ResponseEntity.ok(ApiResponse.success(Map.of("id", result.id(), "url", result.url())));
     }
+
+    @PostMapping(value = "/messages/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> uploadMessageImage(@RequestPart("image") MultipartFile image,
+            @AuthenticationPrincipal String email) {
+        InquiryService.UploadResult result = inquiryService.uploadMessageImage(image, email);
+        return ResponseEntity.ok(ApiResponse.success(Map.of("id", result.id(), "url", result.url())));
+    }
 }

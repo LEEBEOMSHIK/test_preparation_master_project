@@ -16,6 +16,7 @@ import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.InquiryMessageRepository;
 import com.tpmp.testprep.repository.InquiryRepository;
 import com.tpmp.testprep.repository.UserRepository;
+import com.tpmp.testprep.repository.DomainSlaveRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +34,7 @@ public class InquiryService {
     private final UserRepository userRepository;
     private final AttachmentService attachmentService;
     private final InquiryMessageRepository inquiryMessageRepository;
+    private final DomainSlaveRepository domainSlaveRepository;
 
     public Page<InquirySummaryResponse> getMyInquiries(String email, Inquiry.Status status, Pageable pageable) {
         User user = findUser(email);
@@ -73,6 +75,13 @@ public class InquiryService {
     }
 
     @Transactional
+    public UploadResult uploadMessageImage(MultipartFile image, String email) {
+        User user = findUser(email);
+        Attachment attachment = attachmentService.saveImage(image, Attachment.RefType.INQUIRY_MESSAGE, user);
+        return new UploadResult(attachment.getId(), attachment.getFileUrl());
+    }
+
+    @Transactional
     public InquiryMessageResponse addUserMessage(Long inquiryId, InquiryMessageRequest request, String email) {
         Inquiry inquiry = findInquiry(inquiryId);
         User user = findUser(email);
@@ -84,9 +93,8 @@ public class InquiryService {
         return toMessage(message);
     }
 
-    public Page<InquirySummaryResponse> adminGetAll(Inquiry.Status status, Pageable pageable) {
-        return (status == null ? inquiryRepository.findAll(pageable) : inquiryRepository.findByStatus(status, pageable))
-                .map(InquirySummaryResponse::from);
+    public Page<InquirySummaryResponse> adminGetAll(Inquiry.Status status, Inquiry.RequestType requestType, String targetArea, Pageable pageable) {
+        return inquiryRepository.findAdminFiltered(status, requestType, targetArea, pageable).map(InquirySummaryResponse::from);
     }
 
     public InquiryDetailResponse adminGetOne(Long id) { return toDetail(findInquiry(id)); }
@@ -104,13 +112,14 @@ public class InquiryService {
     }
 
     @Transactional
-    public InquiryDetailResponse updateStatus(Long inquiryId, InquiryStatusUpdateRequest request) {
+    public InquiryDetailResponse updateStatus(Long inquiryId, InquiryStatusUpdateRequest request, String email) {
         Inquiry inquiry = findInquiry(inquiryId);
+        User admin = findUser(email);
         if (!inquiry.canTransitionTo(request.status())) throw new BusinessException(ErrorCode.INVALID_INQUIRY_STATUS_TRANSITION);
         if (request.status().isClosed()) {
             if (request.message() == null || request.message().isBlank()) throw new BusinessException(ErrorCode.INVALID_INPUT);
             inquiryMessageRepository.save(InquiryMessage.builder().inquiry(inquiry)
-                    .authorRole(InquiryMessage.AuthorRole.ADMIN).content(request.message()).build());
+                    .author(admin).authorRole(InquiryMessage.AuthorRole.ADMIN).content(request.message()).build());
         }
         inquiry.changeStatus(request.status());
         return toDetail(inquiry);
@@ -120,7 +129,8 @@ public class InquiryService {
     public void adminDelete(Long id) { inquiryRepository.delete(findInquiry(id)); }
 
     private void validateRequest(InquiryRequest request) {
-        if (request.requestType() == Inquiry.RequestType.BUG_REPORT && (request.targetArea() == null || request.targetArea().isBlank()))
+        if (request.requestType() == Inquiry.RequestType.BUG_REPORT && (request.targetArea() == null || request.targetArea().isBlank()
+                || domainSlaveRepository.findByMasterCode("INQUIRY_BUG_AREA").stream().noneMatch(s -> request.targetArea().equals(s.getName()))))
             throw new BusinessException(ErrorCode.INVALID_INQUIRY_TARGET_AREA);
     }
 
