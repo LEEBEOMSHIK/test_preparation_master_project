@@ -1,9 +1,9 @@
 'use client';
 import Link from 'next/link'; import { useEffect, useState } from 'react';
 import { TableSkeleton } from '@/components/ui/Skeleton'; import { inquiryService } from '@/services/inquiryService';
-import type { Inquiry, InquiryStatus } from '@/types'; import { INQUIRY_STATUS_LABEL, INQUIRY_TYPE_LABEL } from '@/types';
+import type { InquirySummary, InquiryStatus } from '@/types'; import { INQUIRY_STATUS_LABEL, INQUIRY_TYPE_LABEL } from '@/types';
 const statuses: (InquiryStatus | '')[] = ['', 'PENDING', 'IN_PROGRESS', 'ON_HOLD', 'ANSWERED', 'COMPLETED', 'UNABLE_TO_PROCESS'];
-export default function UserInquiriesPage() { const [items, setItems] = useState<Inquiry[]>([]); const [loading, setLoading] = useState(true); const [status, setStatus] = useState<InquiryStatus | ''>(''); const [error, setError] = useState('');
+export default function UserInquiriesPage() { const [items, setItems] = useState<InquirySummary[]>([]); const [loading, setLoading] = useState(true); const [status, setStatus] = useState<InquiryStatus | ''>(''); const [error, setError] = useState('');
   useEffect(() => { setLoading(true); setError(''); inquiryService.getMyInquiries(0, 20, status || undefined).then((res) => setItems(res.data.data?.content ?? [])).catch(() => setError('문의·요청 목록을 불러오지 못했습니다.')).finally(() => setLoading(false)); }, [status]);
   return <div className="space-y-4"><div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">문의·요청</h2><p className="mt-0.5 text-sm text-gray-500">등록한 문의와 처리 요청을 확인하세요.</p></div><Link href="/user/inquiries/new" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white">등록하기</Link></div>
   <div className="flex gap-1 overflow-x-auto rounded-lg bg-gray-100 dark:bg-gray-800 p-1">{statuses.map((value) => <button key={value || 'all'} onClick={() => setStatus(value)} className={`shrink-0 rounded-md px-3 py-1.5 text-xs ${status === value ? 'bg-white dark:bg-gray-700 text-indigo-700 dark:text-indigo-300 shadow' : 'text-gray-500'}`}>{value ? INQUIRY_STATUS_LABEL[value] : '전체'}</button>)}</div>

@@ -4,9 +4,10 @@ import com.tpmp.testprep.entity.Inquiry;
 import java.time.LocalDateTime;
 
 public record InquirySummaryResponse(Long id, String title, String requestType, String targetArea,
-                                     String status, LocalDateTime createdAt) {
+                                     String status, LocalDateTime createdAt, Long userId, String userName) {
     public static InquirySummaryResponse from(Inquiry inquiry) {
         return new InquirySummaryResponse(inquiry.getId(), inquiry.getTitle(), inquiry.getRequestType().name(),
-                inquiry.getTargetArea(), inquiry.getStatus().name(), inquiry.getCreatedAt());
+                inquiry.getTargetArea(), inquiry.getStatus().name(), inquiry.getCreatedAt(),
+                inquiry.getUser().getId(), inquiry.getUser().getName());
     }
 }

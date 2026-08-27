@@ -20,3 +20,10 @@
 ## 우려사항
 
 - 명세의 파일 인자 형태 Jest 명령은 Windows Jest에서 경로를 testPathPattern 정규식으로 바꾸어 테스트가 0건으로 종료된다. 선택 실행은 동등한 정규식 패턴을 사용했다.
+
+## 리뷰 수정 Round 1
+
+- `BUG_REPORT`의 시험 영역을 `EXAM_SOLVING_RESULT` 정식 코드로 고치고, 발생 영역 fallback을 서버 시드와 일치시켰다.
+- 목록 DTO와 상세 DTO를 분리하고 백엔드 summary에 작성자 식별자·이름을 포함했다.
+- 시험 개설 요청은 상세 위치를 노출·전송하지 않게 했다.
+- `tsc --noEmit` 통과. Gradle 선택 테스트는 sandbox 네트워크 제한으로 Gradle 배포판 다운로드 단계에서 중단됐다.

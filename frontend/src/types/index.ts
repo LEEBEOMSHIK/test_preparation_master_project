@@ -379,24 +379,26 @@ export const INQUIRY_TYPE_LABEL: Record<InquiryType, string> = {
 export type InquiryAuthorRole = 'USER' | 'ADMIN' | 'SYSTEM';
 export interface InquiryMessage { id: number; authorId: number | null; authorRole: InquiryAuthorRole; content: string; createdAt: string; imageUrls: string[]; }
 
-export interface Inquiry {
+export interface InquirySummary {
   id: number;
   title: string;
-  content: string;
   status: InquiryStatus;
   requestType: InquiryRequestType;
   /** 이전 관리자 화면 호환용 별칭. 신규 화면에서는 requestType을 사용한다. */
   inquiryType?: InquiryRequestType;
   targetArea?: string | null;
   detailLocation?: string | null;
-  imageUrls: string[];
-  messages?: InquiryMessage[];
-  reply?: string;
-  repliedAt?: string;
   createdAt: string;
   userId?: number;
   userName?: string;
 }
+export interface InquiryDetail extends InquirySummary {
+  content: string;
+  imageUrls: string[];
+  messages: InquiryMessage[];
+}
+/** @deprecated 목록에는 InquirySummary, 상세에는 InquiryDetail을 사용한다. */
+export type Inquiry = InquiryDetail;
 
 // ──────────────────────────────────────────
 // Attachment

@@ -54,7 +54,7 @@ export function BugReportModal({ context, onClose }: Props) {
         title: `[버그신고] ${SOURCE_LABEL[context.source]} - ${context.label}`.slice(0, 200),
         content: contentLines.join('\n'),
         requestType: 'BUG_REPORT',
-        targetArea: context.source === 'QUIZ' ? 'DAILY_QUIZ' : context.source === 'EXAM' ? 'EXAM_RESULT' : 'CONCEPT_NOTE',
+        targetArea: context.source === 'QUIZ' ? 'DAILY_QUIZ' : context.source === 'EXAM' ? 'EXAM_SOLVING_RESULT' : 'CONCEPT_NOTE',
         detailLocation: `${SOURCE_LABEL[context.source]} · ${context.label}${context.questionId != null ? ` · 문항 ${context.questionId}` : ''}`.slice(0, 500),
         attachmentIds: [],
       });
