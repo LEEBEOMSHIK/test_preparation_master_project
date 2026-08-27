@@ -13,6 +13,7 @@
 - 신규 접수·사용자 메시지는 설정된 모든 관리자에게, 관리자 메시지·종료는 `sendEmail=true`일 때만 사용자에게 큐잉한다.
 - AFTER_COMMIT 이벤트와 `inquiryEmailExecutor`에서 SMTP를 실행하고 성공/실패·재발송 선점을 기록한다.
 - SMTP 환경변수 예제와 Compose 전달값, 사용자/관리자 백엔드 히스토리를 갱신했다.
+- 완료 커밋: `16c255b [BE]_feat:_add_inquiry_email_notifications`
 
 ## 미완료 작업
 
