@@ -1,3 +1,36 @@
+## HIST-20260828-001
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 관리자 백엔드 / 문의·요청 관리 기반
+- **수정 개요**: 처리형 요청 종료·재열기 상태 규칙과 관리자 문의 도메인 시드 기반을 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/entity/Inquiry.java` | 수정 | 처리형 요청의 완료·처리 불가 종료와 관리자 재열기 상태 전이를 추가 |
+| `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java` | 수정 | 문의·요청 관리 메뉴 명칭 및 신규 문의 도메인 시드를 반영 |
+| `backend/src/test/java/com/tpmp/testprep/entity/InquiryWorkflowTest.java` | 추가 | 유형별 종료 상태와 재열기 전이를 검증 |
+| `backend/src/test/java/com/tpmp/testprep/config/DataInitializerTest.java` | 수정 | 신규 문의 유형·버그 영역의 누락값 멱등 시드를 검증 |
+
+### 수정 상세
+
+#### `Inquiry.java`
+- 변경 전: 관리자 답변은 모든 문의를 `ANSWERED`로 처리했고 `IN_PROGRESS` 재열기 상태가 없었다.
+- 변경 후: 접수 유형에 맞는 종료 상태만 허용하고, 모든 종료 상태에서 `IN_PROGRESS`로 재열 수 있다.
+- 이유: 관리자 처리형 요청을 일반 문의와 구분해 관리하기 위해서다.
+
+#### `DataInitializer.java`
+- 변경 전: 구형 `inquiry_type` CHECK 제약을 기동 때마다 재생성하고 구형 문의 카테고리만 시드했다.
+- 변경 후: 제약 재생성을 제거하고 새 접수 유형 5개·버그 발생 영역 9개를 멱등 시드한다.
+- 이유: SQL 이관에서 정의한 신규 스키마 제약을 애플리케이션 기동이 덮어쓰지 않게 하기 위해서다.
+
+### 복원 방법
+
+이 `AdminInquiry_Modified.md`의 HIST-20260828-001을 복원하려면 새 상태 전이와 문의 도메인 시드를 이전 구현으로 되돌리고, 이미 적용한 DB 이관은 백업에서 복구한다. 운영 DB는 메시지·알림 이력 손실 가능성이 있으므로 롤백 전 백업이 필요하다.
+
+---
+
 ## HIST-20260804-002
 
 - **날짜**: 2026-08-04

@@ -1,3 +1,37 @@
+## HIST-20260828-001
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 사용자 백엔드 / 문의·요청 도메인
+- **수정 개요**: 접수 목적·상태 전이·발생 영역과 기존 문의 이관 기반을 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/entity/Inquiry.java` | 수정 | `RequestType`, 확장 상태, 유형별 상태 전이·재열기와 발생 영역 필드를 추가 |
+| `backend/src/main/java/com/tpmp/testprep/entity/Attachment.java` | 수정 | 문의 메시지 첨부 유형과 업로더 FK 모델을 추가 |
+| `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java` | 수정 | 문의 유형·버그 발생 영역 도메인을 멱등 시드하도록 교체 |
+| `docs/db-migration/20260828_01_extend_inquiry_workflow.sql` | 추가 | 기존 문의·답변을 새 접수 유형·SYSTEM 메시지로 이관하고 워크플로 스키마를 생성 |
+| `docs/sql/README.md` | 수정 | 신규 워크플로 델타 적용 순서를 문서화 |
+
+### 수정 상세
+
+#### `Inquiry.java`
+- 변경 전: 발생 영역과 처리형 종료 상태 없이 구형 `InquiryType`·답변 완료 상태만 사용했다.
+- 변경 후: 일반 문의/기타는 `ANSWERED`, 처리형 요청은 `COMPLETED` 또는 `UNABLE_TO_PROCESS`만 종료 상태로 허용하고 종료 후 `IN_PROGRESS` 재열기를 지원한다.
+- 이유: 접수 목적에 따라 올바른 처리 흐름을 강제하기 위해서다.
+
+#### `20260828_01_extend_inquiry_workflow.sql`
+- 변경 전: 기존 `inquiry_type`, 단일 reply 컬럼만 존재했다.
+- 변경 후: `request_type`, 발생 영역, 대화 메시지, 업로더 연결과 기존 답변의 SYSTEM 메시지 이관을 추가했다.
+- 이유: 기존 문의 데이터 손실 없이 양방향 문의·요청 기능으로 확장하기 위해서다.
+
+### 복원 방법
+
+이 `UserInquiry_Modified.md`의 HIST-20260828-001을 복원하려면 배포 전 백업 DB에서 문의 워크플로 델타를 되돌리고, `Inquiry`·`Attachment`·`DataInitializer`를 이전 도메인 모델로 되돌린다. 이미 이관된 메시지·발송 이력이 있는 운영 DB에서는 데이터 유실 위험이 있으므로 복원 전 별도 백업이 필요하다.
+
+---
+
 ## HIST-20260512-002
 
 - **날짜**: 2026-05-12

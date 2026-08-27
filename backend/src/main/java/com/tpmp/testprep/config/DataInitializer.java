@@ -39,7 +39,6 @@ public class DataInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         fixAnswerNullable();
         fixQuestionTypeConstraints();
-        fixInquiryTypeConstraint();
         ensureAdminUser();
         ensureTestUser();
         ensureDomainMasterWithCode("QUESTION_TYPE", "문제 유형",
@@ -50,9 +49,7 @@ public class DataInitializer implements ApplicationRunner {
                 new String[]{"2026", "2025", "2024", "2023", "2022"});
         ensureDomainMasterWithCode("EXAM_ROUND", "시험 회차",
                 new String[]{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"});
-        ensureDomainMasterWithCode("INQUIRY_CATEGORY", "문의 카테고리",
-                new String[]{"EXAM", "CONCEPT_NOTE", "DAILY_QUIZ", "PRACTICE", "BUG", "OTHER"});
-        ensureInquiryCategoryBugType();
+        ensureInquiryDomainTypes();
         ensurePermissionMasters();
         ensureDefaultPermissionDetails();
         ensureAdminUserPermissions();
@@ -103,19 +100,6 @@ public class DataInitializer implements ApplicationRunner {
             log.info("[DataInitializer] {}.question_type_check 제약 재생성 완료", table);
         } catch (Exception e) {
             log.warn("[DataInitializer] {}.question_type_check 제약 재생성 실패: {}", table, e.getMessage());
-        }
-    }
-
-    private void fixInquiryTypeConstraint() {
-        try {
-            jdbcTemplate.execute(
-                "ALTER TABLE inquiries DROP CONSTRAINT IF EXISTS inquiries_inquiry_type_check");
-            jdbcTemplate.execute(
-                "ALTER TABLE inquiries ADD CONSTRAINT inquiries_inquiry_type_check " +
-                "CHECK (inquiry_type IN ('EXAM','CONCEPT_NOTE','DAILY_QUIZ','PRACTICE','BUG','OTHER'))");
-            log.info("[DataInitializer] inquiries.inquiry_type_check 제약 재생성 완료");
-        } catch (Exception e) {
-            log.warn("[DataInitializer] inquiries.inquiry_type_check 제약 재생성 실패: {}", e.getMessage());
         }
     }
 
@@ -184,31 +168,40 @@ public class DataInitializer implements ApplicationRunner {
         log.info("[DataInitializer] 도메인 '{}' (code={}) 생성 완료 — 슬레이브 {}개", masterName, code, slaveNames.length);
     }
 
-    /**
-     * INQUIRY_CATEGORY 도메인 마스터는 이미 존재하는 환경이 많아 {@link #ensureDomainMasterWithCode}
-     * (마스터가 없을 때만 슬레이브 전체를 생성)로는 새 카테고리가 추가되지 않는다.
-     * 기존 마스터에 "BUG"(버그 신고) 슬레이브 하나만 없으면 채워 넣는다.
-     */
     @Transactional
-    public void ensureInquiryCategoryBugType() {
-        var master = domainMasterRepository.findByCode("INQUIRY_CATEGORY").orElse(null);
-        if (master == null) {
-            log.debug("[DataInitializer] INQUIRY_CATEGORY 도메인 마스터가 아직 없음 — BUG 카테고리 추가 건너뜀");
-            return;
+    public void ensureInquiryDomainTypes() {
+        ensureDomainMasterWithValues("INQUIRY_CATEGORY", "문의 카테고리", new String[]{
+                "GENERAL_INQUIRY", "BUG_REPORT", "EXAM_OPENING_REQUEST", "FEATURE_REQUEST", "OTHER"
+        });
+        ensureDomainMasterWithValues("INQUIRY_BUG_AREA", "문의 버그 발생 영역", new String[]{
+                "LOGIN_ACCOUNT", "USER_HOME", "EXAM_INFO", "EXAM_SOLVING_RESULT", "DAILY_QUIZ",
+                "CONCEPT_NOTE", "PRACTICE_SCRATCHPAD", "INQUIRY_REQUEST", "OTHER"
+        });
+    }
+
+    private void ensureDomainMasterWithValues(String code, String masterName, String[] slaveNames) {
+        DomainMaster master = domainMasterRepository.findByCode(code)
+                .orElseGet(() -> domainMasterRepository.findByName(masterName)
+                        .map(existing -> {
+                            existing.updateCode(code);
+                            return domainMasterRepository.save(existing);
+                        })
+                        .orElseGet(() -> domainMasterRepository.save(
+                                DomainMaster.builder().code(code).name(masterName).build())));
+
+        var existingSlaves = domainSlaveRepository.findByMasterCode(code);
+        var existingNames = existingSlaves.stream().map(DomainSlave::getName).collect(java.util.stream.Collectors.toSet());
+        int nextOrder = existingSlaves.stream().mapToInt(DomainSlave::getDisplayOrder).max().orElse(0) + 1;
+        for (String slaveName : slaveNames) {
+            if (existingNames.add(slaveName)) {
+                domainSlaveRepository.save(DomainSlave.builder()
+                        .master(master)
+                        .name(slaveName)
+                        .displayOrder(nextOrder++)
+                        .build());
+            }
         }
-        var slaves = domainSlaveRepository.findByMasterCode("INQUIRY_CATEGORY");
-        boolean exists = slaves.stream().anyMatch(s -> "BUG".equals(s.getName()));
-        if (exists) {
-            log.debug("[DataInitializer] 문의 카테고리 'BUG' 이미 존재 — 건너뜀");
-            return;
-        }
-        int nextOrder = slaves.stream().mapToInt(DomainSlave::getDisplayOrder).max().orElse(0) + 1;
-        domainSlaveRepository.save(DomainSlave.builder()
-                .master(master)
-                .name("BUG")
-                .displayOrder(nextOrder)
-                .build());
-        log.info("[DataInitializer] 문의 카테고리 'BUG' 신규 추가 완료");
+        log.info("[DataInitializer] 문의 도메인 '{}' 멱등 시드 완료", code);
     }
 
     @Transactional
@@ -296,7 +289,7 @@ public class DataInitializer implements ApplicationRunner {
         // ── Admin menus ──
         saveMenu(null, "시험 관리",     "/admin/exams",              "exam",       1,  MenuConfig.MenuType.ADMIN, "ADMIN");
         saveMenu(null, "개념노트 관리", "/admin/concepts",           "concept",    2,  MenuConfig.MenuType.ADMIN, "ADMIN");
-        saveMenu(null, "1:1 문의 관리", "/admin/inquiries",          "inquiry",    3,  MenuConfig.MenuType.ADMIN, "ADMIN");
+        saveMenu(null, "문의·요청 관리", "/admin/inquiries",          "inquiry",    3,  MenuConfig.MenuType.ADMIN, "ADMIN");
         saveMenu(null, "FAQ 관리",      "/admin/faq",                "faq",        4,  MenuConfig.MenuType.ADMIN, "ADMIN");
         saveMenu(null, "명언 관리",     "/admin/quotes",             "quote",      5,  MenuConfig.MenuType.ADMIN, "ADMIN");
         saveMenu(null, "테이블 관리",   "/admin/tables",             "table",      6,  MenuConfig.MenuType.ADMIN, "ADMIN");
@@ -324,7 +317,7 @@ public class DataInitializer implements ApplicationRunner {
         saveMenu(null, "데일리 퀴즈", "/user/quiz",      "quiz",    2, MenuConfig.MenuType.USER, "USER,ADMIN");
         saveMenu(null, "개념노트",    "/user/concepts",  "concept", 3, MenuConfig.MenuType.USER, "USER,ADMIN");
         saveMenu(null, "FAQ",         "/user/faq",       "faq",     4, MenuConfig.MenuType.USER, "USER,ADMIN");
-        saveMenu(null, "1:1 문의",    "/user/inquiries", "inquiry", 5, MenuConfig.MenuType.USER, "USER,ADMIN");
+        saveMenu(null, "문의·요청",    "/user/inquiries", "inquiry", 5, MenuConfig.MenuType.USER, "USER,ADMIN");
 
         log.info("[DataInitializer] 기본 메뉴 데이터 생성 완료");
     }
