@@ -142,6 +142,7 @@ function isGroupUrl(url: string): boolean {
 
 /** children → 자기 자신 순으로 현재 경로에 해당하는 메뉴명을 찾는다. */
 function getUserPageTitle(pathname: string, navItems: MenuConfig[]): string {
+  if (pathname.startsWith('/user/inquiries')) return '문의·요청';
   for (const item of navItems) {
     for (const child of item.children ?? []) {
       if (pathname.startsWith(child.url)) return child.name;

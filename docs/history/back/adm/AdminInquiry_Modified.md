@@ -1,3 +1,33 @@
+## HIST-20260828-006
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 관리자 백엔드 / 문의·요청 관리 최종 통합
+- **수정 개요**: 관리자 필터·대화·상태·수신 설정·메일 발송 이력 API와 대시보드 미처리 버그 집계를 전체 기능 기준으로 마무리했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/controller/AdminInquiryController.java` | 수정 | 서버 필터 목록·상세·메시지·상태 API 제공 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryService.java` | 수정 | 유형별 상태 전이, 종료 안내, 재열기와 관리자 메시지 처리 |
+| `backend/src/main/java/com/tpmp/testprep/repository/InquiryRepository.java` | 수정 | 제목·본문·작성자명 keyword 필터와 열린 버그 상태 집계 계약 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/DashboardService.java` | 수정 | 미처리 버그를 BUG_REPORT의 PENDING/IN_PROGRESS/ON_HOLD 전체로 집계 |
+| `backend/src/test/java/com/tpmp/testprep/service/DashboardServiceTest.java` | 추가 | 대시보드가 세 열린 상태를 정확히 조회하는지 검증 |
+| `backend/src/main/java/com/tpmp/testprep/controller/AdminInquiryNotificationController.java` | 추가 | 관리자 수신 설정 GET/PUT API 제공 |
+| `backend/src/main/java/com/tpmp/testprep/controller/AdminInquiryEmailDeliveryController.java` | 추가 | 발송 이력 조회와 FAILED 재발송 API 제공 |
+
+### 수정 상세
+
+- 변경 전: 대시보드의 미처리 버그 수는 `BUG_REPORT + PENDING`만 포함해 처리 중·보류 건을 누락했고, 관리자 계약은 구형 단일 답변/보류 동작에 의존했다.
+- 변경 후: `countByRequestTypeAndStatusIn(BUG_REPORT, [PENDING, IN_PROGRESS, ON_HOLD])`로 모든 열린 버그를 집계한다. 관리자 목록 keyword는 바인딩 파라미터로 제목·본문·작성자명에 적용하며, 메시지·상태·설정·발송 이력은 각각 Controller→Service→Repository 경계를 유지한다.
+- 이유: 관리자 대시보드와 목록의 미처리 기준을 실제 운영 상태와 일치시키고 메일 실패를 업무 데이터와 분리해 재처리하기 위해서다.
+
+### 복원 방법
+
+`AdminInquiry_Modified.md`의 HIST-20260828-006 복원 시 열린 버그 집계 메서드를 이전 단일 PENDING 조회로 되돌리고 관리자 대화·상태·설정·delivery API를 제거한다. 운영 발송 이력은 삭제 전 백업한다.
+
+---
+
 ## HIST-20260828-005
 
 - **날짜**: 2026-08-28

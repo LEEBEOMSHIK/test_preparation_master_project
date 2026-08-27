@@ -1,3 +1,34 @@
+## HIST-20260828-002
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 사용자 프론트엔드 / 문의·요청 워크플로 최종 통합
+- **수정 개요**: 사용자 문의·요청의 유형별 접수, 대화형 상세, 메시지 이미지 첨부, 빠른 버그 신고와 메뉴 표시명을 최종 계약으로 통합하고 실제 API payload 회귀 테스트를 보강했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/inquiries/new/page.tsx` | 수정 | 유형별 `requestType`·`targetArea`·`detailLocation` 접수와 시험 개설 조건부 입력 구현 |
+| `frontend/src/app/user/inquiries/new/page.test.tsx` | 추가 | 다섯 유형의 최종 등록 payload literal 검증 |
+| `frontend/src/app/user/inquiries/[id]/page.tsx` | 수정 | 상세 타임라인과 열린 문의 작성기, 종료 문의 작성기 차단 적용 |
+| `frontend/src/app/user/inquiries/[id]/page.test.tsx` | 추가 | 종료 상태의 추가 작성기 미표시 검증 |
+| `frontend/src/components/ui/BugReportModal.tsx` | 수정 | 시험 신고를 `EXAM_SOLVING_RESULT` 영역으로 접수 |
+| `frontend/src/components/ui/BugReportModal.test.tsx` | 추가 | EXAM 문맥에서 생성되는 전체 접수 payload literal 검증 |
+| `frontend/src/components/ui/InquiryMessageComposer.test.tsx` | 수정 | 메시지 이미지 업로드 결과 ID가 `attachmentIds`로 전달되는지 검증 |
+| `frontend/src/components/layout/UserLayoutShell.tsx` | 수정 | 문의 경로의 fallback·화면 표시명을 `문의·요청`으로 고정 |
+
+### 수정 상세
+
+- 변경 전: 핵심 사용자 흐름은 구현되어 있었지만 컴포넌트 테스트가 실제 폼 입력에서 생성되는 요청 인자를 직접 보장하지 않았고, 서버 메뉴명이 오래된 경우 화면 제목도 그 값을 따를 수 있었다.
+- 변경 후: 일반 문의·버그 신고·시험 개설·기능 요청·기타의 요청 필드 포함 규칙을 hand-derived literal로 검증하고, 종료 상태에서는 작성기가 렌더링되지 않으며 업로드된 메시지 이미지 ID가 메시지 API에 전달됨을 검증한다.
+- 이유: 유형별 계약과 첨부 소유권이 프론트 리팩터링 뒤에도 조용히 변하지 않도록 실제 사용자 입력부터 API 호출 경계까지 보호하기 위해서다.
+
+### 복원 방법
+
+`UserInquiry_Modified.md`의 HIST-20260828-002 복원 시 새 사용자 문의 페이지·모달·작성기 테스트를 제거하고 `UserLayoutShell`의 문의 전용 표시명 고정을 이전 메뉴명 기반 처리로 되돌린다.
+
+---
+
 ## HIST-20260828-001
 
 - **날짜**: 2026-08-28

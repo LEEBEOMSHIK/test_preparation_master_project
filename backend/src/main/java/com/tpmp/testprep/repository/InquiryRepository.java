@@ -16,7 +16,7 @@ public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
     Page<Inquiry> findByUserIdAndStatus(Long userId, Inquiry.Status status, Pageable pageable);
     long countByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
     long countByStatus(Inquiry.Status status);
-    long countByStatusAndRequestType(Inquiry.Status status, Inquiry.RequestType requestType);
+    long countByRequestTypeAndStatusIn(Inquiry.RequestType requestType, List<Inquiry.Status> statuses);
     @Query("""
             SELECT i FROM Inquiry i
             WHERE (:status IS NULL OR i.status = :status)

@@ -112,7 +112,7 @@ const FALLBACK_NAV: MenuConfig[] = [
     { id: 13, parentId: 1, name: '시험 이력',   url: '/admin/exams/history',   iconKey: undefined, displayOrder: 3, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   ]},
   { id: 2,  parentId: undefined, name: '개념노트 관리', url: '/admin/concepts',    iconKey: 'concept',    displayOrder: 2,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
-  { id: 3,  parentId: undefined, name: '1:1 문의 관리', url: '/admin/inquiries',   iconKey: 'inquiry',    displayOrder: 3,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  { id: 3,  parentId: undefined, name: '문의·요청 관리', url: '/admin/inquiries', iconKey: 'inquiry',    displayOrder: 3,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 4,  parentId: undefined, name: 'FAQ 관리',      url: '/admin/faq',         iconKey: 'faq',        displayOrder: 4,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 5,  parentId: undefined, name: '명언 관리',     url: '/admin/quotes',      iconKey: 'quote',      displayOrder: 5,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 6,  parentId: undefined, name: '테이블 관리',   url: '/admin/tables',      iconKey: 'table',      displayOrder: 6,  menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [
@@ -135,6 +135,7 @@ const FALLBACK_NAV: MenuConfig[] = [
 ];
 
 function getPageTitle(pathname: string, navItems: MenuConfig[]): string {
+  if (pathname.startsWith('/admin/inquiries')) return '문의·요청 관리';
   for (const item of navItems) {
     if (item.children) {
       for (const child of item.children) {

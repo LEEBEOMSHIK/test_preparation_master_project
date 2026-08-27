@@ -1,3 +1,32 @@
+## HIST-20260828-005
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 사용자 백엔드 / 문의·요청 워크플로 최종 통합
+- **수정 개요**: 사용자 접수·목록·상세·대화·이미지 첨부와 관리자 알림 큐잉까지 전체 사용자 API 계약의 최종 상태를 이력에 보강했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/controller/UserInquiryController.java` | 수정 | 페이지 목록·상세·접수·메시지·이미지 업로드 API 제공 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryService.java` | 수정 | 사용자 소유권, 종료 상태 작성 차단, 첨부 연결과 알림 큐잉 적용 |
+| `backend/src/main/java/com/tpmp/testprep/dto/request/InquiryRequest.java` | 수정 | `requestType`·`targetArea`·`detailLocation`·`attachmentIds` 계약 적용 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/InquirySummaryResponse.java` | 추가 | 목록 전용 요약 DTO 분리 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/InquiryDetailResponse.java` | 추가 | 본문·첨부·대화 타임라인 상세 DTO 분리 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryServiceTest.java` | 수정 | 사용자 메시지·상태·첨부·목록 계약 회귀 검증 |
+
+### 수정 상세
+
+- 변경 전: 단일 `reply`와 구형 유형을 중심으로 목록·상세가 같은 응답을 공유했고, 후속 대화와 메시지 첨부를 표현할 수 없었다.
+- 변경 후: 목록은 요약 DTO, 상세는 메시지 타임라인 DTO를 반환하며 열린 문의에만 사용자 메시지를 추가하고 업로더 소유권이 확인된 첨부 ID만 연결한다. 신규 접수와 사용자 메시지 알림은 업무 트랜잭션 커밋 후 발송 이력으로 처리한다.
+- 이유: 사용자 업무 저장과 SMTP 실패를 분리하면서 문의 전 과정을 하나의 안전한 API 계약으로 제공하기 위해서다.
+
+### 복원 방법
+
+`UserInquiry_Modified.md`의 HIST-20260828-005 복원 시 사용자 Controller·Service·DTO를 이전 단일 응답/답변 계약으로 되돌리고 메시지·첨부·메일 이력 데이터는 별도 백업 후 복원한다.
+
+---
+
 ## HIST-20260828-004
 
 - **날짜**: 2026-08-28

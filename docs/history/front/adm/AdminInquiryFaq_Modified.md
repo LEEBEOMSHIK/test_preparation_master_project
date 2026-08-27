@@ -1,5 +1,35 @@
 ## HIST-20260804-001
 
+## HIST-20260828-002
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 관리자 프론트엔드 / 문의·요청 관리 최종 통합
+- **수정 개요**: 관리자 서버 필터 목록, 대화형 상세·유형별 종료·재열기, 이메일 발송 이력·재발송, 수신 설정과 최종 메뉴·테이블 설명을 전체 기능 기준으로 정리했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/inquiryService.ts` | 수정 | 요약/상세, 서버 필터, 메시지·상태·설정·delivery API 계약 통합 |
+| `frontend/src/app/admin/inquiries/page.tsx` | 수정 | 서버 page/size/status/requestType/targetArea/keyword 목록 구현 |
+| `frontend/src/app/admin/inquiries/[id]/page.tsx` | 수정 | 타임라인, 중간 답변, 유형별 종료, 재열기, 실패 메일 재발송 구현 |
+| `frontend/src/app/admin/inquiries/settings/page.tsx` | 추가 | 수신 설정 GET/PUT, 최대 10개·형식·중복·활성 최소 1개 검증과 Skeleton 적용 |
+| `frontend/src/app/admin/inquiries/**/*.test.tsx` | 추가 | 관리자 상세·설정·서버 필터 핵심 동작 검증 |
+| `frontend/src/components/layout/AdminLayoutShell.tsx` | 수정 | fallback과 현재 화면 표시명을 `문의·요청 관리`로 통일 |
+| `frontend/src/data/tableComments.ts` | 수정 | 문의·메시지·알림 설정·수신자·메일 이력 테이블 및 FK 설명 추가 |
+
+### 수정 상세
+
+- 변경 전: 관리자 메뉴 fallback은 `1:1 문의 관리`였고 DB 테이블 설명은 `inquiries.id`만 제공했으며, 구형 reply/hold 중심 화면은 새 대화·상태·메일 계약을 충분히 표현하지 못했다.
+- 변경 후: 목록과 상세을 새 DTO/API로 전환하고 이메일 체크 기본 false·성공 후 초기화, 처리 유형별 종료 상태와 종료 설명 필수, 종료 건 `IN_PROGRESS` 재열기, FAILED delivery 재발송을 제공한다. 동적 메뉴에 오래된 이름이 남아 있어도 화면 제목은 최종 용어를 표시한다.
+- 이유: 운영자가 접수부터 종료·메일 장애 복구까지 한 흐름에서 처리하고 스키마 탐색 화면에서도 관련 테이블 의미를 확인할 수 있게 하기 위해서다.
+
+### 복원 방법
+
+`AdminInquiryFaq_Modified.md`의 HIST-20260828-002 복원 시 문의 관리자 페이지·서비스를 이전 단일 답변/보류 계약으로 되돌리고 설정 페이지와 신규 테이블 설명, 문의 전용 표시명 고정을 제거한다.
+
+---
+
 ## HIST-20260828-001
 
 - **날짜**: 2026-08-28
