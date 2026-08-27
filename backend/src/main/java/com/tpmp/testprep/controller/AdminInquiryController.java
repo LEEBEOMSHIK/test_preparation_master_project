@@ -29,9 +29,10 @@ public class AdminInquiryController {
     public ResponseEntity<ApiResponse<Page<InquirySummaryResponse>>> getAll(
             @RequestParam(required = false) Inquiry.Status status, @RequestParam(required = false) Inquiry.RequestType requestType,
             @RequestParam(required = false) String targetArea,
+            @RequestParam(required = false) String keyword,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(
-                inquiryService.adminGetAll(status, requestType, targetArea, pageable)));
+                inquiryService.adminGetAll(status, requestType, targetArea, keyword, pageable)));
     }
 
     @GetMapping("/{id}")

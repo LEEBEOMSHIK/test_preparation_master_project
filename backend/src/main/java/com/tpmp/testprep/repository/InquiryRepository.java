@@ -9,7 +9,6 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.data.jpa.repository.Query;
 
 public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
     Page<Inquiry> findByUserId(Long userId, Pageable pageable);
@@ -18,8 +17,23 @@ public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
     long countByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
     long countByStatus(Inquiry.Status status);
     long countByStatusAndRequestType(Inquiry.Status status, Inquiry.RequestType requestType);
-    @Query("SELECT i FROM Inquiry i WHERE (:status IS NULL OR i.status = :status) AND (:requestType IS NULL OR i.requestType = :requestType) AND (:targetArea IS NULL OR i.targetArea = :targetArea)")
-    Page<Inquiry> findAdminFiltered(@Param("status") Inquiry.Status status, @Param("requestType") Inquiry.RequestType requestType, @Param("targetArea") String targetArea, Pageable pageable);
+    @Query("""
+            SELECT i FROM Inquiry i
+            WHERE (:status IS NULL OR i.status = :status)
+              AND (:requestType IS NULL OR i.requestType = :requestType)
+              AND (:targetArea IS NULL OR i.targetArea = :targetArea)
+              AND (:keyword IS NULL
+                   OR LOWER(i.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR LOWER(i.content) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR LOWER(i.user.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
+            """)
+    Page<Inquiry> findAdminFiltered(
+            @Param("status") Inquiry.Status status,
+            @Param("requestType") Inquiry.RequestType requestType,
+            @Param("targetArea") String targetArea,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
 
     /** 기간 내 날짜별 문의 건수 집계 (관리자 대시보드 추이) */
     @Query("""

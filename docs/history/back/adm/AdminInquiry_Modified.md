@@ -1,3 +1,36 @@
+## HIST-20260828-005
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 관리자 백엔드 / 문의·요청 목록 검색
+- **수정 개요**: 관리자 문의·요청 목록에서 구조화 필터와 함께 제목·본문·작성자명 키워드를 서버에서 검색하도록 확장했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/controller/AdminInquiryController.java` | 수정 | 목록 API에 선택 `keyword` 파라미터 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryService.java` | 수정 | 공백 keyword를 null로, 입력 keyword를 trim 처리해 Repository에 전달 |
+| `backend/src/main/java/com/tpmp/testprep/repository/InquiryRepository.java` | 수정 | 제목·본문·작성자명 대소문자 무시 부분 검색을 기존 필터 JPQL에 결합 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryServiceTest.java` | 수정 | keyword와 구조화 필터·pageable 결합 전달 검증 |
+
+### 수정 상세
+
+#### `InquiryRepository.java`
+- 변경 전: 상태, 접수 유형, 발생 영역만 선택적으로 필터링했다.
+- 변경 후: 바인딩된 `keyword`로 `title`, `content`, `user.name`을 대소문자 구분 없이 부분 검색한다.
+- 이유: 관리자 화면의 제목·내용·작성자 검색을 전체 조회 없이 서버에서 수행하기 위해서다.
+
+#### `InquiryService.java`
+- 변경 전: 목록 서비스가 keyword를 받지 않았다.
+- 변경 후: keyword의 바깥 공백을 제거하고 빈 값은 null로 정규화해 기존 필터와 함께 조회한다.
+- 이유: 공백 검색을 전체 검색으로 처리하고 Repository 조건을 단순하게 유지하기 위해서다.
+
+### 복원 방법
+
+`AdminInquiry_Modified.md`의 HIST-20260828-005 복원 시 Controller·Service의 `keyword` 인자를 제거하고 `InquiryRepository.findAdminFiltered`를 기존 3개 구조화 필터 쿼리로 되돌리며 해당 서비스 테스트를 제거한다.
+
+---
+
 ## HIST-20260828-004
 
 - **날짜**: 2026-08-28

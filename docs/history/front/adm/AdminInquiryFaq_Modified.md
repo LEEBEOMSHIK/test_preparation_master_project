@@ -1,5 +1,47 @@
 ## HIST-20260804-001
 
+## HIST-20260828-001
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 관리자 프론트엔드 / 문의·요청 관리
+- **수정 개요**: 관리자 목록을 서버 필터·페이지네이션으로 전환하고, 상세 타임라인·유형별 상태 처리·이메일 이력과 복수 수신 주소 설정을 완성했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/inquiryService.ts` | 수정 | 목록·상세·메시지·상태·설정·발송 이력 API 타입과 요청 계약 정리 |
+| `frontend/src/app/admin/inquiries/page.tsx` | 수정 | `InquirySummary` 기반 서버 페이지/필터 목록과 설정 진입 UI 구현 |
+| `frontend/src/app/admin/inquiries/[id]/page.tsx` | 수정 | 타임라인, 중간 답변, 유형별 상태 종료·재열기, 발송 이력·실패 재발송 구현 |
+| `frontend/src/app/admin/inquiries/settings/page.tsx` | 추가 | 수신 설정 GET/PUT, 최대 10개·형식·중복·활성 최소 1개 검증과 Skeleton 구현 |
+| `frontend/src/app/admin/inquiries/page.test.tsx` | 추가 | 서버 페이지·필터 전달과 전체 조회 제거 검증 |
+| `frontend/src/app/admin/inquiries/[id]/page.test.tsx` | 추가 | 유형별 종료 상태, 종료 설명, 이메일 초기화, 실패 메일 재발송 검증 |
+| `frontend/src/app/admin/inquiries/settings/page.test.tsx` | 추가 | 설정 조회·저장·정규화·제한·오류 메시지 검증 |
+| `frontend/src/components/ui/InquiryMessageComposer.test.tsx` | 수정 | 관리자 중간 답변 이메일 선택값과 성공 후 초기화 검증 |
+
+### 수정 상세
+
+#### `frontend/src/app/admin/inquiries/page.tsx`
+- 변경 전: `size=10000`으로 전체 데이터를 받은 뒤 브라우저에서 필터와 페이지네이션을 수행하고 구형 보류 API를 호출했다.
+- 변경 후: `page`, `size`, `status`, `requestType`, `targetArea`, `keyword`를 서버에 전달하고 `InquirySummary` 응답만 표시한다.
+- 이유: 대량 조회를 제거하고 실제 API의 페이지·필터 계약을 사용하기 위해서다.
+
+#### `frontend/src/app/admin/inquiries/[id]/page.tsx`
+- 변경 전: 단일 reply와 `/hold` 기반 UI라 새 메시지·상태 API와 맞지 않았고 로딩 텍스트만 표시했다.
+- 변경 후: 공통 타임라인·메시지 작성기, 유형별 허용 상태, 종료 안내 필수, `IN_PROGRESS` 재열기, Skeleton, 발송 실패 재시도를 제공한다.
+- 이유: 일반 문의와 처리형 요청을 올바른 종료 상태로 관리하고 이메일 장애를 화면에서 복구하기 위해서다.
+
+#### `frontend/src/app/admin/inquiries/settings/page.tsx`
+- 변경 전: 서버 DTO와 다른 `recipients` 필드를 사용하고 모든 검증 오류를 하나의 문구로 표시했다.
+- 변경 후: `recipientEmails` 계약을 사용하고 최대 10개, 형식, 정규화 중복, 활성 최소 1개를 구분해 검증하며 서버 오류도 표시한다.
+- 이유: 백엔드 설정 계약과 동일한 데이터를 안전하게 저장하기 위해서다.
+
+### 복원 방법
+
+`AdminInquiryFaq_Modified.md`의 HIST-20260828-001 복원 시 위 관리자 문의·요청 페이지와 서비스·테스트를 이전 단일 답변/클라이언트 전체 조회 구현으로 되돌리고 신규 설정 페이지를 제거한다.
+
+---
+
 - **날짜**: 2026-08-04
 - **수정 범위**: 관리자 프론트엔드 / 1:1 문의 관리 — 유형 필터 추가
 - **수정 개요**: 대시보드에 "버그 신고 대기" 카드(→ `docs/history/front/adm/Dashboard_Modified.md` HIST-20260804-001)를 추가하면서, 클릭 시 이동할 문의 관리 화면에 유형별 필터가 없어 만들었다. `useSearchParams`로 URL의 `?type=BUG` 쿼리를 읽어 초기 필터값으로 반영하도록 해, 대시보드 카드 클릭 시 자동으로 해당 유형만 필터링된 목록이 뜬다. `useSearchParams` 사용으로 인해 컴포넌트를 `Suspense` 경계로 감싸는 이 프로젝트의 기존 패턴(`user/settings/page.tsx` 등)을 그대로 따랐다.

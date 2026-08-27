@@ -97,8 +97,11 @@ public class InquiryService {
         return toMessage(message);
     }
 
-    public Page<InquirySummaryResponse> adminGetAll(Inquiry.Status status, Inquiry.RequestType requestType, String targetArea, Pageable pageable) {
-        return inquiryRepository.findAdminFiltered(status, requestType, targetArea, pageable).map(InquirySummaryResponse::from);
+    public Page<InquirySummaryResponse> adminGetAll(Inquiry.Status status, Inquiry.RequestType requestType,
+                                                    String targetArea, String keyword, Pageable pageable) {
+        String normalizedKeyword = keyword == null || keyword.isBlank() ? null : keyword.trim();
+        return inquiryRepository.findAdminFiltered(status, requestType, targetArea, normalizedKeyword, pageable)
+                .map(InquirySummaryResponse::from);
     }
 
     public InquiryDetailResponse adminGetOne(Long id) { return toDetail(findInquiry(id)); }

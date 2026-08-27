@@ -14,6 +14,9 @@ import com.tpmp.testprep.repository.InquiryRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import com.tpmp.testprep.repository.DomainSlaveRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -81,6 +84,37 @@ class InquiryServiceTest {
 
         assertThat(inquiry.getStatus()).isEqualTo(Inquiry.Status.COMPLETED);
         verify(messageRepository).save(argThat(message -> "반영했습니다.".equals(message.getContent())));
+    }
+
+    @Test
+    void adminGetAllCombinesKeywordWithStructuredFilters() {
+        InquiryRepository inquiryRepository = mock(InquiryRepository.class);
+        Pageable pageable = PageRequest.of(0, 20);
+        when(inquiryRepository.findAdminFiltered(
+                Inquiry.Status.IN_PROGRESS,
+                Inquiry.RequestType.BUG_REPORT,
+                "EXAM_INFO",
+                "Login failure",
+                pageable
+        )).thenReturn(Page.empty(pageable));
+        InquiryService service = service(inquiryRepository, mock(UserRepository.class),
+                mock(InquiryMessageRepository.class));
+
+        service.adminGetAll(
+                Inquiry.Status.IN_PROGRESS,
+                Inquiry.RequestType.BUG_REPORT,
+                "EXAM_INFO",
+                "  Login failure  ",
+                pageable
+        );
+
+        verify(inquiryRepository).findAdminFiltered(
+                Inquiry.Status.IN_PROGRESS,
+                Inquiry.RequestType.BUG_REPORT,
+                "EXAM_INFO",
+                "Login failure",
+                pageable
+        );
     }
 
     private InquiryService service() {
