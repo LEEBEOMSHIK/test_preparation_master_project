@@ -1,60 +1,57 @@
 # Agent Handoff - CURRENT
 
-> 최종 갱신: 2026-08-04
+> 최종 갱신: 2026-08-28
 
 ## 현재 목표와 사용자 결정 사항
 
-- 퀴즈·시험 화면 버그 신고 기능(커밋 `fd4040b`)에 이어, 사용자가 "개념노트에도 추가해"라고 요청 → 같은 `BugReportModal`을 개념노트 상세 화면(내 노트·공개 탐색) 2곳에도 확대 적용.
-- 중간에 "복습에도 있나?" 질문 → 복습(북마크 재풀이)은 `user/quiz/[categoryId]/page.tsx`를 그대로 재사용하는 화면이라 이미 적용되어 있음을 확인·답변(추가 작업 불필요).
+- 기존 문의 기능을 `문의·요청` 접수 처리 구조로 확장한다.
+- 일반 문의는 `답변 완료`, 버그·시험 개설·신규 기능 요청은 `처리 완료` 또는 `처리 불가`로 종료한다.
+- 종료 전까지 사용자와 관리자가 여러 번 대화한다.
+- 관리자 수신 이메일은 복수 설정하고, 사용자에게 보내는 답변·종료 메일은 관리자가 매번 선택한다.
+- 이메일만 지원하고 SMS는 제외한다.
 
 ## 완료한 작업
 
-1. `frontend/src/components/ui/BugReportModal.tsx` — `BugReportContext.source`에 `'CONCEPT_NOTE'` 추가, 라벨 매핑 추가.
-2. `frontend/src/app/user/concepts/[id]/page.tsx` — 내 노트 상세 화면 뷰 모드 헤더(수정·삭제 버튼 옆)에 버그 신고 아이콘 추가. `toBugReportContext(note)` 헬퍼로 연결 문항 유무에 따라 컨텍스트 자동 구성.
-3. `frontend/src/app/user/concepts/explore/[id]/page.tsx` — 공개 탐색 상세 화면 제목 행에 동일 아이콘 추가.
-4. `CLAUDE.md` — `BugReportModal` 표 설명 갱신.
-5. 문서화: `docs/history/front/usr/UserConceptNote_Modified.md`(HIST-20260804-001, 신규 최상단).
-
-## 실행한 검증과 결과
-
-| 항목 | 결과 |
-|------|------|
-| `npx tsc --noEmit` | 통과 |
-| 브라우저 확인 | 퀴즈 문항에 연결된 노트 상세에서 아이콘 클릭 → "개념노트 · [제목]" + 연결 문항 내용 정상 표시 → 제출 → `GET /api/admin/inquiries`에서 BUG 유형 정상 등록 확인(문항 ID 83) 후 삭제 |
+- 격리 워크트리와 `feature/fullstack-inquiry-workflow` 브랜치를 생성했다.
+- 승인된 1안의 데이터 모델, 상태 전이, 양방향 메시지, 이메일 발송 이력, 화면, 보안, 테스트 범위를 설계 명세로 작성했다.
+- 명세의 placeholder, 상태/유형 일관성, 기존 데이터 이관 규칙을 자체 검토했다.
 
 ## 미완료 작업
 
-- 변경 파일 **미커밋** — 사용자 승인 필요:
-  - 수정: `frontend/src/components/ui/BugReportModal.tsx`, `frontend/src/app/user/concepts/[id]/page.tsx`, `frontend/src/app/user/concepts/explore/[id]/page.tsx`, `CLAUDE.md`, `docs/history/front/usr/UserConceptNote_Modified.md`
-  - 본 파일(`docs/agent-handoff/CURRENT.md`)도 함께 커밋 대상
+- 사용자의 작성된 명세 검토 승인
+- 파일 단위 구현 계획 작성
+- 백엔드 DB/API/메일 구현
+- 사용자·관리자 프론트엔드 구현
+- 정적 검토, 테스트, 히스토리 기록
+
+## 수정한 파일
+
+- `docs/superpowers/specs/2026-08-28-inquiry-request-workflow-design.md`
+- `docs/agent-handoff/CURRENT.md`
+
+## 실행한 검증 명령과 결과
+
+- `rg -n TBD ...`, `rg -n TODO ...`: placeholder 없음
+- `git diff --check`: 통과
+- 코드 변경 전이므로 빌드·테스트 미실행
+
+## 실패·경고·주의사항
+
+- 기본 체크아웃에 사용자 소유 미커밋 파일이 있어 새 작업은 격리 워크트리에서만 진행한다.
+- 메인 체크아웃의 `frontend/src/app/user/exam-info/page.tsx`, 관련 history, `CACHE_POLICY.md`는 건드리지 않는다.
+- 운영은 `ddl-auto=validate`이므로 신규 SQL을 애플리케이션보다 먼저 적용해야 한다.
 
 ## 다음 세션이 바로 실행할 명령
 
 ```powershell
-git status --short
-
-# 사용자 승인 후
-git add frontend/src/components/ui/BugReportModal.tsx `
-        "frontend/src/app/user/concepts/[id]/page.tsx" `
-        "frontend/src/app/user/concepts/explore/[id]/page.tsx" `
-        CLAUDE.md `
-        docs/history/front/usr/UserConceptNote_Modified.md `
-        docs/agent-handoff/CURRENT.md
-git commit -m "[FE] feat: 개념노트 화면에도 버그 신고 기능 확대 적용"
-git push origin main
+cd C:\projects\test_preparation_master_project\.worktrees\feature-inquiry-workflow
+git status --short --branch
+type docs\superpowers\specs\2026-08-28-inquiry-request-workflow-design.md
 ```
 
-## 현재 실행 중인 프로세스
+명세 승인 후 `superpowers:writing-plans` 절차로 구현 계획을 작성한다.
 
-- `tpmp-db-local` (docker, 포트 5432)
-- 백엔드 gradle bootRun (nohup, 포트 8080) — 이번 작업은 프론트엔드 전용이라 재기동 불필요
-- 프론트 `next dev` (nohup, 포트 3000)
+## 건드리면 안 되는 파일 또는 기존 미추적 파일
 
-## 주의사항 / 건드리면 안 되는 것
-
-- `docs/db-migration/`의 기존 델타 34개 — 수정·삭제 금지.
-- 브라우저 자동화 시 `confirm()`/`alert()`를 띄우는 버튼(삭제 등)은 클릭 금지 — 필요하면 API로 직접 처리.
-- `.env`의 `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` 라인은 주석 처리된 채로 둘 것(로컬 전용).
-- **로컬 DB에서 raw SQL로 타임스탬프 테스트 데이터를 넣을 때는 postgres 세션 TimeZone(이 컨테이너는 UTC)과 호스트/JVM 로컬시간대(KST, UTC+9)의 9시간 차이를 반드시 보정할 것.**
-- `quiz_history` 테이블에 시연용 테스트 데이터 10건이 남아있음(id 4~13, user_id=2). 운영 배포 전 정리 필요 — `DELETE FROM quiz_history WHERE user_id = 2 AND id BETWEEN 4 AND 13;`.
-- 브라우저 자동화: "Multiple Chrome browsers connected" 프롬프트가 뜨면 **Browser 2**를 선택할 것(Browser 1은 `localhost:3000` 접근 불가). 이 원격 브라우저는 스크린샷 좌표와 실제 클릭 좌표가 간헐적으로 어긋나는 경우가 있어(뷰포트 스케일링 이슈로 추정), 클릭이 반영 안 되면 `computer` 좌표 클릭 대신 `find`로 요소 ref를 얻어 `ref` 기반 클릭을 사용할 것.
+- 기본 체크아웃의 사용자 변경 파일 일체
+- 기존 `docs/db-migration/` 델타 파일은 수정·삭제하지 않고 신규 델타만 추가한다.
