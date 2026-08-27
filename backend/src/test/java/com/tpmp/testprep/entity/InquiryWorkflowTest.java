@@ -25,6 +25,18 @@ class InquiryWorkflowTest {
         assertThat(inquiry.canTransitionTo(target)).isEqualTo(allowed);
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "GENERAL_INQUIRY,ANSWERED,true", "GENERAL_INQUIRY,COMPLETED,false", "GENERAL_INQUIRY,UNABLE_TO_PROCESS,false",
+            "OTHER,ANSWERED,true", "OTHER,COMPLETED,false", "OTHER,UNABLE_TO_PROCESS,false",
+            "BUG_REPORT,ANSWERED,false", "BUG_REPORT,COMPLETED,true", "BUG_REPORT,UNABLE_TO_PROCESS,true",
+            "EXAM_OPENING_REQUEST,ANSWERED,false", "EXAM_OPENING_REQUEST,COMPLETED,true", "EXAM_OPENING_REQUEST,UNABLE_TO_PROCESS,true",
+            "FEATURE_REQUEST,ANSWERED,false", "FEATURE_REQUEST,COMPLETED,true", "FEATURE_REQUEST,UNABLE_TO_PROCESS,true"
+    })
+    void everyRequestTypeAllowsOnlyItsTerminalStatuses(RequestType type, Status target, boolean allowed) {
+        assertThat(inquiry(type).canTransitionTo(target)).isEqualTo(allowed);
+    }
+
     @Test
     void openStatusesCanTransitionBetweenEachOther() {
         Inquiry inquiry = inquiry(RequestType.FEATURE_REQUEST);

@@ -2,7 +2,10 @@ package com.tpmp.testprep.controller;
 
 import com.tpmp.testprep.dto.request.InquiryRequest;
 import com.tpmp.testprep.dto.response.ApiResponse;
-import com.tpmp.testprep.dto.response.InquiryResponse;
+import com.tpmp.testprep.dto.request.InquiryMessageRequest;
+import com.tpmp.testprep.dto.response.InquiryDetailResponse;
+import com.tpmp.testprep.dto.response.InquiryMessageResponse;
+import com.tpmp.testprep.dto.response.InquirySummaryResponse;
 import com.tpmp.testprep.entity.Inquiry;
 import com.tpmp.testprep.service.InquiryService;
 import jakarta.validation.Valid;
@@ -26,7 +29,7 @@ public class UserInquiryController {
     private final InquiryService inquiryService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<InquiryResponse>>> getMyInquiries(
+    public ResponseEntity<ApiResponse<Page<InquirySummaryResponse>>> getMyInquiries(
             @RequestParam(required = false) Inquiry.Status status,
             Pageable pageable,
             @AuthenticationPrincipal String email) {
@@ -35,7 +38,7 @@ public class UserInquiryController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<InquiryResponse>> getMyInquiry(
+    public ResponseEntity<ApiResponse<InquiryDetailResponse>> getMyInquiry(
             @PathVariable Long id,
             @AuthenticationPrincipal String email) {
         return ResponseEntity.ok(ApiResponse.success(
@@ -43,7 +46,7 @@ public class UserInquiryController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<InquiryResponse>> create(
+    public ResponseEntity<ApiResponse<InquiryDetailResponse>> create(
             @Valid @RequestBody InquiryRequest request,
             @AuthenticationPrincipal String email) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -58,10 +61,16 @@ public class UserInquiryController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    @PostMapping("/{id}/messages")
+    public ResponseEntity<ApiResponse<InquiryMessageResponse>> addMessage(@PathVariable Long id,
+            @Valid @RequestBody InquiryMessageRequest request, @AuthenticationPrincipal String email) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(inquiryService.addUserMessage(id, request, email)));
+    }
+
     @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<Map<String, Object>>> uploadImage(
-            @RequestPart("image") MultipartFile image) {
-        InquiryService.UploadResult result = inquiryService.uploadImage(image);
+            @RequestPart("image") MultipartFile image, @AuthenticationPrincipal String email) {
+        InquiryService.UploadResult result = inquiryService.uploadImage(image, email);
         return ResponseEntity.ok(ApiResponse.success(Map.of("id", result.id(), "url", result.url())));
     }
 }

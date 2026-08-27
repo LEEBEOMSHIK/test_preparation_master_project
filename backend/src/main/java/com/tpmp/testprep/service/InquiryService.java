@@ -1,13 +1,19 @@
 package com.tpmp.testprep.service;
 
-import com.tpmp.testprep.dto.request.InquiryReplyRequest;
+import com.tpmp.testprep.dto.request.AdminInquiryMessageRequest;
+import com.tpmp.testprep.dto.request.InquiryMessageRequest;
 import com.tpmp.testprep.dto.request.InquiryRequest;
-import com.tpmp.testprep.dto.response.InquiryResponse;
+import com.tpmp.testprep.dto.request.InquiryStatusUpdateRequest;
+import com.tpmp.testprep.dto.response.InquiryDetailResponse;
+import com.tpmp.testprep.dto.response.InquiryMessageResponse;
+import com.tpmp.testprep.dto.response.InquirySummaryResponse;
 import com.tpmp.testprep.entity.Attachment;
 import com.tpmp.testprep.entity.Inquiry;
+import com.tpmp.testprep.entity.InquiryMessage;
 import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
+import com.tpmp.testprep.repository.InquiryMessageRepository;
 import com.tpmp.testprep.repository.InquiryRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,134 +29,118 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class InquiryService {
-
     private final InquiryRepository inquiryRepository;
     private final UserRepository userRepository;
     private final AttachmentService attachmentService;
+    private final InquiryMessageRepository inquiryMessageRepository;
 
-    // ── User ─────────────────────────────────────────────────────────────────
-
-    public Page<InquiryResponse> getMyInquiries(String email, Inquiry.Status status, Pageable pageable) {
+    public Page<InquirySummaryResponse> getMyInquiries(String email, Inquiry.Status status, Pageable pageable) {
         User user = findUser(email);
-        Page<Inquiry> page = (status != null)
-                ? inquiryRepository.findByUserIdAndStatus(user.getId(), status, pageable)
-                : inquiryRepository.findByUserId(user.getId(), pageable);
-        return page.map(inquiry -> toResponse(inquiry));
+        return (status == null ? inquiryRepository.findByUserId(user.getId(), pageable)
+                : inquiryRepository.findByUserIdAndStatus(user.getId(), status, pageable)).map(InquirySummaryResponse::from);
     }
 
-    public InquiryResponse getMyInquiry(Long id, String email) {
+    public InquiryDetailResponse getMyInquiry(Long id, String email) {
         Inquiry inquiry = findInquiry(id);
         checkOwner(inquiry, email);
-        return toResponse(inquiry);
+        return toDetail(inquiry);
     }
 
     @Transactional
-    public InquiryResponse create(InquiryRequest request, String email) {
+    public InquiryDetailResponse create(InquiryRequest request, String email) {
+        validateRequest(request);
         User user = findUser(email);
-
-        // Resolve attachment URLs for imageUrls TEXT field
-        List<Attachment> attachments = attachmentService.findByIds(request.attachmentIds());
-        String imageUrlsStr = attachments.isEmpty()
-                ? null
-                : String.join(",", attachments.stream().map(Attachment::getFileUrl).toList());
-
-        Inquiry inquiry = Inquiry.builder()
-                .user(user)
-                .title(request.title())
-                .content(request.content())
-                .inquiryType(request.inquiryType())
-                .imageUrls(imageUrlsStr)
-                .build();
-        Inquiry saved = inquiryRepository.save(inquiry);
-
-        // Link attachments to the new inquiry
-        if (request.attachmentIds() != null && !request.attachmentIds().isEmpty()) {
-            attachmentService.linkAttachments(request.attachmentIds(), saved.getId());
-        }
-
-        return toResponse(saved);
+        Inquiry saved = inquiryRepository.save(Inquiry.builder().user(user).title(request.title()).content(request.content())
+                .requestType(request.requestType()).targetArea(targetArea(request)).detailLocation(detailLocation(request)).build());
+        attachmentService.validateAndLinkInquiryAttachments(request.attachmentIds(), Attachment.RefType.INQUIRY, saved.getId(), user);
+        return toDetail(saved);
     }
 
     @Transactional
     public void delete(Long id, String email) {
         Inquiry inquiry = findInquiry(id);
         checkOwner(inquiry, email);
-        if (inquiry.getStatus() != Inquiry.Status.PENDING) {
+        if (inquiry.getStatus() != Inquiry.Status.PENDING || inquiryMessageRepository.existsByInquiryId(id))
             throw new BusinessException(ErrorCode.INQUIRY_ACCESS_DENIED);
-        }
         inquiryRepository.delete(inquiry);
     }
 
-    public record UploadResult(Long id, String url) {}
-
     @Transactional
-    public UploadResult uploadImage(MultipartFile image) {
-        Attachment attachment = attachmentService.saveImage(image, Attachment.RefType.INQUIRY);
+    public UploadResult uploadImage(MultipartFile image, String email) {
+        User user = findUser(email);
+        Attachment attachment = attachmentService.saveImage(image, Attachment.RefType.INQUIRY, user);
         return new UploadResult(attachment.getId(), attachment.getFileUrl());
     }
 
-    // ── Admin ─────────────────────────────────────────────────────────────────
-
-    public Page<InquiryResponse> adminGetAll(Inquiry.Status status, Pageable pageable) {
-        Page<Inquiry> page = (status != null)
-                ? inquiryRepository.findByStatus(status, pageable)
-                : inquiryRepository.findAll(pageable);
-        return page.map(inquiry -> toResponse(inquiry));
+    @Transactional
+    public InquiryMessageResponse addUserMessage(Long inquiryId, InquiryMessageRequest request, String email) {
+        Inquiry inquiry = findInquiry(inquiryId);
+        User user = findUser(email);
+        checkOwner(inquiry, email);
+        if (inquiry.isClosed()) throw new BusinessException(ErrorCode.INQUIRY_CLOSED);
+        InquiryMessage message = inquiryMessageRepository.save(InquiryMessage.builder().inquiry(inquiry).author(user)
+                .authorRole(InquiryMessage.AuthorRole.USER).content(request.content()).build());
+        attachmentService.validateAndLinkInquiryAttachments(request.attachmentIds(), Attachment.RefType.INQUIRY_MESSAGE, message.getId(), user);
+        return toMessage(message);
     }
 
-    public InquiryResponse adminGetOne(Long id) {
-        return toResponse(findInquiry(id));
+    public Page<InquirySummaryResponse> adminGetAll(Inquiry.Status status, Pageable pageable) {
+        return (status == null ? inquiryRepository.findAll(pageable) : inquiryRepository.findByStatus(status, pageable))
+                .map(InquirySummaryResponse::from);
+    }
+
+    public InquiryDetailResponse adminGetOne(Long id) { return toDetail(findInquiry(id)); }
+
+    @Transactional
+    public InquiryMessageResponse addAdminMessage(Long inquiryId, AdminInquiryMessageRequest request, String email) {
+        Inquiry inquiry = findInquiry(inquiryId);
+        User admin = findUser(email);
+        if (inquiry.isClosed()) throw new BusinessException(ErrorCode.INQUIRY_CLOSED);
+        InquiryMessage message = inquiryMessageRepository.save(InquiryMessage.builder().inquiry(inquiry)
+                .author(admin).authorRole(InquiryMessage.AuthorRole.ADMIN).content(request.content()).build());
+        attachmentService.validateAndLinkInquiryAttachments(request.attachmentIds(), Attachment.RefType.INQUIRY_MESSAGE,
+                message.getId(), admin);
+        return toMessage(message);
     }
 
     @Transactional
-    public InquiryResponse adminReply(Long id, InquiryReplyRequest request) {
-        Inquiry inquiry = findInquiry(id);
-        inquiry.reply(request.reply());
-        return toResponse(inquiry);
-    }
-
-    @Transactional
-    public InquiryResponse adminToggleHold(Long id) {
-        Inquiry inquiry = findInquiry(id);
-        inquiry.toggleHold();
-        return toResponse(inquiry);
-    }
-
-    @Transactional
-    public void adminDelete(Long id) {
-        inquiryRepository.delete(findInquiry(id));
-    }
-
-    // ── helpers ──────────────────────────────────────────────────────────────
-
-    private InquiryResponse toResponse(Inquiry inquiry) {
-        // Prefer attachment table; fall back to legacy imageUrls TEXT field
-        List<Attachment> attachments = attachmentService.findByRef(Attachment.RefType.INQUIRY, inquiry.getId());
-        List<String> imageUrls;
-        if (!attachments.isEmpty()) {
-            imageUrls = attachments.stream().map(Attachment::getFileUrl).toList();
-        } else if (inquiry.getImageUrls() != null && !inquiry.getImageUrls().isBlank()) {
-            imageUrls = java.util.Arrays.stream(inquiry.getImageUrls().split(","))
-                    .map(String::trim).filter(s -> !s.isEmpty()).toList();
-        } else {
-            imageUrls = List.of();
+    public InquiryDetailResponse updateStatus(Long inquiryId, InquiryStatusUpdateRequest request) {
+        Inquiry inquiry = findInquiry(inquiryId);
+        if (!inquiry.canTransitionTo(request.status())) throw new BusinessException(ErrorCode.INVALID_INQUIRY_STATUS_TRANSITION);
+        if (request.status().isClosed()) {
+            if (request.message() == null || request.message().isBlank()) throw new BusinessException(ErrorCode.INVALID_INPUT);
+            inquiryMessageRepository.save(InquiryMessage.builder().inquiry(inquiry)
+                    .authorRole(InquiryMessage.AuthorRole.ADMIN).content(request.message()).build());
         }
-        return InquiryResponse.fromWithUrls(inquiry, imageUrls);
+        inquiry.changeStatus(request.status());
+        return toDetail(inquiry);
     }
 
-    private User findUser(String email) {
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    @Transactional
+    public void adminDelete(Long id) { inquiryRepository.delete(findInquiry(id)); }
+
+    private void validateRequest(InquiryRequest request) {
+        if (request.requestType() == Inquiry.RequestType.BUG_REPORT && (request.targetArea() == null || request.targetArea().isBlank()))
+            throw new BusinessException(ErrorCode.INVALID_INQUIRY_TARGET_AREA);
     }
 
-    private Inquiry findInquiry(Long id) {
-        return inquiryRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INQUIRY_NOT_FOUND));
+    private String targetArea(InquiryRequest request) { return request.requestType() == Inquiry.RequestType.EXAM_OPENING_REQUEST ? null : request.targetArea(); }
+    private String detailLocation(InquiryRequest request) { return request.requestType() == Inquiry.RequestType.EXAM_OPENING_REQUEST ? null : request.detailLocation(); }
+
+    private InquiryDetailResponse toDetail(Inquiry inquiry) {
+        List<String> images = attachmentService.findByRef(Attachment.RefType.INQUIRY, inquiry.getId()).stream().map(Attachment::getFileUrl).toList();
+        List<InquiryMessageResponse> messages = inquiryMessageRepository.findByInquiryIdOrderByCreatedAtAscIdAsc(inquiry.getId()).stream().map(this::toMessage).toList();
+        return InquiryDetailResponse.from(inquiry, images, messages);
     }
 
-    private void checkOwner(Inquiry inquiry, String email) {
-        if (!inquiry.getUser().getEmail().equals(email)) {
-            throw new BusinessException(ErrorCode.INQUIRY_ACCESS_DENIED);
-        }
+    private InquiryMessageResponse toMessage(InquiryMessage message) {
+        List<String> images = attachmentService.findByRef(Attachment.RefType.INQUIRY_MESSAGE, message.getId()).stream().map(Attachment::getFileUrl).toList();
+        return InquiryMessageResponse.from(message, images);
     }
+
+    private User findUser(String email) { return userRepository.findByEmail(email).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND)); }
+    private Inquiry findInquiry(Long id) { return inquiryRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.INQUIRY_NOT_FOUND)); }
+    private void checkOwner(Inquiry inquiry, String email) { if (!inquiry.getUser().getEmail().equals(email)) throw new BusinessException(ErrorCode.INQUIRY_ACCESS_DENIED); }
+
+    public record UploadResult(Long id, String url) {}
 }

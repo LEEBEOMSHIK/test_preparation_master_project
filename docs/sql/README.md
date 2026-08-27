@@ -4,13 +4,14 @@
 
 > 마지막 갱신: 2026-08-03 (리눅스마스터 1급/2급·SQLD 기출문제에 대응하는 시험지·시험·시험문항 신규 생성 — exams 3건/examinations 3건/questions 230건 + 해당 문항 237건 AI 키워드·도메인 분석 결과 반영. 리눅스마스터 2급 exam_info 8건 추가 — `DataInitializer.ensureLinuxMaster2ExamInfo()`가 매 백엔드 기동 시 생성하는 데이터를 콘텐츠 덤프에도 동기화)
 
-## ⚠️ 로드 순서 (반드시 3단계로 진행)
+## ⚠️ 로드 순서 (문의·요청 워크플로는 반드시 4단계로 진행)
 
 이 프로젝트는 아직 Flyway/Liquibase를 쓰지 않고 `docs/db-migration/`에 수동 SQL 파일을 쌓아가는 방식입니다(`docs/db-guidelines.md` §10 참고).
 
-1. **베이스라인 스키마 적용** — `docs/db-migration/00000000_00_baseline_schema.sql` **1개만** 실행. 33개 테이블 전체를 만듭니다.
-2. **백엔드 최초 1회 기동** — `DataInitializer`가 시드 계정(admin=id 1, user=id 2)·메뉴·권한을 생성합니다. 3단계 덤프의 FK가 이 계정을 참조하므로 반드시 먼저 띄웁니다.
-3. **콘텐츠 데이터 덤프 로드** — `tpmp_content_data.sql`을 로드합니다.
+1. **베이스라인 스키마 적용** — `docs/db-migration/00000000_00_baseline_schema.sql`을 실행합니다.
+2. **문의·요청 워크플로 델타 적용** — `docs/db-migration/20260828_01_extend_inquiry_workflow.sql`을 실행합니다. **`ddl-auto=validate`인 프로덕션과 신규 DB 모두 최초 백엔드 기동 전에 필수**입니다.
+3. **백엔드 최초 1회 기동** — `DataInitializer`가 시드 계정(admin=id 1, user=id 2)·메뉴·권한을 생성합니다. 4단계 덤프의 FK가 이 계정을 참조하므로 반드시 먼저 띄웁니다.
+4. **콘텐츠 데이터 덤프 로드** — `tpmp_content_data.sql`을 로드합니다.
 
 > ### ❗ 기존 델타 마이그레이션 35개는 신규 DB에 적용하지 마세요
 >

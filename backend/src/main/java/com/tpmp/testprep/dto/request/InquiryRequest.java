@@ -10,6 +10,8 @@ import java.util.List;
 public record InquiryRequest(
         @NotBlank @Size(max = 200) String title,
         @NotBlank String content,
-        @NotNull Inquiry.InquiryType inquiryType,
+        @NotNull Inquiry.RequestType requestType,
+        @Size(max = 100) String targetArea,
+        @Size(max = 500) String detailLocation,
         @Size(max = 3) List<Long> attachmentIds
 ) {}

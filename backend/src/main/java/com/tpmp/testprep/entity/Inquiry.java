@@ -42,12 +42,6 @@ public class Inquiry {
     @Column(nullable = false)
     private Status status = Status.PENDING;
 
-    @Transient
-    private String reply;
-
-    @Transient
-    private LocalDateTime repliedAt;
-
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -67,26 +61,6 @@ public class Inquiry {
         this.detailLocation = detailLocation;
         this.imageUrls = imageUrls;
         this.status = Status.PENDING;
-    }
-
-    /** 기존 API 이행 기간 동안의 호환용 유형 조회. */
-    @Deprecated
-    public InquiryType getInquiryType() {
-        return InquiryType.fromRequestType(requestType);
-    }
-
-    public void reply(String reply) {
-        this.reply = reply;
-        this.status = requestType.usesAnswerCompletion() ? Status.ANSWERED : Status.COMPLETED;
-        this.repliedAt = LocalDateTime.now();
-    }
-
-    public void toggleHold() {
-        if (this.status == Status.ON_HOLD) {
-            this.status = Status.PENDING;
-        } else if (!this.status.isClosed()) {
-            this.status = Status.ON_HOLD;
-        }
     }
 
     public boolean isClosed() {
@@ -135,34 +109,4 @@ public class Inquiry {
         }
     }
 
-    /** Task 2 API 이관 전 기존 요청·대시보드 호출을 컴파일 호환하기 위한 레거시 값이다. */
-    @Deprecated
-    public enum InquiryType {
-        EXAM, CONCEPT_NOTE, DAILY_QUIZ, PRACTICE, BUG, OTHER;
-
-        RequestType toRequestType() {
-            return switch (this) {
-                case BUG -> RequestType.BUG_REPORT;
-                case OTHER -> RequestType.OTHER;
-                case EXAM, CONCEPT_NOTE, DAILY_QUIZ, PRACTICE -> RequestType.GENERAL_INQUIRY;
-            };
-        }
-
-        static InquiryType fromRequestType(RequestType requestType) {
-            return switch (requestType) {
-                case BUG_REPORT -> BUG;
-                case OTHER -> OTHER;
-                case GENERAL_INQUIRY, EXAM_OPENING_REQUEST, FEATURE_REQUEST -> EXAM;
-            };
-        }
-    }
-
-    public static class InquiryBuilder {
-        /** 기존 API 이행 기간 동안의 호환용 빌더 입력. */
-        @Deprecated
-        public InquiryBuilder inquiryType(InquiryType inquiryType) {
-            this.requestType = inquiryType != null ? inquiryType.toRequestType() : RequestType.OTHER;
-            return this;
-        }
-    }
 }

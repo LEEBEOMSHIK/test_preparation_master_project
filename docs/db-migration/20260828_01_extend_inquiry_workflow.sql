@@ -100,7 +100,11 @@ ALTER TABLE attachments ADD CONSTRAINT attachments_ref_type_check
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'attachments_uploaded_by_fkey') THEN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'attachments_uploaded_by_fkey'
+          AND conrelid = 'public.attachments'::regclass
+    ) THEN
         ALTER TABLE attachments
             ADD CONSTRAINT attachments_uploaded_by_fkey
             FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL;
@@ -157,6 +161,14 @@ ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name;
 INSERT INTO domain_master (code, name)
 VALUES ('INQUIRY_BUG_AREA', '문의 버그 발생 영역')
 ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name;
+
+-- inquiries는 유형 문자열만 저장하므로 구형 카테고리 슬레이브를 참조하지 않는다.
+-- 삭제 전에 다른 업무 도메인이 잘못 참조했다면 FK 오류로 중단되어 무결성을 보존한다.
+DELETE FROM domain_slave slave
+USING domain_master master
+WHERE slave.master_id = master.id
+  AND master.code = 'INQUIRY_CATEGORY'
+  AND slave.name IN ('EXAM', 'CONCEPT_NOTE', 'DAILY_QUIZ', 'PRACTICE', 'BUG');
 
 WITH values_to_seed(name, display_order) AS (
     VALUES

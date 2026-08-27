@@ -190,6 +190,16 @@ public class DataInitializer implements ApplicationRunner {
                                 DomainMaster.builder().code(code).name(masterName).build())));
 
         var existingSlaves = domainSlaveRepository.findByMasterCode(code);
+        if ("INQUIRY_CATEGORY".equals(code)) {
+            var legacyValues = existingSlaves.stream()
+                    .filter(slave -> java.util.Set.of("EXAM", "CONCEPT_NOTE", "DAILY_QUIZ", "PRACTICE", "BUG")
+                            .contains(slave.getName()))
+                    .toList();
+            if (!legacyValues.isEmpty()) {
+                domainSlaveRepository.deleteAll(legacyValues);
+                existingSlaves = existingSlaves.stream().filter(slave -> !legacyValues.contains(slave)).toList();
+            }
+        }
         var existingNames = existingSlaves.stream().map(DomainSlave::getName).collect(java.util.stream.Collectors.toSet());
         int nextOrder = existingSlaves.stream().mapToInt(DomainSlave::getDisplayOrder).max().orElse(0) + 1;
         for (String slaveName : slaveNames) {
