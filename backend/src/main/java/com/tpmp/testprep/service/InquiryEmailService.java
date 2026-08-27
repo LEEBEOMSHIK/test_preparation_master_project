@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class InquiryEmailService {
     private static final String SUBJECT = "[TPMP] 문의·요청 알림";
+    private static final long SETTINGS_ID = InquiryNotificationSettings.SINGLETON_ID;
 
     private final InquiryNotificationSettingsRepository settingsRepository;
     private final InquiryEmailDeliveryRepository deliveryRepository;
@@ -39,16 +40,16 @@ public class InquiryEmailService {
 
     @Transactional
     public void queueAdminNotification(InquiryEmailDelivery.EventType eventType, Inquiry inquiry, InquiryMessage message) {
-        settingsRepository.findFirstByOrderByIdAsc().filter(InquiryNotificationSettings::isEnabled)
+        settingsRepository.findById(SETTINGS_ID).filter(InquiryNotificationSettings::isEnabled)
                 .ifPresent(settings -> settings.getRecipients().forEach(recipient ->
-                        queue(eventType, inquiry, message, recipient.getEmail())));
+                        queue(eventType, inquiry, message, recipient.getEmail(), Audience.ADMIN)));
     }
 
     @Transactional
     public void queueUserNotification(InquiryEmailDelivery.EventType eventType, Inquiry inquiry, InquiryMessage message,
                                       boolean sendEmail) {
         if (sendEmail) {
-            queue(eventType, inquiry, message, inquiry.getUser().getEmail());
+            queue(eventType, inquiry, message, inquiry.getUser().getEmail(), Audience.USER);
         }
     }
 
@@ -70,23 +71,44 @@ public class InquiryEmailService {
         eventPublisher.publishEvent(new InquiryEmailQueuedEvent(deliveryId));
     }
 
-    private void queue(InquiryEmailDelivery.EventType eventType, Inquiry inquiry, InquiryMessage message, String recipientEmail) {
+    private void queue(InquiryEmailDelivery.EventType eventType, Inquiry inquiry, InquiryMessage message, String recipientEmail,
+                       Audience audience) {
         InquiryEmailDelivery saved = deliveryRepository.save(InquiryEmailDelivery.pending(inquiry, message, eventType,
-                recipientEmail, SUBJECT, buildBody(inquiry, message)));
+                recipientEmail, SUBJECT, buildBody(eventType, inquiry, message, audience)));
         if (saved.getId() != null) {
             eventPublisher.publishEvent(new InquiryEmailQueuedEvent(saved.getId()));
         }
     }
 
-    private String buildBody(Inquiry inquiry, InquiryMessage message) {
-        StringBuilder body = new StringBuilder("TPMP 문의·요청 알림입니다.\n\n제목: ")
-                .append(inquiry.getTitle());
-        if (message != null) {
-            body.append("\n\n메시지:\n").append(message.getContent());
+    private String buildBody(InquiryEmailDelivery.EventType eventType, Inquiry inquiry, InquiryMessage message, Audience audience) {
+        StringBuilder body = new StringBuilder("TPMP 문의·요청 알림입니다.\n\n")
+                .append("접수 번호: ").append(inquiry.getId())
+                .append("\n접수 유형: ").append(inquiry.getRequestType())
+                .append("\n제목: ").append(inquiry.getTitle())
+                .append("\n현재 상태: ").append(inquiry.getStatus());
+        String guideContent = message != null ? message.getContent()
+                : eventType == InquiryEmailDelivery.EventType.NEW_INQUIRY ? inquiry.getContent() : null;
+        if (guideContent != null && !guideContent.isBlank()) {
+            body.append("\n안내 내용:\n").append(guideContent);
         }
-        if (publicUrl != null && !publicUrl.isBlank()) {
-            body.append("\n\n확인: ").append(publicUrl).append("/admin/inquiries/").append(inquiry.getId());
+        String baseUrl = normalizedPublicUrl();
+        if (!baseUrl.isBlank()) {
+            String path = audience == Audience.USER ? "/user/inquiries/" : "/admin/inquiries/";
+            body.append("\n\n상세 링크: ").append(baseUrl).append(path).append(inquiry.getId());
         }
         return body.toString();
     }
+
+    private String normalizedPublicUrl() {
+        if (publicUrl == null || publicUrl.isBlank()) {
+            return "";
+        }
+        String normalized = publicUrl.trim();
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
+    private enum Audience { ADMIN, USER }
 }

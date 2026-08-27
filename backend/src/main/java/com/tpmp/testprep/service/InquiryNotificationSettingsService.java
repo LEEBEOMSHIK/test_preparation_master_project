@@ -20,13 +20,14 @@ import java.util.Locale;
 @Transactional(readOnly = true)
 public class InquiryNotificationSettingsService {
     private static final int MAX_RECIPIENTS = 10;
+    private static final long SETTINGS_ID = InquiryNotificationSettings.SINGLETON_ID;
 
     private final InquiryNotificationSettingsRepository settingsRepository;
     @SuppressWarnings("unused")
     private final InquiryNotificationRecipientRepository recipientRepository;
 
     public InquiryNotificationSettingsResponse get() {
-        return settingsRepository.findFirstByOrderByIdAsc().map(InquiryNotificationSettingsResponse::from)
+        return settingsRepository.findById(SETTINGS_ID).map(InquiryNotificationSettingsResponse::from)
                 .orElseGet(() -> new InquiryNotificationSettingsResponse(false, List.of()));
     }
 
@@ -36,8 +37,9 @@ public class InquiryNotificationSettingsService {
         if (request.enabled() && emails.isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_INQUIRY_NOTIFICATION_SETTINGS);
         }
-        InquiryNotificationSettings settings = settingsRepository.findFirstByOrderByIdAsc()
-                .orElseGet(() -> InquiryNotificationSettings.create(request.enabled()));
+        settingsRepository.upsertSingleton(request.enabled());
+        InquiryNotificationSettings settings = settingsRepository.findById(SETTINGS_ID)
+                .orElseThrow(() -> new IllegalStateException("관리자 알림 설정을 초기화할 수 없습니다."));
         settings.update(request.enabled());
         settings.replaceRecipients(emails);
         return InquiryNotificationSettingsResponse.from(settingsRepository.save(settings));

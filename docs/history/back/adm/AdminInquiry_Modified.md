@@ -1,3 +1,32 @@
+## HIST-20260828-004
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 관리자 백엔드 / 문의·요청 관리
+- **수정 개요**: 관리자 알림 본문을 보강하고 전역 수신 설정을 DB·서비스에서 고정 ID singleton으로 강제했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `docs/db-migration/20260828_01_extend_inquiry_workflow.sql` | 수정 | id=1 이외 기존 설정 정리·CHECK 제약·시퀀스 보정 |
+| `backend/src/main/java/com/tpmp/testprep/repository/InquiryNotificationSettingsRepository.java` | 수정 | PostgreSQL ON CONFLICT singleton upsert 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryNotificationSettingsService.java` | 수정 | 고정 ID=1만 조회·저장 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryEmailService.java` | 수정 | 고정 설정 ID 조회와 관리자 상세 링크·접수 본문 생성 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryNotificationSettingsServiceTest.java` | 수정 | 고정 ID 조회와 upsert 호출 검증 |
+
+### 수정 상세
+
+#### `InquiryNotificationSettingsService.java`
+- 변경 전: 첫 행을 조회하고 행이 없으면 일반 저장을 수행해 동시 최초 요청에서 다중 행이 생길 수 있었다.
+- 변경 후: DB의 id=1 CHECK 제약과 `ON CONFLICT (id)` upsert를 사용한 뒤 id=1만 조회·갱신한다.
+- 이유: 전역 수신 설정과 관리자 fan-out 결과를 단일하고 결정적으로 유지하기 위해서다.
+
+### 복원 방법
+
+`AdminInquiry_Modified.md`의 HIST-20260828-004 복원 시 id=1 singleton 제약·upsert·메일 본문 보강을 함께 이전 구현으로 되돌린다. 운영 DB는 설정 행을 정리하므로 복원 전 백업한다.
+
+---
+
 ## HIST-20260828-003
 
 - **날짜**: 2026-08-28

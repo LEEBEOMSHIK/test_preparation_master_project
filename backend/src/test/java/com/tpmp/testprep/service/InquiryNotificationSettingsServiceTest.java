@@ -15,6 +15,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -25,7 +26,7 @@ class InquiryNotificationSettingsServiceTest {
         InquiryNotificationSettingsRepository settingsRepository = mock(InquiryNotificationSettingsRepository.class);
         InquiryNotificationRecipientRepository recipientRepository = mock(InquiryNotificationRecipientRepository.class);
         InquiryNotificationSettings settings = InquiryNotificationSettings.create(false);
-        when(settingsRepository.findFirstByOrderByIdAsc()).thenReturn(Optional.of(settings));
+        when(settingsRepository.findById(1L)).thenReturn(Optional.of(settings));
         when(settingsRepository.save(any(InquiryNotificationSettings.class))).thenAnswer(invocation -> invocation.getArgument(0));
         InquiryNotificationSettingsService service = new InquiryNotificationSettingsService(settingsRepository, recipientRepository);
 
@@ -34,6 +35,35 @@ class InquiryNotificationSettingsServiceTest {
 
         assertThat(response.enabled()).isTrue();
         assertThat(response.recipientEmails()).containsExactly("admin@tpmp.com", "second@tpmp.com");
+    }
+
+    @Test
+    void getReadsOnlyTheFixedGlobalSettingsId() {
+        InquiryNotificationSettingsRepository settingsRepository = mock(InquiryNotificationSettingsRepository.class);
+        InquiryNotificationSettings settings = InquiryNotificationSettings.create(true);
+        settings.replaceRecipients(List.of("only@tpmp.com"));
+        when(settingsRepository.findById(1L)).thenReturn(Optional.of(settings));
+        InquiryNotificationSettingsService service = new InquiryNotificationSettingsService(settingsRepository,
+                mock(InquiryNotificationRecipientRepository.class));
+
+        var response = service.get();
+
+        assertThat(response.enabled()).isTrue();
+        assertThat(response.recipientEmails()).containsExactly("only@tpmp.com");
+    }
+
+    @Test
+    void updateUsesSingletonUpsertBeforeReplacingRecipients() {
+        InquiryNotificationSettingsRepository settingsRepository = mock(InquiryNotificationSettingsRepository.class);
+        InquiryNotificationSettings settings = InquiryNotificationSettings.create(false);
+        when(settingsRepository.findById(1L)).thenReturn(Optional.of(settings));
+        when(settingsRepository.save(any(InquiryNotificationSettings.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        InquiryNotificationSettingsService service = new InquiryNotificationSettingsService(settingsRepository,
+                mock(InquiryNotificationRecipientRepository.class));
+
+        service.update(new InquiryNotificationSettingsRequest(true, List.of("only@tpmp.com")));
+
+        verify(settingsRepository).upsertSingleton(true);
     }
 
     @Test

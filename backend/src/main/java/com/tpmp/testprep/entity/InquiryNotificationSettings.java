@@ -23,6 +23,7 @@ import java.util.List;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class InquiryNotificationSettings {
+    public static final long SINGLETON_ID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
