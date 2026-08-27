@@ -15,11 +15,11 @@
 - 격리 워크트리와 `feature/fullstack-inquiry-workflow` 브랜치를 생성했다.
 - 승인된 1안의 데이터 모델, 상태 전이, 양방향 메시지, 이메일 발송 이력, 화면, 보안, 테스트 범위를 설계 명세로 작성했다.
 - 명세의 placeholder, 상태/유형 일관성, 기존 데이터 이관 규칙을 자체 검토했다.
+- 파일 단위 TDD 구현 계획을 `docs/superpowers/plans/2026-08-28-inquiry-request-workflow.md`에 작성하고 자체 검토했다.
+- 구현 전 기준선으로 백엔드 전체 테스트, 프론트 타입체크, 프론트 테스트 55개를 통과했다.
 
 ## 미완료 작업
 
-- 사용자의 작성된 명세 검토 승인
-- 파일 단위 구현 계획 작성
 - 백엔드 DB/API/메일 구현
 - 사용자·관리자 프론트엔드 구현
 - 정적 검토, 테스트, 히스토리 기록
@@ -27,13 +27,16 @@
 ## 수정한 파일
 
 - `docs/superpowers/specs/2026-08-28-inquiry-request-workflow-design.md`
+- `docs/superpowers/plans/2026-08-28-inquiry-request-workflow.md`
 - `docs/agent-handoff/CURRENT.md`
 
 ## 실행한 검증 명령과 결과
 
 - `rg -n TBD ...`, `rg -n TODO ...`: placeholder 없음
 - `git diff --check`: 통과
-- 코드 변경 전이므로 빌드·테스트 미실행
+- `backend\\gradlew.bat test`: 통과
+- `frontend\\node_modules\\.bin\\tsc --noEmit`: 통과
+- `npm test -- --watch=false`: 8 suites, 55 tests 통과
 
 ## 실패·경고·주의사항
 
@@ -46,10 +49,10 @@
 ```powershell
 cd C:\projects\test_preparation_master_project\.worktrees\feature-inquiry-workflow
 git status --short --branch
-type docs\superpowers\specs\2026-08-28-inquiry-request-workflow-design.md
+type docs\superpowers\plans\2026-08-28-inquiry-request-workflow.md
 ```
 
-명세 승인 후 `superpowers:writing-plans` 절차로 구현 계획을 작성한다.
+계획 Task 1부터 실패 테스트를 먼저 작성하고 구현한다.
 
 ## 건드리면 안 되는 파일 또는 기존 미추적 파일
 
