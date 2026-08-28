@@ -170,6 +170,12 @@ public class DataInitializer implements ApplicationRunner {
 
     @Transactional
     public void ensureInquiryDomainTypes() {
+        boolean categoryExists = domainMasterRepository.findByCode("INQUIRY_CATEGORY").isPresent();
+        boolean bugAreaExists = domainMasterRepository.findByCode("INQUIRY_BUG_AREA").isPresent();
+        if (!categoryExists && !bugAreaExists) {
+            log.info("[DataInitializer] 신규 DB 콘텐츠 도메인 로드 전 — 문의 도메인 시드 보류");
+            return;
+        }
         ensureDomainMasterWithValues("INQUIRY_CATEGORY", "문의 카테고리", new String[]{
                 "GENERAL_INQUIRY", "BUG_REPORT", "EXAM_OPENING_REQUEST", "FEATURE_REQUEST", "OTHER"
         });

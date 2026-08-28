@@ -32,18 +32,102 @@ describe('NewInquiryPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(useRouter).mockReturnValue({ push } as never);
+    jest.mocked(domainService.getSlavesByCode).mockImplementation(async (code) => ({
+      data: {
+        success: true,
+        data: code === 'INQUIRY_CATEGORY'
+          ? [
+              { id: 1, masterId: 1, name: 'GENERAL_INQUIRY', displayOrder: 1 },
+              { id: 2, masterId: 1, name: 'BUG_REPORT', displayOrder: 2 },
+              { id: 3, masterId: 1, name: 'EXAM_OPENING_REQUEST', displayOrder: 3 },
+              { id: 4, masterId: 1, name: 'FEATURE_REQUEST', displayOrder: 4 },
+              { id: 5, masterId: 1, name: 'OTHER', displayOrder: 5 },
+              { id: 99, masterId: 1, name: 'UNSUPPORTED_TYPE', displayOrder: 99 },
+            ]
+          : [
+              { id: 11, masterId: 2, name: 'EXAM_INFO', displayOrder: 1 },
+              { id: 12, masterId: 2, name: 'EXAM_SOLVING_RESULT', displayOrder: 2 },
+              { id: 98, masterId: 2, name: 'UNSUPPORTED_AREA', displayOrder: 99 },
+            ],
+      },
+    } as never));
+    jest.mocked(inquiryService.create).mockResolvedValue({
+      data: { success: true, data: null },
+    } as never);
+  });
+
+  it('문의 유형과 발생 영역을 각각 동적으로 조회하고 허용 enum으로 좁힌다', async () => {
+    render(<NewInquiryPage />);
+
+    const typeSelect = await screen.findByLabelText('접수 유형') as HTMLSelectElement;
+    const areaSelect = screen.getByLabelText(/발생 영역/) as HTMLSelectElement;
+
+    expect(domainService.getSlavesByCode).toHaveBeenCalledWith('INQUIRY_CATEGORY');
+    expect(domainService.getSlavesByCode).toHaveBeenCalledWith('INQUIRY_BUG_AREA');
+    expect(Array.from(typeSelect.options).map((option) => option.value)).toEqual([
+      'GENERAL_INQUIRY',
+      'BUG_REPORT',
+      'EXAM_OPENING_REQUEST',
+      'FEATURE_REQUEST',
+      'OTHER',
+    ]);
+    expect(Array.from(areaSelect.options).map((option) => option.value)).toEqual([
+      '',
+      'EXAM_INFO',
+      'EXAM_SOLVING_RESULT',
+    ]);
+    expect(screen.getByRole('option', { name: '시험정보' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: 'UNSUPPORTED_AREA' })).toBeNull();
+  });
+
+  it('도메인 조회 실패 시 고정된 전체 enum 목록으로 정확히 폴백한다', async () => {
+    jest.mocked(domainService.getSlavesByCode).mockRejectedValue(new Error('domain unavailable'));
+
+    render(<NewInquiryPage />);
+
+    const typeSelect = await screen.findByLabelText('접수 유형') as HTMLSelectElement;
+    const areaSelect = screen.getByLabelText(/발생 영역/) as HTMLSelectElement;
+
+    expect(Array.from(typeSelect.options).map((option) => option.value)).toEqual([
+      'GENERAL_INQUIRY',
+      'BUG_REPORT',
+      'EXAM_OPENING_REQUEST',
+      'FEATURE_REQUEST',
+      'OTHER',
+    ]);
+    expect(Array.from(areaSelect.options).map((option) => option.value)).toEqual([
+      '',
+      'LOGIN_ACCOUNT',
+      'USER_HOME',
+      'EXAM_INFO',
+      'EXAM_SOLVING_RESULT',
+      'DAILY_QUIZ',
+      'CONCEPT_NOTE',
+      'PRACTICE_SCRATCHPAD',
+      'INQUIRY_REQUEST',
+      'OTHER',
+    ]);
+  });
+
+  it('도메인 조회 성공 시 허용 값이 없어도 고정 목록으로 폴백하지 않는다', async () => {
     jest.mocked(domainService.getSlavesByCode).mockResolvedValue({
       data: {
         success: true,
         data: [
-          { id: 11, masterId: 1, name: 'EXAM_INFO', displayOrder: 1 },
-          { id: 12, masterId: 1, name: 'EXAM_SOLVING_RESULT', displayOrder: 2 },
+          { id: 99, masterId: 1, name: 'UNSUPPORTED_VALUE', displayOrder: 1 },
         ],
       },
     } as never);
-    jest.mocked(inquiryService.create).mockResolvedValue({
-      data: { success: true, data: null },
-    } as never);
+
+    render(<NewInquiryPage />);
+
+    const typeSelect = await screen.findByLabelText('접수 유형') as HTMLSelectElement;
+    const areaSelect = screen.getByLabelText(/발생 영역/) as HTMLSelectElement;
+
+    expect(Array.from(typeSelect.options)).toHaveLength(0);
+    expect(Array.from(areaSelect.options).map((option) => option.value)).toEqual(['']);
+    expect((screen.getByRole('button', { name: '등록하기' }) as HTMLButtonElement).disabled)
+      .toBe(true);
   });
 
   it.each<{

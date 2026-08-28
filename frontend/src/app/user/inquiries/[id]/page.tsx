@@ -1,8 +1,79 @@
 'use client';
-import Link from 'next/link'; import { useParams } from 'next/navigation'; import { useCallback, useEffect, useState } from 'react';
-import { InquiryTimeline } from '@/components/ui/InquiryTimeline'; import { InquiryMessageComposer } from '@/components/ui/InquiryMessageComposer'; import { Skeleton } from '@/components/ui/Skeleton'; import { isInquiryClosed } from '@/lib/inquiry'; import { inquiryService } from '@/services/inquiryService'; import type { Inquiry } from '@/types'; import { INQUIRY_STATUS_LABEL, INQUIRY_TYPE_LABEL } from '@/types';
-export default function InquiryDetailPage() { const { id } = useParams<{ id: string }>(); const [inquiry, setInquiry] = useState<Inquiry | null>(null); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
- const load = useCallback(() => { setLoading(true); inquiryService.getMyInquiry(Number(id)).then((res) => setInquiry(res.data.data ?? null)).catch(() => setError('문의·요청을 불러오지 못했습니다.')).finally(() => setLoading(false)); }, [id]); useEffect(() => { void load(); }, [load]);
- if (loading) return <div className="space-y-3"><Skeleton className="h-8 w-40" /><Skeleton className="h-48 w-full" /></div>; if (!inquiry) return <div className="p-10 text-center text-sm text-gray-500">{error || '문의·요청을 찾을 수 없습니다.'}</div>;
- const closed = isInquiryClosed(inquiry.status); return <div className="max-w-2xl space-y-4"><div className="flex items-center justify-between"><Link href="/user/inquiries" className="text-sm text-gray-500">← 목록</Link><span className="text-xs text-gray-500">{INQUIRY_STATUS_LABEL[inquiry.status]}</span></div><header className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5"><p className="text-xs text-indigo-600 dark:text-indigo-400">{INQUIRY_TYPE_LABEL[inquiry.requestType]}{inquiry.targetArea ? ` · ${inquiry.targetArea}` : ''}</p><h2 className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100">{inquiry.title}</h2>{inquiry.detailLocation && <p className="mt-2 text-xs text-gray-500">상세 위치: {inquiry.detailLocation}</p>}</header><InquiryTimeline inquiry={inquiry} />{closed ? <p className="rounded-xl bg-gray-100 dark:bg-gray-800 p-4 text-center text-sm text-gray-600 dark:text-gray-300">처리가 종료되었습니다.</p> : <InquiryMessageComposer inquiryId={inquiry.id} onSent={load} />}</div>;
+
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { InquiryMessageComposer } from '@/components/ui/InquiryMessageComposer';
+import { InquiryTimeline } from '@/components/ui/InquiryTimeline';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { getInquiryTargetAreaLabel, isInquiryClosed } from '@/lib/inquiry';
+import { inquiryService } from '@/services/inquiryService';
+import type { Inquiry } from '@/types';
+import { INQUIRY_STATUS_LABEL, INQUIRY_TYPE_LABEL } from '@/types';
+
+export default function InquiryDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const [inquiry, setInquiry] = useState<Inquiry | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError('');
+    inquiryService
+      .getMyInquiry(Number(id))
+      .then((response) => setInquiry(response.data.data ?? null))
+      .catch(() => setError('문의·요청을 불러오지 못했습니다.'))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
+  if (!inquiry) {
+    return (
+      <div className="p-10 text-center text-sm text-gray-500">
+        {error || '문의·요청을 찾을 수 없습니다.'}
+      </div>
+    );
+  }
+
+  const closed = isInquiryClosed(inquiry.status);
+  return (
+    <div className="max-w-2xl space-y-4">
+      <div className="flex items-center justify-between">
+        <Link href="/user/inquiries" className="text-sm text-gray-500">← 목록</Link>
+        <span className="text-xs text-gray-500">{INQUIRY_STATUS_LABEL[inquiry.status]}</span>
+      </div>
+      <header className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
+        <p className="text-xs text-indigo-600 dark:text-indigo-400">
+          {INQUIRY_TYPE_LABEL[inquiry.requestType]}
+          {inquiry.targetArea ? ` · ${getInquiryTargetAreaLabel(inquiry.targetArea)}` : ''}
+        </p>
+        <h2 className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
+          {inquiry.title}
+        </h2>
+        {inquiry.detailLocation && (
+          <p className="mt-2 text-xs text-gray-500">상세 위치: {inquiry.detailLocation}</p>
+        )}
+      </header>
+      <InquiryTimeline inquiry={inquiry} />
+      {closed ? (
+        <p className="rounded-xl bg-gray-100 p-4 text-center text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          처리가 종료되었습니다.
+        </p>
+      ) : (
+        <InquiryMessageComposer inquiryId={inquiry.id} onSent={load} />
+      )}
+    </div>
+  );
 }

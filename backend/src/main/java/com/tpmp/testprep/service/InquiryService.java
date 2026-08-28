@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -159,9 +160,22 @@ public class InquiryService {
     }
 
     private InquiryDetailResponse toDetail(Inquiry inquiry) {
-        List<String> images = attachmentService.findByRef(Attachment.RefType.INQUIRY, inquiry.getId()).stream().map(Attachment::getFileUrl).toList();
+        List<Attachment> attachments = attachmentService.findByRef(Attachment.RefType.INQUIRY, inquiry.getId());
+        List<String> images = attachments.isEmpty()
+                ? legacyImageUrls(inquiry.getImageUrls())
+                : attachments.stream().map(Attachment::getFileUrl).toList();
         List<InquiryMessageResponse> messages = inquiryMessageRepository.findByInquiryIdOrderByCreatedAtAscIdAsc(inquiry.getId()).stream().map(this::toMessage).toList();
         return InquiryDetailResponse.from(inquiry, images, messages);
+    }
+
+    private List<String> legacyImageUrls(String imageUrls) {
+        if (imageUrls == null || imageUrls.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(imageUrls.split(","))
+                .map(String::trim)
+                .filter(url -> !url.isEmpty())
+                .toList();
     }
 
     private InquiryMessageResponse toMessage(InquiryMessage message) {

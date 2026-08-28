@@ -19,6 +19,25 @@ import static org.mockito.Mockito.*;
 class DataInitializerTest {
 
     @Test
+    void ensureInquiryDomainTypesDefersNewDatabaseUntilContentDomainsExist() {
+        DomainMasterRepository domainMasterRepository = mock(DomainMasterRepository.class);
+        DomainSlaveRepository domainSlaveRepository = mock(DomainSlaveRepository.class);
+        when(domainMasterRepository.findByCode("INQUIRY_CATEGORY")).thenReturn(Optional.empty());
+        when(domainMasterRepository.findByCode("INQUIRY_BUG_AREA")).thenReturn(Optional.empty());
+
+        DataInitializer initializer = newInitializer(
+                mock(ExamInfoRepository.class),
+                domainMasterRepository,
+                domainSlaveRepository
+        );
+
+        initializer.ensureInquiryDomainTypes();
+
+        verify(domainMasterRepository, never()).save(any(DomainMaster.class));
+        verifyNoInteractions(domainSlaveRepository);
+    }
+
+    @Test
     void ensureInquiryDomainTypesAddsOnlyMissingWorkflowCodes() {
         DomainMasterRepository domainMasterRepository = mock(DomainMasterRepository.class);
         DomainSlaveRepository domainSlaveRepository = mock(DomainSlaveRepository.class);

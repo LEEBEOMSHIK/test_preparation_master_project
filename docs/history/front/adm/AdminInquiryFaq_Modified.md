@@ -1,3 +1,32 @@
+## HIST-20260828-003
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 관리자 프론트엔드 / 문의·요청 발송 이력·표시명
+- **수정 개요**: 문의 상세에서 모든 이메일 발송 이력을 페이지로 탐색하고 실패 건만 필터링·새로고침·재발송할 수 있게 하며 관리자 목록과 상세의 영역 표시명을 제품 용어로 통일했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/inquiryService.ts` | 수정 | delivery page/size/status 파라미터와 기본 20건 계약 적용 |
+| `frontend/src/app/admin/inquiries/[id]/page.tsx` | 수정 | delivery Pagination, FAILED filter, 명시적 새로고침, Skeleton 추가 |
+| `frontend/src/app/admin/inquiries/[id]/page.test.tsx` | 수정 | 다음 페이지·실패 필터 reset·현재 조건 새로고침 검증 |
+| `frontend/src/app/admin/inquiries/page.tsx` | 수정 | 발생 영역 코드 select payload와 제품 표시명 렌더 분리 |
+| `frontend/src/app/admin/inquiries/page.test.tsx` | 검증 | 영역 필터가 표시명과 무관하게 기존 code payload를 유지함을 확인 |
+| `frontend/src/types/index.ts` | 수정 | 관리자와 사용자 공용 영역 label map·상태 용어 반영 |
+
+### 수정 상세
+
+- 변경 전: 관리자 상세은 page 0의 최대 100건만 조회해 오래된 실패 이력에 접근할 수 없었고, 영역 코드를 그대로 노출했다.
+- 변경 후: 20건 단위 페이지네이션과 전체/발송 실패 필터를 제공하고 재발송 뒤 같은 조건을 다시 조회한다. 명시적 새로고침으로 비동기 발송 결과도 갱신하며 API에는 기존 영역 코드를 그대로 전달한다.
+- 이유: fan-out으로 빠르게 누적되는 발송 이력을 끝까지 관리하고 화면 용어와 저장 계약을 분리하기 위해서다.
+
+### 복원 방법
+
+`AdminInquiryFaq_Modified.md`의 HIST-20260828-003 복원 시 delivery 페이지·필터 상태와 공통 영역 표시명 사용을 제거하고 이전 첫 100건 조회로 되돌린다. 오래된 FAILED 행은 UI에서 접근할 수 없게 되므로 복원 전 운영 이력을 백업한다.
+
+---
+
 ## HIST-20260828-002
 
 - **날짜**: 2026-08-28

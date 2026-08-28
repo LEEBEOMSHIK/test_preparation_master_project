@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -114,6 +115,35 @@ class InquiryServiceTest {
                 "EXAM_INFO",
                 "Login failure",
                 pageable
+        );
+    }
+
+    @Test
+    void detailFallsBackToLegacyImageUrlsWhenAttachmentRowsAreMissing() {
+        User owner = user("user@tpmp.com");
+        Inquiry inquiry = Inquiry.builder()
+                .user(owner)
+                .title("레거시 첨부 문의")
+                .content("내용")
+                .requestType(Inquiry.RequestType.GENERAL_INQUIRY)
+                .imageUrls(" /uploads/images/legacy-a.png, ,/uploads/images/legacy-b.webp ")
+                .build();
+        ReflectionTestUtils.setField(inquiry, "id", 17L);
+        InquiryRepository inquiryRepository = mock(InquiryRepository.class);
+        AttachmentService attachmentService = mock(AttachmentService.class);
+        InquiryMessageRepository messageRepository = mock(InquiryMessageRepository.class);
+        when(inquiryRepository.findById(17L)).thenReturn(Optional.of(inquiry));
+        when(attachmentService.findByRef(com.tpmp.testprep.entity.Attachment.RefType.INQUIRY, 17L))
+                .thenReturn(List.of());
+        when(messageRepository.findByInquiryIdOrderByCreatedAtAscIdAsc(17L)).thenReturn(List.of());
+        InquiryService service = new InquiryService(inquiryRepository, userRepository(owner), attachmentService,
+                messageRepository, mock(DomainSlaveRepository.class), mock(InquiryEmailService.class));
+
+        var detail = service.getMyInquiry(17L, "user@tpmp.com");
+
+        assertThat(detail.imageUrls()).containsExactly(
+                "/uploads/images/legacy-a.png",
+                "/uploads/images/legacy-b.webp"
         );
     }
 

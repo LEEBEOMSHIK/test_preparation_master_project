@@ -51,7 +51,7 @@ describe('AdminInquiryDetailPage', () => {
       totalElements: 0,
       totalPages: 0,
       page: 0,
-      size: 100,
+      size: 20,
     }));
   });
 
@@ -135,7 +135,7 @@ describe('AdminInquiryDetailPage', () => {
       totalElements: 1,
       totalPages: 1,
       page: 0,
-      size: 100,
+      size: 20,
     }));
     jest.mocked(inquiryService.retryEmailDelivery).mockResolvedValue(apiSuccess(null));
 
@@ -147,5 +147,49 @@ describe('AdminInquiryDetailPage', () => {
     await waitFor(() => {
       expect(inquiryService.retryEmailDelivery).toHaveBeenCalledWith(91);
     });
+  });
+
+  it('이메일 이력의 다음 페이지, 실패 필터, 새로고침을 현재 조건으로 조회한다', async () => {
+    jest.mocked(inquiryService.getEmailDeliveries).mockImplementation(
+      async (_inquiryId, page = 0, size = 20, status) => apiSuccess({
+        content: [{
+          id: page + 1,
+          inquiryId: 42,
+          inquiryMessageId: null,
+          eventType: 'NEW_INQUIRY',
+          status: status ?? 'SENT',
+          recipientEmail: 'admin@example.com',
+          subject: `${page + 1}페이지 이력`,
+          attemptCount: 1,
+          lastError: null,
+          createdAt: '2026-08-28T12:00:00',
+          sentAt: '2026-08-28T12:00:01',
+        }],
+        totalElements: 21,
+        totalPages: 2,
+        page,
+        size,
+      }),
+    );
+
+    render(<AdminInquiryDetailPage />);
+
+    expect(await screen.findByText('1페이지 이력')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '다음 페이지' }));
+    await waitFor(() => {
+      expect(inquiryService.getEmailDeliveries).toHaveBeenLastCalledWith(42, 1, 20, undefined);
+    });
+
+    fireEvent.change(screen.getByLabelText('발송 상태'), { target: { value: 'FAILED' } });
+    await waitFor(() => {
+      expect(inquiryService.getEmailDeliveries).toHaveBeenLastCalledWith(42, 0, 20, 'FAILED');
+    });
+
+    const callCountBeforeRefresh = jest.mocked(inquiryService.getEmailDeliveries).mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: '발송 이력 새로고침' }));
+    await waitFor(() => {
+      expect(inquiryService.getEmailDeliveries).toHaveBeenCalledTimes(callCountBeforeRefresh + 1);
+    });
+    expect(inquiryService.getEmailDeliveries).toHaveBeenLastCalledWith(42, 0, 20, 'FAILED');
   });
 });

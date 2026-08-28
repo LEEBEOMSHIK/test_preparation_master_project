@@ -65,6 +65,9 @@ public class InquiryEmailDelivery {
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
 
+    @Column(name = "processing_started_at")
+    private LocalDateTime processingStartedAt;
+
     private InquiryEmailDelivery(Inquiry inquiry, InquiryMessage inquiryMessage, EventType eventType,
                                  String recipientEmail, String subject, String body) {
         this.inquiry = inquiry;
@@ -86,12 +89,14 @@ public class InquiryEmailDelivery {
         status = Status.SENT;
         lastError = null;
         sentAt = LocalDateTime.now();
+        processingStartedAt = null;
     }
 
     public void markFailed(String error) {
         attemptCount++;
         status = Status.FAILED;
         lastError = error == null ? "메일 전송에 실패했습니다." : error.substring(0, Math.min(error.length(), 500));
+        processingStartedAt = null;
     }
 
     @PrePersist

@@ -1,16 +1,14 @@
 package com.tpmp.testprep.service;
 
-import com.tpmp.testprep.entity.Inquiry;
-import com.tpmp.testprep.entity.InquiryEmailDelivery;
-import com.tpmp.testprep.entity.User;
-import com.tpmp.testprep.repository.InquiryEmailDeliveryRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.core.task.SyncTaskExecutor;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.mail.javamail.JavaMailSender;
 
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -18,31 +16,58 @@ class InquiryEmailDispatcherTest {
 
     @Test
     void dispatchMarksDeliverySentAfterSmtpSuccess() {
-        InquiryEmailDelivery delivery = delivery();
-        InquiryEmailDeliveryRepository repository = mock(InquiryEmailDeliveryRepository.class);
+        InquiryEmailDeliveryProcessor processor = mock(InquiryEmailDeliveryProcessor.class);
         JavaMailSender mailSender = mock(JavaMailSender.class);
         ObjectProvider<JavaMailSender> mailSenderProvider = provider(mailSender);
-        when(repository.findById(1L)).thenReturn(Optional.of(delivery));
-        InquiryEmailDispatcher dispatcher = new InquiryEmailDispatcher(repository, mailSenderProvider, "smtp.tpmp.com", "noreply@tpmp.com");
+        when(processor.claim(1L)).thenReturn(Optional.of(delivery()));
+        InquiryEmailDispatcher dispatcher = new InquiryEmailDispatcher(
+                processor,
+                mailSenderProvider,
+                new SyncTaskExecutor(),
+                "smtp.tpmp.com",
+                "noreply@tpmp.com"
+        );
 
         dispatcher.dispatch(1L);
 
         verify(mailSender).send(any(org.springframework.mail.SimpleMailMessage.class));
-        assertThat(delivery.getStatus()).isEqualTo(InquiryEmailDelivery.Status.SENT);
-        assertThat(delivery.getAttemptCount()).isEqualTo(1);
+        verify(processor).markSent(1L);
     }
 
     @Test
     void dispatchMarksDeliveryFailedWhenSmtpIsUnavailable() {
-        InquiryEmailDelivery delivery = delivery();
-        InquiryEmailDeliveryRepository repository = mock(InquiryEmailDeliveryRepository.class);
-        when(repository.findById(1L)).thenReturn(Optional.of(delivery));
-        InquiryEmailDispatcher dispatcher = new InquiryEmailDispatcher(repository, provider(null), "", "noreply@tpmp.com");
+        InquiryEmailDeliveryProcessor processor = mock(InquiryEmailDeliveryProcessor.class);
+        when(processor.claim(1L)).thenReturn(Optional.of(delivery()));
+        InquiryEmailDispatcher dispatcher = new InquiryEmailDispatcher(
+                processor,
+                provider(null),
+                new SyncTaskExecutor(),
+                "",
+                "noreply@tpmp.com"
+        );
 
         dispatcher.dispatch(1L);
 
-        assertThat(delivery.getStatus()).isEqualTo(InquiryEmailDelivery.Status.FAILED);
-        assertThat(delivery.getLastError()).doesNotContain("noreply@tpmp.com").hasSizeLessThanOrEqualTo(500);
+        verify(processor).markFailed(1L, "SMTP 서버가 설정되지 않았습니다.");
+    }
+
+    @Test
+    void enqueueMarksPendingDeliveryFailedWhenExecutorRejectsTask() {
+        InquiryEmailDeliveryProcessor processor = mock(InquiryEmailDeliveryProcessor.class);
+        TaskExecutor rejectingExecutor = task -> {
+            throw new TaskRejectedException("queue full");
+        };
+        InquiryEmailDispatcher dispatcher = new InquiryEmailDispatcher(
+                processor,
+                provider(null),
+                rejectingExecutor,
+                "smtp.tpmp.com",
+                "noreply@tpmp.com"
+        );
+
+        dispatcher.enqueue(19L);
+
+        verify(processor).markQueueRejected(19L);
     }
 
     @SuppressWarnings("unchecked")
@@ -52,11 +77,12 @@ class InquiryEmailDispatcherTest {
         return provider;
     }
 
-    private InquiryEmailDelivery delivery() {
-        Inquiry inquiry = Inquiry.builder().user(User.builder().email("user@tpmp.com").password("pw").name("사용자")
-                .role(User.Role.USER).build()).title("문의 제목").content("문의 본문")
-                .requestType(Inquiry.RequestType.GENERAL_INQUIRY).build();
-        return InquiryEmailDelivery.pending(inquiry, null, InquiryEmailDelivery.EventType.NEW_INQUIRY,
-                "admin@tpmp.com", "[TPMP] 문의", "본문");
+    private InquiryEmailDeliveryProcessor.ClaimedDelivery delivery() {
+        return new InquiryEmailDeliveryProcessor.ClaimedDelivery(
+                1L,
+                "admin@tpmp.com",
+                "[TPMP] 문의",
+                "본문"
+        );
     }
 }

@@ -5,12 +5,14 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { InquiryMessageComposer } from '@/components/ui/InquiryMessageComposer';
 import { InquiryTimeline } from '@/components/ui/InquiryTimeline';
+import { Pagination } from '@/components/ui/Pagination';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { extractApiErrorMessage } from '@/lib/apiError';
-import { getAllowedAdminStatuses, isInquiryClosed } from '@/lib/inquiry';
+import { getAllowedAdminStatuses, getInquiryTargetAreaLabel, isInquiryClosed } from '@/lib/inquiry';
 import {
   inquiryService,
   type InquiryEmailDelivery,
+  type InquiryEmailDeliveryStatus,
   type InquiryEmailEventType,
 } from '@/services/inquiryService';
 import type { InquiryDetail, InquiryStatus } from '@/types';
@@ -44,6 +46,11 @@ export default function AdminInquiryDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deliveryError, setDeliveryError] = useState('');
+  const [deliveryLoading, setDeliveryLoading] = useState(true);
+  const [deliveryPage, setDeliveryPage] = useState(0);
+  const [deliveryTotalElements, setDeliveryTotalElements] = useState(0);
+  const [deliveryTotalPages, setDeliveryTotalPages] = useState(0);
+  const [deliveryStatus, setDeliveryStatus] = useState<InquiryEmailDeliveryStatus | ''>('');
   const [selectedStatus, setSelectedStatus] = useState<InquiryStatus | ''>('');
   const [statusMessage, setStatusMessage] = useState('');
   const [sendEmail, setSendEmail] = useState(false);
@@ -52,14 +59,25 @@ export default function AdminInquiryDetailPage() {
   const [deleting, setDeleting] = useState(false);
 
   const loadDeliveries = useCallback(async () => {
+    setDeliveryLoading(true);
     try {
-      const response = await inquiryService.getEmailDeliveries(id);
-      setDeliveries(response.data.data?.content ?? []);
+      const response = await inquiryService.getEmailDeliveries(
+        id,
+        deliveryPage,
+        20,
+        deliveryStatus || undefined,
+      );
+      const result = response.data.data;
+      setDeliveries(result?.content ?? []);
+      setDeliveryTotalElements(result?.totalElements ?? 0);
+      setDeliveryTotalPages(result?.totalPages ?? 0);
       setDeliveryError('');
     } catch (requestError: unknown) {
       setDeliveryError(extractApiErrorMessage(requestError, '이메일 발송 이력을 불러오지 못했습니다.'));
+    } finally {
+      setDeliveryLoading(false);
     }
-  }, [id]);
+  }, [deliveryPage, deliveryStatus, id]);
 
   const loadInquiry = useCallback(async () => {
     const response = await inquiryService.adminGetOne(id);
@@ -72,7 +90,6 @@ export default function AdminInquiryDetailPage() {
       setError('');
       try {
         await loadInquiry();
-        await loadDeliveries();
       } catch (requestError: unknown) {
         setError(extractApiErrorMessage(requestError, '문의·요청을 불러오지 못했습니다.'));
       } finally {
@@ -80,7 +97,11 @@ export default function AdminInquiryDetailPage() {
       }
     };
     void load();
-  }, [loadDeliveries, loadInquiry]);
+  }, [loadInquiry]);
+
+  useEffect(() => {
+    void loadDeliveries();
+  }, [loadDeliveries]);
 
   const handleMessageSent = () => {
     void loadInquiry();
@@ -230,7 +251,9 @@ export default function AdminInquiryDetailPage() {
           {inquiry.targetArea && (
             <div>
               <dt className="text-xs text-gray-400">발생 영역</dt>
-              <dd className="mt-0.5 text-gray-700 dark:text-gray-200">{inquiry.targetArea}</dd>
+              <dd className="mt-0.5 text-gray-700 dark:text-gray-200">
+                {getInquiryTargetAreaLabel(inquiry.targetArea)}
+              </dd>
             </div>
           )}
           {inquiry.detailLocation && (
@@ -340,14 +363,45 @@ export default function AdminInquiryDetailPage() {
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       <section className="space-y-3 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">이메일 발송 이력</h3>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            발송 실패 건은 원인을 확인한 뒤 재발송할 수 있습니다.
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">이메일 발송 이력</h3>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              발송 실패 건은 원인을 확인한 뒤 재발송할 수 있습니다.
+            </p>
+          </div>
+          <div className="flex items-end gap-2">
+            <label className="text-xs text-gray-500 dark:text-gray-400">
+              발송 상태
+              <select
+                value={deliveryStatus}
+                onChange={(event) => {
+                  setDeliveryStatus(event.target.value as InquiryEmailDeliveryStatus | '');
+                  setDeliveryPage(0);
+                }}
+                className="ml-2 rounded-md border border-gray-200 bg-white px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-800"
+              >
+                <option value="">전체</option>
+                <option value="FAILED">발송 실패</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => void loadDeliveries()}
+              disabled={deliveryLoading}
+              className="rounded-md border border-gray-200 px-2.5 py-1 text-xs text-gray-600 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300"
+            >
+              발송 이력 새로고침
+            </button>
+          </div>
         </div>
         {deliveryError && <p className="text-sm text-red-600 dark:text-red-400">{deliveryError}</p>}
-        {deliveries.length === 0 ? (
+        {deliveryLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        ) : deliveries.length === 0 ? (
           <p className="rounded-lg bg-gray-50 p-4 text-sm text-gray-400 dark:bg-gray-800/60">
             이메일 발송 이력이 없습니다.
           </p>
@@ -359,6 +413,9 @@ export default function AdminInquiryDetailPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
                       {DELIVERY_EVENT_LABEL[delivery.eventType]} · {delivery.recipientEmail}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                      {delivery.subject}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-400">
                       {delivery.createdAt.slice(0, 16).replace('T', ' ')} · 시도 {delivery.attemptCount}회
@@ -392,6 +449,16 @@ export default function AdminInquiryDetailPage() {
               </li>
             ))}
           </ul>
+        )}
+        {!deliveryLoading && deliveryTotalElements > 0 && (
+          <div className="flex flex-col gap-2 border-t border-gray-100 pt-3 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-xs text-gray-400">총 {deliveryTotalElements}건</span>
+            <Pagination
+              page={deliveryPage}
+              totalPages={deliveryTotalPages}
+              onChange={setDeliveryPage}
+            />
+          </div>
         )}
       </section>
     </div>

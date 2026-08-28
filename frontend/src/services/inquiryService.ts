@@ -5,6 +5,7 @@ import type {
   InquiryRequestType,
   InquiryStatus,
   InquirySummary,
+  InquiryTargetArea,
   PageResponse,
 } from '@/types';
 import apiClient from './apiClient';
@@ -13,7 +14,7 @@ export interface InquiryRequest {
   title: string;
   content: string;
   requestType: InquiryRequestType;
-  targetArea?: string;
+  targetArea?: InquiryTargetArea;
   detailLocation?: string;
   attachmentIds: number[];
 }
@@ -139,9 +140,14 @@ export const inquiryService = {
       recipientEmails,
     }),
 
-  getEmailDeliveries: (inquiryId: number, page = 0, size = 100) =>
+  getEmailDeliveries: (
+    inquiryId: number,
+    page = 0,
+    size = 20,
+    status?: InquiryEmailDeliveryStatus,
+  ) =>
     apiClient.get<ApiResponse<PageResponse<InquiryEmailDelivery>>>('/admin/inquiry-email-deliveries', {
-      params: { inquiryId, page, size },
+      params: { inquiryId, page, size, ...(status ? { status } : {}) },
     }),
 
   retryEmailDelivery: (id: number) =>

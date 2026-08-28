@@ -1,3 +1,37 @@
+## HIST-20260828-003
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 사용자 프론트엔드 / 문의·요청 최종 리뷰 수정
+- **수정 개요**: 사용자 목록 페이지네이션을 복원하고 문의 유형·발생 영역을 서버 도메인에서 안전하게 로딩하며, 상태·영역 제품 표시명과 전체 문의 화면 가독성을 최종 계약에 맞췄다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | 문의 영역 enum·제품 라벨과 접수/보류 상태 라벨 반영 |
+| `frontend/src/lib/inquiry.ts` | 수정 | 유형·영역 enum narrowing, 전체 영역 목록, 표시명 변환 공통화 |
+| `frontend/src/services/inquiryService.ts` | 수정 | 작성 payload의 영역 코드를 union 타입으로 제한 |
+| `frontend/src/app/user/inquiries/page.tsx` | 수정 | 10/20/50 페이지 크기, 전체 건수, Pagination, 필터 reset 복원 |
+| `frontend/src/app/user/inquiries/page.test.tsx` | 추가 | 2페이지 조회와 상태·페이지 크기 변경 시 page=0 회귀 검증 |
+| `frontend/src/app/user/inquiries/new/page.tsx` | 수정 | 두 도메인 병렬 로딩·허용 enum narrowing·정확한 실패 fallback 적용 |
+| `frontend/src/app/user/inquiries/new/page.test.tsx` | 수정 | 두 도메인 호출, 잘못된 값 제거, exact fallback·payload 검증 |
+| `frontend/src/app/user/inquiries/[id]/page.tsx` | 수정 | 발생 영역 제품 표시명과 읽기 쉬운 렌더 구조 적용 |
+| `frontend/src/components/ui/InquiryMessageComposer.tsx` | 수정 | 압축된 비동기 handler와 JSX를 가독성 있는 블록으로 정리 |
+| `frontend/src/components/ui/InquiryTimeline.tsx` | 수정 | 타임라인 변환·렌더 블록 포맷 정리 |
+| `AGENTS.md` | 수정 | 문의 enum narrowing·영역 표시명 공통 유틸 표 갱신 |
+
+### 수정 상세
+
+- 변경 전: 목록이 항상 page 0의 20건만 조회해 21번째 이후 문의에 접근할 수 없었고, 작성 화면은 발생 영역만 동적 조회하며 코드 문자열을 그대로 표시했다.
+- 변경 후: 사용자 목록이 서버 PageResponse를 보존해 모든 페이지를 탐색하고, 상태·페이지 크기 변경은 첫 페이지로 돌아간다. 작성 화면은 `INQUIRY_CATEGORY`와 `INQUIRY_BUG_AREA`를 각각 조회해 허용 enum만 선택지로 쓰며 API 조회 실패 시에만 정의된 전체 enum으로 폴백한다. 성공 응답의 미지원 값은 제거하고 허용 값이 없으면 제출을 차단한다.
+- 이유: 기존 사용자 접근성 회귀를 제거하고 서버 도메인과 TypeScript·payload 코드를 일치시키면서 화면에는 제품 용어를 제공하기 위해서다.
+
+### 복원 방법
+
+`UserInquiry_Modified.md`의 HIST-20260828-003 복원 시 위 사용자 페이지·타입·서비스·공통 컴포넌트를 이전 버전으로 되돌리고 신규 목록 테스트를 제거한다. 이 경우 20건 초과 문의 접근과 동적 도메인 계약이 다시 사라지므로 서버 데이터 보존 여부를 먼저 확인한다.
+
+---
+
 ## HIST-20260828-002
 
 - **날짜**: 2026-08-28

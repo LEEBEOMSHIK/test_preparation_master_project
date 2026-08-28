@@ -7,7 +7,12 @@ import { ColResizeHandle } from '@/components/ui/ColResizeHandle';
 import { Pagination } from '@/components/ui/Pagination';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { extractApiErrorMessage } from '@/lib/apiError';
-import { INQUIRY_REQUEST_TYPES, INQUIRY_STATUSES } from '@/lib/inquiry';
+import {
+  getInquiryTargetAreaLabel,
+  INQUIRY_REQUEST_TYPES,
+  INQUIRY_STATUSES,
+  INQUIRY_TARGET_AREAS,
+} from '@/lib/inquiry';
 import { useColumnResize } from '@/lib/useColumnResize';
 import { inquiryService } from '@/services/inquiryService';
 import type { InquiryRequestType, InquiryStatus, InquirySummary } from '@/types';
@@ -166,14 +171,16 @@ function AdminInquiriesContent() {
 
           <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
             발생 영역
-            <input
-              type="text"
+            <select
               value={targetArea}
               onChange={(event) => setTargetArea(event.target.value)}
-              onKeyDown={(event) => event.key === 'Enter' && handleSearch()}
-              placeholder="영역 코드"
               className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            />
+            >
+              <option value="">전체</option>
+              {INQUIRY_TARGET_AREAS.map((area) => (
+                <option key={area} value={area}>{getInquiryTargetAreaLabel(area)}</option>
+              ))}
+            </select>
           </label>
 
           <label className="text-xs font-medium text-gray-500 dark:text-gray-400 xl:col-span-2">
@@ -247,7 +254,7 @@ function AdminInquiriesContent() {
                       </Link>
                       {inquiry.targetArea && (
                         <span className="mt-0.5 block truncate text-xs font-normal text-gray-400">
-                          {inquiry.targetArea}
+                          {getInquiryTargetAreaLabel(inquiry.targetArea)}
                         </span>
                       )}
                     </td>

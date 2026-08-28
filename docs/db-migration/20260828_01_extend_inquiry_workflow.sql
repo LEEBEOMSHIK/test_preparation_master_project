@@ -155,11 +155,15 @@ CREATE TABLE IF NOT EXISTS inquiry_email_deliveries (
     last_error VARCHAR(500),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     sent_at TIMESTAMP NULL,
+    processing_started_at TIMESTAMP NULL,
     CONSTRAINT inquiry_email_deliveries_event_type_check CHECK (
         event_type IN ('NEW_INQUIRY', 'USER_MESSAGE', 'ADMIN_MESSAGE', 'ANSWERED', 'COMPLETED', 'UNABLE_TO_PROCESS')
     ),
     CONSTRAINT inquiry_email_deliveries_status_check CHECK (status IN ('PENDING', 'SENT', 'FAILED'))
 );
+
+ALTER TABLE inquiry_email_deliveries
+    ADD COLUMN IF NOT EXISTS processing_started_at TIMESTAMP NULL;
 
 CREATE INDEX IF NOT EXISTS idx_inquiry_messages_inquiry_created_at
     ON inquiry_messages (inquiry_id, created_at, id);
@@ -169,13 +173,22 @@ CREATE INDEX IF NOT EXISTS idx_inquiry_email_deliveries_pending
     ON inquiry_email_deliveries (status) WHERE status IN ('PENDING', 'FAILED');
 
 -- 5. 신규 작성 화면이 사용할 도메인 값을 멱등 시드한다.
-INSERT INTO domain_master (code, name)
-VALUES ('INQUIRY_CATEGORY', '문의 카테고리')
-ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name;
+-- 완전 빈 DB에서는 콘텐츠 덤프의 고정 domain/domain_slave ID를 보존하기 위해
+-- 첫 delta 실행 시 도메인 시드를 보류한다. 기본 도메인과 콘텐츠를 로드한 뒤
+-- 이 delta를 재실행하면 문의 도메인이 기존 ID 뒤에 추가된다.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM domain_master) THEN
+        INSERT INTO domain_master (code, name)
+        VALUES ('INQUIRY_CATEGORY', '문의 카테고리')
+        ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name;
 
-INSERT INTO domain_master (code, name)
-VALUES ('INQUIRY_BUG_AREA', '문의 버그 발생 영역')
-ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name;
+        INSERT INTO domain_master (code, name)
+        VALUES ('INQUIRY_BUG_AREA', '문의 버그 발생 영역')
+        ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name;
+    END IF;
+END;
+$$;
 
 -- inquiries는 유형 문자열만 저장하므로 구형 카테고리 슬레이브를 참조하지 않는다.
 -- 삭제 전에 다른 업무 도메인이 잘못 참조했다면 FK 오류로 중단되어 무결성을 보존한다.

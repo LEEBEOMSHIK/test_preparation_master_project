@@ -1,3 +1,32 @@
+## HIST-20260828-006
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 사용자 백엔드 / 문의·요청 데이터 호환·신규 DB 시드
+- **수정 개요**: attachment 행이 없는 구형 문의의 `image_urls` 첨부를 복원하고, 빈 DB에서 문의 도메인이 콘텐츠 고정 ID를 선점하지 않도록 시드와 설치 순서를 안전하게 조정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryService.java` | 수정 | attachment 우선, 비어 있으면 legacy `image_urls` 파싱 fallback |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryServiceTest.java` | 수정 | TEXT-only legacy 첨부 상세 응답 회귀 테스트 추가 |
+| `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java` | 수정 | 신규 DB에서 콘텐츠 도메인 로드 전 문의 도메인 시드 보류 |
+| `backend/src/test/java/com/tpmp/testprep/config/DataInitializerTest.java` | 수정 | 빈 도메인 DB의 문의 시드 보류 계약 검증 |
+| `docs/db-migration/20260828_01_extend_inquiry_workflow.sql` | 수정 | 빈 `domain_master`에서 문의 도메인 INSERT 생략, processing claim 컬럼 반영 |
+| `docs/sql/README.md` | 수정 | baseline→delta→backend→content→delta→backend 6단계로 설치 안내 통일 |
+
+### 수정 상세
+
+- 변경 전: 상세 응답은 attachment 테이블만 조회해 기존 `image_urls`만 가진 문의의 이미지가 사라졌고, 빈 DB의 최초 델타가 문의 도메인 identity를 먼저 소비했다.
+- 변경 후: attachment가 존재하면 정규화된 첨부 URL을 쓰고 없으면 쉼표 구분 legacy 값을 복원한다. 빈 DB의 델타와 최초 백엔드는 문의 도메인을 보류하고 콘텐츠 덤프 뒤 델타 재실행에서 기존 ID 이후에 최종 문의 도메인을 구성한다.
+- 이유: 기존 문의 데이터 호환성과 콘텐츠 덤프의 고정 FK 의미를 동시에 보존하기 위해서다.
+
+### 복원 방법
+
+`UserInquiry_Modified.md`의 HIST-20260828-006 복원 시 legacy fallback과 빈 DB 시드 보류를 이전 구현으로 되돌린다. 운영 DB 롤백 전에는 domain master/slave와 문의 첨부 데이터를 백업하고, 고정 ID 충돌 여부를 별도 점검한다.
+
+---
+
 ## HIST-20260828-005
 
 - **날짜**: 2026-08-28

@@ -1,3 +1,37 @@
+## HIST-20260828-007
+
+- **날짜**: 2026-08-28
+- **수정 범위**: 관리자 백엔드 / 영속 이메일 복구·트랜잭션·보안 검증
+- **수정 개요**: 커밋된 이메일 delivery의 프로세스 종료·executor 거부 유실을 영속 복구하고 실제 Spring 트랜잭션과 SecurityFilterChain으로 핵심 경계를 검증했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/entity/InquiryEmailDelivery.java` | 수정 | 원자 선점 시각 `processing_started_at` 상태 추가 |
+| `backend/src/main/java/com/tpmp/testprep/repository/InquiryEmailDeliveryRepository.java` | 수정 | 조건부 claim·claim 해제·queue reject 실패 기록 쿼리 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryEmailDeliveryProcessor.java` | 추가 | `REQUIRES_NEW` 선점·성공·실패·시작 복구 경계 분리 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryEmailDispatcher.java` | 수정 | AFTER_COMMIT executor enqueue와 거부 시 FAILED 기록 적용 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryEmailRecovery.java` | 추가 | ApplicationReadyEvent에서 stale PENDING sweep·재큐잉 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryEmailDeliveryProcessorTest.java` | 추가 | 단일 원자 선점·stale 해제·queue reject 영속 상태 검증 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryEmailDispatcherTest.java` | 수정 | enqueue/dispatch/거부 처리 계약 검증 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryEmailRecoveryTest.java` | 추가 | 시작 sweep 재큐잉 검증 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryEmailTransactionIntegrationTest.java` | 추가 | 실제 commit/rollback/SMTP 실패 통합 경계 검증 |
+| `backend/src/test/java/com/tpmp/testprep/controller/InquiryControllerSecurityTest.java` | 수정 | 설정·delivery·retry API의 실제 401/403/ADMIN MockMvc 검증 |
+| `docs/db-migration/20260828_01_extend_inquiry_workflow.sql` | 수정 | delivery processing claim 컬럼과 멱등 ALTER 반영 |
+
+### 수정 상세
+
+- 변경 전: AFTER_COMMIT 이벤트가 메모리 executor에 한 번만 전달되어 커밋 직후 종료나 queue 거부 시 PENDING이 영구 정체됐고, 테스트는 dispatcher 직접 호출과 annotation reflection에 머물렀다.
+- 변경 후: PENDING 행을 조건부 update로 한 worker만 선점하고 시작 시 남은 claim을 해제해 재큐잉한다. executor 거부는 FAILED로 영속 기록한다. 실제 Spring 트랜잭션에서 commit만 발송하고 rollback은 미발송하며 SMTP 실패가 커밋된 문의를 되돌리지 않음을 검증했다. 관리자 신규 API도 실제 보안 체인에서 401/403/200을 검증한다.
+- 이유: 알림 전달 실패가 조용히 영구 정체되지 않게 하고 명세의 트랜잭션·인가 경계를 실행 증거로 보장하기 위해서다.
+
+### 복원 방법
+
+`AdminInquiry_Modified.md`의 HIST-20260828-007 복원 시 processor/recovery를 제거하고 dispatcher·entity·repository·SQL을 이전 버전으로 되돌린다. 운영 DB의 `processing_started_at` 컬럼 제거 전 delivery 이력을 백업하며, 되돌린 뒤에는 PENDING 유실 복구 경로가 없어짐을 운영자에게 고지한다.
+
+---
+
 ## HIST-20260828-006
 
 - **날짜**: 2026-08-28
