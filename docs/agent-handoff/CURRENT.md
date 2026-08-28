@@ -21,7 +21,7 @@
 
 ## 미완료 작업
 
-- 없음.
+- 후속 개선: 관리자 상세 이메일 delivery 조회에서 `inquiryId`와 `status=FAILED`를 함께 전달하면 `InquiryEmailService`가 status 조건을 무시한다. 실패 이력은 페이지네이션으로 접근하고 개별 retry할 수 있어 핵심 차단 사항은 아니지만, 이력이 많으면 실패 건을 찾기 위해 추가 페이지 이동이 필요하다.
 
 ## 수정한 파일
 
@@ -35,11 +35,11 @@
 ## 실행한 검증 명령과 결과
 
 - 격리 PostgreSQL 전체 설치: 통과. 고정 master/slave 의미와 주요 FK 의미 assertion 통과, 최종 `domain_master=6`, `domain_slave=42`, `question_bank=636`, `examinations=15`, `questions=470`.
-- `backend\\gradlew.bat test`: 25 suites, 306 tests, 실패 0, skipped 0, BUILD SUCCESSFUL.
+- `backend\\gradlew.bat test --rerun-tasks`: 25 suites, 306 tests, failure 0, error 0, skipped 0, BUILD SUCCESSFUL.
 - `npm test -- --watch=false --runInBand`: 19 suites, 86 tests 통과.
 - `npx tsc --noEmit`: 통과.
 - `npm run build`: 52 routes 생성, 통과.
-- `git diff --check`와 staged diff check: 오류 없음.
+- `git diff --check`: clean.
 - inquiry 범위 `dangerouslySetInnerHTML` 및 사용자 문의/공통 컴포넌트 180자 초과 검색: 0건.
 - 검증 전용 `tpmp-inquiry-final-fix-pg` 컨테이너 제거 완료.
 
