@@ -1,60 +1,58 @@
 # 현재 작업 인계
 
-- 갱신일: 2026-08-31
-- 현재 목표: 문의 등록의 HTTP 409 처리 및 이미지 업로드 UX 개선 사항을 main 로컬에 병합한 완료 상태를 기록한다.
-- 사용자 결정 사항: 기능 커밋과 로컬 main 병합은 완료했다. 원격 `push`는 아직 요청되지 않아 미수행이며, 잔여 worktree 디렉터리는 별도 정책 검토·승인 전까지 건드리지 않는다.
+## 현재 목표와 사용자 결정 사항
+
+- 목표: 프로젝트 전체의 미사용 폐기 worktree 정리 정책을 추가하고, 잔여 `inquiry-report-upload-ux` worktree 삭제 완료 상태를 인계한다.
+- 사용자 결정: 활성 `main` 작업 트리, `frontend/node_modules`, `backend/uploads`, Docker 업로드 영역은 보존한다. 프로젝트 전체에서 미사용이 입증된 정확한 `.worktrees/<name>`만 승인 후 삭제한다.
 
 ## 완료한 작업
 
-- main에 병합 커밋 `e30a334`가 반영되었으며, 기능 커밋은 `ea5c764`, `305f4e8`이다.
-- 문서 커밋 전 기준으로 `main...origin/main`은 로컬이 3커밋 앞선 상태다. 이 인계 문서를 별도 커밋하면 4커밋 앞선 상태가 된다.
-- Git worktree 등록을 제거했고 `fix/inquiry-report-upload-ux` 브랜치도 삭제했다.
-- 로컬 DB에서 legacy `inquiry_type`를 제거했으며 `request_type`은 `NOT NULL`로 유지했다.
-- 정적 verifier는 GO 판정이며, 다크모드 시각 점검도 완료했다.
+- [`CACHE_POLICY.md`](../../CACHE_POLICY.md) 정리 정책을 추가하고 커밋 `3b979e0`을 생성했다.
+- 정확한 삭제 대상 `C:\projects\test_preparation_master_project\.worktrees\inquiry-report-upload-ux`를 삭제했다(`Removed True`).
+- 삭제 전 대상 검증 결과: Git 미등록, 연결 브랜치 없음, merge 기준 `e30a334` reachable, 파일 49,346개, 논리 용량 822,920,561 bytes(784.8 MiB), reparse point/process/Docker mount/unexpected upload 모두 0이다.
+- 삭제 후 대상 부재와 `.worktrees` 루트 보존을 확인했다. 등록 worktree는 `main` 1개다.
+- 활성 자산 보존 확인: `main/frontend/node_modules` 유지, `main/backend/uploads` 실제 파일 1개 유지, main 프로젝트 루트 `uploads`에는 0바이트 `.gitkeep` 2개가 유지된다.
+- 정리 후 확인 결과 Docker 업로드 볼륨은 현재 없으며, `Remove-Item`만 사용했으므로 Docker 상태는 변경하지 않았다.
 
 ## 수정 파일 목록
 
-- `AGENTS.md` — 공용 UI 컴포넌트 안내를 갱신.
-- `backend/src/main/java/com/tpmp/testprep/config/InquirySchemaMigrationRunner.java` — 현재 스키마의 legacy `inquiry_type`을 멱등 제거하고 `request_type` 데이터는 변경하지 않음.
-- `backend/src/test/java/com/tpmp/testprep/config/InquirySchemaMigrationRunnerTest.java` — 스키마 마이그레이션 동작을 검증.
-- `docs/history/back/usr/UserInquiry_Modified.md` — 사용자 문의 백엔드 수정 이력을 기록.
-- `docs/history/front/usr/UserInquiry_Modified.md` — 사용자 문의 프론트엔드 수정 이력을 기록.
-- `frontend/src/app/user/inquiries/new/page.tsx` — 문의 등록 화면의 409 처리와 이미지 업로드 UX를 반영.
-- `frontend/src/app/user/inquiries/new/page.test.tsx` — 문의 등록 화면 동작을 검증.
-- `frontend/src/components/ui/InquiryImageUploader.tsx` — 신규 공용 이미지 업로더를 추가.
-- `frontend/src/components/ui/InquiryImageUploader.test.tsx` — 이미지 업로더 동작을 검증.
-- `frontend/src/components/ui/InquiryMessageComposer.tsx` — 문의 메시지 작성기에 이미지 업로드 UX를 반영.
-- `frontend/src/components/ui/InquiryMessageComposer.test.tsx` — 메시지 작성기 동작을 검증.
-- `docs/agent-handoff/CURRENT.md` — 최신 병합·검증·운영 상태 스냅샷으로 갱신.
+- `CACHE_POLICY.md` — 폐기 worktree 정리 정책 추가
+- `docs/agent-handoff/CURRENT.md` — 최신 작업 상태 스냅샷 갱신
 
 ## 검증 결과
 
-- 백엔드 전체 테스트: `BUILD SUCCESSFUL` (341 tests).
-- 프론트엔드 타입 검사: `npx tsc --noEmit` PASS.
-- 프론트엔드 Jest: 26 suites / 119 tests PASS.
-- 프론트엔드 빌드: 55 pages PASS.
-- 현재 main 서버 상태: FE session `85008`, port 3000, HTTP 200. BE session `13596`, port 8080 LISTEN. BE health의 401 응답은 인증 정책에 따른 정상 동작이다.
-- 이번 인계 문서는 문서만 수정했으므로 빌드·테스트를 재실행하지 않는다. 내용·링크 및 `git diff --check`를 확인 대상으로 둔다.
+- 정책 문서 재확인 및 삭제 조건 확인 완료
+- 대상 경로 부재, 활성 자산, Docker/DB 상태, 포트 및 HTTP 응답, `git diff --check` 확인 완료
+- 프론트엔드 `http://localhost:3000` HTTP 200
+- 백엔드 포트 8080 LISTEN
+- DB 컨테이너 `tpmp-db-local-55432` Up, `tpmp-db-local` Exited 상태 유지
+- 디스크 여유 공간: 삭제 전 182,764,097,536 bytes, 삭제 후 183,671,545,856 bytes, 실제 증가 907,448,320 bytes(약 865.41 MiB). 논리 용량 784.8 MiB와 별도로 기록한다.
+- 문서만 수정했으므로 빌드 및 테스트는 실행하지 않았다.
 
 ## 실패·경고·주의사항
 
-- `C:\projects\test_preparation_master_project\.worktrees\inquiry-report-upload-ux` 실제 잔여 디렉터리는 `git worktree remove`가 Windows `Invalid argument`로 삭제하지 못한 상태다.
-- [`CACHE_POLICY.md`](../../CACHE_POLICY.md)의 uploads/node_modules/source/docs 보존 규칙 때문에 해당 디렉터리를 재귀 삭제해서는 안 된다.
-- 기존 경고: Next metadata viewport, Gradle unchecked/CDS, LF-CRLF.
+- 백엔드 `/actuator/health`는 실제로 401이다. `SecurityConfig`는 `/api/actuator/health`를 `permitAll`로 설정했지만 해당 resource가 없어 `NoResourceFound` 후 `GlobalExceptionHandler`에서 500이 발생한다. 삭제 영향이 아닌 기존 설정 불일치이며 이번 범위 밖이다.
+- 현재 `main`은 커밋 전 기준 ahead 5이며, 이 `CURRENT.md` 커밋 후 ahead 6이 예상된다.
 
 ## 미완료 작업
 
-- 원격 `push`는 사용자 요청이 없어 미수행이다.
-- 실제 잔여 worktree 디렉터리는 정책상 보존한다.
-- 서버 업로드 파일 정리 API 부재는 이번 작업 범위 밖이다.
+- 삭제 작업 자체는 미완료 항목이 없다.
+- 백엔드 health matcher 불일치는 이번 정리 범위 밖이다.
+- 원격 push는 사용자 요청이 없어 수행하지 않았다.
 
-## 건드리면 안 되는 파일 또는 기존 미추적 파일
+## 다음 세션 실행 명령
 
-- `C:\projects\test_preparation_master_project\.worktrees\inquiry-report-upload-ux` 및 그 하위 보존 대상은 별도 정책 준수 조사와 사용자 승인 전까지 수정·삭제하지 않는다.
-- 기존 사용자 변경 및 미추적 파일은 건드리지 않는다.
+```powershell
+git status --short
+git diff -- docs/agent-handoff/CURRENT.md
+```
 
-## 다음 작업
+- 사용자가 요청하면 push를 수행한다.
 
-- 사용자가 요청하면 `git push`를 실행한다.
-- 잔여 worktree 폴더 처리는 별도 정책 준수 조사 및 사용자 승인 후 진행한다.
-- 다음 확인 명령: `git diff --check`.
+## 건드리면 안 되는 파일 및 자산
+
+- `main/frontend/node_modules`
+- `main/backend/uploads`
+- DB 컨테이너 및 볼륨
+- Docker 볼륨
+- 다른 worktree
