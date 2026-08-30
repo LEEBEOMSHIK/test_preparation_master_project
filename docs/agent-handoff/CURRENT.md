@@ -7,6 +7,7 @@
 
 ## 완료한 작업
 
+- 완료 커밋: `5f61c79 [BE] fix: Actuator 헬스 경로 설정 통일`
 - `application.yml`에 Actuator base path 재정의가 없어 실제 경로가 Spring Boot 기본값 `/actuator/health`임을 확인했다.
 - `SecurityConfig`와 `docker-compose.yml`만 `/api/actuator/health`를 가리키는 불일치가 원인임을 확인했다.
 - 익명 실제 헬스 호출과 잘못된 레거시 경로의 비공개 상태를 검증하는 회귀 테스트를 먼저 작성했다.
@@ -22,8 +23,11 @@
 
 ## 미완료 작업
 
-- 커밋은 후속 단계 담당이며 현재 커밋 전 상태다.
-- 원격 push는 사용자가 요청하지 않아 수행하지 않는다.
+- 없음.
+
+## 원격 반영 상태
+
+- 원격 push는 사용자가 요청하지 않아 수행하지 않았다.
 
 ## 수정한 파일 목록
 
@@ -52,18 +56,15 @@
 - 존재하지 않는 `/api/actuator/health`가 전역 예외 처리에서 500으로 변환되는 별도 404 처리 문제는 이번 수정 범위에서 제외한다.
 - SMTP 헬스를 운영 상태에 포함하려는 환경은 `MAIL_HEALTH_ENABLED=true`와 유효한 SMTP 설정을 함께 제공해야 한다.
 - 첫 재기동은 `cmd`의 환경변수 인용 방식 때문에 datasource override가 적용되지 않아 실패했다. 환경변수를 올바르게 설정한 뒤 재기동과 실서버 검증에 성공했다.
-- 전체 테스트와 실서버 검증은 완료했으며 커밋은 아직 수행하지 않았다. 백엔드는 세션 `37598`에서 계속 실행 중이다.
+- 전체 테스트와 실서버 검증 및 로컬 커밋 `5f61c79` 생성까지 완료했다. 백엔드는 세션 `37598`, PID `55444`로 계속 실행 중이다.
 - 원격 push는 사용자 요청이 없어 수행하지 않았다.
 - 기존 사용자 변경을 되돌리지 않는다.
 
 ## 다음 세션이 바로 실행할 명령
 
 ```powershell
-cd backend
-.\gradlew.bat test --tests com.tpmp.testprep.config.ActuatorHealthSecurityTest
-cd ..
-docker compose config
-git diff --check
+git status --short
+git log -1 --oneline
 ```
 
 ## 건드리면 안 되는 파일 또는 기존 미추적 파일
