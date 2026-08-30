@@ -48,6 +48,9 @@ logging:
     org.springframework.transaction: INFO
 
 management:
+  health:
+    mail:
+      enabled: ${MAIL_HEALTH_ENABLED:false}
   endpoints:
     web:
       exposure:

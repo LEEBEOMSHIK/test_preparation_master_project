@@ -61,6 +61,7 @@ services:
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_HEALTH_ENABLED: ${MAIL_HEALTH_ENABLED:-false}
       MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
       MAIL_STARTTLS_ENABLE: ${MAIL_STARTTLS_ENABLE:-false}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-}
@@ -70,7 +71,7 @@ services:
     volumes:
       - uploads:/uploads
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

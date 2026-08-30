@@ -51,7 +51,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/oauth2/**", "/api/login/oauth2/**").permitAll()
                         .requestMatchers("/api/notion/callback").permitAll()
-                        .requestMatchers("/api/actuator/health").permitAll()
+                        .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/api/v3/api-docs/**", "/api/swagger-ui/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/api/menus").authenticated()

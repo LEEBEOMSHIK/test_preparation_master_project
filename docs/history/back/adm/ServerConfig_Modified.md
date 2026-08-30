@@ -1,3 +1,53 @@
+## HIST-20260831-001
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 백엔드 / 공통 서버 설정 (Actuator, SecurityConfig, Docker healthcheck)
+- **수정 개요**: Spring Boot의 실제 헬스 경로와 보안·Docker 설정을 `/actuator/health`로 통일하고, 선택 기능인 SMTP 장애가 기본 백엔드 헬스를 `DOWN`으로 만들지 않도록 opt-in 정책을 추가
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/config/SecurityConfig.java` | 수정 | 익명 허용 헬스 경로를 실제 Actuator 경로로 정정 |
+| `backend/src/main/resources/application.yml` | 수정 | SMTP 헬스 검사를 환경변수 기반 opt-in으로 설정 |
+| `backend/src/test/java/com/tpmp/testprep/config/ActuatorHealthSecurityTest.java` | 추가 | 애플리케이션 기본 설정 기반 실제 헬스 경로·응답 및 Actuator 루트·레거시 경로 비공개 회귀 검증 |
+| `docker-compose.yml` | 수정 | 백엔드 healthcheck URL 정정 및 SMTP 헬스 환경변수 전달 |
+| `.env.example` | 수정 | `MAIL_HEALTH_ENABLED` 용도와 기본값 문서화 |
+
+### 수정 상세
+
+#### Actuator 경로 불일치
+
+- **변경 전**: `application.yml`에는 `management.endpoints.web.base-path` 재정의가 없어 Spring Boot 기본 경로가 `/actuator/health`였지만, `SecurityConfig`와 Docker healthcheck는 `/api/actuator/health`를 사용했다.
+- **변경 후**: 보안 익명 허용 경로와 Docker healthcheck를 모두 `/actuator/health`로 통일했다.
+- **이유**: 일반 업무 API의 `/api` 접두사를 Actuator에도 적용한 것으로 오인했던 기존 설정 때문에, 실제 엔드포인트는 인증 없이 호출할 수 없고 Docker는 존재하지 않는 경로를 검사하고 있었다.
+- **보안 범위**: `/actuator/health`만 `permitAll`이며 다른 Actuator 경로는 기존 `anyRequest().authenticated()` 규칙을 유지한다. 잘못된 레거시 `/api/actuator/health`도 더 이상 공개 경로가 아니다.
+
+#### 선택적 SMTP와 헬스 상태
+
+- **변경 전**: `MAIL_HOST`를 비워 이메일 기능을 선택적으로 사용하지 않는 환경에서도 MailHealthIndicator가 `localhost:587` 연결을 시도해 전체 헬스가 `503 DOWN`이 될 수 있었다.
+- **변경 후**: `management.health.mail.enabled: ${MAIL_HEALTH_ENABLED:false}`를 추가하고 Docker와 `.env.example`에 `MAIL_HEALTH_ENABLED=false`를 반영했다.
+- **이유**: 이메일 전송 실패는 별도 배송 기록으로 관리되는 선택 기능이므로 기본 웹·DB 가용성을 Docker 장애로 판단하지 않는다. SMTP까지 운영 헬스에 포함해야 하는 환경은 `MAIL_HEALTH_ENABLED=true`로 명시적으로 활성화할 수 있다.
+
+#### 회귀 테스트
+
+- 변경 전 RED: 익명 `/actuator/health`는 기대 `200` 대신 `401`, 레거시 `/api/actuator/health`는 기대 `401` 대신 `404`였다.
+- 경로 수정 후 추가 진단 RED: 실제 헬스 요청은 SMTP 연결 실패 때문에 `503`과 `{"status":"DOWN"}`을 반환했다.
+- 최종 GREEN: 테스트가 Actuator 노출 경로와 상세 표시 정책을 별도 override하지 않고 `application.yml` 기본 설정을 직접 사용한다. 익명 `/actuator/health`는 `200`과 `{"status":"UP"}`을 반환하고, Actuator 루트 `/actuator`와 레거시 `/api/actuator/health`는 모두 `401`을 반환한다.
+- 전체 백엔드 검증: `./gradlew test`에서 344개 테스트가 모두 통과했다(실패·오류·건너뜀 0). 이 중 Actuator 보안 회귀 테스트는 3개다.
+- Docker 설정 검증: `docker compose config --quiet`가 성공했다. 기존 최상위 `version` 속성 obsolete 경고만 발생했다.
+- 실서버 검증: 백엔드 재기동 후 `/actuator/health`는 `200 {"status":"UP"}`, `/actuator`와 `/api/actuator/health`는 각각 `401`을 반환했다.
+
+### 복원 방법
+
+이 ID(HIST-20260831-001)만으로 복원 시:
+
+- `SecurityConfig.java`의 `/actuator/health`를 `/api/actuator/health`로 되돌린다.
+- `docker-compose.yml`의 healthcheck URL을 `/api/actuator/health`로 되돌리고 `MAIL_HEALTH_ENABLED` 환경변수 전달을 제거한다.
+- `application.yml`의 `management.health.mail.enabled` 설정을 제거한다.
+- `.env.example`의 `MAIL_HEALTH_ENABLED` 설명과 기본값을 제거한다.
+- `ActuatorHealthSecurityTest.java`를 삭제한다.
+
 ## HIST-20260724-001
 
 - **날짜**: 2026-07-24
