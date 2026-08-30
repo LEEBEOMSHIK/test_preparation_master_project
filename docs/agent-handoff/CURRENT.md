@@ -16,11 +16,12 @@
 - 독립 정적 검증에서 findings 0건으로 GO 판정을 받았다.
 - 집중 테스트와 백엔드 전체 테스트 및 root 독립 재검증을 모두 통과했다.
 - 최근 변경 5개 영역의 사용자 수동 검증 체크리스트를 `docs/qa/2026-08-30-recent-changes-verification-checklist.md`에 작성했다.
+- 기능 커밋 `afefac7`을 로컬 merge commit `00f56ea`로 main에 병합했다.
+- 병합된 main에서 백엔드 전체 테스트와 HTML 테스트 보고서를 최종 확인했다.
 
 ## 미완료 작업
 
-- 작업 브랜치를 로컬 main에 병합한다.
-- 병합된 main에서 백엔드 테스트를 다시 실행한다.
+- 원격 push는 수행하지 않았다.
 
 ## 수정한 파일 목록
 
@@ -41,8 +42,10 @@
   - 결과: `BUILD SUCCESSFUL` (8개 테스트, 실패·오류·스킵 0).
 - 독립 정적 검증: findings 0건, GO.
 - 백엔드 전체 테스트: 30 suites / 339 tests, 실패·오류·스킵 0, `BUILD SUCCESSFUL`.
-- root 독립 재검증: `backend\\gradlew.bat test --rerun-tasks`
+- 작업 브랜치 root 독립 재검증: `backend\\gradlew.bat test --rerun-tasks`
   - 결과: `BUILD SUCCESSFUL`, HTML 보고서 339개 테스트 / 실패 0 / 오류 0 / 스킵 0 확인.
+- 로컬 main 병합 후 최종 검증: `backend\\gradlew.bat test --rerun-tasks`
+  - 결과: `BUILD SUCCESSFUL`, HTML 보고서 339개 테스트 / 실패 0 / ignored 0 확인.
 - `git diff --check`: 통과.
 
 ## 실패·경고·주의사항
@@ -53,9 +56,9 @@
 
 ## 다음 세션이 바로 실행할 명령
 
-- 작업 브랜치를 로컬 main에 병합한다.
-- 병합 후 main에서 `cd backend; .\\gradlew.bat test --rerun-tasks`를 실행한다.
-- 원격 push는 별도 승인 전 수행하지 않는다.
+- `git status --short --branch`로 main과 원격의 차이를 확인한다.
+- `git log --oneline -5`로 기능·병합·인계 커밋을 확인한다.
+- 사용자에게 원격 push 진행 여부를 확인하고, 승인 전에는 push하지 않는다.
 
 ## 건드리면 안 되는 파일 또는 기존 미추적 파일
 
