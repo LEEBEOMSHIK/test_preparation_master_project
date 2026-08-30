@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface InquiryEmailDeliveryRepository extends JpaRepository<InquiryEmailDelivery, Long> {
+    Page<InquiryEmailDelivery> findByInquiryIdAndStatusOrderByCreatedAtDesc(Long inquiryId, InquiryEmailDelivery.Status status,
+                                                                           Pageable pageable);
     Page<InquiryEmailDelivery> findByInquiryIdOrderByCreatedAtDesc(Long inquiryId, Pageable pageable);
     Page<InquiryEmailDelivery> findByStatusOrderByCreatedAtDesc(InquiryEmailDelivery.Status status, Pageable pageable);
     Page<InquiryEmailDelivery> findAllByOrderByCreatedAtDesc(Pageable pageable);

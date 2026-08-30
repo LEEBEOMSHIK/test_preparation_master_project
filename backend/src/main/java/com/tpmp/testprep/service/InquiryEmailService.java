@@ -54,6 +54,10 @@ public class InquiryEmailService {
     }
 
     public Page<InquiryEmailDeliveryResponse> getDeliveries(Long inquiryId, InquiryEmailDelivery.Status status, Pageable pageable) {
+        if (inquiryId != null && status != null) {
+            return deliveryRepository.findByInquiryIdAndStatusOrderByCreatedAtDesc(inquiryId, status, pageable)
+                    .map(InquiryEmailDeliveryResponse::from);
+        }
         if (inquiryId != null) {
             return deliveryRepository.findByInquiryIdOrderByCreatedAtDesc(inquiryId, pageable).map(InquiryEmailDeliveryResponse::from);
         }

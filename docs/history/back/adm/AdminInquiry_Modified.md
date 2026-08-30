@@ -1,3 +1,30 @@
+## HIST-20260830-001
+
+- **날짜**: 2026-08-30
+- **수정 범위**: 관리자 백엔드 / 문의 이메일 발송 이력 필터
+- **수정 개요**: 문의 ID와 발송 상태를 함께 지정한 이력 조회에서 상태 조건이 무시되던 문제를 수정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/InquiryEmailDeliveryRepository.java` | 수정 | 문의 ID와 발송 상태를 함께 적용하는 최신순 조회 메서드 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryEmailService.java` | 수정 | 복합 조건을 우선 적용하고 단일 조건·전체 조회를 분리 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryEmailServiceTest.java` | 수정 | 문의 ID와 FAILED 상태의 복합 필터 회귀 테스트 추가 |
+| `docs/qa/2026-08-30-recent-changes-verification-checklist.md` | 추가 | 최근 변경 5개 영역의 필수 회귀검증·권장 검증 및 결과 기록 양식 제공 |
+
+### 수정 상세
+
+- 변경 전: `inquiryId`와 `status`가 모두 전달되면 서비스가 문의 ID 단독 조회를 먼저 실행해 발송 상태 조건을 무시했다.
+- 변경 후: 두 값이 모두 있으면 `findByInquiryIdAndStatusOrderByCreatedAtDesc`를 사용하고, 문의 ID만·상태만·조건 없음은 각각 기존 전용 조회를 사용한다. 사용자가 최근 변경사항을 직접 확인할 수 있도록 행동과 기대 결과 중심의 QA 체크리스트도 제공한다.
+- 이유: 특정 문의의 실패 발송 이력을 조회할 때 다른 상태의 발송 이력이 섞이지 않도록 관리자 필터 계약을 보장하기 위해서다.
+
+### 복원 방법
+
+`AdminInquiry_Modified.md`의 HIST-20260830-001 복원 시 복합 Repository 메서드와 서비스의 첫 번째 복합 조건 분기를 제거하고, 회귀 테스트를 제거한다. 복원하면 문의 ID와 상태를 함께 조회할 때 상태 조건이 다시 무시된다.
+
+---
+
 ## HIST-20260828-007
 
 - **날짜**: 2026-08-28

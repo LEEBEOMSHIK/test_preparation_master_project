@@ -1,48 +1,62 @@
-# Agent Handoff - CURRENT
+# 현재 작업: 관리자 문의 이메일 발송 이력 복합 필터 수정
 
-> 최종 갱신: 2026-08-30 (main 통합 및 최종 검증 완료)
+## 현재 목표와 사용자 결정 사항
 
-## 현재 목표와 확정된 사용자 결정 사항
-
-- 패치노트 기능과 최신 main의 문의·요청·시험정보·캐시 정책 변경을 통합해 원격 main에 반영했다.
-- 독립 정적 검증 GO와 main 기준 동적 검증을 모두 완료했다.
+- 관리자 발송 이력 조회에서 `inquiryId`와 `status`를 동시에 적용한다.
+- 조회는 복합 조건, 문의 ID만, 상태만, 조건 없음의 네 가지 분기를 유지한다.
+- TDD로 회귀 테스트의 RED를 확인한 뒤 최소 구현으로 GREEN을 확인한다.
 
 ## 완료한 작업
 
-- 시험정보 유형 색상·다크 모드 대비 개선 커밋 `ed84ed1`과 프로젝트 캐시 안전 정책 커밋 `8f0c8f8`을 원격 main에 반영했다.
-- 패치노트와 최신 main을 통합한 merge commit `0f93d91`을 원격 main에 반영했다.
-- 독립 정적 검증(verifier)은 findings 0건으로 GO 판정을 받았다.
-- main 기준 백엔드·프론트엔드 동적 검증을 모두 통과했다.
+- `InquiryEmailServiceTest`에 문의 ID와 `FAILED` 상태 복합 필터 회귀 테스트를 추가했다.
+- 기존 구현이 문의 ID 단독 조회를 호출해 테스트가 실패하는 RED를 확인했다.
+- Repository에 문의 ID·상태 복합 최신순 조회 메서드를 추가했다.
+- 서비스가 복합 조건을 우선 처리하도록 수정하고 집중 테스트 GREEN을 확인했다.
+- 관리자 백엔드 수정 히스토리 `HIST-20260830-001`을 추가했다.
+- 독립 정적 검증에서 findings 0건으로 GO 판정을 받았다.
+- 집중 테스트와 백엔드 전체 테스트 및 root 독립 재검증을 모두 통과했다.
+- 최근 변경 5개 영역의 사용자 수동 검증 체크리스트를 `docs/qa/2026-08-30-recent-changes-verification-checklist.md`에 작성했다.
 
 ## 미완료 작업
 
-- 사용자 미승인 선택 후속 1건: 관리자 문의 상세 이메일 이력에서 `inquiryId`와 `status=FAILED`를 함께 필터링하면 `status`가 무시되는 제한이 있다. 조회와 개별 retry는 정상 동작한다.
+- 작업 브랜치를 로컬 main에 병합한다.
+- 병합된 main에서 백엔드 테스트를 다시 실행한다.
 
 ## 수정한 파일 목록
 
-- `docs/agent-handoff/CURRENT.md` — main 통합·원격 반영·최종 검증 상태를 기록한 최신 작업 스냅샷.
+- `backend/src/main/java/com/tpmp/testprep/repository/InquiryEmailDeliveryRepository.java`
+- `backend/src/main/java/com/tpmp/testprep/service/InquiryEmailService.java`
+- `backend/src/test/java/com/tpmp/testprep/service/InquiryEmailServiceTest.java`
+- `docs/qa/2026-08-30-recent-changes-verification-checklist.md`
+- `docs/history/back/adm/AdminInquiry_Modified.md`
+- `docs/agent-handoff/CURRENT.md`
 
 ## 실행한 검증 명령과 결과
 
-- 독립 정적 검증(verifier) — findings 0건, GO.
-- 백엔드 `gradlew.bat test --rerun-tasks` — 30 suites / 338 tests, failures·errors·skipped 0, `BUILD SUCCESSFUL`.
-- 프론트엔드 `tsc` — 통과.
-- 프론트엔드 Jest — 25 suites / 103 tests 통과.
-- Next build — 55/55 routes 통과.
+- RED: `backend\\gradlew.bat test --tests com.tpmp.testprep.service.InquiryEmailServiceTest.getDeliveriesDoesNotIgnoreStatusWhenInquiryIdIsProvided`
+  - 결과: 실패. `NeverWantedButInvoked`로 문의 ID 단독 조회 호출을 확인했다.
+- GREEN: 동일 집중 테스트 재실행
+  - 결과: `BUILD SUCCESSFUL` (1개 테스트 통과).
+- 집중 클래스: `backend\\gradlew.bat test --tests com.tpmp.testprep.service.InquiryEmailServiceTest`
+  - 결과: `BUILD SUCCESSFUL` (8개 테스트, 실패·오류·스킵 0).
+- 독립 정적 검증: findings 0건, GO.
+- 백엔드 전체 테스트: 30 suites / 339 tests, 실패·오류·스킵 0, `BUILD SUCCESSFUL`.
+- root 독립 재검증: `backend\\gradlew.bat test --rerun-tasks`
+  - 결과: `BUILD SUCCESSFUL`, HTML 보고서 339개 테스트 / 실패 0 / 오류 0 / 스킵 0 확인.
+- `git diff --check`: 통과.
 
 ## 실패·경고·주의사항
 
-- 기존 Next.js viewport 권고, Gradle 9 호환성 deprecated, `ExamQuestionSyncServiceTest` unchecked 연산 경고는 기능 검증 통과와 별개로 계속 표시된다.
-- worktree 및 로컬 feature 브랜치 정리는 root가 후속으로 수행할 예정이다.
+- RED 실패는 의도한 회귀 재현이며 구현 후 해소됐다.
+- Gradle 9 비호환 예정의 deprecated 기능 경고와 기존 unchecked 연산 경고가 출력됐다.
+- 이 변경은 조회 조건만 수정하며 이메일 발송·실패 기록·재시도 로직은 변경하지 않는다.
 
 ## 다음 세션이 바로 실행할 명령
 
-```powershell
-cd C:/projects/test_preparation_master_project
-git status --short
-git log --oneline -5
-```
+- 작업 브랜치를 로컬 main에 병합한다.
+- 병합 후 main에서 `cd backend; .\\gradlew.bat test --rerun-tasks`를 실행한다.
+- 원격 push는 별도 승인 전 수행하지 않는다.
 
 ## 건드리면 안 되는 파일 또는 기존 미추적 파일
 
-- 사용자 미승인 선택 후속 항목을 구현하기 전에는 관리자 문의 이메일 이력 조회·retry 관련 파일을 수정하지 않는다.
+- 위 수정 파일 외 다른 작업자의 변경을 되돌리지 않는다.
