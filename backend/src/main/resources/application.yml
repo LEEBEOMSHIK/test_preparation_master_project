@@ -27,6 +27,17 @@ spring:
       enabled: true
       max-file-size: ${MAX_FILE_SIZE:10MB}
       max-request-size: ${MAX_FILE_SIZE:10MB}
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${MAIL_STARTTLS_ENABLE:false}
 
 logging:
   file:
@@ -52,6 +63,9 @@ springdoc:
     path: /api/swagger-ui.html
 
 app:
+  public-url: ${APP_PUBLIC_URL:http://localhost:3000}
+  mail:
+    from-address: ${MAIL_FROM_ADDRESS:}
   jwt:
     secret: ${JWT_SECRET}
     access-token-expiry: 900000

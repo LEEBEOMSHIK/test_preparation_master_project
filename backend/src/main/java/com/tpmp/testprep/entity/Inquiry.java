@@ -26,8 +26,14 @@ public class Inquiry {
     private String content;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "inquiry_type", nullable = false)
-    private InquiryType inquiryType = InquiryType.OTHER;
+    @Column(name = "request_type", nullable = false)
+    private RequestType requestType = RequestType.OTHER;
+
+    @Column(name = "target_area", length = 100)
+    private String targetArea;
+
+    @Column(name = "detail_location", length = 500)
+    private String detailLocation;
 
     @Column(name = "image_urls", columnDefinition = "TEXT")
     private String imageUrls; // comma-separated URLs (max 3)
@@ -35,12 +41,6 @@ public class Inquiry {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Status status = Status.PENDING;
-
-    @Column(columnDefinition = "TEXT")
-    private String reply;
-
-    @Column(name = "replied_at")
-    private LocalDateTime repliedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -51,34 +51,62 @@ public class Inquiry {
     }
 
     @Builder
-    public Inquiry(User user, String title, String content, InquiryType inquiryType, String imageUrls) {
+    public Inquiry(User user, String title, String content, RequestType requestType,
+                   String targetArea, String detailLocation, String imageUrls) {
         this.user = user;
         this.title = title;
         this.content = content;
-        this.inquiryType = inquiryType != null ? inquiryType : InquiryType.OTHER;
+        this.requestType = requestType != null ? requestType : RequestType.OTHER;
+        this.targetArea = targetArea;
+        this.detailLocation = detailLocation;
         this.imageUrls = imageUrls;
         this.status = Status.PENDING;
     }
 
-    public void reply(String reply) {
-        this.reply = reply;
-        this.status = Status.ANSWERED;
-        this.repliedAt = LocalDateTime.now();
+    public boolean isClosed() {
+        return status.isClosed();
     }
 
-    public void toggleHold() {
-        if (this.status == Status.ON_HOLD) {
-            this.status = Status.PENDING;
-        } else if (this.status == Status.PENDING) {
-            this.status = Status.ON_HOLD;
+    public boolean canTransitionTo(Status target) {
+        if (target == null) {
+            return false;
         }
+        if (status.isClosed()) {
+            return target == Status.IN_PROGRESS;
+        }
+        if (!target.isClosed()) {
+            return true;
+        }
+        return target == Status.ANSWERED
+                ? requestType.usesAnswerCompletion()
+                : !requestType.usesAnswerCompletion();
+    }
+
+    public void changeStatus(Status target) {
+        if (!canTransitionTo(target)) {
+            throw new IllegalStateException("INVALID_INQUIRY_STATUS_TRANSITION");
+        }
+        this.status = target;
+    }
+
+    public void reopen() {
+        changeStatus(Status.IN_PROGRESS);
     }
 
     public enum Status {
-        PENDING, ON_HOLD, ANSWERED
+        PENDING, IN_PROGRESS, ON_HOLD, ANSWERED, COMPLETED, UNABLE_TO_PROCESS;
+
+        public boolean isClosed() {
+            return this == ANSWERED || this == COMPLETED || this == UNABLE_TO_PROCESS;
+        }
     }
 
-    public enum InquiryType {
-        EXAM, CONCEPT_NOTE, DAILY_QUIZ, PRACTICE, BUG, OTHER
+    public enum RequestType {
+        GENERAL_INQUIRY, BUG_REPORT, EXAM_OPENING_REQUEST, FEATURE_REQUEST, OTHER;
+
+        public boolean usesAnswerCompletion() {
+            return this == GENERAL_INQUIRY || this == OTHER;
+        }
     }
+
 }

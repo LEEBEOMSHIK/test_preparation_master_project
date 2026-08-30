@@ -1,8 +1,11 @@
 package com.tpmp.testprep.controller;
 
-import com.tpmp.testprep.dto.request.InquiryReplyRequest;
+import com.tpmp.testprep.dto.request.AdminInquiryMessageRequest;
+import com.tpmp.testprep.dto.request.InquiryStatusUpdateRequest;
 import com.tpmp.testprep.dto.response.ApiResponse;
-import com.tpmp.testprep.dto.response.InquiryResponse;
+import com.tpmp.testprep.dto.response.InquiryDetailResponse;
+import com.tpmp.testprep.dto.response.InquiryMessageResponse;
+import com.tpmp.testprep.dto.response.InquirySummaryResponse;
 import com.tpmp.testprep.entity.Inquiry;
 import com.tpmp.testprep.service.InquiryService;
 import jakarta.validation.Valid;
@@ -11,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -22,28 +26,32 @@ public class AdminInquiryController {
     private final InquiryService inquiryService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<InquiryResponse>>> getAll(
-            @RequestParam(required = false) Inquiry.Status status,
+    public ResponseEntity<ApiResponse<Page<InquirySummaryResponse>>> getAll(
+            @RequestParam(required = false) Inquiry.Status status, @RequestParam(required = false) Inquiry.RequestType requestType,
+            @RequestParam(required = false) String targetArea,
+            @RequestParam(required = false) String keyword,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(
-                inquiryService.adminGetAll(status, pageable)));
+                inquiryService.adminGetAll(status, requestType, targetArea, keyword, pageable)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<InquiryResponse>> getOne(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<InquiryDetailResponse>> getOne(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(inquiryService.adminGetOne(id)));
     }
 
-    @PutMapping("/{id}/reply")
-    public ResponseEntity<ApiResponse<InquiryResponse>> reply(
+    @PostMapping("/{id}/messages")
+    public ResponseEntity<ApiResponse<InquiryMessageResponse>> addMessage(
             @PathVariable Long id,
-            @Valid @RequestBody InquiryReplyRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(inquiryService.adminReply(id, request)));
+            @Valid @RequestBody AdminInquiryMessageRequest request, @AuthenticationPrincipal String email) {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                .body(ApiResponse.success(inquiryService.addAdminMessage(id, request, email)));
     }
 
-    @PatchMapping("/{id}/hold")
-    public ResponseEntity<ApiResponse<InquiryResponse>> toggleHold(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success(inquiryService.adminToggleHold(id)));
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<InquiryDetailResponse>> updateStatus(@PathVariable Long id,
+            @Valid @RequestBody InquiryStatusUpdateRequest request, @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.success(inquiryService.updateStatus(id, request, email)));
     }
 
     @DeleteMapping("/{id}")

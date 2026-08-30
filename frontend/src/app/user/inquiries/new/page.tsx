@@ -1,232 +1,241 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { inquiryService } from '@/services/inquiryService';
+import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { Skeleton } from '@/components/ui/Skeleton';
+import {
+  getInquiryTargetAreaLabel,
+  INQUIRY_REQUEST_TYPES,
+  INQUIRY_TARGET_AREAS,
+  isInquiryRequestType,
+  isInquiryTargetArea,
+  requiresTargetArea,
+  usesTargetArea,
+} from '@/lib/inquiry';
 import { domainService } from '@/services/domainService';
-import type { InquiryType } from '@/types';
+import { inquiryService, type UploadImageResult } from '@/services/inquiryService';
+import type { InquiryRequestType, InquiryTargetArea } from '@/types';
 import { INQUIRY_TYPE_LABEL } from '@/types';
 
-interface UploadedImage {
-  id: number;
-  url: string;
+async function loadDomainOptions<T extends string>(
+  code: string,
+  isAllowed: (value: string) => value is T,
+  fallback: T[],
+): Promise<T[]> {
+  try {
+    const response = await domainService.getSlavesByCode(code);
+    const options = (response.data.data ?? [])
+      .map((item) => item.name)
+      .filter(isAllowed);
+    return options;
+  } catch {
+    return fallback;
+  }
 }
 
 export default function NewInquiryPage() {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [type, setType] = useState<InquiryRequestType>('GENERAL_INQUIRY');
+  const [types, setTypes] = useState<InquiryRequestType[]>(INQUIRY_REQUEST_TYPES);
+  const [areas, setAreas] = useState<InquiryTargetArea[]>(INQUIRY_TARGET_AREAS);
+  const [domainsLoading, setDomainsLoading] = useState(true);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [inquiryType, setInquiryType] = useState<InquiryType>('OTHER');
-  const [inquiryTypes, setInquiryTypes] = useState<InquiryType[]>([]);
-  const [typesLoading, setTypesLoading] = useState(true);
-  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [targetArea, setTargetArea] = useState<InquiryTargetArea | ''>('');
+  const [detailLocation, setDetailLocation] = useState('');
+  const [images, setImages] = useState<UploadImageResult[]>([]);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    domainService.getSlavesByCode('INQUIRY_CATEGORY')
-      .then(res => {
-        if (res.data.success && res.data.data) {
-          const loaded = res.data.data
-            .map(s => s.name as InquiryType)
-            .filter(t => t in INQUIRY_TYPE_LABEL);
-          if (loaded.length > 0) {
-            setInquiryTypes(loaded);
-            setInquiryType(loaded[0]);
-          }
-        }
+    Promise.all([
+      loadDomainOptions('INQUIRY_CATEGORY', isInquiryRequestType, INQUIRY_REQUEST_TYPES),
+      loadDomainOptions('INQUIRY_BUG_AREA', isInquiryTargetArea, INQUIRY_TARGET_AREAS),
+    ])
+      .then(([loadedTypes, loadedAreas]) => {
+        setTypes(loadedTypes);
+        setAreas(loadedAreas);
+        setType((current) => (
+          loadedTypes.includes(current) ? current : (loadedTypes[0] ?? current)
+        ));
+        setTargetArea((current) => current && !loadedAreas.includes(current) ? '' : current);
       })
-      .catch(() => {
-        setInquiryTypes(['EXAM', 'CONCEPT_NOTE', 'DAILY_QUIZ', 'PRACTICE', 'BUG', 'OTHER']);
-      })
-      .finally(() => setTypesLoading(false));
+      .finally(() => setDomainsLoading(false));
   }, []);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (uploadedImages.length >= 3) {
-      setError('이미지는 최대 3개까지 첨부할 수 있습니다.');
-      return;
-    }
-    setUploading(true);
-    setError('');
+  const upload = async (file?: File) => {
+    if (!file || images.length === 3) return;
     try {
-      const res = await inquiryService.uploadImage(file);
-      if (res.data.success && res.data.data) {
-        setUploadedImages((prev) => [...prev, { id: res.data.data!.id, url: res.data.data!.url }]);
+      const response = await inquiryService.uploadImage(file);
+      if (response.data.data) {
+        setImages((current) => [...current, response.data.data!]);
       }
     } catch {
       setError('이미지 업로드에 실패했습니다.');
     } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (inputRef.current) inputRef.current.value = '';
     }
   };
 
-  const removeImage = (idx: number) => {
-    setUploadedImages((prev) => prev.filter((_, i) => i !== idx));
-  };
+  const submit = async () => {
+    if (!title.trim() || !content.trim()) {
+      setError('제목과 내용을 입력해 주세요.');
+      return;
+    }
+    if (requiresTargetArea(type) && !targetArea) {
+      setError('버그 발생 영역을 선택해 주세요.');
+      return;
+    }
 
-  const handleSubmit = async () => {
-    if (!title.trim()) { setError('제목을 입력해 주세요.'); return; }
-    if (!content.trim()) { setError('문의 내용을 입력해 주세요.'); return; }
+    setBusy(true);
     setError('');
-    setSubmitting(true);
     try {
       await inquiryService.create({
         title: title.trim(),
         content: content.trim(),
-        inquiryType,
-        attachmentIds: uploadedImages.map((img) => img.id),
+        requestType: type,
+        ...(usesTargetArea(type) && targetArea ? { targetArea } : {}),
+        ...(type !== 'EXAM_OPENING_REQUEST' && detailLocation.trim()
+          ? { detailLocation: detailLocation.trim() }
+          : {}),
+        attachmentIds: images.map((image) => image.id),
       });
       router.push('/user/inquiries');
     } catch {
-      setError('문의 등록에 실패했습니다. 다시 시도해 주세요.');
+      setError('문의·요청 등록에 실패했습니다. 다시 시도해 주세요.');
     } finally {
-      setSubmitting(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/user/inquiries" className="text-gray-400 hover:text-gray-600">
-          <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-            <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
-        </Link>
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">문의 등록</h2>
-          <p className="text-sm text-gray-500 mt-0.5">궁금한 점이나 불편사항을 알려주세요.</p>
-        </div>
+    <div className="max-w-2xl space-y-5">
+      <div>
+        <Link href="/user/inquiries" className="text-sm text-gray-500">← 목록</Link>
+        <h2 className="mt-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
+          문의·요청 등록
+        </h2>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
-        {/* 문의 유형 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            문의 유형 <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={inquiryType}
-            onChange={(e) => setInquiryType(e.target.value as InquiryType)}
-            disabled={typesLoading}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 disabled:bg-gray-50"
-          >
-            {typesLoading ? (
-              <option>불러오는 중...</option>
-            ) : (
-              inquiryTypes.map((t) => (
-                <option key={t} value={t}>{INQUIRY_TYPE_LABEL[t]}</option>
-              ))
-            )}
-          </select>
-        </div>
-
-        {/* 제목 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            제목 <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={200}
-            placeholder="문의 제목을 입력하세요"
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <p className="mt-1 text-xs text-gray-400 text-right">{title.length}/200</p>
-        </div>
-
-        {/* 내용 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            문의 내용 <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={8}
-            placeholder="문의 내용을 자세히 입력해 주세요."
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
-          />
-        </div>
-
-        {/* 이미지 첨부 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            이미지 첨부 <span className="text-gray-400 font-normal">(최대 3개)</span>
-          </label>
-          <div className="flex flex-wrap gap-3">
-            {uploadedImages.map((img, idx) => (
-              <div key={img.id} className="relative w-20 h-20 rounded-lg border border-gray-200 overflow-hidden group">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img.url} alt={`첨부 이미지 ${idx + 1}`} className="w-full h-full object-cover" />
-                <button
-                  onClick={() => removeImage(idx)}
-                  className="absolute inset-0 bg-black/50 text-white text-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            {uploadedImages.length < 3 && (
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-indigo-400 hover:text-indigo-500 transition-colors text-xs gap-1 disabled:opacity-50"
-              >
-                {uploading ? (
-                  <span>업로드 중</span>
-                ) : (
-                  <>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span>추가</span>
-                  </>
-                )}
-              </button>
-            )}
+      <section className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
+        {domainsLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp"
-            className="hidden"
-            onChange={handleImageUpload}
-          />
-          <p className="mt-1 text-xs text-gray-400">JPG, PNG, GIF, WEBP 파일 업로드 가능</p>
-        </div>
+        ) : (
+          <>
+            <label className="block text-sm">
+              접수 유형
+              <select
+                value={type}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (isInquiryRequestType(value)) setType(value);
+                  setTargetArea('');
+                }}
+                className="mt-1 w-full rounded-lg border p-2 dark:bg-gray-800"
+              >
+                {types.map((item) => (
+                  <option key={item} value={item}>{INQUIRY_TYPE_LABEL[item]}</option>
+                ))}
+              </select>
+            </label>
 
-        {error && (
-          <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+            {usesTargetArea(type) && (
+              <label className="block text-sm">
+                발생 영역 {requiresTargetArea(type) && <span className="text-red-500">*</span>}
+                <select
+                  value={targetArea}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setTargetArea(isInquiryTargetArea(value) ? value : '');
+                  }}
+                  className="mt-1 w-full rounded-lg border p-2 dark:bg-gray-800"
+                >
+                  <option value="">선택하세요</option>
+                  {areas.map((area) => (
+                    <option key={area} value={area}>{getInquiryTargetAreaLabel(area)}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </>
         )}
 
-        {/* Actions */}
-        <div className="flex justify-end gap-3 pt-2">
-          <Link
-            href="/user/inquiries"
-            className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            취소
-          </Link>
+        {type !== 'EXAM_OPENING_REQUEST' && (
+          <label className="block text-sm">
+            상세 위치/URL
+            <input
+              value={detailLocation}
+              maxLength={500}
+              onChange={(event) => setDetailLocation(event.target.value)}
+              className="mt-1 w-full rounded-lg border p-2 dark:bg-gray-800"
+            />
+            <span className="text-xs text-gray-400">{detailLocation.length}/500</span>
+          </label>
+        )}
+
+        <label className="block text-sm">
+          제목
+          <input
+            value={title}
+            maxLength={200}
+            onChange={(event) => setTitle(event.target.value)}
+            className="mt-1 w-full rounded-lg border p-2 dark:bg-gray-800"
+          />
+        </label>
+        <label className="block text-sm">
+          내용
+          <textarea
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            rows={7}
+            className="mt-1 w-full rounded-lg border p-2 dark:bg-gray-800"
+          />
+        </label>
+
+        <div className="flex items-center gap-2">
+          {images.map((image) => (
+            <button
+              key={image.id}
+              type="button"
+              onClick={() => setImages((current) => current.filter((item) => item.id !== image.id))}
+              className="text-xs text-indigo-600"
+            >
+              이미지 ×
+            </button>
+          ))}
           <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="px-5 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="text-sm text-gray-500"
           >
-            {submitting ? '등록 중...' : '문의 등록'}
+            이미지 첨부 ({images.length}/3)
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            className="hidden"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            onChange={(event) => void upload(event.target.files?.[0])}
+          />
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={busy || domainsLoading || types.length === 0}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+          >
+            {busy ? '등록 중...' : '등록하기'}
           </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

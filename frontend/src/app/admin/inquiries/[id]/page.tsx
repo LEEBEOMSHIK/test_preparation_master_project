@@ -1,16 +1,39 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { inquiryService } from '@/services/inquiryService';
-import type { Inquiry, InquiryStatus } from '@/types';
+import { useParams, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { InquiryMessageComposer } from '@/components/ui/InquiryMessageComposer';
+import { InquiryTimeline } from '@/components/ui/InquiryTimeline';
+import { Pagination } from '@/components/ui/Pagination';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { extractApiErrorMessage } from '@/lib/apiError';
+import { getAllowedAdminStatuses, getInquiryTargetAreaLabel, isInquiryClosed } from '@/lib/inquiry';
+import {
+  inquiryService,
+  type InquiryEmailDelivery,
+  type InquiryEmailDeliveryStatus,
+  type InquiryEmailEventType,
+} from '@/services/inquiryService';
+import type { InquiryDetail, InquiryStatus } from '@/types';
 import { INQUIRY_STATUS_LABEL, INQUIRY_TYPE_LABEL } from '@/types';
 
 const STATUS_COLOR: Record<InquiryStatus, string> = {
-  PENDING: 'bg-yellow-100 text-yellow-700',
-  ON_HOLD: 'bg-gray-100 text-gray-600',
-  ANSWERED: 'bg-green-100 text-green-700',
+  PENDING: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/50 dark:text-yellow-300',
+  IN_PROGRESS: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+  ON_HOLD: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
+  ANSWERED: 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300',
+  COMPLETED: 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300',
+  UNABLE_TO_PROCESS: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300',
+};
+
+const DELIVERY_EVENT_LABEL: Record<InquiryEmailEventType, string> = {
+  NEW_INQUIRY: '신규 접수',
+  USER_MESSAGE: '사용자 메시지',
+  ADMIN_MESSAGE: '관리자 답변',
+  ANSWERED: '답변 완료',
+  COMPLETED: '처리 완료',
+  UNABLE_TO_PROCESS: '처리 불가',
 };
 
 export default function AdminInquiryDetailPage() {
@@ -18,198 +41,426 @@ export default function AdminInquiryDetailPage() {
   const router = useRouter();
   const id = Number(params.id);
 
-  const [inquiry, setInquiry] = useState<Inquiry | null>(null);
+  const [inquiry, setInquiry] = useState<InquiryDetail | null>(null);
+  const [deliveries, setDeliveries] = useState<InquiryEmailDelivery[]>([]);
   const [loading, setLoading] = useState(true);
-  const [replyText, setReplyText] = useState('');
-  const [replying, setReplying] = useState(false);
-  const [holding, setHolding] = useState(false);
+  const [error, setError] = useState('');
+  const [deliveryError, setDeliveryError] = useState('');
+  const [deliveryLoading, setDeliveryLoading] = useState(true);
+  const [deliveryPage, setDeliveryPage] = useState(0);
+  const [deliveryTotalElements, setDeliveryTotalElements] = useState(0);
+  const [deliveryTotalPages, setDeliveryTotalPages] = useState(0);
+  const [deliveryStatus, setDeliveryStatus] = useState<InquiryEmailDeliveryStatus | ''>('');
+  const [selectedStatus, setSelectedStatus] = useState<InquiryStatus | ''>('');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [sendEmail, setSendEmail] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [retryingDeliveryId, setRetryingDeliveryId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    inquiryService.adminGetOne(id)
-      .then((res) => {
-        if (res.data.success && res.data.data) {
-          const data = res.data.data;
-          setInquiry(data);
-          setReplyText(data.reply ?? '');
-        }
-      })
-      .finally(() => setLoading(false));
+  const loadDeliveries = useCallback(async () => {
+    setDeliveryLoading(true);
+    try {
+      const response = await inquiryService.getEmailDeliveries(
+        id,
+        deliveryPage,
+        20,
+        deliveryStatus || undefined,
+      );
+      const result = response.data.data;
+      setDeliveries(result?.content ?? []);
+      setDeliveryTotalElements(result?.totalElements ?? 0);
+      setDeliveryTotalPages(result?.totalPages ?? 0);
+      setDeliveryError('');
+    } catch (requestError: unknown) {
+      setDeliveryError(extractApiErrorMessage(requestError, '이메일 발송 이력을 불러오지 못했습니다.'));
+    } finally {
+      setDeliveryLoading(false);
+    }
+  }, [deliveryPage, deliveryStatus, id]);
+
+  const loadInquiry = useCallback(async () => {
+    const response = await inquiryService.adminGetOne(id);
+    if (response.data.data) setInquiry(response.data.data);
   }, [id]);
 
-  const handleReply = async () => {
-    if (!replyText.trim() || !inquiry) return;
-    setReplying(true);
-    try {
-      const res = await inquiryService.adminReply(inquiry.id, replyText.trim());
-      if (res.data.success && res.data.data) {
-        setInquiry(res.data.data);
-        setReplyText(res.data.data.reply ?? '');
-        alert(inquiry.status === 'ANSWERED' ? '답변이 수정되었습니다.' : '답변이 등록되었습니다.');
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        await loadInquiry();
+      } catch (requestError: unknown) {
+        setError(extractApiErrorMessage(requestError, '문의·요청을 불러오지 못했습니다.'));
+      } finally {
+        setLoading(false);
       }
+    };
+    void load();
+  }, [loadInquiry]);
+
+  useEffect(() => {
+    void loadDeliveries();
+  }, [loadDeliveries]);
+
+  const handleMessageSent = () => {
+    void loadInquiry();
+    void loadDeliveries();
+  };
+
+  const handleStatusUpdate = async () => {
+    if (!inquiry || !selectedStatus || updatingStatus) return;
+    if (isInquiryClosed(selectedStatus) && !statusMessage.trim()) {
+      setError('종료 안내 내용을 입력해 주세요.');
+      return;
+    }
+
+    setUpdatingStatus(true);
+    setError('');
+    try {
+      const response = await inquiryService.adminUpdateStatus(
+        inquiry.id,
+        selectedStatus,
+        statusMessage.trim(),
+        isInquiryClosed(selectedStatus) ? sendEmail : false,
+      );
+      if (response.data.data) setInquiry(response.data.data);
+      setSelectedStatus('');
+      setStatusMessage('');
+      setSendEmail(false);
+      await loadDeliveries();
+    } catch (requestError: unknown) {
+      setError(extractApiErrorMessage(requestError, '상태를 변경하지 못했습니다.'));
     } finally {
-      setReplying(false);
+      setUpdatingStatus(false);
     }
   };
 
-  const handleToggleHold = async () => {
-    if (!inquiry) return;
-    setHolding(true);
+  const handleReopen = async () => {
+    if (!inquiry || updatingStatus) return;
+    setUpdatingStatus(true);
+    setError('');
     try {
-      const res = await inquiryService.adminToggleHold(inquiry.id);
-      if (res.data.success && res.data.data) {
-        setInquiry(res.data.data);
-      }
+      const response = await inquiryService.adminUpdateStatus(inquiry.id, 'IN_PROGRESS', '', false);
+      if (response.data.data) setInquiry(response.data.data);
+      setSelectedStatus('');
+      setStatusMessage('');
+      setSendEmail(false);
+      await loadDeliveries();
+    } catch (requestError: unknown) {
+      setError(extractApiErrorMessage(requestError, '문의·요청을 다시 열지 못했습니다.'));
     } finally {
-      setHolding(false);
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handleRetry = async (deliveryId: number) => {
+    setRetryingDeliveryId(deliveryId);
+    setDeliveryError('');
+    try {
+      await inquiryService.retryEmailDelivery(deliveryId);
+      await loadDeliveries();
+    } catch (requestError: unknown) {
+      setDeliveryError(extractApiErrorMessage(requestError, '이메일을 재발송하지 못했습니다.'));
+    } finally {
+      setRetryingDeliveryId(null);
     }
   };
 
   const handleDelete = async () => {
-    if (!inquiry) return;
-    if (!confirm('이 문의를 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.')) return;
+    if (!inquiry || !confirm('이 문의·요청을 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.')) return;
     setDeleting(true);
+    setError('');
     try {
       await inquiryService.adminDelete(inquiry.id);
       router.push('/admin/inquiries');
-    } finally {
+    } catch (requestError: unknown) {
+      setError(extractApiErrorMessage(requestError, '문의·요청을 삭제하지 못했습니다.'));
       setDeleting(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="p-12 text-center text-sm text-gray-400">불러오는 중...</div>
+      <div className="max-w-4xl space-y-5">
+        <Skeleton className="h-6 w-36" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-40 w-full" />
+      </div>
     );
   }
 
   if (!inquiry) {
     return (
-      <div className="p-12 text-center text-sm text-gray-400">문의를 찾을 수 없습니다.</div>
+      <div className="rounded-xl border border-gray-200 bg-white p-10 text-center dark:border-gray-700 dark:bg-gray-900">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {error || '문의·요청을 찾을 수 없습니다.'}
+        </p>
+      </div>
     );
   }
 
+  const closed = isInquiryClosed(inquiry.status);
+  const allowedStatuses = getAllowedAdminStatuses(inquiry.requestType)
+    .filter((status) => status !== inquiry.status);
+  const selectedIsClosed = selectedStatus !== '' && isInquiryClosed(selectedStatus);
+
   return (
-    <div className="max-w-3xl space-y-6">
-      {/* Back + header */}
-      <div className="flex items-center justify-between">
+    <div className="max-w-4xl space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link
           href="/admin/inquiries"
-          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          className="text-sm text-gray-500 transition hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
         >
-          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-            <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
-          목록으로
+          ← 문의·요청 관리
         </Link>
-
         <button
-          onClick={handleDelete}
+          type="button"
+          onClick={() => void handleDelete()}
           disabled={deleting}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+          className="self-start rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30"
         >
-          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-          {deleting ? '삭제 중...' : '문의 삭제'}
+          {deleting ? '삭제 중...' : '문의·요청 삭제'}
         </button>
       </div>
 
-      {/* Inquiry info card */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {/* Title bar */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-4">
-          <h2 className="text-base font-semibold text-gray-900 leading-snug">{inquiry.title}</h2>
-          <span className={['shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium', STATUS_COLOR[inquiry.status]].join(' ')}>
+      <section className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
+          <div>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">{inquiry.title}</h2>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              #{inquiry.id} · {INQUIRY_TYPE_LABEL[inquiry.requestType]}
+            </p>
+          </div>
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLOR[inquiry.status]}`}>
             {INQUIRY_STATUS_LABEL[inquiry.status]}
           </span>
         </div>
+        <dl className="grid gap-3 bg-gray-50 px-5 py-4 text-sm dark:bg-gray-800/60 sm:grid-cols-2">
+          <div>
+            <dt className="text-xs text-gray-400">작성자</dt>
+            <dd className="mt-0.5 text-gray-700 dark:text-gray-200">{inquiry.userName ?? '-'}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-gray-400">등록일</dt>
+            <dd className="mt-0.5 text-gray-700 dark:text-gray-200">
+              {inquiry.createdAt.slice(0, 16).replace('T', ' ')}
+            </dd>
+          </div>
+          {inquiry.targetArea && (
+            <div>
+              <dt className="text-xs text-gray-400">발생 영역</dt>
+              <dd className="mt-0.5 text-gray-700 dark:text-gray-200">
+                {getInquiryTargetAreaLabel(inquiry.targetArea)}
+              </dd>
+            </div>
+          )}
+          {inquiry.detailLocation && (
+            <div>
+              <dt className="text-xs text-gray-400">상세 위치</dt>
+              <dd className="mt-0.5 break-all text-gray-700 dark:text-gray-200">{inquiry.detailLocation}</dd>
+            </div>
+          )}
+        </dl>
+      </section>
 
-        {/* Meta */}
-        <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500">
-          <span>작성자: <span className="font-medium text-gray-700">{inquiry.userName}</span></span>
-          <span>유형: <span className="font-medium text-gray-700">{INQUIRY_TYPE_LABEL[inquiry.inquiryType]}</span></span>
-          <span>등록일: <span className="font-medium text-gray-700">{inquiry.createdAt?.slice(0, 10)}</span></span>
-          {inquiry.repliedAt && (
-            <span>답변일: <span className="font-medium text-gray-700">{inquiry.repliedAt.slice(0, 10)}</span></span>
+      <section className="space-y-3" aria-label="문의·요청 대화">
+        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">대화 이력</h3>
+        <InquiryTimeline inquiry={inquiry} />
+      </section>
+
+      {!closed && (
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">중간 답변</h3>
+          <InquiryMessageComposer inquiryId={inquiry.id} admin onSent={handleMessageSent} />
+        </section>
+      )}
+
+      <section
+        role="region"
+        aria-label="상태 변경"
+        className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">상태 변경</h3>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              접수 유형에 허용된 상태만 선택할 수 있습니다.
+            </p>
+          </div>
+          {closed && (
+            <button
+              type="button"
+              onClick={() => void handleReopen()}
+              disabled={updatingStatus}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+            >
+              다시 열기
+            </button>
           )}
         </div>
 
-        {/* Content */}
-        <div className="px-6 py-5">
-          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{inquiry.content}</p>
-        </div>
+        {!closed && (
+          <div className="space-y-3">
+            <label className="block text-sm text-gray-700 dark:text-gray-300">
+              변경할 상태
+              <select
+                value={selectedStatus}
+                onChange={(event) => {
+                  setSelectedStatus(event.target.value as InquiryStatus | '');
+                  setStatusMessage('');
+                  setSendEmail(false);
+                  setError('');
+                }}
+                className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              >
+                <option value="">선택하세요</option>
+                {allowedStatuses.map((status) => (
+                  <option key={status} value={status}>{INQUIRY_STATUS_LABEL[status]}</option>
+                ))}
+              </select>
+            </label>
 
-        {/* Images */}
-        {inquiry.imageUrls && inquiry.imageUrls.length > 0 && (
-          <div className="px-6 pb-5">
-            <p className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">첨부 이미지</p>
-            <div className="flex flex-wrap gap-2">
-              {inquiry.imageUrls.map((url, i) => (
-                <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={url}
-                    alt=""
-                    className="w-24 h-24 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition-opacity"
+            {selectedIsClosed && (
+              <>
+                <label className="block text-sm text-gray-700 dark:text-gray-300">
+                  종료 안내
+                  <textarea
+                    value={statusMessage}
+                    onChange={(event) => setStatusMessage(event.target.value)}
+                    rows={4}
+                    placeholder="사용자에게 전달할 최종 안내를 입력하세요."
+                    className="mt-1 w-full resize-y rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
-                </a>
-              ))}
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={sendEmail}
+                    onChange={(event) => setSendEmail(event.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600"
+                  />
+                  사용자에게 이메일 알림 발송
+                </label>
+              </>
+            )}
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => void handleStatusUpdate()}
+                disabled={!selectedStatus || updatingStatus}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {updatingStatus ? '변경 중...' : '상태 변경'}
+              </button>
             </div>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Hold toggle (not shown when ANSWERED) */}
-      {inquiry.status !== 'ANSWERED' && (
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleToggleHold}
-            disabled={holding}
-            className={[
-              'px-4 py-2 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50',
-              inquiry.status === 'ON_HOLD'
-                ? 'border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
-                : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50',
-            ].join(' ')}
-          >
-            {holding ? '처리 중...' : inquiry.status === 'ON_HOLD' ? '대기로 변경' : '보류로 변경'}
-          </button>
-          <span className="text-xs text-gray-400">
-            {inquiry.status === 'ON_HOLD' ? '보류 → 답변 대기 상태로 변경합니다.' : '답변 대기 → 보류 상태로 변경합니다.'}
-          </span>
-        </div>
-      )}
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-      {/* Reply section */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-800">
-            {inquiry.status === 'ANSWERED' ? '답변 수정' : '답변 등록'}
-          </h3>
-          {inquiry.status === 'ANSWERED' && (
-            <p className="text-xs text-gray-400 mt-0.5">이미 등록된 답변입니다. 수정 후 저장하세요.</p>
-          )}
-        </div>
-        <div className="px-6 py-5 space-y-3">
-          <textarea
-            value={replyText}
-            onChange={(e) => setReplyText(e.target.value)}
-            rows={6}
-            placeholder="답변을 입력하세요."
-            className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y bg-white"
-          />
-          <div className="flex justify-end">
+      <section className="space-y-3 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">이메일 발송 이력</h3>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              발송 실패 건은 원인을 확인한 뒤 재발송할 수 있습니다.
+            </p>
+          </div>
+          <div className="flex items-end gap-2">
+            <label className="text-xs text-gray-500 dark:text-gray-400">
+              발송 상태
+              <select
+                value={deliveryStatus}
+                onChange={(event) => {
+                  setDeliveryStatus(event.target.value as InquiryEmailDeliveryStatus | '');
+                  setDeliveryPage(0);
+                }}
+                className="ml-2 rounded-md border border-gray-200 bg-white px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-800"
+              >
+                <option value="">전체</option>
+                <option value="FAILED">발송 실패</option>
+              </select>
+            </label>
             <button
-              onClick={handleReply}
-              disabled={replying || !replyText.trim()}
-              className="px-5 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              type="button"
+              onClick={() => void loadDeliveries()}
+              disabled={deliveryLoading}
+              className="rounded-md border border-gray-200 px-2.5 py-1 text-xs text-gray-600 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300"
             >
-              {replying ? '저장 중...' : inquiry.status === 'ANSWERED' ? '답변 수정' : '답변 등록'}
+              발송 이력 새로고침
             </button>
           </div>
         </div>
-      </div>
+        {deliveryError && <p className="text-sm text-red-600 dark:text-red-400">{deliveryError}</p>}
+        {deliveryLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        ) : deliveries.length === 0 ? (
+          <p className="rounded-lg bg-gray-50 p-4 text-sm text-gray-400 dark:bg-gray-800/60">
+            이메일 발송 이력이 없습니다.
+          </p>
+        ) : (
+          <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+            {deliveries.map((delivery) => (
+              <li key={delivery.id} className="space-y-2 py-3 first:pt-0 last:pb-0">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {DELIVERY_EVENT_LABEL[delivery.eventType]} · {delivery.recipientEmail}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                      {delivery.subject}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      {delivery.createdAt.slice(0, 16).replace('T', ' ')} · 시도 {delivery.attemptCount}회
+                    </p>
+                  </div>
+                  <span className={`self-start rounded-full px-2 py-1 text-xs font-medium ${
+                    delivery.status === 'SENT'
+                      ? 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300'
+                      : delivery.status === 'FAILED'
+                        ? 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300'
+                        : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/50 dark:text-yellow-300'
+                  }`}>
+                    {delivery.status === 'SENT' ? '발송 성공' : delivery.status === 'FAILED' ? '발송 실패' : '발송 대기'}
+                  </span>
+                </div>
+                {delivery.lastError && (
+                  <p className="rounded-lg bg-red-50 p-2 text-xs text-red-600 dark:bg-red-950/30 dark:text-red-400">
+                    {delivery.lastError}
+                  </p>
+                )}
+                {delivery.status === 'FAILED' && (
+                  <button
+                    type="button"
+                    onClick={() => void handleRetry(delivery.id)}
+                    disabled={retryingDeliveryId === delivery.id}
+                    className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30"
+                  >
+                    {retryingDeliveryId === delivery.id ? '재발송 중...' : '재발송'}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {!deliveryLoading && deliveryTotalElements > 0 && (
+          <div className="flex flex-col gap-2 border-t border-gray-100 pt-3 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-xs text-gray-400">총 {deliveryTotalElements}건</span>
+            <Pagination
+              page={deliveryPage}
+              totalPages={deliveryTotalPages}
+              onChange={setDeliveryPage}
+            />
+          </div>
+        )}
+      </section>
     </div>
   );
 }

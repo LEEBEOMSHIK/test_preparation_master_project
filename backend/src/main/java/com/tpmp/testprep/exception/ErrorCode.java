@@ -47,6 +47,12 @@ public enum ErrorCode {
     // Inquiry
     INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "문의를 찾을 수 없습니다."),
     INQUIRY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 문의에 접근할 수 없습니다."),
+    INQUIRY_CLOSED(HttpStatus.CONFLICT, "처리가 종료된 문의에는 메시지를 추가할 수 없습니다."),
+    INVALID_INQUIRY_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "문의 유형에 허용되지 않은 상태 전이입니다."),
+    INVALID_INQUIRY_TARGET_AREA(HttpStatus.BAD_REQUEST, "문의 유형에 맞는 발생 영역을 입력하세요."),
+    INVALID_INQUIRY_ATTACHMENT(HttpStatus.BAD_REQUEST, "문의 첨부파일을 확인할 수 없습니다."),
+    INVALID_INQUIRY_NOTIFICATION_SETTINGS(HttpStatus.BAD_REQUEST, "관리자 알림 수신 설정을 확인하세요."),
+    INQUIRY_EMAIL_RETRY_NOT_ALLOWED(HttpStatus.CONFLICT, "실패한 이메일만 재발송할 수 있습니다."),
 
     // FAQ
     FAQ_NOT_FOUND(HttpStatus.NOT_FOUND, "FAQ를 찾을 수 없습니다."),

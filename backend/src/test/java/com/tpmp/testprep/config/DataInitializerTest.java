@@ -1,5 +1,7 @@
 package com.tpmp.testprep.config;
 
+import com.tpmp.testprep.entity.DomainMaster;
+import com.tpmp.testprep.entity.DomainSlave;
 import com.tpmp.testprep.entity.ExamInfo;
 import com.tpmp.testprep.repository.*;
 import com.tpmp.testprep.service.PracticeService;
@@ -7,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -14,6 +17,60 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class DataInitializerTest {
+
+    @Test
+    void ensureInquiryDomainTypesDefersNewDatabaseUntilContentDomainsExist() {
+        DomainMasterRepository domainMasterRepository = mock(DomainMasterRepository.class);
+        DomainSlaveRepository domainSlaveRepository = mock(DomainSlaveRepository.class);
+        when(domainMasterRepository.findByCode("INQUIRY_CATEGORY")).thenReturn(Optional.empty());
+        when(domainMasterRepository.findByCode("INQUIRY_BUG_AREA")).thenReturn(Optional.empty());
+
+        DataInitializer initializer = newInitializer(
+                mock(ExamInfoRepository.class),
+                domainMasterRepository,
+                domainSlaveRepository
+        );
+
+        initializer.ensureInquiryDomainTypes();
+
+        verify(domainMasterRepository, never()).save(any(DomainMaster.class));
+        verifyNoInteractions(domainSlaveRepository);
+    }
+
+    @Test
+    void ensureInquiryDomainTypesAddsOnlyMissingWorkflowCodes() {
+        DomainMasterRepository domainMasterRepository = mock(DomainMasterRepository.class);
+        DomainSlaveRepository domainSlaveRepository = mock(DomainSlaveRepository.class);
+        DomainMaster category = DomainMaster.builder()
+                .code("INQUIRY_CATEGORY")
+                .name("문의 카테고리")
+                .build();
+        DomainMaster bugArea = DomainMaster.builder()
+                .code("INQUIRY_BUG_AREA")
+                .name("문의 버그 발생 영역")
+                .build();
+
+        when(domainMasterRepository.findByCode("INQUIRY_CATEGORY")).thenReturn(Optional.of(category));
+        when(domainMasterRepository.findByCode("INQUIRY_BUG_AREA")).thenReturn(Optional.of(bugArea));
+        when(domainSlaveRepository.findByMasterCode("INQUIRY_CATEGORY")).thenReturn(List.of(
+                DomainSlave.builder().master(category).name("GENERAL_INQUIRY").displayOrder(1).build()));
+        when(domainSlaveRepository.findByMasterCode("INQUIRY_BUG_AREA")).thenReturn(List.of(
+                DomainSlave.builder().master(bugArea).name("OTHER").displayOrder(9).build()));
+
+        DataInitializer initializer = newInitializer(mock(ExamInfoRepository.class), domainMasterRepository, domainSlaveRepository);
+
+        initializer.ensureInquiryDomainTypes();
+
+        verify(domainSlaveRepository, times(12)).save(any(DomainSlave.class));
+        verify(domainSlaveRepository).save(argThat(slave ->
+                slave.getMaster() == category
+                        && "BUG_REPORT".equals(slave.getName())
+                        && slave.getDisplayOrder() == 2));
+        verify(domainSlaveRepository).save(argThat(slave ->
+                slave.getMaster() == bugArea
+                        && "LOGIN_ACCOUNT".equals(slave.getName())
+                        && slave.getDisplayOrder() == 10));
+    }
 
     @Test
     void ensureQnetPracticalExamInfoCreatesThreeInformationProcessingEngineerPracticalRows() {
@@ -91,19 +148,51 @@ class DataInitializerTest {
     }
 
     private DataInitializer newInitializer(ExamInfoRepository examInfoRepository) {
-        return newInitializer(examInfoRepository, mock(MenuConfigRepository.class));
+        return newInitializer(
+                examInfoRepository,
+                mock(DomainMasterRepository.class),
+                mock(DomainSlaveRepository.class),
+                mock(MenuConfigRepository.class)
+        );
     }
 
     private DataInitializer newInitializer(
             ExamInfoRepository examInfoRepository,
             MenuConfigRepository menuConfigRepository
     ) {
+        return newInitializer(
+                examInfoRepository,
+                mock(DomainMasterRepository.class),
+                mock(DomainSlaveRepository.class),
+                menuConfigRepository
+        );
+    }
+
+    private DataInitializer newInitializer(
+            ExamInfoRepository examInfoRepository,
+            DomainMasterRepository domainMasterRepository,
+            DomainSlaveRepository domainSlaveRepository
+    ) {
+        return newInitializer(
+                examInfoRepository,
+                domainMasterRepository,
+                domainSlaveRepository,
+                mock(MenuConfigRepository.class)
+        );
+    }
+
+    private DataInitializer newInitializer(
+            ExamInfoRepository examInfoRepository,
+            DomainMasterRepository domainMasterRepository,
+            DomainSlaveRepository domainSlaveRepository,
+            MenuConfigRepository menuConfigRepository
+    ) {
         return new DataInitializer(
                 mock(UserRepository.class),
                 mock(PasswordEncoder.class),
                 mock(JdbcTemplate.class),
-                mock(DomainMasterRepository.class),
-                mock(DomainSlaveRepository.class),
+                domainMasterRepository,
+                domainSlaveRepository,
                 mock(PermissionMasterRepository.class),
                 mock(PermissionDetailRepository.class),
                 menuConfigRepository,

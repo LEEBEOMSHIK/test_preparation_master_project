@@ -215,6 +215,7 @@ rg --files frontend/src/app/admin backend/src/main/java
 |-------------|------|------|
 | `stripHtml(html)` | `src/lib/html.ts` | HTML → 순수 텍스트 |
 | `extractApiErrorMessage(err, fallback)` / `ApiApplicationError` | `frontend/src/lib/apiError.ts` | Axios 백엔드 `error.message`와 명시적 `success=false` 앱 오류 메시지만 보존하고, 네트워크·임의 오류는 사용자용 `fallback` 사용 |
+| `normalizeInquiryMenuNames(menus)` | `src/lib/menu.ts` | API·fallback 메뉴 트리의 문의·요청 표시명을 URL 기준으로 재귀 정규화 |
 | `isBlankOrPositiveIntegerText(value)` / `toOptionalPositiveInteger(value)` | `src/lib/questionNumber.ts` | 선택 양의 정수 입력 검증·payload 숫자 변환 |
 | `compareQuestionSourceOrder(a, b)` | `src/lib/questionSort.ts` | 문항관리 출처순 정렬(연도 DESC, 회차 ASC, 문항번호 ASC, 수정일 DESC) |
 | `<RichContent html className />` | `src/components/ui/RichContent.tsx` | 에디터 HTML 렌더링 |
@@ -228,6 +229,9 @@ rg --files frontend/src/app/admin backend/src/main/java
 | `parseTraceLines(text)`, `type TraceLine` | `src/lib/traceNotation.ts` | 코드 트레이싱 표기법(`name = value`/`name: type = value`/배열 표기) 순수 파서 — eval/Function/JSON.parse 미사용, 실패 시 text로 안전 폴백. 변수 참조 산술·비트 수식 자동 계산(`evaluateExpression` 재사용)을 지원하며, `mask = 0b1010 & 3`, `mask << 1` 같은 비트 수식도 계산 |
 | `<TracePreview lines />` | `src/components/ui/TracePreview.tsx` | `traceNotation` 파싱 결과(변수 행·1D 배열·2D 배열·자유 텍스트·이름 없는 수식)를 실시간 렌더하는 읽기 전용 프리뷰 |
 | `<CodeLanguageModal open onClose showLanguage showSource onSelect />` | `src/components/ui/CodeLanguageModal.tsx` | 데일리 퀴즈 카테고리 선택 시 언어(Java/Python/C)·출처(기출/AI 커스텀) 필터 선택 모달 |
+| `isInquiryClosed`, `requiresTargetArea`, `usesTargetArea`, `getAllowedAdminStatuses`, `isInquiryRequestType`, `isInquiryTargetArea`, `getInquiryTargetAreaLabel` | `frontend/src/lib/inquiry.ts` | 문의·요청 유형별 종료 상태, 발생 영역 규칙, 도메인 enum 좁히기·제품 표시명 변환 |
+| `<InquiryTimeline inquiry />` | `frontend/src/components/ui/InquiryTimeline.tsx` | 최초 접수와 후속 메시지를 시간순으로 표시하는 대화 타임라인 |
+| `<InquiryMessageComposer inquiryId onSent admin />` | `frontend/src/components/ui/InquiryMessageComposer.tsx` | 문의·요청 후속 메시지 및 이미지 첨부 작성기 |
 
 새 유틸 함수는 `src/lib/`에, 새 UI 컴포넌트는 `src/components/ui/`에 추가하고 위 표를 즉시 갱신한다.
 

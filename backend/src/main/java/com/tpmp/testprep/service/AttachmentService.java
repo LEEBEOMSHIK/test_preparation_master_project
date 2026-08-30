@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.UUID;
+import com.tpmp.testprep.entity.User;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +36,15 @@ public class AttachmentService {
 
     @Transactional
     public Attachment saveImage(MultipartFile file, Attachment.RefType refType) {
+        return saveImage(file, refType, null);
+    }
+
+    @Transactional
+    public Attachment saveImage(MultipartFile file, Attachment.RefType refType, User uploadedBy) {
+        if ((refType == Attachment.RefType.INQUIRY || refType == Attachment.RefType.INQUIRY_MESSAGE)
+                && uploadedBy == null) {
+            throw new BusinessException(ErrorCode.INVALID_INQUIRY_ATTACHMENT);
+        }
         if (file.isEmpty()) throw new BusinessException(ErrorCode.INVALID_INPUT);
         String mime = file.getContentType();
         if (mime == null || !ALLOWED_IMAGE_MIME.contains(mime))
@@ -64,6 +74,7 @@ public class AttachmentService {
                 .fileSize(file.getSize())
                 .mimeType(mime)
                 .refType(refType)
+                .uploadedBy(uploadedBy)
                 .build();
 
         return attachmentRepository.save(attachment);
@@ -75,6 +86,28 @@ public class AttachmentService {
         List<Attachment> attachments = attachmentRepository.findAllById(ids);
         attachments.forEach(a -> a.linkTo(refId));
         attachmentRepository.saveAll(attachments);
+    }
+
+    @Transactional
+    public void validateAndLinkInquiryAttachments(List<Long> ids, Attachment.RefType refType, Long refId, User uploadedBy) {
+        if (ids == null || ids.isEmpty()) return;
+        if (ids.size() > 3 || ids.stream().distinct().count() != ids.size()) {
+            throw new BusinessException(ErrorCode.INVALID_INQUIRY_ATTACHMENT);
+        }
+        List<Attachment> attachments = attachmentRepository.findAllById(ids);
+        if (attachments.size() != ids.size() || attachments.stream().anyMatch(attachment ->
+                attachment.getRefType() != refType || attachment.getRefId() != null
+                        || !isOwner(attachment.getUploadedBy(), uploadedBy))) {
+            throw new BusinessException(ErrorCode.INVALID_INQUIRY_ATTACHMENT);
+        }
+        attachments.forEach(attachment -> attachment.linkTo(refId));
+        attachmentRepository.saveAll(attachments);
+    }
+
+    private boolean isOwner(User uploadedBy, User expectedOwner) {
+        if (uploadedBy == null || expectedOwner == null) return false;
+        if (uploadedBy == expectedOwner) return true;
+        return uploadedBy.getId() != null && uploadedBy.getId().equals(expectedOwner.getId());
     }
 
     public List<Attachment> findByRef(Attachment.RefType refType, Long refId) {

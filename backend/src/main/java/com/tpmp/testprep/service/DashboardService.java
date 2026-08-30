@@ -42,8 +42,9 @@ public class DashboardService {
         long todayLoginCount = loginHistoryService.countTodayLogins();
         long todayInquiryCount = inquiryRepository.countByCreatedAtBetween(todayStart, todayEnd);
         long pendingInquiryCount = inquiryRepository.countByStatus(Inquiry.Status.PENDING);
-        long pendingBugCount = inquiryRepository.countByStatusAndInquiryType(
-                Inquiry.Status.PENDING, Inquiry.InquiryType.BUG);
+        long pendingBugCount = inquiryRepository.countByRequestTypeAndStatusIn(
+                Inquiry.RequestType.BUG_REPORT,
+                List.of(Inquiry.Status.PENDING, Inquiry.Status.IN_PROGRESS, Inquiry.Status.ON_HOLD));
         long totalExamCount = examRepository.countByDelYn("N");
         long totalMemberCount = userRepository.count();
         long todayExamAttemptCount = examHistoryService.countTodayExamAttempts();

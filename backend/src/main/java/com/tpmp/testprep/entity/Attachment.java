@@ -37,6 +37,10 @@ public class Attachment {
     @Column(name = "ref_id")
     private Long refId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "uploaded_by")
+    private User uploadedBy;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -47,13 +51,14 @@ public class Attachment {
 
     @Builder
     public Attachment(String originalFilename, String storedFilename, String fileUrl,
-                      Long fileSize, String mimeType, RefType refType) {
+                      Long fileSize, String mimeType, RefType refType, User uploadedBy) {
         this.originalFilename = originalFilename;
         this.storedFilename = storedFilename;
         this.fileUrl = fileUrl;
         this.fileSize = fileSize;
         this.mimeType = mimeType;
         this.refType = refType;
+        this.uploadedBy = uploadedBy;
     }
 
     public void linkTo(Long refId) {
@@ -61,6 +66,6 @@ public class Attachment {
     }
 
     public enum RefType {
-        INQUIRY, QUESTION_BANK
+        INQUIRY, INQUIRY_MESSAGE, QUESTION_BANK
     }
 }

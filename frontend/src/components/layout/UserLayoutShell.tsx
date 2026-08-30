@@ -8,6 +8,7 @@ import ThemeToggle from '@/components/ui/ThemeToggle';
 import { authService } from '@/services/authService';
 import { menuService } from '@/services/menuService';
 import { PermissionDeniedModal } from '@/components/ui/PermissionDeniedModal';
+import { normalizeInquiryMenuNames } from '@/lib/menu';
 import type { MenuConfig } from '@/types';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -129,7 +130,7 @@ const USER_FALLBACK_NAV: MenuConfig[] = [
   group(112, '도움말', '/user/group/help', 'help', 4, [
     leaf(101, '시험 정보', '/user/exam-info',  'examinfo', 1),
     leaf(105, 'FAQ',       '/user/faq',        'faq',      2),
-    leaf(106, '1:1 문의',  '/user/inquiries',  'inquiry',  3),
+    leaf(106, '문의·요청',  '/user/inquiries',  'inquiry',  3),
     leaf(113, '설정',      '/user/settings',   'settings', 4),
     leaf(114, '개발자 응원하기', '/user/support', 'support', 5),
   ]),
@@ -142,6 +143,7 @@ function isGroupUrl(url: string): boolean {
 
 /** children → 자기 자신 순으로 현재 경로에 해당하는 메뉴명을 찾는다. */
 function getUserPageTitle(pathname: string, navItems: MenuConfig[]): string {
+  if (pathname.startsWith('/user/inquiries')) return '문의·요청';
   for (const item of navItems) {
     for (const child of item.children ?? []) {
       if (pathname.startsWith(child.url)) return child.name;
@@ -193,7 +195,7 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
     menuService.getMyMenus('USER')
       .then((res) => {
         if (res.data.success && res.data.data && res.data.data.length > 0) {
-          const apiMenus = res.data.data;
+          const apiMenus = normalizeInquiryMenuNames(res.data.data);
           // API 결과만 사용 — FALLBACK 보충 없음 (권한 제한이 무력화되지 않도록)
           setNavItems(apiMenus);
 
