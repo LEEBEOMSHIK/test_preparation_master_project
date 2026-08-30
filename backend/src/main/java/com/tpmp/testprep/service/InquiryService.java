@@ -4,6 +4,7 @@ import com.tpmp.testprep.dto.request.AdminInquiryMessageRequest;
 import com.tpmp.testprep.dto.request.InquiryMessageRequest;
 import com.tpmp.testprep.dto.request.InquiryRequest;
 import com.tpmp.testprep.dto.request.InquiryStatusUpdateRequest;
+import com.tpmp.testprep.dto.request.InquiryUpdateRequest;
 import com.tpmp.testprep.dto.response.InquiryDetailResponse;
 import com.tpmp.testprep.dto.response.InquiryMessageResponse;
 import com.tpmp.testprep.dto.response.InquirySummaryResponse;
@@ -63,8 +64,20 @@ public class InquiryService {
     }
 
     @Transactional
+    public InquiryDetailResponse update(Long id, InquiryUpdateRequest request, String email) {
+        Inquiry inquiry = findInquiryForUpdate(id);
+        checkOwner(inquiry, email);
+        if (inquiry.getStatus() != Inquiry.Status.PENDING || inquiryMessageRepository.existsByInquiryId(id)) {
+            throw new BusinessException(ErrorCode.INQUIRY_ACCESS_DENIED);
+        }
+        validateUpdateRequest(inquiry, request);
+        inquiry.update(request.title(), request.content(), request.requestType(), targetArea(request), detailLocation(request));
+        return toDetail(inquiry);
+    }
+
+    @Transactional
     public void delete(Long id, String email) {
-        Inquiry inquiry = findInquiry(id);
+        Inquiry inquiry = findInquiryForUpdate(id);
         checkOwner(inquiry, email);
         if (inquiry.getStatus() != Inquiry.Status.PENDING || inquiryMessageRepository.existsByInquiryId(id))
             throw new BusinessException(ErrorCode.INQUIRY_ACCESS_DENIED);
@@ -87,7 +100,7 @@ public class InquiryService {
 
     @Transactional
     public InquiryMessageResponse addUserMessage(Long inquiryId, InquiryMessageRequest request, String email) {
-        Inquiry inquiry = findInquiry(inquiryId);
+        Inquiry inquiry = findInquiryForUpdate(inquiryId);
         User user = findUser(email);
         checkOwner(inquiry, email);
         if (inquiry.isClosed()) throw new BusinessException(ErrorCode.INQUIRY_CLOSED);
@@ -109,7 +122,7 @@ public class InquiryService {
 
     @Transactional
     public InquiryMessageResponse addAdminMessage(Long inquiryId, AdminInquiryMessageRequest request, String email) {
-        Inquiry inquiry = findInquiry(inquiryId);
+        Inquiry inquiry = findInquiryForUpdate(inquiryId);
         User admin = findUser(email);
         if (inquiry.isClosed()) throw new BusinessException(ErrorCode.INQUIRY_CLOSED);
         InquiryMessage message = inquiryMessageRepository.save(InquiryMessage.builder().inquiry(inquiry)
@@ -122,7 +135,7 @@ public class InquiryService {
 
     @Transactional
     public InquiryDetailResponse updateStatus(Long inquiryId, InquiryStatusUpdateRequest request, String email) {
-        Inquiry inquiry = findInquiry(inquiryId);
+        Inquiry inquiry = findInquiryForUpdate(inquiryId);
         User admin = findUser(email);
         if (!inquiry.canTransitionTo(request.status())) throw new BusinessException(ErrorCode.INVALID_INQUIRY_STATUS_TRANSITION);
         InquiryMessage finalMessage = null;
@@ -147,8 +160,26 @@ public class InquiryService {
             throw new BusinessException(ErrorCode.INVALID_INQUIRY_TARGET_AREA);
     }
 
+    private void validateUpdateRequest(Inquiry inquiry, InquiryUpdateRequest request) {
+        if (request.requestType() != Inquiry.RequestType.BUG_REPORT) {
+            return;
+        }
+        if (request.targetArea() == null || request.targetArea().isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INQUIRY_TARGET_AREA);
+        }
+        boolean activeTargetArea = domainSlaveRepository.findByMasterCode("INQUIRY_BUG_AREA").stream()
+                .anyMatch(slave -> request.targetArea().equals(slave.getName()));
+        boolean unchangedLegacyTargetArea = inquiry.getRequestType() == Inquiry.RequestType.BUG_REPORT
+                && request.targetArea().equals(inquiry.getTargetArea());
+        if (!activeTargetArea && !unchangedLegacyTargetArea) {
+            throw new BusinessException(ErrorCode.INVALID_INQUIRY_TARGET_AREA);
+        }
+    }
+
     private String targetArea(InquiryRequest request) { return request.requestType() == Inquiry.RequestType.EXAM_OPENING_REQUEST ? null : request.targetArea(); }
     private String detailLocation(InquiryRequest request) { return request.requestType() == Inquiry.RequestType.EXAM_OPENING_REQUEST ? null : request.detailLocation(); }
+    private String targetArea(InquiryUpdateRequest request) { return request.requestType() == Inquiry.RequestType.EXAM_OPENING_REQUEST ? null : request.targetArea(); }
+    private String detailLocation(InquiryUpdateRequest request) { return request.requestType() == Inquiry.RequestType.EXAM_OPENING_REQUEST ? null : request.detailLocation(); }
 
     private InquiryEmailDelivery.EventType toEmailEvent(Inquiry.Status status) {
         return switch (status) {
@@ -185,6 +216,7 @@ public class InquiryService {
 
     private User findUser(String email) { return userRepository.findByEmail(email).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND)); }
     private Inquiry findInquiry(Long id) { return inquiryRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.INQUIRY_NOT_FOUND)); }
+    private Inquiry findInquiryForUpdate(Long id) { return inquiryRepository.findByIdForUpdate(id).orElseThrow(() -> new BusinessException(ErrorCode.INQUIRY_NOT_FOUND)); }
     private void checkOwner(Inquiry inquiry, String email) { if (!inquiry.getUser().getEmail().equals(email)) throw new BusinessException(ErrorCode.INQUIRY_ACCESS_DENIED); }
 
     public record UploadResult(Long id, String url) {}

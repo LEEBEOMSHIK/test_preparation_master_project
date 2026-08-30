@@ -15,26 +15,10 @@ import {
   requiresTargetArea,
   usesTargetArea,
 } from '@/lib/inquiry';
-import { domainService } from '@/services/domainService';
+import { loadInquiryDomainOptions } from '@/lib/inquiryDomain';
 import { inquiryService } from '@/services/inquiryService';
 import type { InquiryRequestType, InquiryTargetArea } from '@/types';
 import { INQUIRY_TYPE_LABEL } from '@/types';
-
-async function loadDomainOptions<T extends string>(
-  code: string,
-  isAllowed: (value: string) => value is T,
-  fallback: T[],
-): Promise<T[]> {
-  try {
-    const response = await domainService.getSlavesByCode(code);
-    const options = (response.data.data ?? [])
-      .map((item) => item.name)
-      .filter(isAllowed);
-    return options;
-  } catch {
-    return fallback;
-  }
-}
 
 export default function NewInquiryPage() {
   const router = useRouter();
@@ -53,8 +37,8 @@ export default function NewInquiryPage() {
 
   useEffect(() => {
     Promise.all([
-      loadDomainOptions('INQUIRY_CATEGORY', isInquiryRequestType, INQUIRY_REQUEST_TYPES),
-      loadDomainOptions('INQUIRY_BUG_AREA', isInquiryTargetArea, INQUIRY_TARGET_AREAS),
+      loadInquiryDomainOptions('INQUIRY_CATEGORY', isInquiryRequestType, INQUIRY_REQUEST_TYPES),
+      loadInquiryDomainOptions('INQUIRY_BUG_AREA', isInquiryTargetArea, INQUIRY_TARGET_AREAS),
     ])
       .then(([loadedTypes, loadedAreas]) => {
         setTypes(loadedTypes);
@@ -195,6 +179,7 @@ export default function NewInquiryPage() {
         </label>
 
         <InquiryImageUploader
+          title="첨부 이미지 (선택)"
           uploadImage={uploadImage}
           onChange={setImages}
           onUploadingChange={setImagesUploading}

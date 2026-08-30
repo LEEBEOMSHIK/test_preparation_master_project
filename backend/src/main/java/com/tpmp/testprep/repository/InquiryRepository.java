@@ -4,13 +4,18 @@ import com.tpmp.testprep.entity.Inquiry;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT i FROM Inquiry i WHERE i.id = :id")
+    java.util.Optional<Inquiry> findByIdForUpdate(@Param("id") Long id);
     Page<Inquiry> findByUserId(Long userId, Pageable pageable);
     Page<Inquiry> findByStatus(Inquiry.Status status, Pageable pageable);
     Page<Inquiry> findByUserIdAndStatus(Long userId, Inquiry.Status status, Pageable pageable);

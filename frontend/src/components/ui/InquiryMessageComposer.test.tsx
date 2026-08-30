@@ -28,6 +28,19 @@ describe('InquiryMessageComposer', () => {
     expect(screen.getByLabelText('추가 메시지 내용')).toBeTruthy();
   });
 
+  it('사용자와 관리자 작성기에 문맥별 제목, 안내, 전송 버튼을 표시한다', () => {
+    const { rerender } = render(<InquiryMessageComposer inquiryId={1} onSent={() => undefined} />);
+    expect(screen.getByRole('heading', { name: '추가 문의 작성' })).toBeTruthy();
+    expect(screen.getByText('최초 문의를 수정하는 것이 아니라 새 메시지로 전달됩니다.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '추가 문의 보내기' })).toBeTruthy();
+    expect(screen.getByText('추가 문의 첨부 이미지 (선택)')).toBeTruthy();
+
+    rerender(<InquiryMessageComposer inquiryId={1} admin onSent={() => undefined} />);
+    expect(screen.getByRole('heading', { name: '사용자 답변 작성' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '답변 보내기' })).toBeTruthy();
+    expect(screen.getByText('답변 첨부 이미지 (선택)')).toBeTruthy();
+  });
+
   it('resets the admin email notification after a successful message', async () => {
     jest.mocked(inquiryService.adminAddMessage).mockResolvedValue({
       data: { success: true, data: null },
@@ -40,7 +53,7 @@ describe('InquiryMessageComposer', () => {
     });
     const emailCheckbox = screen.getByLabelText('사용자에게 이메일 알림 발송') as HTMLInputElement;
     fireEvent.click(emailCheckbox);
-    fireEvent.click(screen.getByRole('button', { name: '메시지 등록' }));
+    fireEvent.click(screen.getByRole('button', { name: '답변 보내기' }));
 
     await waitFor(() => {
       expect(inquiryService.adminAddMessage).toHaveBeenCalledWith(
@@ -73,7 +86,7 @@ describe('InquiryMessageComposer', () => {
     fireEvent.change(screen.getByPlaceholderText('추가 내용을 입력해 주세요.'), {
       target: { value: '  이미지 포함 메시지  ' },
     });
-    fireEvent.click(screen.getByRole('button', { name: '메시지 등록' }));
+    fireEvent.click(screen.getByRole('button', { name: '추가 문의 보내기' }));
 
     await waitFor(() => {
       expect(inquiryService.uploadMessageImage).toHaveBeenCalledWith(file);
@@ -109,7 +122,7 @@ describe('InquiryMessageComposer', () => {
     fireEvent.change(screen.getByPlaceholderText('추가 내용을 입력해 주세요.'), {
       target: { value: '여러 이미지 메시지' },
     });
-    fireEvent.click(screen.getByRole('button', { name: '메시지 등록' }));
+    fireEvent.click(screen.getByRole('button', { name: '추가 문의 보내기' }));
 
     await waitFor(() => expect(inquiryService.addMessage).toHaveBeenCalledWith(
       9,
@@ -127,7 +140,7 @@ describe('InquiryMessageComposer', () => {
     fireEvent.change(screen.getByPlaceholderText('추가 내용을 입력해 주세요.'), {
       target: { value: '추가 메시지' },
     });
-    fireEvent.click(screen.getByRole('button', { name: '메시지 등록' }));
+    fireEvent.click(screen.getByRole('button', { name: '추가 문의 보내기' }));
 
     const errorAlert = await screen.findByRole('alert');
     expect(errorAlert.textContent).toContain('이미 종료된 문의입니다.');
@@ -147,7 +160,7 @@ describe('InquiryMessageComposer', () => {
     fireEvent.change(screen.getByLabelText('추가 메시지 내용'), {
       target: { value: '업로드 대기 메시지' },
     });
-    const submitButton = screen.getByRole('button', { name: '메시지 등록' }) as HTMLButtonElement;
+    const submitButton = screen.getByRole('button', { name: '추가 문의 보내기' }) as HTMLButtonElement;
 
     expect(submitButton.disabled).toBe(true);
     fireEvent.click(submitButton);

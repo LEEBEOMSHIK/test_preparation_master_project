@@ -1,4 +1,4 @@
-import { buildInquiryTimeline } from './InquiryTimeline';
+import { buildInquiryTimeline, getInquiryTimelineLabel } from './InquiryTimeline';
 import type { Inquiry } from '@/types';
 
 describe('InquiryTimeline', () => {
@@ -11,5 +11,12 @@ describe('InquiryTimeline', () => {
     expect(timeline.map((entry) => entry.id)).toEqual([0, 2, 3]);
     expect(timeline[2].authorRole).toBe('ADMIN');
     expect(timeline[2].imageUrls).toEqual(['https://example.com/a.png']);
+  });
+
+  it('최초 문의와 작성자 역할별 문맥 라벨을 구분한다', () => {
+    expect(getInquiryTimelineLabel({ authorRole: 'USER', initial: true })).toBe('최초 문의');
+    expect(getInquiryTimelineLabel({ authorRole: 'USER' })).toBe('내 추가 문의');
+    expect(getInquiryTimelineLabel({ authorRole: 'ADMIN' })).toBe('관리자 답변');
+    expect(getInquiryTimelineLabel({ authorRole: 'SYSTEM' })).toBe('시스템');
   });
 });

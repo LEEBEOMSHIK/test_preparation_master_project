@@ -19,6 +19,14 @@ export interface InquiryRequest {
   attachmentIds: number[];
 }
 
+export interface InquiryUpdateRequest {
+  title: string;
+  content: string;
+  requestType: InquiryRequestType;
+  targetArea?: InquiryTargetArea;
+  detailLocation?: string;
+}
+
 export interface UploadImageResult {
   id: number;
   url: string;
@@ -70,6 +78,9 @@ export const inquiryService = {
 
   create: (data: InquiryRequest) =>
     apiClient.post<ApiResponse<InquiryDetail>>('/user/inquiries', data),
+
+  update: (id: number, data: InquiryUpdateRequest) =>
+    apiClient.put<ApiResponse<InquiryDetail>>(`/user/inquiries/${id}`, data),
 
   delete: (id: number) =>
     apiClient.delete<ApiResponse<void>>(`/user/inquiries/${id}`),

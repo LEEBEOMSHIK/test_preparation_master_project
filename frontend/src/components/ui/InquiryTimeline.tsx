@@ -9,7 +9,14 @@ type TimelineEntry = {
   initial?: boolean;
 };
 
-const ROLE_LABEL = { USER: '나', ADMIN: '관리자', SYSTEM: '시스템' } as const;
+export function getInquiryTimelineLabel(entry: Pick<TimelineEntry, 'authorRole' | 'initial'>): string {
+  if (entry.initial) return '최초 문의';
+  return {
+    USER: '내 추가 문의',
+    ADMIN: '관리자 답변',
+    SYSTEM: '시스템',
+  }[entry.authorRole];
+}
 
 export function buildInquiryTimeline(inquiry: Inquiry): TimelineEntry[] {
   const initial: TimelineEntry = {
@@ -40,7 +47,7 @@ export function InquiryTimeline({ inquiry }: { inquiry: Inquiry }) {
         >
           <div className="mb-2 flex justify-between gap-3">
             <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-              {ROLE_LABEL[entry.authorRole]}{entry.initial ? ' · 최초 접수' : ''}
+              {getInquiryTimelineLabel(entry)}
             </span>
             <time className="text-xs text-gray-400">
               {entry.createdAt.slice(0, 16).replace('T', ' ')}

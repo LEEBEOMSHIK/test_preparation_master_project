@@ -272,7 +272,6 @@ export default function AdminInquiryDetailPage() {
 
       {!closed && (
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">중간 답변</h3>
           <InquiryMessageComposer inquiryId={inquiry.id} admin onSent={handleMessageSent} />
         </section>
       )}

@@ -2,75 +2,67 @@
 
 ## 현재 목표와 사용자 결정 사항
 
-- 목표: Spring Boot Actuator 실제 기본 경로 `/actuator/health`와 보안 허용 경로 및 Docker 헬스체크 경로의 불일치를 수정한다.
-- 사용자 결정: `/actuator/health`를 단일 기준으로 유지하고 익명 상태 확인을 허용하되, 다른 Actuator 경로는 공개하지 않는다.
+- 목표: 최초 문의의 조건부 사용자 수정 API·상세 UX와 문의 대화 문맥 라벨을 마무리한다.
+- 사용자 결정: 수정은 소유자·`PENDING`·후속 메시지 0건일 때만 허용하고 기존 첨부는 보존한다. 메일 수신 로직은 변경하지 않는다.
+- 작업 제약: 로컬 커밋만 남겨 두며, push는 사용자 요청이 없어 수행하지 않는다.
 
 ## 완료한 작업
 
-- 완료 커밋: `5f61c79 [BE] fix: Actuator 헬스 경로 설정 통일`
-- `application.yml`에 Actuator base path 재정의가 없어 실제 경로가 Spring Boot 기본값 `/actuator/health`임을 확인했다.
-- `SecurityConfig`와 `docker-compose.yml`만 `/api/actuator/health`를 가리키는 불일치가 원인임을 확인했다.
-- 익명 실제 헬스 호출과 잘못된 레거시 경로의 비공개 상태를 검증하는 회귀 테스트를 먼저 작성했다.
-- 변경 전 회귀 테스트에서 실제 경로 `401`, 레거시 경로 `404`를 확인한 뒤 `SecurityConfig`와 Docker healthcheck를 `/actuator/health`로 통일했다.
-- 경로 수정 후 선택 기능인 SMTP 연결 실패가 헬스를 `503 DOWN`으로 만드는 두 번째 원인을 확인했다.
-- `MAIL_HEALTH_ENABLED` 기본값을 `false`로 추가해 SMTP 검사를 opt-in으로 전환하고 Docker 및 `.env.example`에 같은 정책을 반영했다.
-- 애플리케이션 기본 설정을 사용하는 focused 테스트가 `200 UP` 및 레거시 경로 `401`로 통과했다.
-- 수정 이력 `HIST-20260831-001`을 추가했다.
-- 정적 검증에서 테스트가 Actuator 노출·상세 표시 설정을 중복 override한 점을 발견해 제거했으며, 이제 `application.yml` 기본값을 직접 검증한다.
-- health 외 Actuator 경로 비공개 계약을 명시하기 위해 익명 `/actuator` 요청이 `401`인지 확인하는 테스트를 추가했다.
-- 백엔드 전체 테스트 344개와 Actuator 회귀 테스트 3개가 모두 통과했다.
-- 백엔드를 올바른 datasource override 방식으로 재기동하고 실제 HTTP 응답을 검증했다. 현재 PID `55444`, 포트 `8080`, 실행 세션 `37598`이다.
+- `PUT /api/user/inquiries/{id}`와 수정 DTO·서비스·도메인 갱신을 추가했다.
+- 수정·삭제·사용자/관리자 메시지·상태 변경 경로가 `PESSIMISTIC_WRITE` 문의 조회를 사용하도록 했다.
+- 사용자 상세에 수정 진입·취소·저장·수정 불가 사유·저장 후 재조회를 추가하고, 기존 첨부는 편집하지 않도록 유지했다.
+- 신규 등록과 상세 편집의 도메인 옵션 로딩을 `loadInquiryDomainOptions`로 공통화하고 AGENTS Shared Utilities 표를 갱신했다.
+- 작성기·이미지 업로더·타임라인의 사용자/관리자 문맥을 구분하고 관리자 상세의 중복 답변 제목을 제거했다.
+- `UserInquiryControllerWebMvcTest`를 추가했다. 익명 PUT 401, 실제 JWT와 같은 String principal의 유효 PUT 200·`ApiResponse`·서비스 인자 전달, 빈/잘못된 payload 400을 검증한다. 기존 production PUT 구현이 계약을 충족해 추가 production 수정은 없었다.
+- 도메인 API subset/빈 목록에 현재 유형·영역이 없어도 수정 select에 `현재 설정` option으로 한 번만 보존하고, 제목·내용만 저장할 때 기존 payload를 유지하도록 했다.
+- 수정 성공 테스트가 직접 주입한 `InquiryEmailService` mock으로 이메일 알림 큐가 호출되지 않음을 검증했다.
+- BUG_REPORT 수정은 활성 발생 영역을 허용하고, 도메인에서 제거된 legacy 영역은 기존 BUG_REPORT가 같은 영역을 유지할 때만 허용한다. 다른 비활성 영역으로 변경하거나 비-BUG 문의를 비활성 영역의 BUG_REPORT로 전환하면 거부한다.
+- 사용자/관리자/백엔드 히스토리를 실제 수정 파일·검증 결과로 정리했다.
 
 ## 미완료 작업
 
-- 없음.
-
-## 원격 반영 상태
-
-- 원격 push는 사용자가 요청하지 않아 수행하지 않았다.
+- 이 작업 범위에서 남은 구현·검증은 없다.
+- 로컬 커밋만 미완료다. push는 사용자 요청이 없어 수행하지 않았다.
 
 ## 수정한 파일 목록
 
-- `backend/src/test/java/com/tpmp/testprep/config/ActuatorHealthSecurityTest.java` — Actuator 보안 회귀 테스트 추가
-- `backend/src/main/java/com/tpmp/testprep/config/SecurityConfig.java` — 실제 헬스 경로만 익명 허용
-- `backend/src/main/resources/application.yml` — SMTP 헬스 검사 opt-in 기본값 추가
-- `docker-compose.yml` — 헬스 URL 및 SMTP 헬스 환경변수 정정
-- `.env.example` — `MAIL_HEALTH_ENABLED=false` 설명 추가
-- `docs/history/back/adm/ServerConfig_Modified.md` — `HIST-20260831-001` 추가
-- `docs/agent-handoff/CURRENT.md` — 현재 작업 스냅샷 갱신
+- `AGENTS.md`
+- `backend/src/main/java/com/tpmp/testprep/{controller/UserInquiryController.java,dto/request/InquiryUpdateRequest.java,entity/Inquiry.java,repository/InquiryRepository.java,service/InquiryService.java}`
+- `backend/src/test/java/com/tpmp/testprep/{controller/UserInquiryControllerWebMvcTest.java,repository/InquiryRepositoryLockTest.java,service/InquiryServiceTest.java}`
+- `frontend/src/{lib/inquiryDomain.ts,services/inquiryService.ts}`
+- `frontend/src/app/{user/inquiries/new/page.tsx,user/inquiries/[id]/page.tsx,user/inquiries/[id]/page.test.tsx,admin/inquiries/[id]/page.tsx}`
+- `frontend/src/components/ui/{InquiryImageUploader.tsx,InquiryImageUploader.test.tsx,InquiryMessageComposer.tsx,InquiryMessageComposer.test.tsx,InquiryTimeline.tsx,InquiryTimeline.test.tsx}`
+- `docs/history/{back/usr/UserInquiry_Modified.md,front/usr/UserInquiry_Modified.md,front/adm/AdminInquiry_Modified.md}`
+- `docs/agent-handoff/CURRENT.md`
 
 ## 실행한 검증 명령과 결과
 
-- `.\gradlew.bat test --tests com.tpmp.testprep.config.ActuatorHealthSecurityTest` (변경 전): 실패 — `/actuator/health` 기대 200/실제 401, `/api/actuator/health` 기대 401/실제 404
-- 같은 focused 테스트(경로 수정 후): 실패 — 실제 헬스 응답 503 `{"status":"DOWN"}`, MailHealthIndicator의 localhost:587 연결 실패 확인
-- 같은 focused 테스트(초기 최종): 성공 — 2개 테스트 모두 통과, `BUILD SUCCESSFUL`
-- 정적 검증 피드백 반영 후 focused 테스트: 성공 — 애플리케이션 기본 설정 기반 3개 테스트 모두 통과, `BUILD SUCCESSFUL in 41s`
-- `backend .\gradlew.bat test`: 성공 — 344 tests, failures 0, errors 0, skipped 0(Actuator 테스트 3건 포함)
-- `docker compose config --quiet`: 성공(기존 최상위 `version` 속성 obsolete 경고만 발생)
-- 실서버 재기동 검증: PID `55444`가 `:8080`에서 실행 중이며 `/actuator/health`는 `200 {"status":"UP"}`, `/actuator`는 `401`, `/api/actuator/health`는 `401`
-- `git diff --check`: 오류 없음(Windows 작업 트리 LF→CRLF 안내 경고만 발생)
+- `gradlew.bat test --tests com.tpmp.testprep.repository.InquiryRepositoryLockTest --tests com.tpmp.testprep.service.InquiryServiceTest --tests com.tpmp.testprep.controller.UserInquiryControllerWebMvcTest` 성공: 3 suites, 14 tests, 실패 0.
+- `npx jest --watch=false --runInBand` focused 실행: 신규 등록·사용자 상세·공용 업로더/작성기/타임라인 5 suites, 33 tests 통과.
+- 재리뷰 user page focused: 신규 등록·사용자 상세 2 suites, 14 tests 통과.
+- 재리뷰 service focused: `InquiryServiceTest` 1 suite, 9 tests 통과.
+- 최종 재리뷰 service focused: `InquiryServiceTest` 1 suite, 12 tests 통과. 기존 BUG_REPORT legacy 영역 보존 RED(1 failed) 뒤 GREEN을 확인했다.
+- 최종 재리뷰 user page focused: 신규 등록·사용자 상세 2 suites, 14 tests 통과.
+- 관리자 문의 상세·설정 focused Jest 실행: 2 suites, 10 tests 통과.
+- 백엔드 전체 `gradlew.bat test` 성공: 34 suites, 355 tests, fail/error/skipped 0.
+- 프론트엔드 `npx tsc --noEmit` 성공: 오류 0. 전체 Jest 성공: 26 suites, 124 tests, 실패 0. `npm run build` 성공: 정적 페이지 55개 생성.
+- 실서버 재기동 후 backend session `30823`/PID `50700`/`:8080` 확인: health `200 UP`, 익명 `PUT /api/user/inquiries/1`은 `401`.
+- 프론트엔드 `/user/inquiries/1`은 `200`, 동적 페이지 chunk 로드까지 확인했다.
+- root `git diff --check` 성공: 오류 0.
 
 ## 실패·경고·주의사항
 
-- 기존 이력 `HIST-20260724-001`은 `/api/actuator/health`를 실제 경로라고 잘못 판단했다. `management.endpoints.web.base-path`가 없으므로 실제 경로에는 `/api`가 붙지 않는다.
-- 존재하지 않는 `/api/actuator/health`가 전역 예외 처리에서 500으로 변환되는 별도 404 처리 문제는 이번 수정 범위에서 제외한다.
-- SMTP 헬스를 운영 상태에 포함하려는 환경은 `MAIL_HEALTH_ENABLED=true`와 유효한 SMTP 설정을 함께 제공해야 한다.
-- 첫 재기동은 `cmd`의 환경변수 인용 방식 때문에 datasource override가 적용되지 않아 실패했다. 환경변수를 올바르게 설정한 뒤 재기동과 실서버 검증에 성공했다.
-- 전체 테스트와 실서버 검증 및 로컬 커밋 `5f61c79` 생성까지 완료했다. 백엔드는 세션 `37598`, PID `55444`로 계속 실행 중이다.
-- 원격 push는 사용자 요청이 없어 수행하지 않았다.
-- 기존 사용자 변경을 되돌리지 않는다.
+- 이전 backend session `37598`/PID `55444`는 종료됐다. 현재 backend session은 `30823`/PID `50700`이다.
+- Gradle의 기존 `ExamQuestionSyncServiceTest` unchecked 경고와 Gradle 9 호환 deprecated 경고는 테스트 성공과 별개다.
+- Next build의 기존 viewport metadata 경고는 build 성공과 별개다.
+- `git diff --check` 시 표시되는 CRLF 변환 경고는 공백 오류가 아니다.
+- Windows cmd에서 동적 라우트(`[id]`) `--runTestsByPath`는 경로 인용 문제를 일으켜 `--testPathPattern`으로 focused 실행했다.
+- `frontend/node_modules`, `backend/uploads`, DB 컨테이너·볼륨과 다른 작업자의 변경은 건드리지 않는다.
 
 ## 다음 세션이 바로 실행할 명령
 
 ```powershell
 git status --short
-git log -1 --oneline
 ```
 
-## 건드리면 안 되는 파일 또는 기존 미추적 파일
-
-- `frontend/node_modules`
-- `backend/uploads`
-- DB 컨테이너 및 볼륨
-- Docker 볼륨
-- 다른 작업자가 수정 중인 파일
+커밋이 승인되면 현재 working tree를 검토해 문의 수정/UX 변경을 커밋한다.

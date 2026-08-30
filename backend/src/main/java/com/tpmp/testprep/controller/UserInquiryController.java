@@ -1,6 +1,7 @@
 package com.tpmp.testprep.controller;
 
 import com.tpmp.testprep.dto.request.InquiryRequest;
+import com.tpmp.testprep.dto.request.InquiryUpdateRequest;
 import com.tpmp.testprep.dto.response.ApiResponse;
 import com.tpmp.testprep.dto.request.InquiryMessageRequest;
 import com.tpmp.testprep.dto.response.InquiryDetailResponse;
@@ -51,6 +52,14 @@ public class UserInquiryController {
             @AuthenticationPrincipal String email) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(inquiryService.create(request, email)));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<InquiryDetailResponse>> update(
+            @PathVariable Long id,
+            @Valid @RequestBody InquiryUpdateRequest request,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.success(inquiryService.update(id, request, email)));
     }
 
     @DeleteMapping("/{id}")

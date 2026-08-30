@@ -16,6 +16,21 @@ export function InquiryMessageComposer({
   onSent,
   admin = false,
 }: InquiryMessageComposerProps) {
+  const context = admin
+    ? {
+      heading: '사용자 답변 작성',
+      guide: '사용자에게 전달할 답변을 작성해 주세요.',
+      imageTitle: '답변 첨부 이미지 (선택)',
+      submit: '답변 보내기',
+      error: '답변 전송에 실패했습니다. 다시 시도해 주세요.',
+    }
+    : {
+      heading: '추가 문의 작성',
+      guide: '최초 문의를 수정하는 것이 아니라 새 메시지로 전달됩니다.',
+      imageTitle: '추가 문의 첨부 이미지 (선택)',
+      submit: '추가 문의 보내기',
+      error: '추가 문의 전송에 실패했습니다. 다시 시도해 주세요.',
+    };
   const [content, setContent] = useState('');
   const [images, setImages] = useState<InquiryUploadedImage[]>([]);
   const [imagesUploading, setImagesUploading] = useState(false);
@@ -54,7 +69,7 @@ export function InquiryMessageComposer({
       setSendEmail(false);
       onSent();
     } catch (submitError) {
-      setError(extractApiErrorMessage(submitError, '메시지 등록에 실패했습니다. 다시 시도해 주세요.'));
+      setError(extractApiErrorMessage(submitError, context.error));
     } finally {
       setBusy(false);
     }
@@ -62,6 +77,10 @@ export function InquiryMessageComposer({
 
   return (
     <section className="space-y-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+      <div>
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{context.heading}</h3>
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{context.guide}</p>
+      </div>
       <textarea
         value={content}
         onChange={(event) => setContent(event.target.value)}
@@ -72,6 +91,7 @@ export function InquiryMessageComposer({
       />
       <InquiryImageUploader
         key={uploaderKey}
+        title={context.imageTitle}
         uploadImage={uploadImage}
         onChange={setImages}
         onUploadingChange={setImagesUploading}
@@ -95,7 +115,7 @@ export function InquiryMessageComposer({
           disabled={busy || imagesUploading || !content.trim()}
           className="rounded-lg bg-indigo-600 px-3 py-2 text-sm text-white disabled:opacity-50"
         >
-          {busy ? '등록 중...' : '메시지 등록'}
+          {busy ? '전송 중...' : context.submit}
         </button>
       </div>
       {error && (

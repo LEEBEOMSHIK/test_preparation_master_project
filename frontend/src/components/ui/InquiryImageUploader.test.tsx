@@ -28,6 +28,18 @@ afterEach(() => {
 });
 
 describe('InquiryImageUploader', () => {
+  it('문맥별 첨부 이미지 제목을 접근 가능한 제목으로 표시한다', () => {
+    render(
+      <InquiryImageUploader
+        title="답변 첨부 이미지 (선택)"
+        uploadImage={createUploadImageMock()}
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: '답변 첨부 이미지 (선택)' })).toBeTruthy();
+  });
+
   it('명확한 드롭존에서 여러 이미지를 한 번에 추가하고 파일 정보를 표시한다', async () => {
     const uploadImage = createUploadImageMock()
       .mockResolvedValueOnce({ id: 11, url: '/uploads/inquiries/first.png' })

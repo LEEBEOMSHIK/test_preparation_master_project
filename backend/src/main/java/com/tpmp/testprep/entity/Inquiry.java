@@ -93,6 +93,14 @@ public class Inquiry {
         changeStatus(Status.IN_PROGRESS);
     }
 
+    public void update(String title, String content, RequestType requestType, String targetArea, String detailLocation) {
+        this.title = title;
+        this.content = content;
+        this.requestType = requestType;
+        this.targetArea = targetArea;
+        this.detailLocation = detailLocation;
+    }
+
     public enum Status {
         PENDING, IN_PROGRESS, ON_HOLD, ANSWERED, COMPLETED, UNABLE_TO_PROCESS;
 

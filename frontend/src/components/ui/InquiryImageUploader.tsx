@@ -32,6 +32,7 @@ export interface InquiryUploadedImage extends UploadImageResult {
 }
 
 interface InquiryImageUploaderProps {
+  title?: string;
   uploadImage: (file: File) => Promise<UploadImageResult>;
   onChange: (images: InquiryUploadedImage[]) => void;
   onUploadingChange?: (uploading: boolean) => void;
@@ -49,6 +50,7 @@ function createPreviewUrl(file: File): string {
 }
 
 export function InquiryImageUploader({
+  title,
   uploadImage,
   onChange,
   onUploadingChange,
@@ -174,6 +176,7 @@ export function InquiryImageUploader({
 
   return (
     <div className="space-y-3">
+      {title && <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100">{title}</h3>}
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}

@@ -4,6 +4,7 @@ import com.tpmp.testprep.dto.request.InquiryMessageRequest;
 import com.tpmp.testprep.dto.request.AdminInquiryMessageRequest;
 import com.tpmp.testprep.dto.request.InquiryRequest;
 import com.tpmp.testprep.dto.request.InquiryStatusUpdateRequest;
+import com.tpmp.testprep.dto.request.InquiryUpdateRequest;
 import com.tpmp.testprep.entity.Inquiry;
 import com.tpmp.testprep.entity.InquiryMessage;
 import com.tpmp.testprep.entity.User;
@@ -30,6 +31,157 @@ import static org.mockito.Mockito.*;
 class InquiryServiceTest {
 
     @Test
+    void updateAllowsOwnerToChangePendingInquiryWithoutMessagesAndKeepsExistingAttachments() {
+        User owner = user("user@tpmp.com");
+        Inquiry inquiry = inquiry(owner, Inquiry.RequestType.GENERAL_INQUIRY);
+        ReflectionTestUtils.setField(inquiry, "id", 17L);
+        InquiryRepository inquiryRepository = mock(InquiryRepository.class);
+        InquiryMessageRepository messageRepository = mock(InquiryMessageRepository.class);
+        AttachmentService attachmentService = mock(AttachmentService.class);
+        InquiryEmailService inquiryEmailService = mock(InquiryEmailService.class);
+        when(inquiryRepository.findByIdForUpdate(17L)).thenReturn(Optional.of(inquiry));
+        when(messageRepository.existsByInquiryId(17L)).thenReturn(false);
+        when(attachmentService.findByRef(com.tpmp.testprep.entity.Attachment.RefType.INQUIRY, 17L))
+                .thenReturn(List.of());
+        when(messageRepository.findByInquiryIdOrderByCreatedAtAscIdAsc(17L)).thenReturn(List.of());
+        InquiryService service = new InquiryService(inquiryRepository, userRepository(owner), attachmentService,
+                messageRepository, mock(DomainSlaveRepository.class), inquiryEmailService);
+
+        service.update(17L, new InquiryUpdateRequest("수정 제목", "수정 내용", Inquiry.RequestType.FEATURE_REQUEST,
+                "EXAM_INFO", "/user/inquiries/17"), "user@tpmp.com");
+
+        assertThat(inquiry.getTitle()).isEqualTo("수정 제목");
+        assertThat(inquiry.getContent()).isEqualTo("수정 내용");
+        assertThat(inquiry.getRequestType()).isEqualTo(Inquiry.RequestType.FEATURE_REQUEST);
+        assertThat(inquiry.getTargetArea()).isEqualTo("EXAM_INFO");
+        assertThat(inquiry.getDetailLocation()).isEqualTo("/user/inquiries/17");
+        verify(attachmentService, never()).validateAndLinkInquiryAttachments(any(), any(), any(), any());
+        verifyNoInteractions(inquiryEmailService);
+    }
+
+    @Test
+    void updateAllowsBugReportToKeepItsInactiveLegacyTargetArea() {
+        User owner = user("user@tpmp.com");
+        Inquiry inquiry = Inquiry.builder().user(owner).title("버그").content("내용")
+                .requestType(Inquiry.RequestType.BUG_REPORT).targetArea("LEGACY_REMOVED").build();
+        ReflectionTestUtils.setField(inquiry, "id", 20L);
+        InquiryRepository inquiryRepository = mock(InquiryRepository.class);
+        InquiryMessageRepository messageRepository = mock(InquiryMessageRepository.class);
+        AttachmentService attachmentService = mock(AttachmentService.class);
+        DomainSlaveRepository domainSlaveRepository = mock(DomainSlaveRepository.class);
+        when(inquiryRepository.findByIdForUpdate(20L)).thenReturn(Optional.of(inquiry));
+        when(messageRepository.existsByInquiryId(20L)).thenReturn(false);
+        when(attachmentService.findByRef(com.tpmp.testprep.entity.Attachment.RefType.INQUIRY, 20L)).thenReturn(List.of());
+        when(messageRepository.findByInquiryIdOrderByCreatedAtAscIdAsc(20L)).thenReturn(List.of());
+        when(domainSlaveRepository.findByMasterCode("INQUIRY_BUG_AREA")).thenReturn(List.of());
+        InquiryService service = new InquiryService(inquiryRepository, userRepository(owner), attachmentService,
+                messageRepository, domainSlaveRepository, mock(InquiryEmailService.class));
+
+        service.update(20L, new InquiryUpdateRequest("수정 제목", "수정 내용", Inquiry.RequestType.BUG_REPORT,
+                "LEGACY_REMOVED", null), "user@tpmp.com");
+
+        assertThat(inquiry.getTitle()).isEqualTo("수정 제목");
+        assertThat(inquiry.getContent()).isEqualTo("수정 내용");
+        assertThat(inquiry.getTargetArea()).isEqualTo("LEGACY_REMOVED");
+    }
+
+    @Test
+    void updateRejectsChangingBugReportToAnotherInactiveTargetArea() {
+        User owner = user("user@tpmp.com");
+        Inquiry inquiry = Inquiry.builder().user(owner).title("버그").content("내용")
+                .requestType(Inquiry.RequestType.BUG_REPORT).targetArea("LEGACY_REMOVED").build();
+        ReflectionTestUtils.setField(inquiry, "id", 21L);
+        InquiryRepository inquiryRepository = mock(InquiryRepository.class);
+        InquiryMessageRepository messageRepository = mock(InquiryMessageRepository.class);
+        DomainSlaveRepository domainSlaveRepository = mock(DomainSlaveRepository.class);
+        when(inquiryRepository.findByIdForUpdate(21L)).thenReturn(Optional.of(inquiry));
+        when(messageRepository.existsByInquiryId(21L)).thenReturn(false);
+        when(domainSlaveRepository.findByMasterCode("INQUIRY_BUG_AREA")).thenReturn(List.of());
+        InquiryService service = new InquiryService(inquiryRepository, userRepository(owner), mock(AttachmentService.class),
+                messageRepository, domainSlaveRepository, mock(InquiryEmailService.class));
+
+        assertThatThrownBy(() -> service.update(21L, new InquiryUpdateRequest("수정", "내용", Inquiry.RequestType.BUG_REPORT,
+                "OTHER_REMOVED", null), "user@tpmp.com"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INQUIRY_TARGET_AREA);
+    }
+
+    @Test
+    void updateRejectsChangingNonBugInquiryToBugReportWithInactiveTargetArea() {
+        User owner = user("user@tpmp.com");
+        Inquiry inquiry = inquiry(owner, Inquiry.RequestType.GENERAL_INQUIRY);
+        ReflectionTestUtils.setField(inquiry, "id", 22L);
+        InquiryRepository inquiryRepository = mock(InquiryRepository.class);
+        InquiryMessageRepository messageRepository = mock(InquiryMessageRepository.class);
+        DomainSlaveRepository domainSlaveRepository = mock(DomainSlaveRepository.class);
+        when(inquiryRepository.findByIdForUpdate(22L)).thenReturn(Optional.of(inquiry));
+        when(messageRepository.existsByInquiryId(22L)).thenReturn(false);
+        when(domainSlaveRepository.findByMasterCode("INQUIRY_BUG_AREA")).thenReturn(List.of());
+        InquiryService service = new InquiryService(inquiryRepository, userRepository(owner), mock(AttachmentService.class),
+                messageRepository, domainSlaveRepository, mock(InquiryEmailService.class));
+
+        assertThatThrownBy(() -> service.update(22L, new InquiryUpdateRequest("수정", "내용", Inquiry.RequestType.BUG_REPORT,
+                "LEGACY_REMOVED", null), "user@tpmp.com"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INQUIRY_TARGET_AREA);
+    }
+
+    @Test
+    void updateRejectsNonOwnerNonPendingOrInquiryWithMessages() {
+        User owner = user("owner@tpmp.com");
+        Inquiry inquiry = inquiry(owner, Inquiry.RequestType.GENERAL_INQUIRY);
+        ReflectionTestUtils.setField(inquiry, "id", 18L);
+        InquiryRepository inquiryRepository = mock(InquiryRepository.class);
+        InquiryMessageRepository messageRepository = mock(InquiryMessageRepository.class);
+        when(inquiryRepository.findByIdForUpdate(18L)).thenReturn(Optional.of(inquiry));
+        InquiryService service = service(inquiryRepository, userRepository(owner), messageRepository);
+        InquiryUpdateRequest request = new InquiryUpdateRequest("수정", "내용", Inquiry.RequestType.OTHER, null, null);
+
+        assertThatThrownBy(() -> service.update(18L, request, "other@tpmp.com"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).getErrorCode())
+                .isEqualTo(ErrorCode.INQUIRY_ACCESS_DENIED);
+
+        inquiry.changeStatus(Inquiry.Status.IN_PROGRESS);
+        assertThatThrownBy(() -> service.update(18L, request, "owner@tpmp.com"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).getErrorCode())
+                .isEqualTo(ErrorCode.INQUIRY_ACCESS_DENIED);
+
+        inquiry.changeStatus(Inquiry.Status.PENDING);
+        when(messageRepository.existsByInquiryId(18L)).thenReturn(true);
+        assertThatThrownBy(() -> service.update(18L, request, "owner@tpmp.com"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).getErrorCode())
+                .isEqualTo(ErrorCode.INQUIRY_ACCESS_DENIED);
+    }
+
+    @Test
+    void mutationPathsUseLockedInquiryLookupBeforeChangingConversationOrStatus() {
+        User owner = user("user@tpmp.com");
+        Inquiry inquiry = inquiry(owner, Inquiry.RequestType.GENERAL_INQUIRY);
+        ReflectionTestUtils.setField(inquiry, "id", 19L);
+        InquiryRepository inquiryRepository = mock(InquiryRepository.class);
+        InquiryMessageRepository messageRepository = mock(InquiryMessageRepository.class);
+        when(inquiryRepository.findByIdForUpdate(19L)).thenReturn(Optional.of(inquiry));
+        when(messageRepository.existsByInquiryId(19L)).thenReturn(false);
+        when(messageRepository.save(any(InquiryMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        InquiryService service = service(inquiryRepository, userRepository(owner), messageRepository);
+
+        service.update(19L, new InquiryUpdateRequest("수정", "내용", Inquiry.RequestType.OTHER, null, null), "user@tpmp.com");
+        service.addUserMessage(19L, new InquiryMessageRequest("추가", List.of()), "user@tpmp.com");
+        service.addAdminMessage(19L, new AdminInquiryMessageRequest("답변", List.of(), false), "user@tpmp.com");
+        service.updateStatus(19L, new InquiryStatusUpdateRequest(Inquiry.Status.ON_HOLD, "", false), "user@tpmp.com");
+        inquiry.changeStatus(Inquiry.Status.PENDING);
+        service.delete(19L, "user@tpmp.com");
+
+        verify(inquiryRepository, times(5)).findByIdForUpdate(19L);
+        verify(inquiryRepository, never()).findById(19L);
+    }
+
+    @Test
     void createRejectsBugReportWithoutTargetArea() {
         InquiryService service = service();
 
@@ -46,7 +198,7 @@ class InquiryServiceTest {
         Inquiry inquiry = inquiry(user, Inquiry.RequestType.GENERAL_INQUIRY);
         inquiry.changeStatus(Inquiry.Status.ANSWERED);
         InquiryRepository inquiryRepository = mock(InquiryRepository.class);
-        when(inquiryRepository.findById(1L)).thenReturn(Optional.of(inquiry));
+        when(inquiryRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(inquiry));
         InquiryService service = service(inquiryRepository, userRepository(user), mock(InquiryMessageRepository.class));
 
         assertThatThrownBy(() -> service.addUserMessage(1L,
@@ -61,7 +213,7 @@ class InquiryServiceTest {
         Inquiry inquiry = inquiry(user("user@tpmp.com"), Inquiry.RequestType.BUG_REPORT);
         InquiryRepository inquiryRepository = mock(InquiryRepository.class);
         InquiryMessageRepository messageRepository = mock(InquiryMessageRepository.class);
-        when(inquiryRepository.findById(1L)).thenReturn(Optional.of(inquiry));
+        when(inquiryRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(inquiry));
         when(messageRepository.save(any(InquiryMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
         InquiryService service = service(inquiryRepository, userRepository(user("admin@tpmp.com")), messageRepository);
 
@@ -77,7 +229,7 @@ class InquiryServiceTest {
         Inquiry inquiry = inquiry(user("user@tpmp.com"), Inquiry.RequestType.FEATURE_REQUEST);
         InquiryRepository inquiryRepository = mock(InquiryRepository.class);
         InquiryMessageRepository messageRepository = mock(InquiryMessageRepository.class);
-        when(inquiryRepository.findById(1L)).thenReturn(Optional.of(inquiry));
+        when(inquiryRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(inquiry));
         when(messageRepository.save(any(InquiryMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
         InquiryService service = service(inquiryRepository, userRepository(user("admin@tpmp.com")), messageRepository);
 

@@ -233,6 +233,7 @@ rg --files frontend/src/app/admin backend/src/main/java
 | `<InquiryTimeline inquiry />` | `frontend/src/components/ui/InquiryTimeline.tsx` | 최초 접수와 후속 메시지를 시간순으로 표시하는 대화 타임라인 |
 | `<InquiryMessageComposer inquiryId onSent admin />` | `frontend/src/components/ui/InquiryMessageComposer.tsx` | 문의·요청 후속 메시지 및 이미지 첨부 작성기 |
 | `<InquiryImageUploader uploadImage onChange onUploadingChange />` | `frontend/src/components/ui/InquiryImageUploader.tsx` | 최초 문의·후속 메시지 공용 이미지 드롭존 — 다중 선택/drag&drop, 3장·10MB·형식 사전 검증, 썸네일·상태·개별 삭제 제공 |
+| `loadInquiryDomainOptions(code, isAllowed, fallback)` | `frontend/src/lib/inquiryDomain.ts` | 문의 유형·발생 영역 도메인을 허용 enum으로 좁히고 API 실패 시 fallback 반환 |
 
 새 유틸 함수는 `src/lib/`에, 새 UI 컴포넌트는 `src/components/ui/`에 추가하고 위 표를 즉시 갱신한다.
 

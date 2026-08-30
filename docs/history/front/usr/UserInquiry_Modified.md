@@ -1,3 +1,46 @@
+## HIST-20260831-002
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 사용자 프론트엔드 / 문의 수정·대화 문맥 UX
+- **수정 개요**: 조건부 최초 문의 수정 폼, 첨부 이미지 문맥 제목, 사용자 후속 작성과 타임라인 라벨을 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/inquiryService.ts` | 수정 | 사용자 문의 수정 API·타입 추가 |
+| `frontend/src/app/user/inquiries/[id]/page.tsx` | 수정 | 수정 진입·취소·저장, 수정 불가 사유, 기존 첨부 보존 안내와 상세 재조회 및 도메인에 없는 현재 설정 보존 추가 |
+| `frontend/src/app/user/inquiries/[id]/page.test.tsx` | 수정 | 수정 payload·기존 첨부 비편집·상세 재조회와 도메인 subset에서 현재 유형·영역 보존 회귀 검증 |
+| `frontend/src/app/user/inquiries/new/page.tsx` | 수정 | 최초 등록 첨부 제목 적용 |
+| `frontend/src/lib/inquiryDomain.ts` | 추가 | 문의 유형·발생 영역 도메인 로딩과 허용 enum 필터·실패 fallback 공통화 |
+| `frontend/src/components/ui/InquiryImageUploader.tsx` | 수정 | 접근 가능한 문맥별 첨부 제목 prop 추가 |
+| `frontend/src/components/ui/InquiryMessageComposer.tsx` | 수정 | 사용자/관리자 제목·안내·전송 버튼·오류·첨부 제목 구분 |
+| `frontend/src/components/ui/InquiryTimeline.tsx` | 수정 | 최초 문의·사용자 후속·관리자 답변·시스템 라벨 구분 |
+| `frontend/src/components/ui/*Inquiry*.test.tsx` | 수정 | 문맥별 제목·버튼·라벨과 기존 동작 회귀 검증 |
+| `AGENTS.md` | 수정 | `loadInquiryDomainOptions` Shared Utilities 표 등록 |
+
+### 수정 상세
+
+- 변경 전: 상세 화면에 최초 내용 수정 경로가 없고, 작성기와 타임라인이 일반적인 메시지 용어를 사용했다.
+- 변경 후: PENDING이며 후속 메시지가 없는 문의만 수정 버튼이 활성화되고, 나머지는 비활성 이유를 표시한다. 수정은 기존 첨부를 유지하며 저장 성공 뒤 상세를 다시 불러온다. 도메인 API가 현재 유형·영역을 반환하지 않더라도 해당 값을 한 번만 `현재 설정` option으로 보존해 제목·내용만 저장해도 원래 payload를 유지한다. 첨부·작성기·타임라인은 각 사용자/관리자 문맥을 명확히 표시한다.
+- 이유: 최초 문의 수정과 추가 메시지의 차이를 사용자에게 분명히 전달하고, 대화 단계별 의미를 일관되게 표현하기 위해서다.
+
+### 검증
+
+- `npx jest --watch=false --runInBand` focused 실행에서 신규 등록·사용자 상세·공용 업로더/작성기/타임라인 5 suites, 33 tests 통과.
+- 도메인 공통 유틸은 신규 등록과 사용자 상세 편집 화면에서 모두 사용하며, 등록 화면 테스트로 허용 enum 필터와 API 실패 fallback을 검증했다.
+- 재리뷰 focused: `npx jest --watch=false --runInBand --testPathPattern=user/inquiries/.+/page.test.tsx` 성공, 신규 등록·상세 2 suites, 14 tests 통과.
+- 최종 재리뷰에서도 동일 focused 사용자 등록·상세 테스트 2 suites, 14 tests 통과로 현재 설정 option을 통한 기존 도메인 값 보존 UX를 재확인했다.
+- 전체 프론트엔드 `npx tsc --noEmit` 오류 0, Jest 26 suites/124 tests 실패 0, `npm run build` 성공 및 정적 페이지 55개 생성을 확인했다. 기존 Next build viewport metadata 경고는 성공 결과와 별개다.
+- 실서버 프론트엔드 `/user/inquiries/1`은 `200`이며 동적 페이지 chunk 로드까지 확인했다.
+- root `git diff --check` 성공: 오류 0(CRLF 변환 경고는 공백 오류가 아님).
+
+### 복원 방법
+
+`UserInquiry_Modified.md`의 HIST-20260831-002 복원 시 사용자 수정 UI·서비스 API·도메인 공통 유틸과 문맥별 라벨을 이전 표시로 되돌리고 AGENTS Shared Utilities 표 항목을 제거한다.
+
+---
+
 ## HIST-20260831-001
 
 - **날짜**: 2026-08-31

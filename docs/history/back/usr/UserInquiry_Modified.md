@@ -1,3 +1,46 @@
+## HIST-20260831-002
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 사용자 백엔드 / 문의 최초 내용 수정
+- **수정 개요**: 최초 문의 수정 API와 경합 방지를 위한 비관 잠금을 추가하고, WebMvc 보안·입력·응답 계약까지 검증했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/controller/UserInquiryController.java` | 수정 | `PUT /api/user/inquiries/{id}` 사용자 수정 엔드포인트 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryService.java` | 수정 | 소유권·상태·후속 메시지 존재 확인 후 최초 본문 필드 갱신 및 기존 BUG_REPORT legacy 영역 보존 검증 |
+| `backend/src/main/java/com/tpmp/testprep/entity/Inquiry.java` | 수정 | 수정 가능한 도메인 필드를 한 메서드로 변경 |
+| `backend/src/main/java/com/tpmp/testprep/dto/request/InquiryUpdateRequest.java` | 추가 | 첨부 ID 없이 수정 가능한 요청 DTO와 Bean Validation 추가 |
+| `backend/src/main/java/com/tpmp/testprep/repository/InquiryRepository.java` | 수정 | 변경 경로에서 사용할 `PESSIMISTIC_WRITE` 문의 조회 추가 |
+| `backend/src/test/java/com/tpmp/testprep/repository/InquiryRepositoryLockTest.java` | 추가 | 잠금 조회의 JPA 계약 검증 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryServiceTest.java` | 수정 | 수정 허용·차단·첨부 보존·이메일 큐 미호출·BUG_REPORT legacy 영역 보존 및 변경 경로의 잠금 조회 회귀 테스트 추가 |
+| `backend/src/test/java/com/tpmp/testprep/controller/UserInquiryControllerWebMvcTest.java` | 추가 | 익명 401, 인증 PUT 200 응답·principal 전달, 빈/잘못된 payload 400 계약 검증 |
+
+### 수정 상세
+
+- 변경 전: 최초 문의는 삭제만 조건부 지원했고 본문 수정 API가 없었다.
+- 변경 후: 소유자 본인의 PENDING 문의이며 `inquiry_messages`가 없을 때만 requestType, targetArea, detailLocation, title, content를 수정한다. 수정 요청에는 첨부 ID가 없고 첨부 연결 서비스도 호출하지 않아 기존 첨부를 보존한다. 수정·삭제·사용자/관리자 메시지·상태 변경은 모두 잠금 조회 후 처리한다.
+- 이유: 사용자 화면의 수정 가능 조건과 서버 인가·상태 제약을 동일하게 강제하고, 동시 변경 시 검사와 쓰기 사이의 경합을 방지하기 위해서다.
+
+BUG_REPORT 수정은 활성 `INQUIRY_BUG_AREA`를 허용한다. 현재 도메인에서 제거된 값은 기존 문의도 BUG_REPORT이고 동일 `targetArea`를 유지할 때만 legacy 호환으로 허용하며, 다른 비활성 영역으로의 변경 또는 비-BUG 문의의 BUG_REPORT 전환에는 허용하지 않는다.
+
+### 검증
+
+- `gradlew.bat test --tests com.tpmp.testprep.repository.InquiryRepositoryLockTest --tests com.tpmp.testprep.service.InquiryServiceTest --tests com.tpmp.testprep.controller.UserInquiryControllerWebMvcTest` 성공: 3 suites, 14 tests, 실패 0.
+- WebMvc 계약 테스트는 실제 JWT 필터와 같은 String principal fixture를 사용했다. 기존 production PUT 구현이 계약을 충족해 production 수정은 추가로 필요하지 않았다.
+- 재리뷰 focused: `gradlew.bat test --tests com.tpmp.testprep.service.InquiryServiceTest` 성공, 1 suite, 9 tests, 실패 0. 수정 성공 시 기존 첨부 연결과 `InquiryEmailService`의 알림 큐가 모두 호출되지 않음을 검증했다.
+- 최종 재리뷰 RED: 기존 BUG_REPORT의 비활성 영역 보존 테스트가 `INVALID_INQUIRY_TARGET_AREA`로 실패했다. GREEN: 같은 focused 명령 성공, 1 suite, 12 tests, 실패 0.
+- 전체 backend `gradlew.bat test` 성공: 34 suites, 355 tests, fail/error/skipped 0. 기존 `ExamQuestionSyncServiceTest` unchecked 및 Gradle 9 호환 deprecated 경고만 출력됐다.
+- 실서버 재기동 후 backend session `30823`/PID `50700`/`:8080`에서 health `200 UP`을 확인했고, 익명 `PUT /api/user/inquiries/1`은 보안 계약대로 `401`을 반환했다. 이전 session `37598`/PID `55444`는 종료됐다.
+- root `git diff --check` 성공: 오류 0(CRLF 변환 경고는 공백 오류가 아님).
+
+### 복원 방법
+
+`UserInquiry_Modified.md`의 HIST-20260831-002 복원 시 사용자 PUT 엔드포인트, 수정 DTO·도메인 메서드·잠금 조회·서비스 조건부 갱신과 관련 회귀 테스트를 함께 제거한다.
+
+---
+
 ## HIST-20260831-001
 
 - **날짜**: 2026-08-31
