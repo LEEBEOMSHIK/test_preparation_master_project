@@ -233,4 +233,65 @@ describe('NewInquiryPage', () => {
       });
     });
   });
+
+  it('공통 드롭존으로 여러 이미지를 첨부하고 업로드 완료 ID를 등록 payload에 포함한다', async () => {
+    jest.mocked(inquiryService.uploadImage)
+      .mockResolvedValueOnce({ data: { success: true, data: { id: 31, url: '/uploads/first.png' } } } as never)
+      .mockResolvedValueOnce({ data: { success: true, data: { id: 32, url: '/uploads/second.png' } } } as never);
+    const { container } = render(<NewInquiryPage />);
+    const first = new File(['first'], 'first.png', { type: 'image/png' });
+    const second = new File(['second'], 'second.jpg', { type: 'image/jpeg' });
+
+    fireEvent.change(await screen.findByLabelText('이미지 파일 선택'), {
+      target: { files: [first, second] },
+    });
+    expect(await screen.findByRole('button', { name: /이미지 파일 선택 또는 드래그 앤 드롭/ })).toBeTruthy();
+    expect(screen.getByText('최대 3장, 파일당 10MB 이하, JPG/JPEG/PNG/GIF/WebP')).toBeTruthy();
+    expect((await screen.findAllByText('업로드 완료'))).toHaveLength(2);
+    fireEvent.change(screen.getByLabelText('제목'), { target: { value: '이미지 등록' } });
+    fireEvent.change(screen.getByLabelText('내용'), { target: { value: '첨부 두 장' } });
+    fireEvent.click(screen.getByRole('button', { name: '등록하기' }));
+
+    await waitFor(() => expect(inquiryService.create).toHaveBeenCalledWith(expect.objectContaining({
+      attachmentIds: [31, 32],
+    })));
+    expect(container.querySelector('input[type="file"]')).toBeTruthy();
+  });
+
+  it('서버가 전달한 등록 오류 메시지를 우선 표시한다', async () => {
+    jest.mocked(inquiryService.create).mockRejectedValue({
+      response: { data: { success: false, error: { code: 'CONFLICT', message: '현재 문의 유형을 확인해 주세요.' } } },
+    });
+    render(<NewInquiryPage />);
+
+    await screen.findByLabelText('접수 유형');
+    fireEvent.change(screen.getByLabelText('제목'), { target: { value: '오류 제목' } });
+    fireEvent.change(screen.getByLabelText('내용'), { target: { value: '오류 내용' } });
+    fireEvent.click(screen.getByRole('button', { name: '등록하기' }));
+
+    const errorAlert = await screen.findByRole('alert');
+    expect(errorAlert.textContent).toContain('현재 문의 유형을 확인해 주세요.');
+  });
+
+  it('이미지 업로드 중에는 등록 버튼을 비활성화하고 등록 API를 호출하지 않는다', async () => {
+    let resolveUpload: ((value: { data: { success: boolean; data: { id: number; url: string } } }) => void) | undefined;
+    jest.mocked(inquiryService.uploadImage).mockImplementation(() => new Promise((resolve) => {
+      resolveUpload = resolve;
+    }) as never);
+    render(<NewInquiryPage />);
+
+    fireEvent.change(await screen.findByLabelText('이미지 파일 선택'), {
+      target: { files: [new File(['image'], 'pending.png', { type: 'image/png' })] },
+    });
+    expect(await screen.findByText('업로드 중')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('제목'), { target: { value: '업로드 대기' } });
+    fireEvent.change(screen.getByLabelText('내용'), { target: { value: '등록 차단 확인' } });
+    const submitButton = screen.getByRole('button', { name: '등록하기' }) as HTMLButtonElement;
+
+    expect(submitButton.disabled).toBe(true);
+    fireEvent.click(submitButton);
+    expect(inquiryService.create).not.toHaveBeenCalled();
+    resolveUpload?.({ data: { success: true, data: { id: 91, url: '/uploads/pending.png' } } });
+    expect(await screen.findByText('업로드 완료')).toBeTruthy();
+  });
 });

@@ -1,3 +1,33 @@
+## HIST-20260831-001
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 사용자 프론트엔드 / 문의·요청 이미지 첨부 UX
+- **수정 개요**: 최초 문의 등록과 후속 메시지 작성에 다중 이미지 드롭존을 공통 적용하고, MIME 필수 사전 검증·preview URL 정리·늦은 업로드 응답 차단·접근성 오류 알림·업로드 중 등록 차단까지 보강했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/InquiryImageUploader.tsx` | 추가 | 클릭/키보드·drag&drop 다중 첨부, MIME 필수 JPG/JPEG/PNG/GIF/WebP·10MB·3장 검증, 실패/삭제 preview URL 정리와 삭제·unmount 뒤 늦은 업로드 응답 무시, 썸네일·파일 정보·상태 UI 제공 |
+| `frontend/src/components/ui/InquiryImageUploader.test.tsx` | 추가 | `@jest/globals` 명시 import와 Promise 반환 typed mock으로 strict 타입 검증을 보장하며, 다중 선택, drop 사전 검증, 빈 MIME 거부, 정확히 10MB 허용, 업로드 상태·실패 URL 해제·삭제/unmount 뒤 늦은 resolve/reject 사용자 동작 검증 |
+| `frontend/src/app/user/inquiries/new/page.tsx` | 수정 | 공통 업로더와 등록 중 첨부 차단, `extractApiErrorMessage` 기반 접근 가능한 등록 오류 알림 적용 |
+| `frontend/src/app/user/inquiries/new/page.test.tsx` | 수정 | 다중 이미지 ID 등록 payload, 오류 alert, 업로드 중 등록 차단 회귀 검증 |
+| `frontend/src/components/ui/InquiryMessageComposer.tsx` | 수정 | 공통 업로더와 후속 메시지 업로드 중 등록 차단·완료 후 초기화, 입력 이름·오류 alert 적용 |
+| `frontend/src/components/ui/InquiryMessageComposer.test.tsx` | 수정 | 다중 드롭 이미지 ID, 입력 접근성 이름, 오류 alert, 업로드 중 메시지 전송 차단 검증 |
+| `AGENTS.md` | 수정 | 공용 이미지 업로더 Shared Utilities 표 등록 |
+
+### 수정 상세
+
+- 변경 전: 최초 문의와 후속 메시지가 각각 단일 파일만 선택하는 작은 버튼을 사용했고, 제한 안내·drag&drop·파일별 상태 및 정보·구체적 사전 오류를 제공하지 않았다. 등록 실패 시 서버가 준 오류가 아닌 고정 문구만 표시했다.
+- 변경 후: 두 화면이 같은 `InquiryImageUploader`를 사용해 최대 3장의 이미지를 동시에 선택하거나 드롭할 수 있다. MIME이 비어 있거나 형식이 잘못된 파일, 10MB 초과, 남은 슬롯 초과를 업로드 전에 파일명과 함께 알리고(정확히 10MB는 허용), 항목별 썸네일·파일명·용량·업로드 상태·삭제 버튼을 표시한다. 활성 업로드 키와 mounted 상태를 추적해 삭제·unmount 후 늦게 resolve/reject된 요청의 상태·오류·콜백 갱신을 무시하고, 실제 추적 중인 preview object URL만 한 번 해제한다. 업로드가 끝나기 전에는 등록 버튼이 비활성화되며, 등록·메시지 오류는 다크모드 대비를 갖춘 `role="alert"`로 서버 응답을 우선 노출한다.
+- 이유: 동일한 첨부 규칙을 두 문의 작성 경로에서 일관되게 제공하고, 사용자가 전송 전 문제를 해결하며 실제 서버 안내를 확인하게 하기 위해서다.
+
+### 복원 방법
+
+`UserInquiry_Modified.md`의 HIST-20260831-001 복원 시 `InquiryImageUploader` 사용을 기존 단일 파일 버튼으로 되돌리고, 신규 공통 컴포넌트·테스트 및 AGENTS 표 항목을 제거한다. 복원 후에는 다중 첨부·업로드 상태·사전 검증 UX가 제공되지 않는다.
+
+---
+
 ## HIST-20260828-003
 
 - **날짜**: 2026-08-28

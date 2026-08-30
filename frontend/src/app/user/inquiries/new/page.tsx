@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { InquiryImageUploader, type InquiryUploadedImage } from '@/components/ui/InquiryImageUploader';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { ApiApplicationError, extractApiErrorMessage } from '@/lib/apiError';
 import {
   getInquiryTargetAreaLabel,
   INQUIRY_REQUEST_TYPES,
@@ -14,7 +16,7 @@ import {
   usesTargetArea,
 } from '@/lib/inquiry';
 import { domainService } from '@/services/domainService';
-import { inquiryService, type UploadImageResult } from '@/services/inquiryService';
+import { inquiryService } from '@/services/inquiryService';
 import type { InquiryRequestType, InquiryTargetArea } from '@/types';
 import { INQUIRY_TYPE_LABEL } from '@/types';
 
@@ -36,7 +38,6 @@ async function loadDomainOptions<T extends string>(
 
 export default function NewInquiryPage() {
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
   const [type, setType] = useState<InquiryRequestType>('GENERAL_INQUIRY');
   const [types, setTypes] = useState<InquiryRequestType[]>(INQUIRY_REQUEST_TYPES);
   const [areas, setAreas] = useState<InquiryTargetArea[]>(INQUIRY_TARGET_AREAS);
@@ -45,7 +46,8 @@ export default function NewInquiryPage() {
   const [content, setContent] = useState('');
   const [targetArea, setTargetArea] = useState<InquiryTargetArea | ''>('');
   const [detailLocation, setDetailLocation] = useState('');
-  const [images, setImages] = useState<UploadImageResult[]>([]);
+  const [images, setImages] = useState<InquiryUploadedImage[]>([]);
+  const [imagesUploading, setImagesUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -65,21 +67,16 @@ export default function NewInquiryPage() {
       .finally(() => setDomainsLoading(false));
   }, []);
 
-  const upload = async (file?: File) => {
-    if (!file || images.length === 3) return;
-    try {
-      const response = await inquiryService.uploadImage(file);
-      if (response.data.data) {
-        setImages((current) => [...current, response.data.data!]);
-      }
-    } catch {
-      setError('이미지 업로드에 실패했습니다.');
-    } finally {
-      if (inputRef.current) inputRef.current.value = '';
+  const uploadImage = async (file: File) => {
+    const response = await inquiryService.uploadImage(file);
+    if (!response.data.data) {
+      throw new ApiApplicationError('이미지 업로드 결과를 확인할 수 없습니다.');
     }
+    return response.data.data;
   };
 
   const submit = async () => {
+    if (busy || imagesUploading) return;
     if (!title.trim() || !content.trim()) {
       setError('제목과 내용을 입력해 주세요.');
       return;
@@ -103,8 +100,8 @@ export default function NewInquiryPage() {
         attachmentIds: images.map((image) => image.id),
       });
       router.push('/user/inquiries');
-    } catch {
-      setError('문의·요청 등록에 실패했습니다. 다시 시도해 주세요.');
+    } catch (submitError) {
+      setError(extractApiErrorMessage(submitError, '문의·요청 등록에 실패했습니다. 다시 시도해 주세요.'));
     } finally {
       setBusy(false);
     }
@@ -197,39 +194,23 @@ export default function NewInquiryPage() {
           />
         </label>
 
-        <div className="flex items-center gap-2">
-          {images.map((image) => (
-            <button
-              key={image.id}
-              type="button"
-              onClick={() => setImages((current) => current.filter((item) => item.id !== image.id))}
-              className="text-xs text-indigo-600"
-            >
-              이미지 ×
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="text-sm text-gray-500"
-          >
-            이미지 첨부 ({images.length}/3)
-          </button>
-          <input
-            ref={inputRef}
-            type="file"
-            className="hidden"
-            accept="image/jpeg,image/png,image/gif,image/webp"
-            onChange={(event) => void upload(event.target.files?.[0])}
-          />
-        </div>
+        <InquiryImageUploader
+          uploadImage={uploadImage}
+          onChange={setImages}
+          onUploadingChange={setImagesUploading}
+          disabled={busy}
+        />
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && (
+          <p role="alert" aria-live="assertive" className="text-sm text-red-600 dark:text-red-300">
+            {error}
+          </p>
+        )}
         <div className="flex justify-end">
           <button
             type="button"
             onClick={() => void submit()}
-            disabled={busy || domainsLoading || types.length === 0}
+            disabled={busy || imagesUploading || domainsLoading || types.length === 0}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white disabled:opacity-50"
           >
             {busy ? '등록 중...' : '등록하기'}
