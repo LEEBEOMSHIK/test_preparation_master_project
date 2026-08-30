@@ -11,23 +11,78 @@ import { ExamInfoCardSkeleton } from '@/components/ui/Skeleton';
 import { parseLocalDate, getExamDDayLabel, getExamDDayBadgeClass } from '@/lib/date';
 import type { ExamInfo, UserExamApplication } from '@/types';
 
-const PALETTE = [
-  'bg-blue-100 text-blue-700',
-  'bg-emerald-100 text-emerald-700',
-  'bg-yellow-100 text-yellow-700',
-  'bg-amber-100 text-amber-700',
-  'bg-red-100 text-red-700',
-  'bg-purple-100 text-purple-700',
-  'bg-indigo-100 text-indigo-700',
-  'bg-pink-100 text-pink-700',
-  'bg-teal-100 text-teal-700',
-  'bg-orange-100 text-orange-700',
+type ExamTypeTheme = {
+  badge: string;
+  activeTab: string;
+  inactiveTab: string;
+};
+
+// 완전한 클래스 문자열을 유지해 Tailwind 정적 스캔이 모든 light/dark 상태를 생성하게 한다.
+const EXAM_TYPE_THEMES: readonly ExamTypeTheme[] = [
+  {
+    badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200',
+    activeTab: 'border-blue-600 bg-blue-600 text-white hover:border-blue-700 hover:bg-blue-700 dark:border-blue-400 dark:bg-blue-500 dark:text-white dark:hover:border-blue-300 dark:hover:bg-blue-400',
+    inactiveTab: 'border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-400 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:border-blue-500 dark:hover:bg-blue-900/80',
+  },
+  {
+    badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200',
+    activeTab: 'border-emerald-600 bg-emerald-600 text-white hover:border-emerald-700 hover:bg-emerald-700 dark:border-emerald-400 dark:bg-emerald-500 dark:text-white dark:hover:border-emerald-300 dark:hover:bg-emerald-400',
+    inactiveTab: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-400 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:border-emerald-500 dark:hover:bg-emerald-900/80',
+  },
+  {
+    badge: 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200',
+    activeTab: 'border-amber-600 bg-amber-600 text-white hover:border-amber-700 hover:bg-amber-700 dark:border-amber-400 dark:bg-amber-500 dark:text-gray-950 dark:hover:border-amber-300 dark:hover:bg-amber-400',
+    inactiveTab: 'border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-400 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:border-amber-500 dark:hover:bg-amber-900/80',
+  },
+  {
+    badge: 'bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-200',
+    activeTab: 'border-red-600 bg-red-600 text-white hover:border-red-700 hover:bg-red-700 dark:border-red-400 dark:bg-red-500 dark:text-white dark:hover:border-red-300 dark:hover:bg-red-400',
+    inactiveTab: 'border-red-200 bg-red-50 text-red-700 hover:border-red-400 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300 dark:hover:border-red-500 dark:hover:bg-red-900/80',
+  },
+  {
+    badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/60 dark:text-violet-200',
+    activeTab: 'border-violet-600 bg-violet-600 text-white hover:border-violet-700 hover:bg-violet-700 dark:border-violet-400 dark:bg-violet-500 dark:text-white dark:hover:border-violet-300 dark:hover:bg-violet-400',
+    inactiveTab: 'border-violet-200 bg-violet-50 text-violet-700 hover:border-violet-400 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-300 dark:hover:border-violet-500 dark:hover:bg-violet-900/80',
+  },
+  {
+    badge: 'bg-pink-100 text-pink-700 dark:bg-pink-900/60 dark:text-pink-200',
+    activeTab: 'border-pink-600 bg-pink-600 text-white hover:border-pink-700 hover:bg-pink-700 dark:border-pink-400 dark:bg-pink-500 dark:text-white dark:hover:border-pink-300 dark:hover:bg-pink-400',
+    inactiveTab: 'border-pink-200 bg-pink-50 text-pink-700 hover:border-pink-400 hover:bg-pink-100 dark:border-pink-800 dark:bg-pink-950/40 dark:text-pink-300 dark:hover:border-pink-500 dark:hover:bg-pink-900/80',
+  },
+  {
+    badge: 'bg-teal-100 text-teal-700 dark:bg-teal-900/60 dark:text-teal-200',
+    activeTab: 'border-teal-600 bg-teal-600 text-white hover:border-teal-700 hover:bg-teal-700 dark:border-teal-400 dark:bg-teal-500 dark:text-white dark:hover:border-teal-300 dark:hover:bg-teal-400',
+    inactiveTab: 'border-teal-200 bg-teal-50 text-teal-700 hover:border-teal-400 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-300 dark:hover:border-teal-500 dark:hover:bg-teal-900/80',
+  },
+  {
+    badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/60 dark:text-orange-200',
+    activeTab: 'border-orange-600 bg-orange-600 text-white hover:border-orange-700 hover:bg-orange-700 dark:border-orange-400 dark:bg-orange-500 dark:text-gray-950 dark:hover:border-orange-300 dark:hover:bg-orange-400',
+    inactiveTab: 'border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-400 hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-300 dark:hover:border-orange-500 dark:hover:bg-orange-900/80',
+  },
+  {
+    badge: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/60 dark:text-cyan-200',
+    activeTab: 'border-cyan-600 bg-cyan-600 text-white hover:border-cyan-700 hover:bg-cyan-700 dark:border-cyan-400 dark:bg-cyan-500 dark:text-gray-950 dark:hover:border-cyan-300 dark:hover:bg-cyan-400',
+    inactiveTab: 'border-cyan-200 bg-cyan-50 text-cyan-700 hover:border-cyan-400 hover:bg-cyan-100 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-300 dark:hover:border-cyan-500 dark:hover:bg-cyan-900/80',
+  },
+  {
+    badge: 'bg-lime-100 text-lime-800 dark:bg-lime-900/60 dark:text-lime-200',
+    activeTab: 'border-lime-600 bg-lime-600 text-white hover:border-lime-700 hover:bg-lime-700 dark:border-lime-400 dark:bg-lime-500 dark:text-gray-950 dark:hover:border-lime-300 dark:hover:bg-lime-400',
+    inactiveTab: 'border-lime-200 bg-lime-50 text-lime-800 hover:border-lime-400 hover:bg-lime-100 dark:border-lime-800 dark:bg-lime-950/40 dark:text-lime-300 dark:hover:border-lime-500 dark:hover:bg-lime-900/80',
+  },
+  {
+    badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-200',
+    activeTab: 'border-rose-600 bg-rose-600 text-white hover:border-rose-700 hover:bg-rose-700 dark:border-rose-400 dark:bg-rose-500 dark:text-white dark:hover:border-rose-300 dark:hover:bg-rose-400',
+    inactiveTab: 'border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-400 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:border-rose-500 dark:hover:bg-rose-900/80',
+  },
+  {
+    badge: 'bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-200',
+    activeTab: 'border-sky-600 bg-sky-600 text-white hover:border-sky-700 hover:bg-sky-700 dark:border-sky-400 dark:bg-sky-500 dark:text-white dark:hover:border-sky-300 dark:hover:bg-sky-400',
+    inactiveTab: 'border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-400 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:border-sky-500 dark:hover:bg-sky-900/80',
+  },
 ];
 
-function examTypeColor(name: string): string {
-  const idx = name.split('').reduce((sum, c) => sum + c.charCodeAt(0), 0) % PALETTE.length;
-  return PALETTE[idx];
-}
+const DEFAULT_EXAM_TYPE_THEME = EXAM_TYPE_THEMES[0];
+const EMPTY_EXAM_TYPES: string[] = [];
 
 /** 제목 끝의 "N차"(1차/2차/…)를 분리하는 패턴 — 회차 그룹핑·세션 배지 표시에 공용 사용 */
 const SESSION_SUFFIX_RE = /^(.+)\s(\d차)$/;
@@ -74,7 +129,7 @@ export default function UserExamInfoPage() {
   const [appModalEditing, setAppModalEditing] = useState<UserExamApplication | null>(null);
   const [appModalPrefill, setAppModalPrefill] = useState<ExamApplicationPrefill | null>(null);
 
-  const userInterests = user?.interestedExamTypes ?? [];
+  const userInterests = user?.interestedExamTypes ?? EMPTY_EXAM_TYPES;
 
   useEffect(() => {
     Promise.all([examInfoService.getMyExamInfo(), examApplicationService.getMine()])
@@ -136,9 +191,19 @@ export default function UserExamInfoPage() {
 
   // 탭 목록은 관심 시험 유형 기준으로 만든다 — 관심 유형에 아직 등록된 시험 정보가 없어도
   // (예: exam_info 데이터 누락) 탭 자체가 사라지지 않고 "표시할 시험 정보가 없습니다" 빈 상태로 안내한다.
-  const itemTypes = Array.from(new Set(items.map(i => i.examType)));
-  const baseTypes = userInterests.length > 0 ? userInterests : itemTypes;
-  const allTypes = ['전체', ...Array.from(new Set([...baseTypes, ...itemTypes]))];
+  const itemTypes = useMemo(() => Array.from(new Set(items.map(i => i.examType))), [items]);
+  const allTypes = useMemo(() => {
+    const baseTypes = userInterests.length > 0 ? userInterests : itemTypes;
+    return ['전체', ...Array.from(new Set([...baseTypes, ...itemTypes]))];
+  }, [itemTypes, userInterests]);
+  const examTypeThemeMap = useMemo(() => {
+    const themes = new Map<string, ExamTypeTheme>();
+    allTypes.filter(type => type !== '전체').forEach((type, index) => {
+      themes.set(type, EXAM_TYPE_THEMES[index % EXAM_TYPE_THEMES.length]);
+    });
+    return themes;
+  }, [allTypes]);
+  const getExamTypeTheme = (type: string) => examTypeThemeMap.get(type) ?? DEFAULT_EXAM_TYPE_THEME;
   const displayed = filterType === '전체' ? items : items.filter(i => i.examType === filterType);
 
   // 리눅스마스터처럼 같은 회차 안에 1차/2차가 나뉜 시험은 제목 끝의 "N차"를 떼어낸
@@ -171,7 +236,7 @@ export default function UserExamInfoPage() {
             <p className="text-sm text-gray-500 mt-1">
               관심 시험:&nbsp;
               {userInterests.map(t => (
-                <span key={t} className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium mr-1 ${examTypeColor(t)}`}>
+                <span key={t} className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium mr-1 ${getExamTypeTheme(t).badge}`}>
                   {t}
                 </span>
               ))}
@@ -208,20 +273,25 @@ export default function UserExamInfoPage() {
       {/* Type filter tabs */}
       {allTypes.length > 1 && (
         <div className="flex gap-2 flex-wrap">
-          {allTypes.map(type => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => setFilterType(type)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                filterType === type
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {type}
-            </button>
-          ))}
+          {allTypes.map(type => {
+            const isActive = filterType === type;
+            const tabTheme = type === '전체' ? null : getExamTypeTheme(type);
+            const stateClass = tabTheme
+              ? (isActive ? tabTheme.activeTab : tabTheme.inactiveTab)
+              : (isActive
+                ? 'border-indigo-600 bg-indigo-600 text-white hover:border-indigo-700 hover:bg-indigo-700 dark:border-indigo-400 dark:bg-indigo-500 dark:text-white dark:hover:border-indigo-300 dark:hover:bg-indigo-400'
+                : 'border-gray-200 bg-gray-100 text-gray-600 hover:border-gray-300 hover:bg-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700');
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setFilterType(type)}
+                className={`border px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${stateClass}`}
+              >
+                {type}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -371,7 +441,7 @@ export default function UserExamInfoPage() {
               <div key={group.key} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${examTypeColor(first.examType)}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getExamTypeTheme(first.examType).badge}`}>
                       {first.examType}
                     </span>
                     <h3 className="text-base font-bold text-gray-900">{group.baseTitle}</h3>

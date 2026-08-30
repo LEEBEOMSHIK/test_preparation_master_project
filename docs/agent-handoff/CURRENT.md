@@ -1,63 +1,55 @@
 # Agent Handoff - CURRENT
 
-> 최종 갱신: 2026-08-28
+> 최종 갱신: 2026-08-05 (구현 및 동적 검증 완료)
 
 ## 현재 목표와 사용자 결정 사항
 
-- 문의·요청 최종 정적 리뷰의 Critical 1 + Important 7 + Minor 2 전체를 단일 fix wave로 마무리한다.
-- 빈 DB의 고정 콘텐츠 도메인 ID를 보존하고, 메일 delivery는 시작 sweep·원자 선점·executor 거부 기록으로 영구 PENDING을 방지한다.
-- 자동 주기 재시도는 범위에서 제외하고 사용자/관리자 페이지네이션·동적 도메인·제품 라벨·레거시 첨부 호환을 복원한다.
-- 기존 TPMP DB는 변경하지 않고 폐기 가능한 격리 PostgreSQL에서만 전체 설치 순서를 검증한다.
+- 사용자 > 시험정보(`/user/exam-info`)의 관심 시험 색상 충돌을 제거하고, 같은 시험 유형이 헤더 배지·필터 탭·카드 배지에서 같은 테마를 사용하게 한다.
+- 다크 모드 필터 탭의 활성·호버 상태에 충분한 배경·테두리·텍스트 대비를 적용한다.
+- `전체` 탭은 인디고 활성/중립 비활성 스타일을 유지한다.
 
 ## 완료한 작업
 
-- 최종 리뷰 10건 전체를 수정하고 TDD RED/GREEN 근거를 로컬 SDD progress 원장에 기록했다.
-- 빈 DB inquiry seed 보류와 README 6단계 순서를 적용하고, 실제 PostgreSQL에서 baseline → delta → backend seed → content dump → delta 재실행 → backend 재기동을 통과했다.
-- delivery 원자 선점·시작 복구·executor 거부 FAILED 처리와 실제 commit/rollback/SMTP failure 통합 테스트를 추가했다.
-- 신규 관리자 설정·delivery·retry API의 실제 401/403/ADMIN SecurityFilterChain 테스트를 추가했다.
-- 사용자 목록 페이지네이션, 레거시 첨부 fallback, 두 도메인 동적 로딩과 실패 시 exact fallback을 복원했다.
-- 관리자 delivery 페이지/FAILED 필터/새로고침, 제품 상태·영역 라벨, 문의 페이지·공통 컴포넌트 포맷을 완료했다.
-- 사용자/관리자 프론트·백엔드 history 4개를 최신 항목으로 갱신했다.
+1. 기존 시험명 문자 코드 해시 방식과 단일 배지 팔레트를 제거했다.
+2. 12개 시험 유형 테마에 배지·활성 탭·비활성 탭의 light/dark/hover 완전한 Tailwind 클래스 문자열을 정의했다.
+3. 관심 시험과 조회된 시험 유형을 합친 `allTypes` 순서로 `useMemo` 기반 `Map`을 만들었다. 팔레트 길이 내에서는 중복 없이 배정하고 초과 시에만 순환한다.
+4. 헤더 관심 시험 배지, 유형 필터 탭, 시험 카드 유형 배지를 같은 `Map`에 연결했다.
+5. 기존 데이터 페칭, 스켈레톤, 필터 및 카드 동작은 유지했다.
+6. `docs/history/front/usr/UserExamInfo_Modified.md` 최상단에 `HIST-20260805-001`을 추가했다.
+7. 수정 파일 범위, 기존 해시 함수 제거, 세 사용처 연결, diff 공백 오류를 정적으로 확인했다.
+8. 프론트엔드 타입체크와 실행 중인 Next.js 개발 서버의 화면 컴파일·HTTP 응답을 확인했다.
 
 ## 미완료 작업
 
-- 후속 개선: 관리자 상세 이메일 delivery 조회에서 `inquiryId`와 `status=FAILED`를 함께 전달하면 `InquiryEmailService`가 status 조건을 무시한다. 실패 이력은 페이지네이션으로 접근하고 개별 retry할 수 있어 핵심 차단 사항은 아니지만, 이력이 많으면 실패 건을 찾기 위해 추가 페이지 이동이 필요하다.
+- 없음.
 
-## 수정한 파일
+## 수정한 파일 목록
 
-- Backend production: `DataInitializer`, `InquiryEmailDelivery`, `InquiryEmailDeliveryRepository`, `InquiryEmailDeliveryProcessor`, `InquiryEmailDispatcher`, `InquiryEmailRecovery`, `InquiryService`
-- Backend tests: `DataInitializerTest`, `InquiryControllerSecurityTest`, `InquiryEmailDeliveryProcessorTest`, `InquiryEmailDispatcherTest`, `InquiryEmailRecoveryTest`, `InquiryEmailTransactionIntegrationTest`, `InquiryServiceTest`
-- Database/docs: `20260828_01_extend_inquiry_workflow.sql`, `docs/sql/README.md`, `AGENTS.md`
-- Frontend: 사용자 문의 목록·작성·상세, 관리자 문의 목록·상세, `InquiryMessageComposer`, `InquiryTimeline`, inquiry 타입·서비스·공통 유틸과 관련 테스트
-- Histories: 사용자/관리자 프론트·백엔드 문의 history 4개
-- Local SDD scratch: `progress.md`, `final-fix-report.md`, PostgreSQL assertion SQL 3개(의도적으로 git-ignored, 커밋 제외)
+- `frontend/src/app/user/exam-info/page.tsx` — 시험 유형 테마와 순서 기반 매핑, 다크 모드 탭 대비 적용.
+- `docs/history/front/usr/UserExamInfo_Modified.md` — `HIST-20260805-001` 최상단 추가.
+- `docs/agent-handoff/CURRENT.md` — 구현 및 동적 검증 완료 상태로 갱신.
 
 ## 실행한 검증 명령과 결과
 
-- 격리 PostgreSQL 전체 설치: 통과. 고정 master/slave 의미와 주요 FK 의미 assertion 통과, 최종 `domain_master=6`, `domain_slave=42`, `question_bank=636`, `examinations=15`, `questions=470`.
-- `backend\\gradlew.bat test --rerun-tasks`: 25 suites, 306 tests, failure 0, error 0, skipped 0, BUILD SUCCESSFUL.
-- `npm test -- --watch=false --runInBand`: 19 suites, 86 tests 통과.
-- `npx tsc --noEmit`: 통과.
-- `npm run build`: 52 routes 생성, 통과.
-- `git diff --check`: clean.
-- inquiry 범위 `dangerouslySetInnerHTML` 및 사용자 문의/공통 컴포넌트 180자 초과 검색: 0건.
-- 검증 전용 `tpmp-inquiry-final-fix-pg` 컨테이너 제거 완료.
+- `git diff -- frontend/src/app/user/exam-info/page.tsx docs/agent-handoff/CURRENT.md` — 의도한 범위의 변경만 확인.
+- `rg -n "examTypeColor|EXAM_TYPE_THEMES|examTypeThemeMap|getExamTypeTheme|HIST-20260805" ...` — 실행 코드에 기존 해시 함수가 남지 않고 세 UI 사용처가 공통 테마 Map을 참조함을 확인.
+- `git diff --check -- <수정 파일 3개>` — 통과(공백 오류 없음, 기존 CRLF 변환 경고만 있음).
+- `npx tsc --noEmit` — 통과(exit 0).
+- Next.js 개발 서버 `/user/exam-info` 컴파일 — 정상(2.7초, 961 modules).
+- `GET http://localhost:3000/user/exam-info` — 200 응답 확인.
 
 ## 실패·경고·주의사항
 
-- 백엔드와 프론트 전체 테스트를 처음 병렬 실행했을 때 자원 경합으로 관리자 상세 5초 timeout과 기존 `ExamResultDisplay` 1초 timeout이 각 1건 발생했다. 각각 격리 통과 후 직렬 전체 실행 19 suites/86 tests로 최종 통과했다.
-- Next.js의 기존 `metadata.viewport` 경고와 Gradle 8.5 deprecated feature 경고는 남아 있으나 이번 문의 변경과 무관하며 빌드·테스트는 성공했다.
-- 자동 주기 재시도는 범위 제외다. worker가 선점 후 비정상 종료되면 다음 애플리케이션 시작 sweep에서 복구된다.
+- 히스토리에서 2026-08-05 항목이 없어 신규 ID는 `HIST-20260805-001`이다.
+- 13개 이상의 서로 다른 유형이 한 화면에 표시될 때만 12색 팔레트가 순환한다.
+- 작업 트리에 다른 작업자의 미커밋 변경이 있을 수 있으므로 지정된 소유 파일 외에는 수정하지 않았다.
 
 ## 다음 세션이 바로 실행할 명령
 
 ```powershell
-cd C:\projects\test_preparation_master_project\.worktrees\feature-inquiry-workflow
-git status --short --branch
-git log -1 --oneline
+git status --short
 ```
 
 ## 건드리면 안 되는 파일 또는 기존 미추적 파일
 
-- `.superpowers/sdd/2026-08-28-inquiry-request-workflow/`의 `progress.md`, `final-fix-report.md`, `final-db-*-assertion.sql`은 최종 로컬 검증 증거이며 git-ignored scratch로 보존한다.
-- 기본 체크아웃과 이 worktree 밖의 다른 작업자 변경은 건드리지 않는다.
+- 지정 소유 범위 외 모든 파일.
