@@ -10,6 +10,9 @@ import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.InquiryEmailDeliveryRepository;
 import com.tpmp.testprep.repository.InquiryNotificationSettingsRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -24,6 +27,26 @@ import org.mockito.ArgumentCaptor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class InquiryEmailServiceTest {
+
+    @Test
+    void getDeliveriesDoesNotIgnoreStatusWhenInquiryIdIsProvided() {
+        InquiryEmailDeliveryRepository deliveryRepository = mock(InquiryEmailDeliveryRepository.class, invocation -> {
+            if (Page.class.isAssignableFrom(invocation.getMethod().getReturnType())) {
+                return Page.empty();
+            }
+            return RETURNS_DEFAULTS.answer(invocation);
+        });
+        InquiryEmailService service = new InquiryEmailService(mock(InquiryNotificationSettingsRepository.class), deliveryRepository,
+                mock(ApplicationEventPublisher.class));
+        Pageable pageable = PageRequest.of(0, 10);
+
+        service.getDeliveries(42L, InquiryEmailDelivery.Status.FAILED, pageable);
+
+        verify(deliveryRepository).findByInquiryIdAndStatusOrderByCreatedAtDesc(
+                42L, InquiryEmailDelivery.Status.FAILED, pageable);
+        verify(deliveryRepository, never()).findByInquiryIdOrderByCreatedAtDesc(42L, pageable);
+        verify(deliveryRepository, never()).findByStatusOrderByCreatedAtDesc(InquiryEmailDelivery.Status.FAILED, pageable);
+    }
 
     @Test
     void queueAdminNotificationCreatesOneDeliveryForEachConfiguredRecipient() {
