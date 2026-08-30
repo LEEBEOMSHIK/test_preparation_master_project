@@ -1,3 +1,28 @@
+## HIST-20260831-001
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 사용자 백엔드 / 문의·요청 스키마 호환
+- **수정 개요**: 앱 시작 시 현재 스키마의 `request_type`은 보존한 채, 같은 스키마에 존재하는 legacy `inquiry_type` 컬럼만 멱등적으로 제거하는 호환 migration runner를 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/config/InquirySchemaMigrationRunner.java` | 추가 | current schema가 일치하는 information_schema의 legacy 컬럼만 확인한 뒤 고정 DDL로 제거 |
+| `backend/src/test/java/com/tpmp/testprep/config/InquirySchemaMigrationRunnerTest.java` | 추가 | 테스트별 고유 H2 DB에서 컬럼 제거, `request_type` 보존, 재실행 멱등성 및 다른 schema 동명 테이블 skip 검증 |
+
+### 수정 상세
+
+- 변경 전: 일부 로컬 PostgreSQL의 `inquiries.inquiry_type NOT NULL` legacy 컬럼이 Entity INSERT에 포함되지 않아 신규 버그 신고 등록 시 DataIntegrityViolationException이 발생하고 409로 변환됐다.
+- 변경 후: 앱 시작 시 `LOWER(table_schema) = LOWER(CURRENT_SCHEMA())` 조건에서 `inquiry_type`가 존재할 때만 `ALTER TABLE inquiries DROP COLUMN inquiry_type`를 실행한다. 다른 schema의 동명 테이블은 건너뛰며, `request_type` 값은 조회·수정하지 않아 기존/신규 문의 유형 기준 데이터를 덮어쓰지 않는다.
+- 이유: 현재 source of truth인 `request_type`으로 안전하게 통일해 legacy NOT NULL 제약으로 인한 등록 실패를 제거하기 위해서다.
+
+### 복원 방법
+
+`UserInquiry_Modified.md`의 HIST-20260831-001 복원 시 runner와 H2 통합 테스트를 제거한다. 운영 DB에서 이미 컬럼이 제거된 경우에는 복원 전 legacy 컬럼과 기존 데이터의 호환성 필요 여부를 별도 검토한다.
+
+---
+
 ## HIST-20260828-006
 
 - **날짜**: 2026-08-28
