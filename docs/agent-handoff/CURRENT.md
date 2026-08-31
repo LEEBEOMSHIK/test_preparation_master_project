@@ -2,55 +2,65 @@
 
 ## 현재 목표와 사용자 결정 사항
 
-- 목표: 관리자 문의·요청 목록에서 검색어를 지정하지 않을 때 발생하는 PostgreSQL 500 오류를 수정한다.
-- 결정: null·공백 검색어는 서비스에서 빈 문자열로 정규화하고, Repository JPQL의 `:keyword IS NULL` 분기를 제거한다.
-- 상태·요청 유형·발생 영역 필터 동작은 유지한다.
-- 완료 커밋: `f272501 [BE] fix: 관리자 문의 목록 PostgreSQL 검색 오류 수정`을 생성했으며, push는 수행하지 않는다.
+- 목표: 관리자 이메일 템플릿 관리 기능의 Task 1인 데이터 모델·저장소·운영 SQL·문의 상태 제약조건 기반을 구현한다.
+- 고정 결정: `EmailTemplate`/`EmailTemplateBinding`/`EmailTemplateEvent` 인터페이스와 세 종료 상태 매핑은 승인된 계획을 그대로 사용한다.
+- 고정 결정: 운영 SQL 재실행은 누락된 system template만 보완하며, 관리자가 해제한 binding을 다시 생성하지 않는다.
+- 고정 결정: 문의 상태 제약조건은 기존 legacy 컬럼 러너와 독립적으로 PostgreSQL 6상태를 멱등 보정한다.
 
 ## 완료한 작업
 
-- `InquiryService.adminGetAll`이 null·공백 검색어를 `""`로 정규화하도록 수정했다.
-- `InquiryRepository.findAdminFiltered`에서 nullable keyword guard를 제거했다.
-- 빈 문자열의 `LIKE '%%'` 동작으로 검색어 미지정 시 전체 문자열을 매치하면서 PostgreSQL의 `lower(bytea)` 타입 추론 문제를 피하도록 했다.
-- null·공백 입력 모두 Repository에 빈 문자열로 전달되는 회귀 테스트를 TDD로 추가했다.
-- 관리자 백엔드 수정 히스토리 `HIST-20260831-001`을 기록했다.
+- RED 테스트를 먼저 추가하고 엔티티·저장소·러너·HTML 스냅샷 심볼/오버로드 누락으로 컴파일 실패하는 것을 확인했다.
+- 이메일 템플릿 엔티티와 세 문의 종료 이벤트 매핑, 이벤트별 binding 엔티티를 구현했다.
+- 논리 삭제 제외 검색, 시스템 키/범위 조회, 비관적 잠금 및 binding 참조 조회 저장소를 구현했다.
+- `InquiryEmailDelivery`에 nullable HTML 스냅샷과 기존 plain text 호출 호환 오버로드를 추가했다.
+- 정확한 6상태 집합이 아닐 때만 제약조건을 교체하는 독립 `ApplicationRunner`를 구현했다.
+- 스키마·6상태 제약·기본 템플릿을 한 트랜잭션에서 멱등 적용하는 PostgreSQL SQL을 작성했다.
+- 관리자 백엔드 히스토리 `HIST-20260831-001`을 작성했다.
 
 ## 미완료 작업
 
-- 없음. 정적 검토, 백엔드 전체 테스트, 실제 PostgreSQL 관리자 목록 API 및 브라우저 화면 검증까지 완료했다.
-- 완료 커밋 `f272501 [BE] fix: 관리자 문의 목록 PostgreSQL 검색 오류 수정`을 생성했고, push는 수행하지 않았다.
+- Task 1 구현·히스토리·검증은 완료했다.
+- 이 인계 파일을 포함한 지정 경로 커밋과 작업 보고서 작성만 남아 있다.
 
 ## 수정한 파일 목록
 
-- `backend/src/main/java/com/tpmp/testprep/repository/InquiryRepository.java`
-- `backend/src/main/java/com/tpmp/testprep/service/InquiryService.java`
-- `backend/src/test/java/com/tpmp/testprep/service/InquiryServiceTest.java`
-- `docs/history/back/adm/AdminInquiry_Modified.md`
+- `backend/src/main/java/com/tpmp/testprep/entity/EmailTemplate.java`
+- `backend/src/main/java/com/tpmp/testprep/entity/EmailTemplateBinding.java`
+- `backend/src/main/java/com/tpmp/testprep/entity/EmailTemplateEvent.java`
+- `backend/src/main/java/com/tpmp/testprep/entity/InquiryEmailDelivery.java`
+- `backend/src/main/java/com/tpmp/testprep/repository/EmailTemplateRepository.java`
+- `backend/src/main/java/com/tpmp/testprep/repository/EmailTemplateBindingRepository.java`
+- `backend/src/main/java/com/tpmp/testprep/config/InquiryStatusConstraintMigrationRunner.java`
+- `backend/src/test/java/com/tpmp/testprep/entity/EmailTemplateTest.java`
+- `backend/src/test/java/com/tpmp/testprep/entity/InquiryEmailDeliveryTest.java`
+- `backend/src/test/java/com/tpmp/testprep/repository/EmailTemplateRepositoryTest.java`
+- `backend/src/test/java/com/tpmp/testprep/repository/EmailTemplateBindingRepositoryTest.java`
+- `backend/src/test/java/com/tpmp/testprep/config/InquiryStatusConstraintMigrationRunnerTest.java`
+- `docs/db-migration/20260831_01_admin_email_template_management.sql`
+- `docs/history/back/adm/AdminEmailTemplate_Modified.md`
 - `docs/agent-handoff/CURRENT.md`
 
 ## 실행한 검증 명령과 결과
 
-- RED: `cd backend; .\gradlew.bat test --tests com.tpmp.testprep.service.InquiryServiceTest.adminGetAllNormalizesMissingKeywordToEmptyString`
-  - 결과: 1 test, 1 failed.
-  - 실패 이유: 서비스가 빈 문자열 대신 null을 Repository에 전달해 Mockito `ArgumentsAreDifferent` 발생.
-- GREEN: 동일 focused 명령 재실행.
-  - 결과: `BUILD SUCCESSFUL`.
-- 회귀 범위: `cd backend; .\gradlew.bat test --tests com.tpmp.testprep.service.InquiryServiceTest`
-  - 결과: 13 tests, failures 0, errors 0, skipped 0, `BUILD SUCCESSFUL`.
-- 정적 검토: webapp-verifier `Ready to merge: Yes`, Critical/Important/Minor 문제 없음.
-- 백엔드 전체: `cd backend; .\gradlew.bat test`
-  - 결과: 34 suites, 356 tests, failures 0, errors 0, skipped 0, `BUILD SUCCESSFUL in 2m 3s`.
-- 런타임: 수정본 백엔드 session `68822`, PID `7708`, PostgreSQL `localhost:55432`에서 검증했다.
-  - 기존 관리자 로그인 Chrome 탭 `http://localhost:3000/admin/inquiries`를 새로고침한 결과 목록 2건과 `/ 총 2건`이 표시되고 console error는 0건이었다.
-  - 백엔드 SQL은 keyword null guard 없이 LIKE 3조건을 실행했으며 `lower(bytea)` 오류와 HTTP 500이 재발하지 않았다.
+- RED: `cd backend; .\gradlew.bat test --tests "com.tpmp.testprep.entity.EmailTemplateTest"`
+  - 결과: `BUILD FAILED`.
+  - 예상 실패 확인: `EmailTemplate`, `EmailTemplateEvent`, 저장소/러너 심볼과 7인자 `pending`/`getHtmlBody`가 존재하지 않아 테스트 컴파일이 실패했다.
+- GREEN: `cd backend; .\gradlew.bat test --tests "com.tpmp.testprep.repository.EmailTemplateRepositoryTest" --tests "com.tpmp.testprep.repository.EmailTemplateBindingRepositoryTest" --tests "com.tpmp.testprep.entity.InquiryEmailDeliveryTest"`
+  - 결과: `BUILD SUCCESSFUL in 35s`.
+- GREEN: `cd backend; .\gradlew.bat test --tests "com.tpmp.testprep.entity.EmailTemplateTest" --tests "com.tpmp.testprep.config.InquiryStatusConstraintMigrationRunnerTest"`
+  - 결과: `BUILD SUCCESSFUL in 8s`.
+- 최종 GREEN: `cd backend; .\gradlew.bat test --tests "com.tpmp.testprep.entity.EmailTemplateTest" --tests "com.tpmp.testprep.repository.EmailTemplateRepositoryTest" --tests "com.tpmp.testprep.repository.EmailTemplateBindingRepositoryTest" --tests "com.tpmp.testprep.config.InquiryStatusConstraintMigrationRunnerTest" --tests "com.tpmp.testprep.entity.InquiryEmailDeliveryTest"`
+  - 결과: 7 tests, failures 0, errors 0, skipped 0, `BUILD SUCCESSFUL in 24s`.
+- self-review: 고정 엔티티/저장소 시그니처, 관리자 FK nullable/LAZY 매핑, 6인자 `pending` 호환성, 정확한 PostgreSQL 6상태 비교, 최초 실행 전용 binding seed 및 히스토리 ID를 계획과 대조했으며 수정 필요 항목이 없었다.
 
 ## 실패·경고·주의사항
 
-- 샌드박스 내부 Gradle 실행은 배포본 다운로드 네트워크 차단으로 테스트에 도달하지 못해 승인된 외부 실행 환경에서 RED/GREEN을 확인했다.
-- Gradle 9 호환 deprecated 경고와 기존 JVM class sharing 경고가 있으나 focused 테스트는 성공했다.
-- 로컬 프론트엔드·백엔드·DB는 계속 실행 중이다.
+- 운영/공유 PostgreSQL은 변경하지 않았으며, 마이그레이션 SQL의 실제 DB 적용 검증은 수행하지 않았다.
+- 애플리케이션이 새 엔티티·HTML 컬럼을 참조하기 전에 `docs/db-migration/20260831_01_admin_email_template_management.sql`을 운영 DB에 선행 적용해야 한다. 적용 순서가 뒤집히면 스키마 검증 또는 런타임 쿼리가 실패할 수 있다.
+- SQL은 세 system key가 모두 없었던 최초 실행에만 binding을 생성한다. 이후 관리자가 binding을 해제한 상태는 의도적으로 유지된다.
+- Gradle 9 호환 deprecated 경고와 기존 JVM class sharing 경고가 있으나 focused tests는 성공했다.
 - 다른 작업자의 변경, `frontend/node_modules`, `backend/uploads`, DB 볼륨은 건드리지 않는다.
 
 ## 다음 세션이 바로 실행할 명령
 
-추가 요청이 있을 때만 관련 범위를 확인한다.
+Task 2 RED 시작: `cd backend; .\gradlew.bat test --tests "com.tpmp.testprep.service.EmailTemplateRendererTest"`

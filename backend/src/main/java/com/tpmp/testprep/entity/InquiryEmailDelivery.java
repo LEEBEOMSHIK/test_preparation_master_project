@@ -53,6 +53,9 @@ public class InquiryEmailDelivery {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String body;
 
+    @Column(name = "html_body", columnDefinition = "TEXT")
+    private String htmlBody;
+
     @Column(name = "attempt_count", nullable = false)
     private int attemptCount;
 
@@ -69,7 +72,7 @@ public class InquiryEmailDelivery {
     private LocalDateTime processingStartedAt;
 
     private InquiryEmailDelivery(Inquiry inquiry, InquiryMessage inquiryMessage, EventType eventType,
-                                 String recipientEmail, String subject, String body) {
+                                 String recipientEmail, String subject, String body, String htmlBody) {
         this.inquiry = inquiry;
         this.inquiryMessage = inquiryMessage;
         this.eventType = eventType;
@@ -77,11 +80,17 @@ public class InquiryEmailDelivery {
         this.recipientEmail = recipientEmail;
         this.subject = subject;
         this.body = body;
+        this.htmlBody = htmlBody;
     }
 
     public static InquiryEmailDelivery pending(Inquiry inquiry, InquiryMessage inquiryMessage, EventType eventType,
                                                String recipientEmail, String subject, String body) {
-        return new InquiryEmailDelivery(inquiry, inquiryMessage, eventType, recipientEmail, subject, body);
+        return pending(inquiry, inquiryMessage, eventType, recipientEmail, subject, body, null);
+    }
+
+    public static InquiryEmailDelivery pending(Inquiry inquiry, InquiryMessage inquiryMessage, EventType eventType,
+                                               String recipientEmail, String subject, String textBody, String htmlBody) {
+        return new InquiryEmailDelivery(inquiry, inquiryMessage, eventType, recipientEmail, subject, textBody, htmlBody);
     }
 
     public void markSent() {
