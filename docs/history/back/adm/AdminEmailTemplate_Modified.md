@@ -1,3 +1,33 @@
+## HIST-20260831-004
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 백엔드 / 이메일 템플릿 토큰 경계 검증 보강
+- **수정 개요**: 파싱 전 토큰을 호출별 sentinel로 보호해 위치·구조 소실과 생성을 분리 검증하고, 두 자리 순번 placeholder의 prefix 충돌 없이 정확히 계수·복원하도록 수정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/EmailTemplateRenderer.java` | 수정 | raw 토큰 UUID sentinel 사전 보호·구조 검증 및 일반 placeholder exact-key 계수·복원 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/EmailTemplateRendererTest.java` | 수정 | DOCTYPE 토큰 소실/엔티티 토큰 생성 상쇄와 11개 정상 토큰 prefix 충돌 회귀 테스트 추가 |
+| `docs/agent-handoff/CURRENT.md` | 수정 | Task 2 Fix round 2 구현·검증 결과와 주의사항으로 최신 인계 갱신 |
+
+### 수정 상세
+
+#### `EmailTemplateRenderer.java`
+- 변경 전: raw HTML과 jsoup 파싱 HTML의 토큰별 개수만 비교해 같은 토큰이 한 위치에서 제거되고 다른 위치에서 생성되면 상쇄됐다. `TPMP_TOKEN_1`의 단순 substring 계수·복원이 `TPMP_TOKEN_10` 내부까지 처리해 11개 이상 정상 토큰을 거부하거나 잘못 복원했다.
+- 변경 후: 유효 토큰을 jsoup 파싱 전에 호출별 UUID와 끝 경계가 포함된 raw sentinel로 각각 치환한다. 모든 sentinel이 body 구조에 정확히 한 번 남고 파싱 결과에 직접 토큰 문법이 새로 나타나지 않는지 확인한 뒤 원래 토큰을 복원한다. sanitizer 이후 일반 placeholder는 `TPMP_TOKEN_[0-9]+` matcher의 완전한 키별 개수를 비교하고 같은 matcher로 한 번에 복원한다.
+- 이유: 토큰 제거와 생성을 위치별로 독립 탐지하고 순번 prefix와 무관하게 임의 개수의 정상 토큰을 안정적으로 준비하기 위함이다.
+
+#### `EmailTemplateRendererTest.java`
+- 변경 전: `DOCTYPE`에서 제거된 토큰과 엔티티에서 생성된 동일 토큰이 개수상 상쇄되는 입력, `TPMP_TOKEN_1`과 `TPMP_TOKEN_10`이 동시에 생기는 정상 11개 토큰 입력을 검증하지 않았다.
+- 변경 후: 정확한 공격 재현은 `INVALID_VARIABLE`로 거부하고 정상 11개 토큰은 HTML과 평문에 모두 보존되는 테스트를 추가해 focused 테스트를 21개로 확장했다.
+- 이유: 구조 무결성 검사와 exact sentinel 경계가 후속 변경에서도 유지되도록 하기 위함이다.
+
+### 복원 방법
+
+이 ID(`AdminEmailTemplate_Modified.md` 기준 HIST-20260831-004)로 복원 시 `EmailTemplateRenderer`의 raw UUID sentinel 사전 보호·복원과 exact placeholder 계수·복원을 제거하고, `EmailTemplateRendererTest`의 Fix round 2 테스트를 제거한다. 그러면 `HIST-20260831-003` 시점 동작으로 돌아간다.
+
 ## HIST-20260831-003
 
 - **날짜**: 2026-08-31

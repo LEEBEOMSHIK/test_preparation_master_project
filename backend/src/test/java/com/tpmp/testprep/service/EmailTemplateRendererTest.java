@@ -139,6 +139,22 @@ class EmailTemplateRendererTest {
                 "<p>본문</p><!--{{recipientName}}-->"));
     }
 
+    @Test
+    void prepareRejectsTokenRemovalAndCreationEvenWhenTokenCountsMatch() {
+        assertInvalidVariable(() -> renderer.prepare(EmailTemplate.Scope.INQUIRY_STATUS, "제목",
+                "<!DOCTYPE {{recipientName}}><p>&#123;&#123;recipientName&#125;&#125;</p>"));
+    }
+
+    @Test
+    void prepareAcceptsElevenOrMoreNormalTokensWithoutPlaceholderPrefixCollisions() {
+        String tokens = "{{recipientName}} ".repeat(10) + "{{recipientName}}";
+
+        var prepared = renderer.prepare(EmailTemplate.Scope.INQUIRY_STATUS, "제목", "<p>" + tokens + "</p>");
+
+        assertThat(prepared.sanitizedHtmlBody()).isEqualTo("<p>" + tokens + "</p>");
+        assertThat(prepared.textBody()).isEqualTo(tokens);
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {
             "<script>alert(1)</script>",
