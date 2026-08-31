@@ -8,6 +8,7 @@ export interface ApiResponse<T> {
   error?: {
     code: string;
     message: string;
+    details?: unknown;
   };
   timestamp: string;
 }
@@ -43,6 +44,98 @@ export interface PatchNoteRequest {
 
 export interface PatchNotePublicationRequest {
   published: boolean;
+}
+
+// ──────────────────────────────────────────
+// Admin Email Templates
+// ──────────────────────────────────────────
+export type EmailTemplateScope = 'INQUIRY_STATUS';
+
+export type EmailTemplateEventCode =
+  | 'INQUIRY_ANSWERED'
+  | 'INQUIRY_COMPLETED'
+  | 'INQUIRY_UNABLE_TO_PROCESS';
+
+export interface EmailTemplateReference {
+  eventCode: EmailTemplateEventCode;
+  eventLabel: string;
+}
+
+export interface EmailTemplateVariable {
+  token: string;
+  name: string;
+  label: string;
+  description: string;
+}
+
+export interface EmailTemplateSummary {
+  id: number;
+  name: string;
+  scope: EmailTemplateScope;
+  active: boolean;
+  defaultTemplate: boolean;
+  referenceCount: number;
+  referencedEvents: EmailTemplateReference[];
+  deletable: boolean;
+  updatedAt: string;
+}
+
+export interface EmailTemplateDetail extends EmailTemplateSummary {
+  subjectTemplate: string;
+  htmlBody: string;
+  textBody: string;
+  allowedVariables: EmailTemplateVariable[];
+  createdAt: string;
+}
+
+export interface EmailTemplatePayload {
+  name: string;
+  scope: EmailTemplateScope;
+  subjectTemplate: string;
+  htmlBody: string;
+  active: boolean;
+}
+
+export interface EmailTemplateBinding {
+  eventCode: EmailTemplateEventCode;
+  eventLabel: string;
+  scope: EmailTemplateScope;
+  templateId: number | null;
+  templateName: string | null;
+  templateActive: boolean | null;
+  configured: boolean;
+  sendable: boolean;
+  unavailableReason: string | null;
+}
+
+export interface EmailTemplatePreview {
+  sanitizedHtmlBody: string;
+  renderedSubject: string;
+  renderedHtmlBody: string;
+  renderedTextBody: string;
+  unsafeContentRemoved: boolean;
+}
+
+export interface EmailTemplateTestSend {
+  recipientMasked: string;
+  sentAt: string;
+}
+
+export interface EmailTemplateFormProps {
+  mode: 'create' | 'edit';
+  templateId?: number;
+}
+
+export interface RichTextEditorHandle {
+  insertText(text: string): void;
+}
+
+export interface RichTextEditorProps {
+  value: string;
+  onChange: (html: string) => void;
+  placeholder?: string;
+  minHeight?: number;
+  allowImages?: boolean;
 }
 
 // ──────────────────────────────────────────

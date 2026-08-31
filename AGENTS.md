@@ -219,7 +219,7 @@ rg --files frontend/src/app/admin backend/src/main/java
 | `isBlankOrPositiveIntegerText(value)` / `toOptionalPositiveInteger(value)` | `src/lib/questionNumber.ts` | 선택 양의 정수 입력 검증·payload 숫자 변환 |
 | `compareQuestionSourceOrder(a, b)` | `src/lib/questionSort.ts` | 문항관리 출처순 정렬(연도 DESC, 회차 ASC, 문항번호 ASC, 수정일 DESC) |
 | `<RichContent html className />` | `src/components/ui/RichContent.tsx` | 에디터 HTML 렌더링 |
-| `<RichTextEditor value onChange />` | `src/components/ui/RichTextEditor.tsx` | react-quill 에디터 |
+| `<RichTextEditor ref value onChange allowImages />` | `src/components/ui/RichTextEditor.tsx` | HTML 편집기. `allowImages=false`이면 이미지 입력을 차단하고 ref의 `insertText(text)`로 현재 커서에 변수를 삽입 |
 | `<QuestionDetailModal question onClose hideEditLink hideAnswerInitially />` | `src/components/ui/QuestionDetailModal.tsx` | 문항 상세 모달 (`hideAnswerInitially`=true면 정답·해설을 "정답 보기" 버튼으로 가림, 기본 false) |
 | `<PermissionDeniedModal />` | `src/components/ui/PermissionDeniedModal.tsx` | 권한 없음 팝업 |
 | `<TableSkeleton />` 외 | `src/components/ui/Skeleton.tsx` | 스켈레톤 UI 모음 |
