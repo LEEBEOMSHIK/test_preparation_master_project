@@ -1,3 +1,40 @@
+## HIST-20260831-002
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 백엔드 / 이메일 템플릿 보안 렌더링
+- **수정 개요**: 이메일 템플릿 저장·발송 경계에 허용 변수 검증, HTML 이중 정화, 제목 헤더 인젝션 방지, 안전한 링크 검증과 평문 fallback 생성을 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/build.gradle` | 수정 | OWASP Java HTML Sanitizer 20240325.1과 jsoup 1.18.3 고정 버전 의존성 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/EmailTemplateRenderer.java` | 추가 | 7개 변수 allowlist, 저장·발송 이중 정화, 토큰 보호·HTML escaping·링크 호스트 검증·평문 변환 구현 |
+| `backend/src/main/java/com/tpmp/testprep/service/EmailTemplateRenderingException.java` | 추가 | 안전한 렌더링 실패 사유를 `INVALID_VARIABLE`과 `INVALID_CONTENT`로 구분하는 예외 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/EmailTemplateRendererTest.java` | 추가 | 허용 변수·길이·제목 개행·실행 요소·속성 토큰·링크·escaping·placeholder 우회 회귀 테스트 추가 |
+| `docs/agent-handoff/CURRENT.md` | 수정 | Task 2 구현 결정, 검증 결과, 주의사항과 후속 작업 인계 갱신 |
+
+### 수정 상세
+
+#### `backend/build.gradle`
+- 변경 전: 사용자 편집 HTML을 allowlist로 정화하고 평문으로 변환할 고정 버전 라이브러리가 없었다.
+- 변경 후: OWASP Java HTML Sanitizer `20240325.1`과 jsoup `1.18.3`을 production 의존성으로 추가했다.
+- 이유: 이메일 HTML의 허용 요소·URL 정책을 서버에서 강제하고 동일 입력으로 재현 가능한 렌더링을 제공하기 위함이다.
+
+#### `EmailTemplateRenderer.java`, `EmailTemplateRenderingException.java`
+- 변경 전: 템플릿 변수와 HTML을 저장 전에 검증·정화하거나 발송 직전에 안전하게 치환·재정화하는 공통 경계가 없었다.
+- 변경 후: `INQUIRY_STATUS`의 7개 토큰만 허용하고, 제목 CR/LF와 길이·blank를 거부하며, 허용된 의미 HTML과 HTTP(S) 링크만 보존한다. 일반 텍스트 토큰과 상세 URL 토큰은 별도 placeholder로 보호하고, 엔티티 인코딩을 이용한 토큰·예약값 우회도 복원 후 재검증한다. 발송 시 모든 값을 확인하고 HTML 이스케이프하며 상세 URL의 프로토콜과 `app.public-url` 호스트를 검사한 뒤 최종 정화·평문 변환한다.
+- 이유: 관리자 입력, 기존 저장 데이터, 사용자 유래 치환값을 각각 신뢰하지 않는 이중 방어 경계를 한 서비스에 모으기 위함이다.
+
+#### `EmailTemplateRendererTest.java`
+- 변경 전: 템플릿 정화와 변수 렌더링 보안 계약을 자동 검증하는 테스트가 없었다.
+- 변경 후: 실행 요소·이미지 제거, 7개 변수 순서, 속성 토큰 제한, 누락 값, 외부/실행 URL, HTML escaping, 렌더 후 제목 개행, 인코딩된 토큰 및 placeholder 충돌을 포함한 10개 focused 테스트를 추가했다.
+- 이유: sanitizer 설정이나 토큰 처리 순서가 변경되어 실행 콘텐츠 또는 미허용 변수가 살아나는 회귀를 차단하기 위함이다.
+
+### 복원 방법
+
+이 ID(`AdminEmailTemplate_Modified.md` 기준 HIST-20260831-002)로 복원 시 `EmailTemplateRenderer`, `EmailTemplateRenderingException`, `EmailTemplateRendererTest`를 제거하고 `backend/build.gradle`에서 OWASP sanitizer와 jsoup 의존성을 제거한다. 후속 Task에서 renderer를 참조했다면 해당 호출부를 먼저 이전 렌더링 방식으로 복원한 뒤 삭제한다.
+
 ## HIST-20260831-001
 
 - **날짜**: 2026-08-31
