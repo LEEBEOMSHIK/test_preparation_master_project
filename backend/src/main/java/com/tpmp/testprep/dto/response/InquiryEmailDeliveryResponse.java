@@ -6,12 +6,14 @@ import java.time.LocalDateTime;
 
 public record InquiryEmailDeliveryResponse(Long id, Long inquiryId, Long inquiryMessageId,
                                            InquiryEmailDelivery.EventType eventType, InquiryEmailDelivery.Status status,
-                                           String recipientEmail, String subject, int attemptCount, String lastError,
+                                           String recipientEmail, String subject, boolean htmlContent,
+                                           int attemptCount, String lastError,
                                            LocalDateTime createdAt, LocalDateTime sentAt) {
     public static InquiryEmailDeliveryResponse from(InquiryEmailDelivery delivery) {
         return new InquiryEmailDeliveryResponse(delivery.getId(), delivery.getInquiry().getId(),
                 delivery.getInquiryMessage() == null ? null : delivery.getInquiryMessage().getId(), delivery.getEventType(),
-                delivery.getStatus(), delivery.getRecipientEmail(), delivery.getSubject(), delivery.getAttemptCount(),
+                delivery.getStatus(), delivery.getRecipientEmail(), delivery.getSubject(),
+                delivery.getHtmlBody() != null && !delivery.getHtmlBody().isBlank(), delivery.getAttemptCount(),
                 delivery.getLastError(), delivery.getCreatedAt(), delivery.getSentAt());
     }
 }

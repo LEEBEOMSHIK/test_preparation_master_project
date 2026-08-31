@@ -53,13 +53,14 @@ public class InquiryEmailDeliveryProcessor {
         return deliveryRepository.findPendingIds();
     }
 
-    public record ClaimedDelivery(Long id, String recipientEmail, String subject, String body) {
+    public record ClaimedDelivery(Long id, String recipientEmail, String subject, String body, String htmlBody) {
         private static ClaimedDelivery from(InquiryEmailDelivery delivery) {
             return new ClaimedDelivery(
                     delivery.getId(),
                     delivery.getRecipientEmail(),
                     delivery.getSubject(),
-                    delivery.getBody()
+                    delivery.getBody(),
+                    delivery.getHtmlBody()
             );
         }
     }

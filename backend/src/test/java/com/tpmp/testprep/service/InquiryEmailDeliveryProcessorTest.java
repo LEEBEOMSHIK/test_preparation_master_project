@@ -13,6 +13,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -35,6 +37,9 @@ class InquiryEmailDeliveryProcessorTest {
 
     @Autowired
     private InquiryEmailDeliveryProcessor processor;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @BeforeEach
     void clean() {
@@ -79,7 +84,32 @@ class InquiryEmailDeliveryProcessorTest {
         assertThat(delivery.getLastError()).isEqualTo("메일 발송 작업 큐가 가득 찼습니다.");
     }
 
+    @Test
+    void retryClaimUsesOriginalTextAndHtmlSnapshot() {
+        Long deliveryId = savePendingHtmlDelivery();
+        InquiryEmailDeliveryProcessor.ClaimedDelivery first = processor.claim(deliveryId).orElseThrow();
+        processor.markFailed(deliveryId, "첫 발송 실패");
+        Integer retryClaimed = new TransactionTemplate(transactionManager)
+                .execute(status -> deliveryRepository.claimFailedForRetry(deliveryId));
+        assertThat(retryClaimed).isEqualTo(1);
+
+        InquiryEmailDeliveryProcessor.ClaimedDelivery retried = processor.claim(deliveryId).orElseThrow();
+
+        assertThat(first.body()).isEqualTo("텍스트 스냅샷");
+        assertThat(first.htmlBody()).isEqualTo("<p>HTML 스냅샷</p>");
+        assertThat(retried.body()).isEqualTo(first.body());
+        assertThat(retried.htmlBody()).isEqualTo(first.htmlBody());
+    }
+
     private Long savePendingDelivery() {
+        return savePendingDelivery("본문", null);
+    }
+
+    private Long savePendingHtmlDelivery() {
+        return savePendingDelivery("텍스트 스냅샷", "<p>HTML 스냅샷</p>");
+    }
+
+    private Long savePendingDelivery(String body, String htmlBody) {
         User user = userRepository.save(User.builder()
                 .email("user-" + System.nanoTime() + "@tpmp.com")
                 .password("pw")
@@ -98,7 +128,8 @@ class InquiryEmailDeliveryProcessorTest {
                 InquiryEmailDelivery.EventType.NEW_INQUIRY,
                 "admin@tpmp.com",
                 "[TPMP] 문의",
-                "본문"
+                body,
+                htmlBody
         )).getId();
     }
 }

@@ -5,6 +5,8 @@ import com.tpmp.testprep.dto.request.AdminInquiryMessageRequest;
 import com.tpmp.testprep.dto.request.InquiryRequest;
 import com.tpmp.testprep.dto.request.InquiryStatusUpdateRequest;
 import com.tpmp.testprep.dto.request.InquiryUpdateRequest;
+import com.tpmp.testprep.dto.response.InquiryStatusEmailOutcome;
+import com.tpmp.testprep.dto.response.InquiryStatusUpdateResponse;
 import com.tpmp.testprep.entity.Inquiry;
 import com.tpmp.testprep.entity.InquiryMessage;
 import com.tpmp.testprep.entity.User;
@@ -14,6 +16,7 @@ import com.tpmp.testprep.repository.InquiryMessageRepository;
 import com.tpmp.testprep.repository.InquiryRepository;
 import com.tpmp.testprep.repository.UserRepository;
 import com.tpmp.testprep.repository.DomainSlaveRepository;
+import com.tpmp.testprep.service.InquiryEmailService.StatusEmailResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -173,7 +176,7 @@ class InquiryServiceTest {
         service.update(19L, new InquiryUpdateRequest("수정", "내용", Inquiry.RequestType.OTHER, null, null), "user@tpmp.com");
         service.addUserMessage(19L, new InquiryMessageRequest("추가", List.of()), "user@tpmp.com");
         service.addAdminMessage(19L, new AdminInquiryMessageRequest("답변", List.of(), false), "user@tpmp.com");
-        service.updateStatus(19L, new InquiryStatusUpdateRequest(Inquiry.Status.ON_HOLD, "", false), "user@tpmp.com");
+        service.updateStatus(19L, new InquiryStatusUpdateRequest(Inquiry.Status.ON_HOLD, false));
         inquiry.changeStatus(Inquiry.Status.PENDING);
         service.delete(19L, "user@tpmp.com");
 
@@ -225,18 +228,83 @@ class InquiryServiceTest {
     }
 
     @Test
-    void terminalStatusStoresFinalMessageBeforeChangingStatus() {
+    void completedStatusDoesNotCreateAdminMessageAndReturnsEmailOutcome() {
         Inquiry inquiry = inquiry(user("user@tpmp.com"), Inquiry.RequestType.FEATURE_REQUEST);
+        ReflectionTestUtils.setField(inquiry, "id", 1L);
         InquiryRepository inquiryRepository = mock(InquiryRepository.class);
         InquiryMessageRepository messageRepository = mock(InquiryMessageRepository.class);
+        AttachmentService attachmentService = mock(AttachmentService.class);
+        InquiryEmailService inquiryEmailService = mock(InquiryEmailService.class);
         when(inquiryRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(inquiry));
-        when(messageRepository.save(any(InquiryMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        InquiryService service = service(inquiryRepository, userRepository(user("admin@tpmp.com")), messageRepository);
+        when(attachmentService.findByRef(com.tpmp.testprep.entity.Attachment.RefType.INQUIRY, 1L))
+                .thenReturn(List.of());
+        when(messageRepository.findByInquiryIdOrderByCreatedAtAscIdAsc(1L)).thenReturn(List.of());
+        when(inquiryEmailService.queueStatusNotification(any(), eq(true)))
+                .thenReturn(new StatusEmailResult(InquiryStatusEmailOutcome.QUEUED,
+                        "상태 변경 안내 이메일을 발송 대기열에 등록했습니다."));
+        InquiryService service = new InquiryService(inquiryRepository, mock(UserRepository.class), attachmentService,
+                messageRepository, mock(DomainSlaveRepository.class), inquiryEmailService);
 
-        service.updateStatus(1L, new InquiryStatusUpdateRequest(Inquiry.Status.COMPLETED, "반영했습니다.", false), "admin@tpmp.com");
+        InquiryStatusUpdateResponse result = service.updateStatus(1L,
+                new InquiryStatusUpdateRequest(Inquiry.Status.COMPLETED, true));
 
-        assertThat(inquiry.getStatus()).isEqualTo(Inquiry.Status.COMPLETED);
-        verify(messageRepository).save(argThat(message -> "반영했습니다.".equals(message.getContent())));
+        assertThat(result.inquiry().status()).isEqualTo(Inquiry.Status.COMPLETED.name());
+        assertThat(result.emailOutcome()).isEqualTo(InquiryStatusEmailOutcome.QUEUED);
+        verify(messageRepository, never()).save(any());
+    }
+
+    @Test
+    void skippedTemplateKeepsCompletedStatusAndReturnsSettingsUrl() {
+        Inquiry inquiry = inquiry(user("user@tpmp.com"), Inquiry.RequestType.FEATURE_REQUEST);
+        ReflectionTestUtils.setField(inquiry, "id", 2L);
+        InquiryRepository inquiryRepository = mock(InquiryRepository.class);
+        InquiryMessageRepository messageRepository = mock(InquiryMessageRepository.class);
+        AttachmentService attachmentService = mock(AttachmentService.class);
+        InquiryEmailService inquiryEmailService = mock(InquiryEmailService.class);
+        when(inquiryRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(inquiry));
+        when(attachmentService.findByRef(com.tpmp.testprep.entity.Attachment.RefType.INQUIRY, 2L))
+                .thenReturn(List.of());
+        when(messageRepository.findByInquiryIdOrderByCreatedAtAscIdAsc(2L)).thenReturn(List.of());
+        when(inquiryEmailService.queueStatusNotification(inquiry, true))
+                .thenReturn(new StatusEmailResult(InquiryStatusEmailOutcome.SKIPPED_TEMPLATE_MISSING,
+                        "연결된 이메일 템플릿이 없어 상태만 변경했습니다."));
+        InquiryService service = new InquiryService(inquiryRepository, mock(UserRepository.class), attachmentService,
+                messageRepository, mock(DomainSlaveRepository.class), inquiryEmailService);
+
+        InquiryStatusUpdateResponse result = service.updateStatus(2L,
+                new InquiryStatusUpdateRequest(Inquiry.Status.COMPLETED, true));
+
+        assertThat(result.inquiry().status()).isEqualTo("COMPLETED");
+        assertThat(result.emailOutcome()).isEqualTo(InquiryStatusEmailOutcome.SKIPPED_TEMPLATE_MISSING);
+        assertThat(result.templateSettingsUrl()).isEqualTo("/admin/email-templates?tab=bindings");
+        verify(messageRepository, never()).save(any());
+    }
+
+    @Test
+    void reopeningClosedInquiryNeverRequestsStatusEmail() {
+        Inquiry inquiry = inquiry(user("user@tpmp.com"), Inquiry.RequestType.FEATURE_REQUEST);
+        ReflectionTestUtils.setField(inquiry, "id", 3L);
+        inquiry.changeStatus(Inquiry.Status.COMPLETED);
+        InquiryRepository inquiryRepository = mock(InquiryRepository.class);
+        InquiryMessageRepository messageRepository = mock(InquiryMessageRepository.class);
+        AttachmentService attachmentService = mock(AttachmentService.class);
+        InquiryEmailService inquiryEmailService = mock(InquiryEmailService.class);
+        when(inquiryRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(inquiry));
+        when(attachmentService.findByRef(com.tpmp.testprep.entity.Attachment.RefType.INQUIRY, 3L))
+                .thenReturn(List.of());
+        when(messageRepository.findByInquiryIdOrderByCreatedAtAscIdAsc(3L)).thenReturn(List.of());
+        InquiryService service = new InquiryService(inquiryRepository, mock(UserRepository.class), attachmentService,
+                messageRepository, mock(DomainSlaveRepository.class), inquiryEmailService);
+
+        InquiryStatusUpdateResponse result = service.updateStatus(3L,
+                new InquiryStatusUpdateRequest(Inquiry.Status.IN_PROGRESS, true));
+
+        assertThat(result.inquiry().status()).isEqualTo("IN_PROGRESS");
+        assertThat(result.emailOutcome()).isEqualTo(InquiryStatusEmailOutcome.NOT_REQUESTED);
+        assertThat(result.emailMessage()).isEqualTo("상태만 변경했습니다.");
+        assertThat(result.templateSettingsUrl()).isNull();
+        verifyNoInteractions(inquiryEmailService);
+        verify(messageRepository, never()).save(any());
     }
 
     @Test

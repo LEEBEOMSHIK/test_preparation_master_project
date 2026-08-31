@@ -1,3 +1,40 @@
+## HIST-20260831-008
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 백엔드 / 문의 상태 이메일 템플릿 발송
+- **수정 개요**: 상태별 템플릿을 안전하게 렌더링한 HTML·평문 스냅샷을 큐에 저장하고 MIME 멀티파트로 발송하도록 연결했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryEmailService.java` | 수정 | binding 결과 판정, 7개 변수 렌더링, HTML 스냅샷 큐 저장 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryEmailDeliveryProcessor.java` | 수정 | claim 결과에 저장된 HTML 스냅샷 포함 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryEmailDispatcher.java` | 수정 | legacy 평문과 HTML MIME 멀티파트 발송 분기 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/InquiryEmailDeliveryResponse.java` | 수정 | 본문 대신 `htmlContent` 플래그 노출 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryEmailServiceTest.java` | 수정 | missing/inactive/invalid/queued, 변수·스냅샷·응답 플래그 검증 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryEmailDeliveryProcessorTest.java` | 수정 | 최초·재발송 claim 스냅샷 불변 검증 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryEmailDispatcherTest.java` | 수정 | SimpleMail/MIME multipart 분기 검증 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryEmailTransactionIntegrationTest.java` | 수정 | AFTER_COMMIT HTML SMTP 실패와 상태 보존 통합 검증 |
+
+### 수정 상세
+
+#### 템플릿 큐와 발송
+- 변경 전: 문의 이메일은 저장된 평문 본문만 `SimpleMailMessage`로 발송했고 상태 변경 템플릿 binding을 사용하지 않았다.
+- 변경 후: 종료 상태 이벤트의 binding을 조회해 missing/inactive/invalid를 예외 없이 결과로 반환하고, 활성 템플릿은 문의자 표시명·문의 정보·제품 표시명·정규화 URL 등 7개 변수를 렌더링해 subject/text/html을 delivery에 고정 저장한다. claim과 retry는 저장된 스냅샷만 사용하며 HTML이 있을 때 text/plain과 text/html MIME 멀티파트를 발송한다.
+- 이유: 템플릿 변경 후 재발송 내용이 달라지는 문제를 막고, 템플릿 오류나 SMTP 실패가 이미 저장된 문의 상태를 롤백하지 않게 하기 위해서다.
+
+#### 발송 이력 응답
+- 변경 전: HTML 여부를 식별할 수 없었고 응답에는 HTML 표시용 필드가 없었다.
+- 변경 후: 사용자별 본문은 노출하지 않고 `htmlContent` boolean만 반환한다.
+- 이유: 관리자 이력 화면에서 HTML 배지를 표시하면서 이메일 본문 노출을 피하기 위해서다.
+
+### 복원 방법
+
+이 ID(`AdminEmailTemplate_Modified.md` 기준 HIST-20260831-008)로 복원 시 상태 템플릿 큐 로직을 제거하고 `ClaimedDelivery`를 평문 4필드로, dispatcher를 `SimpleMailMessage` 단일 경로로 되돌린다. `InquiryEmailDeliveryResponse.htmlContent`와 관련 테스트를 제거하고 상태 알림을 기존 평문 `queueUserNotification` 경로로 복원한다.
+
+---
+
 ## HIST-20260831-007
 
 - **날짜**: 2026-08-31

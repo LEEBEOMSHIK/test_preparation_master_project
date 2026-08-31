@@ -6,6 +6,7 @@ import com.tpmp.testprep.dto.response.ApiResponse;
 import com.tpmp.testprep.dto.response.InquiryDetailResponse;
 import com.tpmp.testprep.dto.response.InquiryMessageResponse;
 import com.tpmp.testprep.dto.response.InquirySummaryResponse;
+import com.tpmp.testprep.dto.response.InquiryStatusUpdateResponse;
 import com.tpmp.testprep.entity.Inquiry;
 import com.tpmp.testprep.service.InquiryService;
 import jakarta.validation.Valid;
@@ -49,9 +50,9 @@ public class AdminInquiryController {
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<ApiResponse<InquiryDetailResponse>> updateStatus(@PathVariable Long id,
-            @Valid @RequestBody InquiryStatusUpdateRequest request, @AuthenticationPrincipal String email) {
-        return ResponseEntity.ok(ApiResponse.success(inquiryService.updateStatus(id, request, email)));
+    public ResponseEntity<ApiResponse<InquiryStatusUpdateResponse>> updateStatus(@PathVariable Long id,
+            @Valid @RequestBody InquiryStatusUpdateRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(inquiryService.updateStatus(id, request)));
     }
 
     @DeleteMapping("/{id}")

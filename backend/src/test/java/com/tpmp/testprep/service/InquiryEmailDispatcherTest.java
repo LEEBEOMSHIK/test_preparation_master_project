@@ -6,9 +6,14 @@ import org.springframework.core.task.SyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.SimpleMailMessage;
+
+import jakarta.mail.Multipart;
+import jakarta.mail.internet.MimeMessage;
 
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -32,6 +37,42 @@ class InquiryEmailDispatcherTest {
 
         verify(mailSender).send(any(org.springframework.mail.SimpleMailMessage.class));
         verify(processor).markSent(1L);
+    }
+
+    @Test
+    void dispatcherUsesSimpleMailForLegacyDelivery() {
+        InquiryEmailDeliveryProcessor processor = mock(InquiryEmailDeliveryProcessor.class);
+        JavaMailSender mailSender = mock(JavaMailSender.class);
+        when(processor.claim(1L)).thenReturn(Optional.of(new InquiryEmailDeliveryProcessor.ClaimedDelivery(
+                1L, "user@tpmp.com", "제목", "텍스트", null)));
+        InquiryEmailDispatcher dispatcher = dispatcher(processor, mailSender);
+
+        dispatcher.dispatch(1L);
+
+        verify(mailSender).send(any(SimpleMailMessage.class));
+        verify(mailSender, never()).send(any(MimeMessage.class));
+    }
+
+    @Test
+    void dispatcherUsesMimeMultipartForHtmlDelivery() throws Exception {
+        InquiryEmailDeliveryProcessor processor = mock(InquiryEmailDeliveryProcessor.class);
+        JavaMailSender mailSender = mock(JavaMailSender.class);
+        MimeMessage mimeMessage = new MimeMessage((jakarta.mail.Session) null);
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+        when(processor.claim(2L)).thenReturn(Optional.of(new InquiryEmailDeliveryProcessor.ClaimedDelivery(
+                2L, "user@tpmp.com", "제목", "텍스트", "<p>HTML</p>")));
+        InquiryEmailDispatcher dispatcher = dispatcher(processor, mailSender);
+
+        dispatcher.dispatch(2L);
+
+        verify(mailSender).send(mimeMessage);
+        verify(mailSender, never()).send(any(SimpleMailMessage.class));
+        Multipart mixed = (Multipart) mimeMessage.getContent();
+        Multipart related = (Multipart) mixed.getBodyPart(0).getContent();
+        Multipart alternative = (Multipart) related.getBodyPart(0).getContent();
+        assertThat(alternative.getCount()).isEqualTo(2);
+        assertThat(alternative.getBodyPart(0).getContent()).isEqualTo("텍스트");
+        assertThat(alternative.getBodyPart(1).getContent()).isEqualTo("<p>HTML</p>");
     }
 
     @Test
@@ -82,7 +123,18 @@ class InquiryEmailDispatcherTest {
                 1L,
                 "admin@tpmp.com",
                 "[TPMP] 문의",
-                "본문"
+                "본문",
+                null
+        );
+    }
+
+    private InquiryEmailDispatcher dispatcher(InquiryEmailDeliveryProcessor processor, JavaMailSender mailSender) {
+        return new InquiryEmailDispatcher(
+                processor,
+                provider(mailSender),
+                new SyncTaskExecutor(),
+                "smtp.tpmp.com",
+                "noreply@tpmp.com"
         );
     }
 }

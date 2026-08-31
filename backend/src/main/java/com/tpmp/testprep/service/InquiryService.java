@@ -8,6 +8,8 @@ import com.tpmp.testprep.dto.request.InquiryUpdateRequest;
 import com.tpmp.testprep.dto.response.InquiryDetailResponse;
 import com.tpmp.testprep.dto.response.InquiryMessageResponse;
 import com.tpmp.testprep.dto.response.InquirySummaryResponse;
+import com.tpmp.testprep.dto.response.InquiryStatusEmailOutcome;
+import com.tpmp.testprep.dto.response.InquiryStatusUpdateResponse;
 import com.tpmp.testprep.entity.Attachment;
 import com.tpmp.testprep.entity.Inquiry;
 import com.tpmp.testprep.entity.InquiryEmailDelivery;
@@ -134,21 +136,21 @@ public class InquiryService {
     }
 
     @Transactional
-    public InquiryDetailResponse updateStatus(Long inquiryId, InquiryStatusUpdateRequest request, String email) {
+    public InquiryStatusUpdateResponse updateStatus(Long inquiryId, InquiryStatusUpdateRequest request) {
         Inquiry inquiry = findInquiryForUpdate(inquiryId);
-        User admin = findUser(email);
         if (!inquiry.canTransitionTo(request.status())) throw new BusinessException(ErrorCode.INVALID_INQUIRY_STATUS_TRANSITION);
-        InquiryMessage finalMessage = null;
-        if (request.status().isClosed()) {
-            if (request.message() == null || request.message().isBlank()) throw new BusinessException(ErrorCode.INVALID_INPUT);
-            finalMessage = inquiryMessageRepository.save(InquiryMessage.builder().inquiry(inquiry)
-                    .author(admin).authorRole(InquiryMessage.AuthorRole.ADMIN).content(request.message()).build());
-        }
         inquiry.changeStatus(request.status());
-        if (request.status().isClosed()) {
-            inquiryEmailService.queueUserNotification(toEmailEvent(request.status()), inquiry, finalMessage, request.sendEmail());
-        }
-        return toDetail(inquiry);
+        InquiryEmailService.StatusEmailResult emailResult = request.status().isClosed() && request.sendEmail()
+                ? inquiryEmailService.queueStatusNotification(inquiry, true)
+                : new InquiryEmailService.StatusEmailResult(
+                        InquiryStatusEmailOutcome.NOT_REQUESTED, "상태만 변경했습니다.");
+        String templateSettingsUrl = switch (emailResult.outcome()) {
+            case SKIPPED_TEMPLATE_MISSING, SKIPPED_TEMPLATE_INACTIVE, SKIPPED_TEMPLATE_INVALID ->
+                    "/admin/email-templates?tab=bindings";
+            case NOT_REQUESTED, QUEUED -> null;
+        };
+        return new InquiryStatusUpdateResponse(
+                toDetail(inquiry), emailResult.outcome(), emailResult.safeMessage(), templateSettingsUrl);
     }
 
     @Transactional
@@ -180,15 +182,6 @@ public class InquiryService {
     private String detailLocation(InquiryRequest request) { return request.requestType() == Inquiry.RequestType.EXAM_OPENING_REQUEST ? null : request.detailLocation(); }
     private String targetArea(InquiryUpdateRequest request) { return request.requestType() == Inquiry.RequestType.EXAM_OPENING_REQUEST ? null : request.targetArea(); }
     private String detailLocation(InquiryUpdateRequest request) { return request.requestType() == Inquiry.RequestType.EXAM_OPENING_REQUEST ? null : request.detailLocation(); }
-
-    private InquiryEmailDelivery.EventType toEmailEvent(Inquiry.Status status) {
-        return switch (status) {
-            case ANSWERED -> InquiryEmailDelivery.EventType.ANSWERED;
-            case COMPLETED -> InquiryEmailDelivery.EventType.COMPLETED;
-            case UNABLE_TO_PROCESS -> InquiryEmailDelivery.EventType.UNABLE_TO_PROCESS;
-            default -> throw new IllegalArgumentException("종료 상태가 아닙니다.");
-        };
-    }
 
     private InquiryDetailResponse toDetail(Inquiry inquiry) {
         List<Attachment> attachments = attachmentService.findByRef(Attachment.RefType.INQUIRY, inquiry.getId());

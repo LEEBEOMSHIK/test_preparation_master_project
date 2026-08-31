@@ -2,7 +2,13 @@ package com.tpmp.testprep.service;
 
 import com.tpmp.testprep.entity.Inquiry;
 import com.tpmp.testprep.entity.InquiryEmailDelivery;
+import com.tpmp.testprep.entity.EmailTemplate;
+import com.tpmp.testprep.entity.EmailTemplateBinding;
+import com.tpmp.testprep.entity.EmailTemplateEvent;
 import com.tpmp.testprep.entity.User;
+import com.tpmp.testprep.dto.response.InquiryStatusEmailOutcome;
+import com.tpmp.testprep.repository.EmailTemplateBindingRepository;
+import com.tpmp.testprep.repository.EmailTemplateRepository;
 import com.tpmp.testprep.repository.InquiryEmailDeliveryRepository;
 import com.tpmp.testprep.repository.InquiryRepository;
 import com.tpmp.testprep.repository.UserRepository;
@@ -22,6 +28,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import jakarta.mail.internet.MimeMessage;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +40,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest(
         classes = InquiryEmailTransactionIntegrationTest.TestApplication.class,
@@ -61,12 +69,20 @@ class InquiryEmailTransactionIntegrationTest {
     @Autowired
     private InquiryEmailDeliveryRepository deliveryRepository;
 
+    @Autowired
+    private EmailTemplateBindingRepository bindingRepository;
+
+    @Autowired
+    private EmailTemplateRepository templateRepository;
+
     @MockBean
     private JavaMailSender mailSender;
 
     @BeforeEach
     void clean() {
         deliveryRepository.deleteAll();
+        bindingRepository.deleteAll();
+        templateRepository.deleteAll();
         inquiryRepository.deleteAll();
         userRepository.deleteAll();
         reset(mailSender);
@@ -112,6 +128,28 @@ class InquiryEmailTransactionIntegrationTest {
                 });
     }
 
+    @Test
+    void htmlSmtpFailureDoesNotRollbackCommittedStatusAndRecordsFailedSnapshot() {
+        when(mailSender.createMimeMessage()).thenReturn(new MimeMessage((jakarta.mail.Session) null));
+        doThrow(new MailSendException("smtp unavailable"))
+                .when(mailSender)
+                .send(any(MimeMessage.class));
+
+        Long inquiryId = transactionFixture.saveCompletedInquiryAndQueueStatus();
+
+        assertThat(inquiryRepository.findById(inquiryId).orElseThrow().getStatus())
+                .isEqualTo(Inquiry.Status.COMPLETED);
+        assertThat(deliveryRepository.findAll()).singleElement()
+                .satisfies(delivery -> {
+                    assertThat(delivery.getStatus()).isEqualTo(InquiryEmailDelivery.Status.FAILED);
+                    assertThat(delivery.getLastError()).isEqualTo("메일 전송에 실패했습니다.");
+                    assertThat(delivery.getSubject()).isEqualTo("처리 완료: 트랜잭션 문의");
+                    assertThat(delivery.getBody()).contains("트랜잭션 사용자");
+                    assertThat(delivery.getHtmlBody()).contains("<p>");
+                });
+        verify(mailSender).send(any(MimeMessage.class));
+    }
+
     @SpringBootConfiguration
     @EnableAutoConfiguration
     @EntityScan(basePackages = "com.tpmp.testprep.entity")
@@ -119,6 +157,7 @@ class InquiryEmailTransactionIntegrationTest {
     @EnableJpaRepositories(basePackages = "com.tpmp.testprep.repository")
     @Import({
             InquiryEmailService.class,
+            EmailTemplateRenderer.class,
             InquiryEmailDispatcher.class,
             InquiryEmailDeliveryProcessor.class,
             TransactionFixture.class
@@ -134,13 +173,19 @@ class InquiryEmailTransactionIntegrationTest {
         private final UserRepository userRepository;
         private final InquiryRepository inquiryRepository;
         private final InquiryEmailService emailService;
+        private final EmailTemplateRepository templateRepository;
+        private final EmailTemplateBindingRepository bindingRepository;
 
         TransactionFixture(UserRepository userRepository,
                            InquiryRepository inquiryRepository,
-                           InquiryEmailService emailService) {
+                           InquiryEmailService emailService,
+                           EmailTemplateRepository templateRepository,
+                           EmailTemplateBindingRepository bindingRepository) {
             this.userRepository = userRepository;
             this.inquiryRepository = inquiryRepository;
             this.emailService = emailService;
+            this.templateRepository = templateRepository;
+            this.bindingRepository = bindingRepository;
         }
 
         @Transactional
@@ -165,6 +210,40 @@ class InquiryEmailTransactionIntegrationTest {
             );
             if (rollback) {
                 throw new IllegalStateException("rollback requested");
+            }
+            return inquiry.getId();
+        }
+
+        @Transactional
+        public Long saveCompletedInquiryAndQueueStatus() {
+            User user = userRepository.save(User.builder()
+                    .email("status-tx-" + System.nanoTime() + "@tpmp.test")
+                    .password("pw")
+                    .name("트랜잭션 사용자")
+                    .role(User.Role.USER)
+                    .build());
+            Inquiry inquiry = inquiryRepository.save(Inquiry.builder()
+                    .user(user)
+                    .title("트랜잭션 문의")
+                    .content("문의 본문")
+                    .requestType(Inquiry.RequestType.FEATURE_REQUEST)
+                    .build());
+            EmailTemplate template = templateRepository.save(EmailTemplate.create(
+                    "상태 템플릿",
+                    EmailTemplate.Scope.INQUIRY_STATUS,
+                    "처리 완료: {{inquiryTitle}}",
+                    "<p>{{recipientName}}님, {{statusLabel}}</p>",
+                    "저장 당시 텍스트",
+                    true,
+                    null,
+                    null));
+            bindingRepository.save(EmailTemplateBinding.create(
+                    EmailTemplateEvent.INQUIRY_COMPLETED, template, null));
+            inquiry.changeStatus(Inquiry.Status.COMPLETED);
+
+            InquiryEmailService.StatusEmailResult result = emailService.queueStatusNotification(inquiry, true);
+            if (result.outcome() != InquiryStatusEmailOutcome.QUEUED) {
+                throw new IllegalStateException("status email was not queued");
             }
             return inquiry.getId();
         }

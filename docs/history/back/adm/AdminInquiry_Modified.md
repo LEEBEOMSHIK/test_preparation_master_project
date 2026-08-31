@@ -1,3 +1,34 @@
+## HIST-20260831-002
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 백엔드 / 문의·요청 상태 변경
+- **수정 개요**: 상태 변경을 관리자 답변 메시지에서 분리하고 템플릿 이메일 큐 결과를 구조화해 반환하도록 변경했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/dto/request/InquiryStatusUpdateRequest.java` | 수정 | 상태 변경 입력을 `status`, `sendEmail` 두 필드로 축소 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/InquiryStatusEmailOutcome.java` | 추가 | 상태 이메일 큐 결과 5종 정의 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/InquiryStatusUpdateResponse.java` | 추가 | 문의 상세·이메일 결과·안내·설정 URL 응답 정의 |
+| `backend/src/main/java/com/tpmp/testprep/controller/AdminInquiryController.java` | 수정 | 새 상태 변경 응답 계약 적용 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryService.java` | 수정 | 종료 메시지 저장 제거, 상태 변경과 이메일 결과 조합 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryServiceTest.java` | 수정 | 메시지 비생성, skipped 결과, 재오픈 결과 회귀 검증 |
+| `backend/src/test/java/com/tpmp/testprep/controller/AdminInquiryControllerWebMvcTest.java` | 추가 | `message` 없는 요청과 새 JSON 응답 계약 검증 |
+
+### 수정 상세
+
+#### 상태 변경 계약
+- 변경 전: 종료 상태 변경 요청에 관리자 메시지를 필수로 받고 `InquiryMessage`를 저장한 뒤 문의 상세만 반환했다.
+- 변경 후: 상태 변경은 대화 메시지를 생성하지 않으며, 이메일 요청 결과와 고정 안내 문구 및 필요한 경우 템플릿 설정 URL을 함께 반환한다. 열린 상태·재오픈·이메일 미요청은 `NOT_REQUESTED`다.
+- 이유: 관리자 답변과 문의 상태를 독립된 행위로 분리하고 템플릿 설정 문제에도 상태 변경 자체는 보존하기 위해서다.
+
+### 복원 방법
+
+이 ID(`AdminInquiry_Modified.md` 기준 HIST-20260831-002)로 복원 시 새 상태 결과 DTO와 WebMvc 테스트를 제거하고, request의 `message` 필드와 Controller/Service의 관리자 이메일 인자를 복원한다. `InquiryService.updateStatus`가 종료 메시지를 저장하고 기존 `InquiryDetailResponse`만 반환하도록 되돌린다.
+
+---
+
 ## HIST-20260831-001
 
 - **날짜**: 2026-08-31
