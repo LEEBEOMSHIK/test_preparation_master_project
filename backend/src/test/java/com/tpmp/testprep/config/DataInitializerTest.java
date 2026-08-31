@@ -6,11 +6,13 @@ import com.tpmp.testprep.entity.ExamInfo;
 import com.tpmp.testprep.repository.*;
 import com.tpmp.testprep.service.PracticeService;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.ApplicationArguments;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -145,6 +147,42 @@ class DataInitializerTest {
                         && menu.isActive()
         ));
         verify(menuConfigRepository, times(1)).save(any(com.tpmp.testprep.entity.MenuConfig.class));
+    }
+
+    @Test
+    void createsGlobalEmailTemplateAdminMenu() throws Exception {
+        MenuConfigRepository menuConfigRepository = mock(MenuConfigRepository.class);
+        when(menuConfigRepository.count()).thenReturn(1L);
+        when(menuConfigRepository.existsByUrl(any(String.class))).thenAnswer(invocation ->
+                !"/admin/email-templates".equals(invocation.getArgument(0)));
+        DataInitializer initializer = newInitializer(mock(ExamInfoRepository.class), menuConfigRepository);
+
+        initializer.run(mock(ApplicationArguments.class));
+
+        verify(menuConfigRepository).save(argThat(menu ->
+                menu.getMenuType() == com.tpmp.testprep.entity.MenuConfig.MenuType.ADMIN
+                        && "이메일 템플릿 관리".equals(menu.getName())
+                        && "/admin/email-templates".equals(menu.getUrl())
+                        && "email".equals(menu.getIconKey())
+                        && menu.getDisplayOrder() == 15));
+    }
+
+    @Test
+    void createsGlobalEmailTemplateAdminMenuOnlyOnceAcrossRepeatedRuns() throws Exception {
+        MenuConfigRepository menuConfigRepository = mock(MenuConfigRepository.class);
+        AtomicInteger emailMenuChecks = new AtomicInteger();
+        when(menuConfigRepository.count()).thenReturn(1L);
+        when(menuConfigRepository.existsByUrl(any(String.class))).thenAnswer(invocation -> {
+            String url = invocation.getArgument(0);
+            return !"/admin/email-templates".equals(url) || emailMenuChecks.getAndIncrement() > 0;
+        });
+        DataInitializer initializer = newInitializer(mock(ExamInfoRepository.class), menuConfigRepository);
+
+        initializer.run(mock(ApplicationArguments.class));
+        initializer.run(mock(ApplicationArguments.class));
+
+        verify(menuConfigRepository, times(1)).save(argThat(menu ->
+                "/admin/email-templates".equals(menu.getUrl())));
     }
 
     private DataInitializer newInitializer(ExamInfoRepository examInfoRepository) {

@@ -65,6 +65,7 @@ public class DataInitializer implements ApplicationRunner {
         ensureSupportSettingsMenu();
         ensureQuizHistoryMenu();
         ensurePatchNotesAdminMenu();
+        ensureEmailTemplateAdminMenu();
         ensureUserMenuGroups();
         ensurePermissionMenuAssociations();
         ensureQnetPracticalExamInfo();
@@ -539,6 +540,13 @@ public class DataInitializer implements ApplicationRunner {
         if (!menuConfigRepository.existsByUrl("/admin/patch-notes")) {
             saveMenu(null, "패치노트 관리", "/admin/patch-notes", "menu", 14, MenuConfig.MenuType.ADMIN, "ADMIN");
             log.info("[DataInitializer] 패치노트 관리 메뉴 추가 완료");
+        }
+    }
+
+    private void ensureEmailTemplateAdminMenu() {
+        if (!menuConfigRepository.existsByUrl("/admin/email-templates")) {
+            saveMenu(null, "이메일 템플릿 관리", "/admin/email-templates", "email", 15, MenuConfig.MenuType.ADMIN, "ADMIN");
+            log.info("[DataInitializer] 이메일 템플릿 관리 메뉴 추가 완료");
         }
     }
 

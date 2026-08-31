@@ -64,7 +64,7 @@ public class EmailTemplateService {
 
     public Page<EmailTemplateSummaryResponse> getAll(String keyword, EmailTemplate.Scope scope,
                                                       Boolean active, Pageable pageable) {
-        String normalizedKeyword = keyword == null || keyword.isBlank() ? null : keyword.trim();
+        String normalizedKeyword = keyword == null || keyword.isBlank() ? "" : keyword.trim();
         return templateRepository.search(normalizedKeyword, scope, active, pageable)
                 .map(this::toSummary);
     }

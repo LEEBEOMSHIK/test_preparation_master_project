@@ -74,7 +74,7 @@
 | user_id | 문의자 FK |
 | title | 제목 |
 | content | 내용 |
-| status | PENDING / ANSWERED |
+| status | PENDING / IN_PROGRESS / ON_HOLD / ANSWERED / COMPLETED / UNABLE_TO_PROCESS |
 | reply | 답변 내용 (nullable) |
 | replied_at | 답변 일시 (nullable) |
 | created_at | 문의 일시 |
@@ -121,7 +121,12 @@
 3. **1:1 문의 관리**
    - 문의 목록 조회 (상태별 필터링)
    - 답변 등록
-4. **패치노트 관리**
+   - 답변 메시지와 처리 상태 변경을 분리하고, 종료 상태 알림 결과를 독립 표시
+4. **이메일 템플릿 관리**
+   - 문의 상태 알림용 HTML·일반 텍스트 템플릿 등록, 수정, 복제, 활성화, 삭제
+   - ANSWERED / COMPLETED / UNABLE_TO_PROCESS 이벤트별 활성 템플릿 연결·해제
+   - 문의 처리 상태 저장과 상태 알림 이메일 큐 등록·건너뜀 결과를 분리
+5. **패치노트 관리**
    - 패치노트 목록 조회, 등록, 수정, 삭제
    - 게시 / 비게시 전환
 

@@ -1,3 +1,29 @@
+## HIST-20260831-001
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 프론트엔드 / 글로벌 레이아웃 메뉴
+- **수정 개요**: 이메일 템플릿 관리 fallback 메뉴·아이콘과 모든 하위 경로 제목을 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/layout/AdminLayoutShell.tsx` | 수정 | email 아이콘, displayOrder 15 fallback, edit/new 제목 보강 |
+| `frontend/src/components/layout/AdminLayoutShell.test.tsx` | 추가 | API 메뉴와 fallback 편집 경로 렌더링 테스트 |
+
+### 수정 상세
+
+#### `AdminLayoutShell`
+- 변경 전: API 메뉴가 비거나 실패하면 이메일 템플릿 링크가 없고, 해당 경로 제목은 대시보드로 폴백했다.
+- 변경 후: `/admin/email-templates` fallback 메뉴와 email 봉투 아이콘을 추가하고, base/new/edit 경로 제목을 모두 `이메일 템플릿 관리`로 고정한다.
+- 이유: DB 메뉴 로딩 전후와 상세 편집 경로에서도 전역 탐색·제목을 일관되게 제공하기 위해서다.
+
+### 복원 방법
+
+이 ID(`AdminLayout_Modified.md` 기준 HIST-20260831-001)로 복원 시 email 아이콘·fallback 항목·제목 분기와 새 테스트 파일을 제거한다.
+
+---
+
 ## HIST-20260724-001
 
 - **날짜**: 2026-07-24

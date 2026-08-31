@@ -120,6 +120,19 @@ class EmailTemplateServiceTest {
     }
 
     @Test
+    void getAllPassesNonNullKeywordForPostgresCompatibility() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(templateRepository.search("", EmailTemplate.Scope.INQUIRY_STATUS, null, pageable))
+                .thenReturn(Page.empty(pageable));
+
+        Page<EmailTemplateSummaryResponse> response = service.getAll(
+                null, EmailTemplate.Scope.INQUIRY_STATUS, null, pageable);
+
+        assertThat(response).isEmpty();
+        verify(templateRepository).search("", EmailTemplate.Scope.INQUIRY_STATUS, null, pageable);
+    }
+
+    @Test
     void getOneReturnsDetailWithAllowedVariables() {
         EmailTemplate template = template();
         when(templateRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(template));

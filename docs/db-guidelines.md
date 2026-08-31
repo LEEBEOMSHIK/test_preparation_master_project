@@ -130,7 +130,10 @@ repository.findAllByDelYn("N", pageable);
 | `domain_slave` | 도메인 슬레이브 (분류 값) | 미적용 (단순 코드 테이블) | master_id FK, name, display_order |
 | `examinations` | 시험 이벤트 | 부분 적용 (del_yn/use_yn만) | title, exam_paper_id FK → exams, category_id FK → domain_slave, time_limit, created_by FK, created_at |
 | `concept_notes` | 개념 노트 | 미적용 (레거시) | |
-| `inquiries` | 문의 | 미적용 (레거시) | |
+| `inquiries` | 문의 | 미적용 (레거시) | status는 PENDING/IN_PROGRESS/ON_HOLD/ANSWERED/COMPLETED/UNABLE_TO_PROCESS 6상태 check |
+| `email_templates` | 이메일 템플릿 | 자체 감사 컬럼 적용 | created_at/updated_at, nullable created/updated/deleted_by_admin_id FK → users, deleted_at 소프트 삭제 |
+| `email_template_bindings` | 이메일 이벤트별 템플릿 연결 | 자체 감사 컬럼 적용 | event_code PK, template_id FK → email_templates(RESTRICT), nullable created/updated_by_admin_id FK → users |
+| `inquiry_email_deliveries` | 문의 이메일 발송 이력 | 로그 테이블 예외 | inquiry/message FK, text body와 nullable html_body 발송 스냅샷 |
 | `user_exam_applications` | 사용자 직접 입력 시험 접수 정보 | 미적용 (신규, created_at/updated_at만 자체 관리) | user_id FK → users(CASCADE), exam_info_id nullable FK → exam_info(SET NULL), exam_name 스냅샷 |
 | `patch_notes` | 관리자 작성 패치노트 | ✅ 적용 | title, version, content, published_yn, published_dt |
 
@@ -256,6 +259,9 @@ updated_at        TIMESTAMP    NULLABLE
 | `quotes` | 명언 |
 | `concept_notes` | 개념 노트 |
 | `inquiries` | 문의 |
+| `email_templates` | 이메일 템플릿 |
+| `email_template_bindings` | 이메일 이벤트별 템플릿 연결 |
+| `inquiry_email_deliveries` | 문의·요청 이메일 발송·실패·재시도 이력 |
 | `user_exam_applications` | 사용자 직접 입력 시험 접수 정보 |
 
 ### 9.2 주요 컬럼 코멘트 (FK 포함)
@@ -325,6 +331,40 @@ updated_at        TIMESTAMP    NULLABLE
 | `exam_info_id` | nullable FK → exam_info.id (연결된 시험 정보, ON DELETE SET NULL) |
 | `exam_name` | 시험명 스냅샷 (저장 시점 exam_info.title 또는 자유 입력값) |
 
+#### `inquiries`
+| 컬럼 | 설명 |
+|------|------|
+| `status` | PENDING / IN_PROGRESS / ON_HOLD / ANSWERED / COMPLETED / UNABLE_TO_PROCESS 6상태 check |
+
+#### `email_templates`
+| 컬럼 | 설명 |
+|------|------|
+| `scope` | INQUIRY_STATUS만 허용하는 check |
+| `subject_template` | 변수 치환 전 메일 제목 템플릿 |
+| `html_body` | 변수 치환 전 HTML 본문 템플릿 |
+| `text_body` | 변수 치환 전 일반 텍스트 본문 템플릿 |
+| `system_key` | 기본 시스템 템플릿 식별자 (nullable, unique) |
+| `created_by_admin_id` | nullable FK → users.id (등록 관리자) |
+| `updated_by_admin_id` | nullable FK → users.id (최종 수정 관리자) |
+| `deleted_at` | 소프트 삭제 일시 (nullable) |
+| `deleted_by_admin_id` | nullable FK → users.id (삭제 관리자) |
+
+#### `email_template_bindings`
+| 컬럼 | 설명 |
+|------|------|
+| `event_code` | PK, INQUIRY_ANSWERED / INQUIRY_COMPLETED / INQUIRY_UNABLE_TO_PROCESS 이벤트 코드 |
+| `template_id` | FK → email_templates.id (ON DELETE RESTRICT) |
+| `created_by_admin_id` | nullable FK → users.id (연결 관리자) |
+| `updated_by_admin_id` | nullable FK → users.id (최종 변경 관리자) |
+
+#### `inquiry_email_deliveries`
+| 컬럼 | 설명 |
+|------|------|
+| `inquiry_id` | FK → inquiries.id (ON DELETE CASCADE) |
+| `inquiry_message_id` | nullable FK → inquiry_messages.id (ON DELETE SET NULL) |
+| `body` | 발송 시점 일반 텍스트 본문 스냅샷 |
+| `html_body` | 발송 시점 정화된 HTML 본문 스냅샷. 기존 NEW_INQUIRY / USER_MESSAGE / ADMIN_MESSAGE 평문 발송은 NULL |
+
 ### 9.3 코멘트 추가 방법
 
 1. 이 문서 §9 테이블에 새 행 추가
@@ -349,3 +389,9 @@ Flyway/Liquibase 미사용 프로젝트이므로 스키마 변경(ALTER TABLE, C
 - 자세한 절차: [`docs/sql/README.md`](sql/README.md)
 
 > `ddl-auto` 주의: local/dev 프로필은 `update`라 백엔드 기동만으로 스키마가 생기지만, prod은 `validate`라 스키마가 없으면 기동 자체가 실패한다. 운영과 동일한 스키마를 보장하려면 로컬에서도 베이스라인을 적용하는 편이 안전하다.
+
+### 이메일 템플릿 관리 운영 적용 순서
+
+`email_templates`, `email_template_bindings`, `inquiry_email_deliveries.html_body`, 문의 6상태 check는 `docs/db-migration/20260831_01_admin_email_template_management.sql`로 반영한다. 이 SQL은 기본 시스템 템플릿·이벤트 연결을 최초 한 번만 만들며, 관리자가 연결을 해제한 뒤 애플리케이션 재기동만으로 binding을 복구하지 않는다.
+
+> **운영 필수 순서: SQL → 애플리케이션.** 운영의 `spring.jpa.hibernate.ddl-auto=validate`는 누락된 테이블·컬럼을 생성하지 않으므로, 위 SQL을 먼저 적용하지 않고 신규 애플리케이션을 기동하면 스키마 검증에서 실패한다.

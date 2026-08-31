@@ -1,3 +1,55 @@
+## HIST-20260831-010
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 백엔드 / 이메일 템플릿 목록 PostgreSQL 호환성
+- **수정 개요**: 검색어가 없을 때 PostgreSQL이 JPQL 문자열 파라미터 타입을 추론하지 못하는 오류를 막았다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/EmailTemplateService.java` | 수정 | 빈 검색어를 null 대신 빈 문자열로 정규화 |
+| `backend/src/test/java/com/tpmp/testprep/service/EmailTemplateServiceTest.java` | 수정 | PostgreSQL 호환 검색 파라미터 회귀 테스트 추가 |
+
+### 수정 상세
+
+#### 목록 검색 파라미터
+- 변경 전: 검색어가 없으면 repository의 JPQL `:keyword is null` 조건에 null을 전달해 PostgreSQL에서 문자열 파라미터 타입 추론 오류가 발생했다.
+- 변경 후: 검색어가 없거나 공백이면 빈 문자열을 전달해 기존 `LIKE` 조건이 전체 항목과 일치하면서 파라미터 타입도 확정된다.
+- 이유: H2 기반 테스트에서는 드러나지 않았지만 로컬 PostgreSQL 실제 API에서 검색어 없는 목록이 500을 반환했기 때문이다.
+
+### 복원 방법
+
+이 ID(`AdminEmailTemplate_Modified.md` 기준 HIST-20260831-010)로 복원 시 `EmailTemplateService.getAll`의 빈 검색어 정규화를 null로 되돌리고 해당 회귀 테스트를 제거한다.
+
+---
+
+## HIST-20260831-009
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 백엔드 / 이메일 템플릿 DB·운영 문서
+- **수정 개요**: 템플릿·이벤트 연결·HTML 발송 스냅샷과 운영 SQL 선행 적용 계약을 DB 문서에 확정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `docs/project-overview.md` | 수정 | 관리자 템플릿·연결·문의 상태 알림 분리 기능 기록 |
+| `docs/db-guidelines.md` | 수정 | 신규 테이블, 감사/FK, 6상태, html_body, SQL 선행 순서 기록 |
+
+### 수정 상세
+
+#### DB·운영 계약
+- 변경 전: 최신 이메일 템플릿 테이블과 `inquiry_email_deliveries.html_body`, 문의 6상태 및 운영 적용 순서가 DB 가이드에 없었다.
+- 변경 후: DDL과 같은 감사 컬럼·nullable 관리자 FK·RESTRICT/CASCADE/SET NULL 관계, HTML 스냅샷 의미를 기록하고 `ddl-auto=validate` 운영은 SQL을 애플리케이션보다 먼저 적용하도록 경고한다.
+- 이유: JPA와 운영 스키마의 불일치 및 해제된 binding의 의도치 않은 복구를 막기 위해서다.
+
+### 복원 방법
+
+이 ID(`AdminEmailTemplate_Modified.md` 기준 HIST-20260831-009)로 복원 시 두 문서에서 이메일 템플릿 관리·테이블·6상태·HTML 스냅샷·운영 적용 순서 항목을 제거한다.
+
+---
+
 ## HIST-20260831-008
 
 - **날짜**: 2026-08-31

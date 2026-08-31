@@ -1,3 +1,28 @@
+## HIST-20260831-004
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 프론트엔드 / DB 테이블 설명
+- **수정 개요**: 관리자 DB 조회에 이메일 템플릿·이벤트 연결과 HTML 발송 스냅샷 설명을 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/data/tableComments.ts` | 수정 | email_templates/email_template_bindings 및 html_body 감사·FK 설명 추가 |
+
+### 수정 상세
+
+#### `tableComments.ts`
+- 변경 전: 신규 두 테이블과 `inquiry_email_deliveries.html_body` 설명·FK가 관리자 DB 조회에 없었다.
+- 변경 후: `이메일 템플릿`, `이메일 이벤트별 템플릿 연결` 설명과 users/email_templates FK, 감사 관리자, 정화된 HTML 스냅샷 의미를 제공한다.
+- 이유: 운영자가 관리자 DB 조회에서 최신 스키마 관계와 발송 저장값을 정확히 해석하도록 하기 위해서다.
+
+### 복원 방법
+
+이 ID(`AdminEmailTemplate_Modified.md` 기준 HIST-20260831-004)로 복원 시 `TABLE_COMMENTS`에서 신규 두 객체와 delivery의 `html_body` 설명을 제거한다.
+
+---
+
 ## HIST-20260831-003
 
 - **날짜**: 2026-08-31

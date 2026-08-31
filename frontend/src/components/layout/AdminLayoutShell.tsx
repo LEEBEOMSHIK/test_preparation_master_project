@@ -97,6 +97,11 @@ const ICON_MAP: Record<string, React.ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 21c-4.5-2.6-9-6.1-9-10.5A5 5 0 0112 6a5 5 0 019 4.5c0 4.4-4.5 7.9-9 10.5z" />
     </svg>
   ),
+  email: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7zm0 0l9 6 9-6" />
+    </svg>
+  ),
 };
 
 const DEFAULT_ICON = (
@@ -133,11 +138,13 @@ const FALLBACK_NAV: MenuConfig[] = [
   ]},
   { id: 12, parentId: undefined, name: '후원 링크 관리', url: '/admin/support-settings', iconKey: 'support', displayOrder: 12, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 13, parentId: undefined, name: '패치노트 관리', url: '/admin/patch-notes', iconKey: 'menu', displayOrder: 14, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
+  { id: 15, parentId: undefined, name: '이메일 템플릿 관리', url: '/admin/email-templates', iconKey: 'email', displayOrder: 15, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
   { id: 9901, parentId: undefined, name: '테스트 케이스', url: '/admin/test-cases', iconKey: 'test',       displayOrder: 99, menuType: 'ADMIN', isActive: true, allowedRoles: 'ADMIN', createdAt: '', updatedAt: '', children: [] },
 ];
 
 function getPageTitle(pathname: string, navItems: MenuConfig[]): string {
   if (pathname.startsWith('/admin/inquiries')) return '문의·요청 관리';
+  if (pathname.startsWith('/admin/email-templates')) return '이메일 템플릿 관리';
   for (const item of navItems) {
     if (item.children) {
       for (const child of item.children) {

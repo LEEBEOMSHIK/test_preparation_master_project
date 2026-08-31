@@ -1,3 +1,29 @@
+## HIST-20260831-001
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 백엔드 / DataInitializer 글로벌 메뉴
+- **수정 개요**: 이메일 템플릿 관리 메뉴를 정확한 URL·아이콘·순서로 멱등 보강했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java` | 수정 | `/admin/email-templates` 관리자 메뉴 보강 |
+| `backend/src/test/java/com/tpmp/testprep/config/DataInitializerTest.java` | 수정 | 메뉴 값과 반복 실행 중복 방지 테스트 |
+
+### 수정 상세
+
+#### `DataInitializer.java`
+- 변경 전: 기존 DB에 이메일 템플릿 관리자 메뉴를 보강하는 부팅 단계가 없었다.
+- 변경 후: URL이 없을 때만 `이메일 템플릿 관리`, `/admin/email-templates`, `email`, displayOrder `15`, ADMIN 역할의 최상위 메뉴를 저장한다.
+- 이유: 신규 DB와 기존 DB 모두 글로벌 관리자 메뉴 계약을 중복 없이 갖게 하기 위해서다.
+
+### 복원 방법
+
+이 ID(`AdminInit_Modified.md` 기준 HIST-20260831-001)로 복원 시 `run()`의 `ensureEmailTemplateAdminMenu()` 호출과 메서드, 대응 테스트 2개를 제거한다.
+
+---
+
 ## HIST-20260511-007
 
 - **날짜**: 2026-05-11
