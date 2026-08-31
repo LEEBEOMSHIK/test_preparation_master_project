@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { emailTemplateService } from '@/services/emailTemplateService';
 import { inquiryService } from '@/services/inquiryService';
 import type { EmailTemplateBinding, InquiryDetail } from '@/types';
@@ -85,6 +85,14 @@ function apiSuccess<T>(data: T) {
   return { data: { success: true, data } } as never;
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe('AdminInquiryDetailPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -154,6 +162,65 @@ describe('AdminInquiryDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '답변 없이 상태 변경' }));
     await waitFor(() => {
       expect(inquiryService.adminUpdateStatus).toHaveBeenCalledWith(42, 'COMPLETED', false);
+    });
+  });
+
+  it('답변 없는 종료 dialog는 focus를 가두고 Escape 취소 후 trigger로 복귀한다', async () => {
+    jest.mocked(inquiryService.adminGetOne).mockResolvedValue(apiSuccess({
+      ...baseInquiry,
+      requestType: 'BUG_REPORT',
+    }));
+    const { container } = render(<AdminInquiryDetailPage />);
+
+    const statusSelect = await screen.findByLabelText('처리 상태');
+    fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
+    const trigger = screen.getByRole('button', { name: '처리 완료로 변경' });
+    fireEvent.click(trigger);
+
+    const content = container.firstElementChild as HTMLElement;
+    const cancel = screen.getByRole('button', { name: '취소' });
+    const confirm = screen.getByRole('button', { name: '답변 없이 상태 변경' });
+    await waitFor(() => expect(document.activeElement).toBe(cancel));
+    expect(content.hasAttribute('inert')).toBe(true);
+
+    confirm.focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(cancel);
+    cancel.focus();
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(confirm);
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(content.hasAttribute('inert')).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('답변 없는 종료 승인은 dialog를 연 시점의 상태와 이메일 선택을 제출한다', async () => {
+    const completedInquiry = { ...baseInquiry, requestType: 'BUG_REPORT' as const, status: 'COMPLETED' as const };
+    jest.mocked(inquiryService.adminGetOne).mockResolvedValue(apiSuccess({
+      ...baseInquiry,
+      requestType: 'BUG_REPORT',
+    }));
+    jest.mocked(inquiryService.adminUpdateStatus).mockResolvedValue(apiSuccess({
+      inquiry: completedInquiry,
+      emailOutcome: 'QUEUED',
+      emailMessage: '상태 안내 이메일을 발송 대기열에 등록했습니다.',
+      templateSettingsUrl: null,
+    }));
+
+    render(<AdminInquiryDetailPage />);
+
+    const statusSelect = await screen.findByLabelText('처리 상태');
+    fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
+    fireEvent.click(screen.getByLabelText('상태 변경 안내 이메일 발송'));
+    fireEvent.click(screen.getByRole('button', { name: '처리 완료로 변경' }));
+
+    fireEvent.change(statusSelect, { target: { value: 'UNABLE_TO_PROCESS' } });
+    fireEvent.click(screen.getByRole('button', { name: '답변 없이 상태 변경' }));
+
+    await waitFor(() => {
+      expect(inquiryService.adminUpdateStatus).toHaveBeenCalledWith(42, 'COMPLETED', true);
     });
   });
 
@@ -260,6 +327,168 @@ describe('AdminInquiryDetailPage', () => {
     await waitFor(() => {
       expect(inquiryService.getEmailDeliveries).toHaveBeenCalledTimes(callsBeforeUpdate + 1);
     });
+  });
+
+  it('최신 발송 이력 요청이 대기 중이면 오래된 응답은 data와 loading을 변경하지 않는다', async () => {
+    const inquiryWithAdminMessage: InquiryDetail = {
+      ...baseInquiry,
+      requestType: 'BUG_REPORT',
+      messages: [{
+        id: 13,
+        authorId: 1,
+        authorRole: 'ADMIN',
+        content: '처리 결과입니다.',
+        createdAt: '2026-08-28T11:00:00',
+        imageUrls: [],
+      }],
+    };
+    const oldResponse = apiSuccess({
+      content: [{
+        id: 101,
+        inquiryId: 42,
+        inquiryMessageId: null,
+        eventType: 'ADMIN_MESSAGE' as const,
+        status: 'SENT' as const,
+        recipientEmail: 'user@example.com',
+        subject: '오래된 발송 이력',
+        htmlContent: true,
+        attemptCount: 1,
+        lastError: null,
+        createdAt: '2026-08-28T11:00:00',
+        sentAt: '2026-08-28T11:00:01',
+      }],
+      totalElements: 1,
+      totalPages: 1,
+      page: 0,
+      size: 20,
+    });
+    const latestResponse = apiSuccess({
+      content: [{
+        id: 102,
+        inquiryId: 42,
+        inquiryMessageId: null,
+        eventType: 'COMPLETED' as const,
+        status: 'PENDING' as const,
+        recipientEmail: 'user@example.com',
+        subject: '최신 발송 이력',
+        htmlContent: true,
+        attemptCount: 0,
+        lastError: null,
+        createdAt: '2026-08-28T12:00:00',
+        sentAt: null,
+      }],
+      totalElements: 1,
+      totalPages: 1,
+      page: 0,
+      size: 20,
+    });
+    const oldRequest = createDeferred<typeof oldResponse>();
+    const latestRequest = createDeferred<typeof latestResponse>();
+    jest.mocked(inquiryService.adminGetOne).mockResolvedValue(apiSuccess(inquiryWithAdminMessage));
+    jest.mocked(inquiryService.adminUpdateStatus).mockResolvedValue(apiSuccess({
+      inquiry: { ...inquiryWithAdminMessage, status: 'COMPLETED' },
+      emailOutcome: 'QUEUED',
+      emailMessage: '상태 안내 이메일을 발송 대기열에 등록했습니다.',
+      templateSettingsUrl: null,
+    }));
+    jest.mocked(inquiryService.getEmailDeliveries)
+      .mockImplementationOnce(() => oldRequest.promise)
+      .mockImplementationOnce(() => latestRequest.promise);
+
+    render(<AdminInquiryDetailPage />);
+    const statusSelect = await screen.findByLabelText('처리 상태');
+    fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
+    fireEvent.click(screen.getByLabelText('상태 변경 안내 이메일 발송'));
+    fireEvent.click(screen.getByRole('button', { name: '처리 완료로 변경' }));
+    await waitFor(() => expect(inquiryService.getEmailDeliveries).toHaveBeenCalledTimes(2));
+
+    await act(async () => oldRequest.resolve(oldResponse));
+    expect(screen.queryByText('오래된 발송 이력')).toBeNull();
+    expect((screen.getByRole('button', { name: '발송 이력 새로고침' }) as HTMLButtonElement).disabled).toBe(true);
+
+    await act(async () => latestRequest.resolve(latestResponse));
+    expect(await screen.findByText('최신 발송 이력')).toBeTruthy();
+  });
+
+  it('최신 발송 이력이 표시된 뒤 완료된 오래된 응답은 화면을 덮어쓰지 않는다', async () => {
+    const inquiryWithAdminMessage: InquiryDetail = {
+      ...baseInquiry,
+      requestType: 'BUG_REPORT',
+      messages: [{
+        id: 14,
+        authorId: 1,
+        authorRole: 'ADMIN',
+        content: '처리 결과입니다.',
+        createdAt: '2026-08-28T11:00:00',
+        imageUrls: [],
+      }],
+    };
+    const oldResponse = apiSuccess({
+      content: [{
+        id: 103,
+        inquiryId: 42,
+        inquiryMessageId: null,
+        eventType: 'ADMIN_MESSAGE' as const,
+        status: 'SENT' as const,
+        recipientEmail: 'user@example.com',
+        subject: '늦게 도착한 오래된 이력',
+        htmlContent: false,
+        attemptCount: 1,
+        lastError: null,
+        createdAt: '2026-08-28T11:00:00',
+        sentAt: '2026-08-28T11:00:01',
+      }],
+      totalElements: 1,
+      totalPages: 1,
+      page: 0,
+      size: 20,
+    });
+    const latestResponse = apiSuccess({
+      content: [{
+        id: 104,
+        inquiryId: 42,
+        inquiryMessageId: null,
+        eventType: 'COMPLETED' as const,
+        status: 'PENDING' as const,
+        recipientEmail: 'user@example.com',
+        subject: '먼저 도착한 최신 이력',
+        htmlContent: true,
+        attemptCount: 0,
+        lastError: null,
+        createdAt: '2026-08-28T12:00:00',
+        sentAt: null,
+      }],
+      totalElements: 1,
+      totalPages: 1,
+      page: 0,
+      size: 20,
+    });
+    const oldRequest = createDeferred<typeof oldResponse>();
+    const latestRequest = createDeferred<typeof latestResponse>();
+    jest.mocked(inquiryService.adminGetOne).mockResolvedValue(apiSuccess(inquiryWithAdminMessage));
+    jest.mocked(inquiryService.adminUpdateStatus).mockResolvedValue(apiSuccess({
+      inquiry: { ...inquiryWithAdminMessage, status: 'COMPLETED' },
+      emailOutcome: 'QUEUED',
+      emailMessage: '상태 안내 이메일을 발송 대기열에 등록했습니다.',
+      templateSettingsUrl: null,
+    }));
+    jest.mocked(inquiryService.getEmailDeliveries)
+      .mockImplementationOnce(() => oldRequest.promise)
+      .mockImplementationOnce(() => latestRequest.promise);
+
+    render(<AdminInquiryDetailPage />);
+    const statusSelect = await screen.findByLabelText('처리 상태');
+    fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
+    fireEvent.click(screen.getByLabelText('상태 변경 안내 이메일 발송'));
+    fireEvent.click(screen.getByRole('button', { name: '처리 완료로 변경' }));
+    await waitFor(() => expect(inquiryService.getEmailDeliveries).toHaveBeenCalledTimes(2));
+
+    await act(async () => latestRequest.resolve(latestResponse));
+    expect(await screen.findByText('먼저 도착한 최신 이력')).toBeTruthy();
+
+    await act(async () => oldRequest.resolve(oldResponse));
+    expect(screen.queryByText('늦게 도착한 오래된 이력')).toBeNull();
+    expect(screen.getByText('먼저 도착한 최신 이력')).toBeTruthy();
   });
 
   it('다시 열기는 상태 메시지 없이 이메일 미발송으로 요청한다', async () => {

@@ -1,3 +1,34 @@
+## HIST-20260831-003
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 프론트엔드 / 문의 상태 변경 상호작용
+- **수정 개요**: 이메일 발송 이력 요청 경합을 차단하고 답변 없는 종료 dialog의 접근성·승인 요청 snapshot을 보강했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/inquiries/[id]/page.tsx` | 수정 | 발송 이력 request generation, 종료 pending snapshot, focus trap·Escape·inert·focus 복귀 적용 |
+| `frontend/src/app/admin/inquiries/[id]/page.test.tsx` | 수정 | deferred 응답 순서와 dialog keyboard/focus·고정 요청 회귀 테스트 추가 |
+
+### 수정 상세
+
+#### 이메일 발송 이력 요청 경합
+- 변경 전: 최초 이력 요청과 QUEUED 후 재조회가 겹치면 완료 순서와 무관하게 각 응답이 data·error·loading을 갱신해 오래된 이력이 최신 화면을 덮을 수 있었다.
+- 변경 후: 요청마다 증가하는 generation을 부여하고 최신 generation만 이력 data·error·loading을 반영하며 effect cleanup에서도 이전 요청을 무효화한다.
+- 이유: 비동기 응답 순서가 화면의 최신 상태를 역전하지 못하게 하기 위해서다.
+
+#### 답변 없는 종료 확인
+- 변경 전: dialog가 focus 이동·Tab 순환·Escape·배경 inert·focus 복귀를 제공하지 않았고 확인 시 공유 상태를 다시 읽어 승인 후 바뀐 status/sendEmail을 제출할 수 있었다.
+- 변경 후: dialog 개방 시 `{status,sendEmail}`을 pending snapshot으로 고정하고 취소 버튼 focus, Tab/Shift+Tab 경계 순환, Escape 취소, 배경 inert, 종료 후 trigger focus 복귀를 적용했다.
+- 이유: 키보드 사용자가 dialog 안에서 안전하게 확인하고 최초 승인한 상태 변경만 제출하도록 하기 위해서다.
+
+### 복원 방법
+
+이 ID(`AdminInquiry_Modified.md` 기준 HIST-20260831-003)로 복원 시 delivery request generation과 pending 상태 요청을 제거하고, dialog focus·keyboard·inert effect 및 추가된 deferred/accessibility 테스트를 이전 상태로 되돌린다. (순번은 파일별이므로 복원 시 파일명도 함께 지정한다.)
+
+---
+
 ## HIST-20260831-002
 
 - **날짜**: 2026-08-31

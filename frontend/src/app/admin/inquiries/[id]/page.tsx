@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { InquiryMessageComposer } from '@/components/ui/InquiryMessageComposer';
 import { InquiryTimeline } from '@/components/ui/InquiryTimeline';
 import { Pagination } from '@/components/ui/Pagination';
@@ -48,6 +48,11 @@ const STATUS_EMAIL_EVENT_CODE: Partial<Record<InquiryStatus, EmailTemplateEventC
   UNABLE_TO_PROCESS: 'INQUIRY_UNABLE_TO_PROCESS',
 };
 
+interface PendingStatusUpdate {
+  status: InquiryStatus;
+  sendEmail: boolean;
+}
+
 export default function AdminInquiryDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -71,12 +76,18 @@ export default function AdminInquiryDetailPage() {
   const [statusSuccess, setStatusSuccess] = useState('');
   const [statusEmailWarning, setStatusEmailWarning] = useState('');
   const [statusTemplateSettingsUrl, setStatusTemplateSettingsUrl] = useState<string | null>(null);
-  const [confirmingStatusUpdate, setConfirmingStatusUpdate] = useState(false);
+  const [pendingStatusUpdate, setPendingStatusUpdate] = useState<PendingStatusUpdate | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [retryingDeliveryId, setRetryingDeliveryId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const deliveryRequestGenerationRef = useRef(0);
+  const pageContentRef = useRef<HTMLDivElement>(null);
+  const statusUpdateTriggerRef = useRef<HTMLButtonElement>(null);
+  const statusUpdateCancelRef = useRef<HTMLButtonElement>(null);
+  const statusUpdateConfirmRef = useRef<HTMLButtonElement>(null);
 
   const loadDeliveries = useCallback(async () => {
+    const requestGeneration = ++deliveryRequestGenerationRef.current;
     setDeliveryLoading(true);
     try {
       const response = await inquiryService.getEmailDeliveries(
@@ -86,14 +97,18 @@ export default function AdminInquiryDetailPage() {
         deliveryStatus || undefined,
       );
       const result = response.data.data;
+      if (requestGeneration !== deliveryRequestGenerationRef.current) return;
       setDeliveries(result?.content ?? []);
       setDeliveryTotalElements(result?.totalElements ?? 0);
       setDeliveryTotalPages(result?.totalPages ?? 0);
       setDeliveryError('');
     } catch (requestError: unknown) {
+      if (requestGeneration !== deliveryRequestGenerationRef.current) return;
       setDeliveryError(extractApiErrorMessage(requestError, '이메일 발송 이력을 불러오지 못했습니다.'));
     } finally {
-      setDeliveryLoading(false);
+      if (requestGeneration === deliveryRequestGenerationRef.current) {
+        setDeliveryLoading(false);
+      }
     }
   }, [deliveryPage, deliveryStatus, id]);
 
@@ -119,6 +134,9 @@ export default function AdminInquiryDetailPage() {
 
   useEffect(() => {
     void loadDeliveries();
+    return () => {
+      deliveryRequestGenerationRef.current += 1;
+    };
   }, [loadDeliveries]);
 
   useEffect(() => {
@@ -140,30 +158,65 @@ export default function AdminInquiryDetailPage() {
     void loadEmailBindings();
   }, []);
 
+  useEffect(() => {
+    if (!pendingStatusUpdate) return;
+    const content = pageContentRef.current;
+    const trigger = statusUpdateTriggerRef.current;
+    content?.setAttribute('inert', '');
+    statusUpdateCancelRef.current?.focus();
+
+    const handleDialogKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setPendingStatusUpdate(null);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const cancel = statusUpdateCancelRef.current;
+      const confirm = statusUpdateConfirmRef.current;
+      if (!cancel || !confirm) return;
+      if (event.shiftKey && document.activeElement === cancel) {
+        event.preventDefault();
+        confirm.focus();
+      } else if (!event.shiftKey && document.activeElement === confirm) {
+        event.preventDefault();
+        cancel.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleDialogKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleDialogKeyDown);
+      content?.removeAttribute('inert');
+      trigger?.focus();
+    };
+  }, [pendingStatusUpdate]);
+
   const handleMessageSent = () => {
     void loadInquiry();
     void loadDeliveries();
   };
 
-  const performStatusUpdate = async () => {
-    if (!inquiry || !selectedStatus || updatingStatus) return;
+  const performStatusUpdate = async (request: PendingStatusUpdate) => {
+    if (!inquiry || updatingStatus) return;
 
     setUpdatingStatus(true);
     setError('');
     setStatusSuccess('');
     setStatusEmailWarning('');
     setStatusTemplateSettingsUrl(null);
-    setConfirmingStatusUpdate(false);
+    setPendingStatusUpdate(null);
     try {
       const response = await inquiryService.adminUpdateStatus(
         inquiry.id,
-        selectedStatus,
-        isInquiryClosed(selectedStatus) ? sendEmail : false,
+        request.status,
+        request.sendEmail,
       );
       const result = response.data.data;
       if (result) {
         setInquiry(result.inquiry);
-        setStatusSuccess(`상태를 ${INQUIRY_STATUS_LABEL[selectedStatus]}로 변경했습니다.`);
+        setStatusSuccess(`상태를 ${INQUIRY_STATUS_LABEL[request.status]}로 변경했습니다.`);
         if (result.emailOutcome.startsWith('SKIPPED_')) {
           setStatusEmailWarning(result.emailMessage);
           setStatusTemplateSettingsUrl(result.templateSettingsUrl);
@@ -183,12 +236,16 @@ export default function AdminInquiryDetailPage() {
 
   const handleStatusUpdate = () => {
     if (!inquiry || !selectedStatus || updatingStatus || selectedStatus === inquiry.status) return;
+    const request: PendingStatusUpdate = {
+      status: selectedStatus,
+      sendEmail: isInquiryClosed(selectedStatus) ? sendEmail : false,
+    };
     const hasAdminMessage = inquiry.messages.some((message) => message.authorRole === 'ADMIN');
     if (isInquiryClosed(selectedStatus) && !hasAdminMessage) {
-      setConfirmingStatusUpdate(true);
+      setPendingStatusUpdate(request);
       return;
     }
-    void performStatusUpdate();
+    void performStatusUpdate(request);
   };
 
   const handleReopen = async () => {
@@ -277,7 +334,8 @@ export default function AdminInquiryDetailPage() {
       || (!selectedEmailBinding ? '연결된 이메일 템플릿이 없습니다.' : '이메일을 발송할 수 없습니다.');
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <>
+    <div ref={pageContentRef} className="max-w-4xl space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link
           href="/admin/inquiries"
@@ -421,6 +479,7 @@ export default function AdminInquiryDetailPage() {
 
             <div className="flex justify-end">
               <button
+                ref={statusUpdateTriggerRef}
                 type="button"
                 onClick={handleStatusUpdate}
                 disabled={!selectedStatus || selectedStatus === inquiry.status || updatingStatus}
@@ -556,8 +615,9 @@ export default function AdminInquiryDetailPage() {
           </div>
         )}
       </section>
+    </div>
 
-      {confirmingStatusUpdate && (
+      {pendingStatusUpdate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div
             role="dialog"
@@ -573,15 +633,17 @@ export default function AdminInquiryDetailPage() {
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
+                ref={statusUpdateCancelRef}
                 type="button"
-                onClick={() => setConfirmingStatusUpdate(false)}
+                onClick={() => setPendingStatusUpdate(null)}
                 className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-300"
               >
                 취소
               </button>
               <button
+                ref={statusUpdateConfirmRef}
                 type="button"
-                onClick={() => void performStatusUpdate()}
+                onClick={() => void performStatusUpdate(pendingStatusUpdate)}
                 disabled={updatingStatus}
                 className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
@@ -591,6 +653,6 @@ export default function AdminInquiryDetailPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
