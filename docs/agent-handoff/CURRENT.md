@@ -2,21 +2,21 @@
 
 ## 현재 목표와 사용자 결정 사항
 
-- 목표: Task 6 fix round 2의 확인 요청 포커스 복귀 finding만 수정한다.
-- 답변 없는 종료 확인은 요청 중 비활성 trigger에 즉시 포커스하지 않고, 요청 종료 후 활성 trigger에 한 번 복귀한다.
+- 목표: Task 6 fix round 3의 상태 성공 대체 포커스 finding만 수정한다.
+- 답변 없는 종료 성공으로 원 trigger가 제거되면 접근 가능한 상태 성공 메시지로 포커스를 한 번 이동한다.
 - Task 7에서 이 파일을 최종 상태로 다시 교체한다.
 
 ## 완료한 작업
 
-- confirm 경로에만 `restoreStatusTriggerAfterRequestRef`를 설정해 dialog cleanup의 즉시 포커스를 보류했다.
-- `updatingStatus=false` 정착 effect에서 연결된 활성 상태 변경 trigger에 한 번 포커스하고 보류 ref를 해제했다.
-- Escape·취소 경로는 기존 즉시 복귀를 유지하고 취소·요청 실패 각각 `focus()` 1회임을 테스트했다.
-- production 수정 전 deferred 실패 테스트로 RED를 확인하고 focused GREEN, 문의 회귀, strict 타입체크를 통과했다.
-- 관리자 문의 히스토리 `HIST-20260831-004`를 상단 추가했다.
+- 상태 성공 메시지에 `statusSuccessRef`와 `tabIndex={-1}`을 추가하고 기존 `role="status"`를 유지했다.
+- 요청 종료 effect가 활성 원 trigger를 우선하고, 성공으로 trigger가 제거되면 상태 성공 메시지를 대체 대상으로 한 번 포커스하게 했다.
+- production 수정 전 deferred resolve 테스트로 성공 뒤 `body` 포커스 유실 RED를 확인했다.
+- 실패는 활성 원 trigger, 성공은 상태 성공 메시지, Escape·취소는 즉시 원 trigger라는 경로를 테스트로 고정했다.
+- 관리자 문의 히스토리 `HIST-20260831-005`를 상단 추가했다.
 
 ## 미완료 작업
 
-- fix round 2 코드·테스트·히스토리는 완료했다. Task 7에서 이 파일을 최종 상태로 교체해야 한다.
+- fix round 3 코드·테스트·히스토리는 완료했다. Task 7에서 이 파일을 최종 상태로 교체해야 한다.
 
 ## 수정한 파일 목록
 
@@ -27,15 +27,15 @@
 
 ## 실행한 검증 명령과 결과
 
-- RED: 문의 상세 1 suite, 16 tests 중 1 failed/15 passed. API 실패 후 trigger는 활성화됐지만 포커스가 `body`에 남았다.
-- focused GREEN: 문의 상세 1 suite, 16 tests passed.
-- 문의 상세·목록·설정·composer·uploader·timeline 회귀: 6 suites, 43 tests passed.
+- RED: 문의 상세 1 suite, 17 tests 중 1 failed/16 passed. 성공 메시지는 표시됐지만 포커스가 `body`에 남았다.
+- focused GREEN: 문의 상세 1 suite, 17 tests passed.
+- 문의 상세·목록·설정·composer·uploader·timeline 회귀: 6 suites, 44 tests passed.
 - `npx tsc --noEmit`: exit 0.
 - `git diff --check`: 공백 오류 0, Windows LF→CRLF 안내만 확인했다.
 
 ## 실패·경고·주의사항
 
-- 성공 응답으로 종료 상태가 반영되면 기존 trigger 자체가 제거되므로 effect는 연결된 활성 trigger가 있을 때만 포커스한다.
+- 상태 성공 메시지는 프로그램 방식으로만 포커스되도록 `tabIndex={-1}`이며 기존 polite status semantics를 유지한다.
 - 전체 프론트 빌드는 fix round 요구 범위가 아니어서 실행하지 않았다.
 - Task 1~6의 다른 변경과 deferred copy는 수정하거나 되돌리지 않았다.
 

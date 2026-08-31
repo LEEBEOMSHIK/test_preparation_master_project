@@ -230,6 +230,52 @@ describe('AdminInquiryDetailPage', () => {
     expect(triggerFocus).toHaveBeenCalledTimes(1);
   });
 
+  it('답변 없는 종료 확인이 성공하면 상태 성공 메시지로 focus를 한 번 이동한다', async () => {
+    const completedInquiry = {
+      ...baseInquiry,
+      requestType: 'BUG_REPORT' as const,
+      status: 'COMPLETED' as const,
+    };
+    const successResponse = apiSuccess({
+      inquiry: completedInquiry,
+      emailOutcome: 'NOT_REQUESTED',
+      emailMessage: '',
+      templateSettingsUrl: null,
+    });
+    const statusUpdateRequest = createDeferred<typeof successResponse>();
+    jest.mocked(inquiryService.adminGetOne).mockResolvedValue(apiSuccess({
+      ...baseInquiry,
+      requestType: 'BUG_REPORT',
+    }));
+    jest.mocked(inquiryService.adminUpdateStatus).mockImplementation(() => statusUpdateRequest.promise);
+
+    render(<AdminInquiryDetailPage />);
+
+    const statusSelect = await screen.findByLabelText('처리 상태');
+    fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
+    fireEvent.click(screen.getByRole('button', { name: '처리 완료로 변경' }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: '취소' })));
+    const focusSpy = jest.spyOn(HTMLElement.prototype, 'focus');
+    fireEvent.click(screen.getByRole('button', { name: '답변 없이 상태 변경' }));
+
+    try {
+      await waitFor(() => expect(inquiryService.adminUpdateStatus).toHaveBeenCalled());
+      expect(screen.queryByRole('status')).toBeNull();
+
+      await act(async () => statusUpdateRequest.resolve(successResponse));
+
+      const successStatus = await screen.findByRole('status');
+      expect(successStatus.textContent).toBe('상태를 처리 완료로 변경했습니다.');
+      expect(successStatus.getAttribute('tabindex')).toBe('-1');
+      expect(successStatus.tabIndex).toBe(-1);
+      expect(document.activeElement).toBe(successStatus);
+      expect(focusSpy).toHaveBeenCalledTimes(1);
+      expect(focusSpy.mock.instances[0]).toBe(successStatus);
+    } finally {
+      focusSpy.mockRestore();
+    }
+  });
+
   it('답변 없는 종료 승인은 dialog를 연 시점의 상태와 이메일 선택을 제출한다', async () => {
     const completedInquiry = { ...baseInquiry, requestType: 'BUG_REPORT' as const, status: 'COMPLETED' as const };
     jest.mocked(inquiryService.adminGetOne).mockResolvedValue(apiSuccess({

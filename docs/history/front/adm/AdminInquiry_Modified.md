@@ -1,3 +1,35 @@
+## HIST-20260831-005
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 프론트엔드 / 문의 상태 성공 포커스 처리
+- **수정 개요**: 답변 없는 종료 확인이 성공해 기존 상태 변경 버튼이 제거되면 접근 가능한 상태 성공 메시지로 포커스를 한 번 이동하도록 보강했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/inquiries/[id]/page.tsx` | 수정 | 상태 성공 메시지 ref·tabIndex 및 성공 대체 포커스 적용 |
+| `frontend/src/app/admin/inquiries/[id]/page.test.tsx` | 수정 | deferred 성공 응답의 대체 포커스·role·호출 횟수 검증 추가 |
+
+### 수정 상세
+
+#### 답변 없는 종료 성공 포커스
+- 변경 전: 종료 상태 성공 응답이 기존 상태 변경 trigger를 제거하면 요청 종료 effect가 보류 ref만 해제하고 포커스는 `body`에 남았다.
+- 변경 후: 활성 원 trigger가 없으면 `role="status"`, `tabIndex={-1}`을 유지하는 상태 성공 메시지를 논리적 대체 대상으로 한 번 포커스한다. 실패는 활성 원 trigger, 취소·Escape는 dialog cleanup에서 원 trigger로 복귀한다.
+- 이유: 비동기 종료 성공 뒤에도 키보드·보조기기 사용자가 상태 변경 결과를 즉시 인지하고 다음 탐색 위치를 잃지 않도록 하기 위해서다.
+
+### 검증
+
+- RED: 문의 상세 1 suite, 17 tests 중 신규 성공 포커스 테스트 1 failed/16 passed. 성공 메시지는 표시됐지만 `document.activeElement`가 `body`에 남음을 확인했다.
+- GREEN: 문의 상세 focused 1 suite, 17 tests passed.
+- 문의 소비 경로 회귀 6 suites, 44 tests passed 및 `npx tsc --noEmit` exit 0.
+
+### 복원 방법
+
+이 ID(`AdminInquiry_Modified.md` 기준 HIST-20260831-005)로 복원 시 상태 성공 메시지 ref·tabIndex와 대체 포커스 분기, deferred 성공 포커스 테스트를 제거한다. (순번은 파일별이므로 복원 시 파일명도 함께 지정한다.)
+
+---
+
 ## HIST-20260831-004
 
 - **날짜**: 2026-08-31

@@ -85,6 +85,7 @@ export default function AdminInquiryDetailPage() {
   const statusUpdateTriggerRef = useRef<HTMLButtonElement>(null);
   const statusUpdateCancelRef = useRef<HTMLButtonElement>(null);
   const statusUpdateConfirmRef = useRef<HTMLButtonElement>(null);
+  const statusSuccessRef = useRef<HTMLParagraphElement>(null);
   const restoreStatusTriggerAfterRequestRef = useRef(false);
 
   const loadDeliveries = useCallback(async () => {
@@ -202,6 +203,8 @@ export default function AdminInquiryDetailPage() {
     const trigger = statusUpdateTriggerRef.current;
     if (trigger && !trigger.disabled) {
       trigger.focus();
+    } else {
+      statusSuccessRef.current?.focus();
     }
   }, [pendingStatusUpdate, updatingStatus]);
 
@@ -510,7 +513,12 @@ export default function AdminInquiryDetailPage() {
 
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
       {statusSuccess && (
-        <p role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950/30 dark:text-green-300">
+        <p
+          ref={statusSuccessRef}
+          role="status"
+          tabIndex={-1}
+          className="rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950/30 dark:text-green-300"
+        >
           {statusSuccess}
         </p>
       )}
