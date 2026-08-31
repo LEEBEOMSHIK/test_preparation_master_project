@@ -145,6 +145,17 @@ class EmailTemplateRendererTest {
                 "<!DOCTYPE {{recipientName}}><p>&#123;&#123;recipientName&#125;&#125;</p>"));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "00", "1234567890"})
+    void preparePreservesNumericTextImmediatelyAfterAToken(String numericSuffix) {
+        String content = "{{recipientName}}" + numericSuffix;
+
+        var prepared = renderer.prepare(EmailTemplate.Scope.INQUIRY_STATUS, "제목", "<p>" + content + "</p>");
+
+        assertThat(prepared.sanitizedHtmlBody()).isEqualTo("<p>" + content + "</p>");
+        assertThat(prepared.textBody()).isEqualTo(content);
+    }
+
     @Test
     void prepareAcceptsElevenOrMoreNormalTokensWithoutPlaceholderPrefixCollisions() {
         String tokens = "{{recipientName}} ".repeat(10) + "{{recipientName}}";

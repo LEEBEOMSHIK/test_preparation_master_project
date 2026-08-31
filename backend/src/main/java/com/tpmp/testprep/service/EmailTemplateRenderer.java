@@ -36,7 +36,7 @@ public final class EmailTemplateRenderer {
             "(?<!\\{)\\{\\{([A-Za-z][A-Za-z0-9]*)\\}\\}(?!\\})");
     private static final Pattern TOKEN_CANDIDATE_PATTERN = Pattern.compile(
             "(?<!\\{)\\{\\{[^{}]*\\}\\}(?!\\})", Pattern.DOTALL);
-    private static final Pattern GENERIC_PLACEHOLDER_PATTERN = Pattern.compile("TPMP_TOKEN_[0-9]+");
+    private static final Pattern GENERIC_PLACEHOLDER_PATTERN = Pattern.compile("TPMP_TOKEN_[0-9]+(?:_END)?");
     private static final List<AllowedVariable> INQUIRY_STATUS_VARIABLES = List.of(
             new AllowedVariable("{{recipientName}}", "recipientName", "문의자 이름", "문의자 표시 이름"),
             new AllowedVariable("{{inquiryId}}", "inquiryId", "문의 번호", "문의 식별자"),
@@ -230,7 +230,7 @@ public final class EmailTemplateRenderer {
         while (matcher.find()) {
             String placeholder;
             do {
-                placeholder = "TPMP_TOKEN_" + tokenIndex++;
+                placeholder = "TPMP_TOKEN_" + tokenIndex++ + "_END";
             } while (originalHtml.contains(placeholder) || protectedTokens.containsKey(placeholder));
             protectedTokens.put(placeholder, matcher.group());
             matcher.appendReplacement(protectedText, Matcher.quoteReplacement(placeholder));

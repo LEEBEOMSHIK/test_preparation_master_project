@@ -1,3 +1,33 @@
+## HIST-20260831-005
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 백엔드 / 이메일 템플릿 placeholder 종단 경계 보강
+- **수정 개요**: sanitizer 일반 placeholder에 `_END` 종단 경계를 추가해 토큰 직후 숫자 텍스트를 인덱스로 오인하지 않고 정확한 sentinel만 계수·복원하도록 수정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/EmailTemplateRenderer.java` | 수정 | 일반 placeholder 생성과 matcher에 명시적 `_END` 종단 경계 적용 |
+| `backend/src/test/java/com/tpmp/testprep/service/EmailTemplateRendererTest.java` | 수정 | 토큰 직후 `0`, `00`, `1234567890` 숫자 접미 보존 회귀 테스트 추가 |
+| `docs/agent-handoff/CURRENT.md` | 수정 | Task 2 Fix round 3 구현·검증 결과와 주의사항으로 최신 인계 갱신 |
+
+### 수정 상세
+
+#### `EmailTemplateRenderer.java`
+- 변경 전: `{{recipientName}}0`을 보호하면 `TPMP_TOKEN_00`이 되어 `[0-9]+` matcher가 등록되지 않은 인덱스 00 placeholder로 해석했다.
+- 변경 후: 일반 placeholder를 `TPMP_TOKEN_{index}_END` 형식으로 생성하고 matcher가 `_END`까지 포함한 전체 sentinel을 인식하게 했다. 기존 `_END` 없는 예약 문자열도 탐지해 태그 병합 공격 회귀는 계속 거부한다.
+- 이유: placeholder 인덱스와 템플릿의 실제 숫자 텍스트 사이에 명시적 경계를 두어 접미 길이와 무관하게 원문을 보존하기 위함이다.
+
+#### `EmailTemplateRendererTest.java`
+- 변경 전: 11개 토큰은 공백으로 구분되어 토큰 직후 숫자가 placeholder 인덱스에 흡수되는 결함을 잡지 못했다.
+- 변경 후: `0`, `00`, `1234567890` 접미를 parameterized test로 준비해 정화 HTML과 평문이 각각 원문과 일치하는지 검증하며 focused 테스트를 24개로 확장했다.
+- 이유: 단일·다중 숫자 접미와 향후 긴 숫자 값에서도 경계 회귀를 방지하기 위함이다.
+
+### 복원 방법
+
+이 ID(`AdminEmailTemplate_Modified.md` 기준 HIST-20260831-005)로 복원 시 일반 placeholder 형식과 matcher를 `_END` 없는 이전 값으로 복원하고 Fix round 3 parameterized test를 제거한다. 그러면 `HIST-20260831-004` 시점 동작으로 돌아간다.
+
 ## HIST-20260831-004
 
 - **날짜**: 2026-08-31
