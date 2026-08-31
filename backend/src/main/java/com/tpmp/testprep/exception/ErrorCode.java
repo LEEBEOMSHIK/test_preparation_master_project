@@ -54,6 +54,15 @@ public enum ErrorCode {
     INVALID_INQUIRY_NOTIFICATION_SETTINGS(HttpStatus.BAD_REQUEST, "관리자 알림 수신 설정을 확인하세요."),
     INQUIRY_EMAIL_RETRY_NOT_ALLOWED(HttpStatus.CONFLICT, "실패한 이메일만 재발송할 수 있습니다."),
 
+    // EmailTemplate
+    EMAIL_TEMPLATE_NOT_FOUND(HttpStatus.NOT_FOUND, "이메일 템플릿을 찾을 수 없습니다."),
+    EMAIL_TEMPLATE_IN_USE(HttpStatus.CONFLICT, "사용 중인 이메일 템플릿은 삭제할 수 없습니다."),
+    EMAIL_TEMPLATE_INVALID_VARIABLE(HttpStatus.BAD_REQUEST, "지원하지 않는 이메일 템플릿 변수가 포함되어 있습니다."),
+    EMAIL_TEMPLATE_SCOPE_MISMATCH(HttpStatus.BAD_REQUEST, "이벤트와 이메일 템플릿 범위가 일치하지 않습니다."),
+    EMAIL_TEMPLATE_INVALID_CONTENT(HttpStatus.BAD_REQUEST, "이메일 템플릿 내용을 확인해 주세요."),
+    EMAIL_TEMPLATE_TEST_SEND_FAILED(HttpStatus.BAD_GATEWAY, "테스트 이메일 발송에 실패했습니다."),
+    EMAIL_TEMPLATE_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "이메일 템플릿 이벤트를 찾을 수 없습니다."),
+
     // FAQ
     FAQ_NOT_FOUND(HttpStatus.NOT_FOUND, "FAQ를 찾을 수 없습니다."),
 

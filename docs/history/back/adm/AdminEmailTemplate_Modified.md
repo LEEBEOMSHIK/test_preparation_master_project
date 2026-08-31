@@ -1,3 +1,65 @@
+## HIST-20260831-006
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 백엔드 / 이메일 템플릿 기본 시드·CRUD·이벤트 연결·테스트 발송 API
+- **수정 개요**: 기본 문의 상태 이메일 템플릿 3종을 멱등 시드하고, 관리자 전용 템플릿 관리·이벤트 연결·preview·현재 관리자 테스트 발송 API와 구조화 오류 상세 계약을 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/config/DefaultEmailTemplateCatalog.java` | 추가 | 문의 종료 이벤트 기본 템플릿 3종의 고정 system key·제목·HTML 정의 |
+| `backend/src/main/java/com/tpmp/testprep/config/EmailTemplateSeedRunner.java` | 추가 | 최초 설치 binding 생성과 재기동 unbind 보존을 구분하는 단일 트랜잭션 시드 |
+| `backend/src/main/java/com/tpmp/testprep/service/EmailTemplateService.java` | 추가 | 템플릿 CRUD·복제·복원·논리 삭제·preview·테스트 발송 위임 및 renderer 오류 매핑 |
+| `backend/src/main/java/com/tpmp/testprep/service/EmailTemplateBindingService.java` | 추가 | 고정 3개 이벤트 연결 조회·변경·해제와 활성·scope 검증 |
+| `backend/src/main/java/com/tpmp/testprep/service/EmailTemplateTestMailSender.java` | 추가 | 현재 ADMIN 이메일 전용 multipart 테스트 발송·마스킹 로그·SMTP 오류 변환 |
+| `backend/src/main/java/com/tpmp/testprep/controller/AdminEmailTemplateController.java` | 추가 | ADMIN 템플릿 관리 9개 endpoint와 요청 검증·principal 전달 |
+| `backend/src/main/java/com/tpmp/testprep/controller/AdminEmailTemplateBindingController.java` | 추가 | ADMIN binding 3개 endpoint와 unknown event 명시적 404 |
+| `backend/src/main/java/com/tpmp/testprep/dto/request/EmailTemplateCreateRequest.java` 외 3개 | 추가 | 템플릿 생성·수정·preview·binding 검증 요청 계약 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/EmailTemplateSummaryResponse.java` 외 6개 | 추가 | 목록·상세·참조·변수·preview·binding·테스트 발송 응답 계약 |
+| `backend/src/main/java/com/tpmp/testprep/exception/ErrorCode.java` | 수정 | 템플릿 not found/in use/변수/scope/content/SMTP/event 오류 코드 7종 추가 |
+| `backend/src/main/java/com/tpmp/testprep/exception/BusinessException.java` | 수정 | nullable 구조화 `details`와 하위 호환 생성자 추가 |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/ApiResponse.java` | 수정 | `error.details`와 기존 fail overload 위임 추가 |
+| `backend/src/main/java/com/tpmp/testprep/exception/GlobalExceptionHandler.java` | 수정 | BusinessException의 구조화 details를 오류 응답에 전달 |
+| `backend/src/test/java/com/tpmp/testprep/config/EmailTemplateSeedRunnerTest.java` | 추가 | 최초 3종 시드·재기동 unbind 보존·부분 누락 보완 검증 |
+| `backend/src/test/java/com/tpmp/testprep/service/EmailTemplateServiceTest.java` | 추가 | 목록·상세·CRUD·복제·복원·삭제·preview·테스트 발송 위임 검증 |
+| `backend/src/test/java/com/tpmp/testprep/service/EmailTemplateBindingServiceTest.java` | 추가 | 비활성/scope 거부·연결·해제·고정 3행 검증 |
+| `backend/src/test/java/com/tpmp/testprep/service/EmailTemplateTestMailSenderTest.java` | 추가 | 현재 ADMIN 수신자·multipart 본문·비활성 허용·SMTP 502·role 검증 |
+| `backend/src/test/java/com/tpmp/testprep/dto/response/ApiResponseContractTest.java` | 추가 | 구조화 details와 기존 overload null 하위 호환 검증 |
+| `backend/src/test/java/com/tpmp/testprep/controller/AdminEmailTemplateControllerWebMvcTest.java` | 추가 | CRUD endpoint·ADMIN 보안·검증·principal·details 계약 검증 |
+| `backend/src/test/java/com/tpmp/testprep/controller/AdminEmailTemplateBindingControllerWebMvcTest.java` | 추가 | binding GET/PUT/DELETE·고정 3행·unknown event 404 검증 |
+| `docs/agent-handoff/CURRENT.md` | 수정 | Task 3 TDD 진행·API·시드 unbind 비복구·검증 결과 인계 |
+
+### 수정 상세
+
+#### 기본 템플릿 시드
+
+- 변경 전: DB 마이그레이션 외에 애플리케이션 시작 시 기본 템플릿을 보완할 카탈로그와 시드 경계가 없었다.
+- 변경 후: 고정 system key 3종을 먼저 모두 조회한다. 모두 없을 때만 정화된 템플릿과 binding 3개를 한 트랜잭션에서 만들며, 하나라도 있으면 누락 템플릿만 보완하고 binding은 만들지 않는다.
+- 이유: 최초 설치 기본 연결을 제공하면서 관리자가 해제한 binding을 재기동 시드가 되살리지 않도록 하기 위함이다.
+
+#### 관리자 템플릿·binding 서비스와 API
+
+- 변경 전: 템플릿 엔티티와 renderer는 있었지만 관리자 CRUD, 참조 삭제 차단, 기본값 복원, 이벤트 연결 변경 API가 없었다.
+- 변경 후: 저장 전 renderer 정화, 비관적 잠금 기반 수정·삭제·binding, 참조 이벤트 details를 포함한 409, 복제 시 system key 제거, 기본 카탈로그 복원, 고정 3개 binding 행과 ADMIN Controller를 추가했다.
+- 이유: 후속 관리자 화면이 안정된 JSON 계약으로 템플릿 수명주기와 문의 종료 이벤트 연결을 관리하도록 하기 위함이다.
+
+#### preview·현재 관리자 테스트 발송
+
+- 변경 전: 저장하지 않은 서버 preview와 관리자 본인에게 안전하게 HTML 테스트 메일을 보내는 기능이 없었다.
+- 변경 후: `app.public-url` 기반 안전 샘플 변수로 정화·렌더 preview를 제공한다. 테스트 발송은 request 수신자 없이 현재 ADMIN의 DB 이메일로만 multipart 평문/HTML을 보내며 비활성 템플릿도 허용한다. 로그는 관리자 ID·템플릿 ID·마스킹 수신자·성공 여부만 기록하고 SMTP 실패를 502로 변환한다.
+- 이유: 임의 수신자 발송과 민감정보 로그 노출을 막으면서 운영 전 렌더 결과를 검증하기 위함이다.
+
+#### 오류 상세와 테스트
+
+- 변경 전: `BusinessException`과 `ApiResponse.ErrorDetail`에 구조화 details가 없어 사용 중 삭제의 참조 이벤트를 전달할 수 없었다.
+- 변경 후: nullable `Object details`와 기존 생성자/overload 위임을 추가하고 전역 handler가 details를 전달한다. 시드부터 Controller까지 production 코드 전에 실패 테스트를 작성해 RED→GREEN을 확인했다.
+- 이유: 기존 오류 소비자와 호환하면서 후속 frontend가 참조 이벤트를 구조적으로 표시하고 각 보안·상태 계약의 회귀를 막기 위함이다.
+
+### 복원 방법
+
+이 ID(`AdminEmailTemplate_Modified.md` 기준 HIST-20260831-006)로 복원 시 Task 3에서 추가한 config·service·controller·request/response DTO·테스트 파일을 제거한다. `ErrorCode`의 이메일 템플릿 7종, `BusinessException.details`, `ApiResponse.error.details` overload와 `GlobalExceptionHandler` details 전달을 제거하고 `docs/agent-handoff/CURRENT.md`를 이전 Task 2 완료 상태로 되돌린다. Task 4 이후 코드가 이 API를 참조한다면 해당 호출부를 먼저 제거해야 한다.
+
 ## HIST-20260831-005
 
 - **날짜**: 2026-08-31

@@ -35,12 +35,16 @@ public class ApiResponse<T> {
     }
 
     public static ApiResponse<Void> fail(String code, String message) {
+        return fail(code, message, null);
+    }
+
+    public static ApiResponse<Void> fail(String code, String message, Object details) {
         return ApiResponse.<Void>builder()
                 .success(false)
-                .error(new ErrorDetail(code, message))
+                .error(new ErrorDetail(code, message, details))
                 .timestamp(Instant.now().toString())
                 .build();
     }
 
-    public record ErrorDetail(String code, String message) {}
+    public record ErrorDetail(String code, String message, Object details) {}
 }
