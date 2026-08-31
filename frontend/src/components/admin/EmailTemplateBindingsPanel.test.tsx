@@ -97,4 +97,53 @@ describe('EmailTemplateBindingsPanel', () => {
     expect(await screen.findByRole('option', { name: '101번째 템플릿' })).toBeInTheDocument();
     expect(mockGetTemplates).toHaveBeenCalledWith(expect.objectContaining({ page: 1, size: 100 }));
   });
+
+  it('한 이벤트의 연결 해제를 기다리는 동안 다른 이벤트의 bind와 unbind도 차단한다', async () => {
+    let resolveUnbind: ((value: BindingResponse) => void) | undefined;
+    const answeredBinding: EmailTemplateBinding = {
+      ...inactiveBinding,
+      eventCode: 'INQUIRY_ANSWERED',
+      eventLabel: '답변 완료',
+      templateId: 2,
+      templateName: '답변 템플릿',
+      templateActive: true,
+      sendable: true,
+      unavailableReason: null,
+    };
+    const completedBinding: EmailTemplateBinding = {
+      ...inactiveBinding,
+      templateActive: true,
+      sendable: true,
+      unavailableReason: null,
+    };
+    mockGetBindings.mockResolvedValue({ data: { success: true, data: [answeredBinding, completedBinding], timestamp: '2026-08-31T09:00:00' } });
+    mockGetTemplates.mockResolvedValue({
+      data: {
+        success: true,
+        timestamp: '2026-08-31T09:00:00',
+        data: {
+          content: [
+            { id: 1, name: '완료 템플릿', scope: 'INQUIRY_STATUS', active: true, defaultTemplate: false, referenceCount: 1, referencedEvents: [], deletable: false, updatedAt: '2026-08-31T09:00:00' },
+            { id: 2, name: '답변 템플릿', scope: 'INQUIRY_STATUS', active: true, defaultTemplate: false, referenceCount: 1, referencedEvents: [], deletable: false, updatedAt: '2026-08-31T09:00:00' },
+          ],
+          totalElements: 2,
+          totalPages: 1,
+          page: 0,
+          size: 100,
+        },
+      },
+    });
+    mockUnbind.mockReturnValue(new Promise((resolve) => { resolveUnbind = resolve; }));
+    render(<EmailTemplateBindingsPanel />);
+
+    const unbindButtons = await screen.findAllByRole('button', { name: '연결 해제' });
+    fireEvent.click(unbindButtons[0]);
+
+    expect(screen.getAllByRole('button', { name: /연결 저장|연결 해제/ }).every((button) => button.hasAttribute('disabled'))).toBe(true);
+    fireEvent.click(screen.getAllByRole('button', { name: '연결 저장' })[1]);
+    expect(mockBind).not.toHaveBeenCalled();
+
+    resolveUnbind?.({ data: { success: true, data: { ...answeredBinding, templateId: null, templateName: null, templateActive: null, configured: false, sendable: false }, timestamp: '2026-08-31T09:00:00' } });
+    await waitFor(() => expect(screen.getByText('이메일 이벤트 연결을 해제했습니다.')).toBeInTheDocument());
+  });
 });

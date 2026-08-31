@@ -50,6 +50,15 @@ function pageOf(content: EmailTemplateSummary[]): TemplatesResponse {
   };
 }
 
+const clonedDetail: EmailTemplateDetail = {
+  ...summary({ id: 3, name: '복제 템플릿', referenceCount: 0, referencedEvents: [], deletable: true }),
+  subjectTemplate: '복제 제목',
+  htmlBody: '<p>복제 본문</p>',
+  textBody: '복제 본문',
+  allowedVariables: [],
+  createdAt: '2026-08-31T09:00:00',
+};
+
 describe('EmailTemplateListPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -112,5 +121,29 @@ describe('EmailTemplateListPanel', () => {
     resolveActive?.(pageOf([summary({ id: 20, name: '오래된 활성 템플릿' })]));
     await waitFor(() => expect(screen.queryByText('오래된 활성 템플릿')).not.toBeInTheDocument());
     expect(screen.getByText('최신 비활성 템플릿')).toBeInTheDocument();
+  });
+
+  it('한 행의 복제 응답을 기다리는 동안 다른 행의 mutation도 차단한다', async () => {
+    let resolveClone: ((value: DetailResponse) => void) | undefined;
+    mockGetTemplates
+      .mockResolvedValueOnce(pageOf([
+        summary({ id: 1, name: '첫 번째 템플릿', referenceCount: 0, referencedEvents: [], deletable: true }),
+        summary({ id: 2, name: '두 번째 템플릿', referenceCount: 0, referencedEvents: [], deletable: true }),
+      ]))
+      .mockResolvedValue(pageOf([]));
+    mockClone.mockReturnValue(new Promise((resolve) => { resolveClone = resolve; }));
+    render(<EmailTemplateListPanel />);
+
+    const cloneButtons = await screen.findAllByRole('button', { name: '복제' });
+    fireEvent.click(cloneButtons[0]);
+
+    expect(cloneButtons[0]).toBeDisabled();
+    expect(cloneButtons[1]).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: '삭제' }).every((button) => button.hasAttribute('disabled'))).toBe(true);
+    fireEvent.click(cloneButtons[1]);
+    expect(mockClone).toHaveBeenCalledTimes(1);
+
+    resolveClone?.({ data: { success: true, data: clonedDetail, timestamp: '2026-08-31T09:00:00' } });
+    await waitFor(() => expect(mockGetTemplates).toHaveBeenCalledTimes(2));
   });
 });

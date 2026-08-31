@@ -136,6 +136,9 @@ export interface RichTextEditorProps {
   placeholder?: string;
   minHeight?: number;
   allowImages?: boolean;
+  disabled?: boolean;
+  ariaLabel?: string;
+  ariaLabelledBy?: string;
 }
 
 // ──────────────────────────────────────────

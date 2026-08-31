@@ -27,6 +27,7 @@ interface ReactQuillComponentProps {
   modules: QuillModules;
   formats: string[];
   style: React.CSSProperties;
+  readOnly?: boolean;
 }
 type ReactQuillComponent = React.ComponentType<ReactQuillComponentProps>;
 
@@ -60,7 +61,16 @@ function transferHasImagePayload(transfer: DataTransfer | null): boolean {
 }
 
 export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(function RichTextEditor(
-  { value, onChange, placeholder = '내용을 입력하세요.', minHeight = 160, allowImages = true },
+  {
+    value,
+    onChange,
+    placeholder = '내용을 입력하세요.',
+    minHeight = 160,
+    allowImages = true,
+    disabled = false,
+    ariaLabel,
+    ariaLabelledBy,
+  },
   ref,
 ) {
   const quillRef = useRef<ReactQuillInstance | null>(null);
@@ -120,6 +130,10 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     let cancelled = false;
     let detach: (() => void) | null = null;
     const attach = (quill: QuillEditor) => {
+      if (ariaLabel) quill.root.setAttribute('aria-label', ariaLabel);
+      else quill.root.removeAttribute('aria-label');
+      if (ariaLabelledBy) quill.root.setAttribute('aria-labelledby', ariaLabelledBy);
+      else quill.root.removeAttribute('aria-labelledby');
       const captureTarget = quill.container ?? quill.root.parentElement ?? quill.root;
       const insertSequentially = async (files: File[], startIndex: number) => {
         let index = startIndex;
@@ -160,7 +174,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     };
     poll();
     return () => { cancelled = true; editorRef.current = null; detach?.(); };
-  }, [RQ, allowImages, currentIndex, uploadAndInsertImage]);
+  }, [RQ, allowImages, ariaLabel, ariaLabelledBy, currentIndex, uploadAndInsertImage]);
 
   const modules = useMemo<QuillModules>(() => {
     const container: unknown[] = [
@@ -211,7 +225,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     <div data-testid="rich-text-editor" data-image-enabled={allowImages} className="relative rte-quill-wrapper rounded-lg border border-gray-200 transition focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent">
       {allowImages && <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" aria-label="이미지 업로드" className="hidden" onChange={handleImageChange} />}
       {RQ ? (
-        <RQ ref={quillRef} theme="snow" value={value} onChange={onChange} placeholder={placeholder} modules={modules} formats={formats} style={{ minHeight: currentMinH }} />
+        <RQ ref={quillRef} theme="snow" value={value} onChange={onChange} placeholder={placeholder} modules={modules} formats={formats} style={{ minHeight: currentMinH }} readOnly={disabled} />
       ) : (
         <div className="animate-pulse" style={{ minHeight: currentMinH }}><div className="h-10 bg-gray-100 border-b border-gray-200 rounded-t-lg" /><div className="p-3 space-y-2"><div className="h-3 bg-gray-200 rounded w-3/4" /><div className="h-3 bg-gray-200 rounded w-1/2" /></div></div>
       )}

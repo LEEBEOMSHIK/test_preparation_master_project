@@ -42,6 +42,15 @@ const DELIVERY_EVENT_LABEL: Record<InquiryEmailEventType, string> = {
   UNABLE_TO_PROCESS: '처리 불가',
 };
 
+const STATUS_CHANGE_TEXT: Record<InquiryStatus, { action: string; success: string }> = {
+  PENDING: { action: '접수로 변경', success: '상태를 접수로 변경했습니다.' },
+  IN_PROGRESS: { action: '검토 중으로 변경', success: '상태를 검토 중으로 변경했습니다.' },
+  ON_HOLD: { action: '보류로 변경', success: '상태를 보류로 변경했습니다.' },
+  ANSWERED: { action: '답변 완료로 변경', success: '상태를 답변 완료로 변경했습니다.' },
+  COMPLETED: { action: '처리 완료로 변경', success: '상태를 처리 완료로 변경했습니다.' },
+  UNABLE_TO_PROCESS: { action: '처리 불가로 변경', success: '상태를 처리 불가로 변경했습니다.' },
+};
+
 const STATUS_EMAIL_EVENT_CODE: Partial<Record<InquiryStatus, EmailTemplateEventCode>> = {
   ANSWERED: 'INQUIRY_ANSWERED',
   COMPLETED: 'INQUIRY_COMPLETED',
@@ -231,7 +240,7 @@ export default function AdminInquiryDetailPage() {
       const result = response.data.data;
       if (result) {
         setInquiry(result.inquiry);
-        setStatusSuccess(`상태를 ${INQUIRY_STATUS_LABEL[request.status]}로 변경했습니다.`);
+        setStatusSuccess(STATUS_CHANGE_TEXT[request.status].success);
         if (result.emailOutcome.startsWith('SKIPPED_')) {
           setStatusEmailWarning(result.emailMessage);
           setStatusTemplateSettingsUrl(result.templateSettingsUrl);
@@ -274,7 +283,7 @@ export default function AdminInquiryDetailPage() {
       const response = await inquiryService.adminUpdateStatus(inquiry.id, 'IN_PROGRESS', false);
       if (response.data.data) {
         setInquiry(response.data.data.inquiry);
-        setStatusSuccess(`상태를 ${INQUIRY_STATUS_LABEL.IN_PROGRESS}으로 변경했습니다.`);
+        setStatusSuccess(STATUS_CHANGE_TEXT.IN_PROGRESS.success);
       }
       setSelectedStatus('');
       setSendEmail(false);
@@ -503,7 +512,7 @@ export default function AdminInquiryDetailPage() {
                 {updatingStatus
                   ? '변경 중...'
                   : selectedStatus
-                    ? `${INQUIRY_STATUS_LABEL[selectedStatus]}로 변경`
+                    ? STATUS_CHANGE_TEXT[selectedStatus].action
                     : '상태 변경'}
               </button>
             </div>

@@ -11,6 +11,7 @@ const mockGetTemplate = jest.fn<(id: number) => Promise<DetailResponse>>();
 const mockPreview = jest.fn<() => Promise<PreviewResponse>>();
 const mockTestSend = jest.fn<(id: number) => Promise<TestSendResponse>>();
 const mockCreateTemplate = jest.fn<(payload: unknown) => Promise<DetailResponse>>();
+const mockUpdateTemplate = jest.fn<(id: number, payload: unknown) => Promise<DetailResponse>>();
 const mockInsertText = jest.fn<(text: string) => void>();
 
 jest.mock('@/services/emailTemplateService', () => ({
@@ -19,7 +20,7 @@ jest.mock('@/services/emailTemplateService', () => ({
     preview: mockPreview,
     testSend: mockTestSend,
     createTemplate: mockCreateTemplate,
-    updateTemplate: jest.fn(),
+    updateTemplate: mockUpdateTemplate,
   },
 }));
 
@@ -29,11 +30,11 @@ jest.mock('@/store/authStore', () => ({
 
 jest.mock('@/components/ui/RichTextEditor', () => ({
   RichTextEditor: React.forwardRef(function MockRichTextEditor(
-    { value, onChange }: { value: string; onChange: (value: string) => void },
+    { value, onChange, disabled, ariaLabelledBy }: { value: string; onChange: (value: string) => void; disabled?: boolean; ariaLabelledBy?: string },
     ref: React.ForwardedRef<{ insertText(text: string): void }>,
   ) {
     React.useImperativeHandle(ref, () => ({ insertText: mockInsertText }));
-    return <textarea aria-label="HTML 본문" value={value} onChange={(event) => onChange(event.target.value)} />;
+    return <textarea aria-labelledby={ariaLabelledBy} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />;
   }),
 }));
 
@@ -164,5 +165,39 @@ describe('EmailTemplateForm', () => {
     fireEvent.click(screen.getByRole('button', { name: '미리보기' }));
 
     expect(screen.getByRole('button', { name: '저장' })).toBeDisabled();
+  });
+
+  it('저장 응답을 기다리는 동안 폼 입력과 테스트 발송을 잠가 서버 snapshot과의 경합을 막는다', async () => {
+    let resolveSave: ((value: DetailResponse) => void) | undefined;
+    mockUpdateTemplate.mockReturnValue(new Promise((resolve) => { resolveSave = resolve; }));
+    render(<EmailTemplateForm mode="edit" templateId={1} />);
+
+    await screen.findByDisplayValue('완료 템플릿');
+    fireEvent.click(screen.getByRole('button', { name: '저장' }));
+
+    expect(screen.getByLabelText('템플릿 이름')).toBeDisabled();
+    expect(screen.getByLabelText('제목 템플릿')).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: '활성 템플릿' })).toBeDisabled();
+    expect(screen.getByLabelText('HTML 본문')).toBeDisabled();
+    expect(screen.getByRole('button', { name: '테스트 발송' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: '테스트 발송' }));
+    expect(mockTestSend).not.toHaveBeenCalled();
+
+    resolveSave?.({ data: { success: true, data: detail, timestamp: '2026-08-31T09:00:00' } });
+    await waitFor(() => expect(screen.getByRole('button', { name: '저장' })).toBeEnabled());
+  });
+
+  it('HTML 본문 label을 편집기의 접근 가능한 이름으로 연결한다', () => {
+    render(<EmailTemplateForm mode="create" />);
+
+    expect(screen.getByRole('textbox', { name: 'HTML 본문' })).toBeInTheDocument();
+  });
+
+  it('연결된 템플릿을 비활성화하면 올바른 유지 안내 문구를 표시한다', async () => {
+    render(<EmailTemplateForm mode="edit" templateId={1} />);
+
+    await screen.findByDisplayValue('완료 템플릿');
+    fireEvent.click(screen.getByRole('checkbox', { name: '활성 템플릿' }));
+    expect(screen.getByText('연결은 유지되지만 이 템플릿을 사용하는 이메일 발송은 중지됩니다.')).toBeInTheDocument();
   });
 });

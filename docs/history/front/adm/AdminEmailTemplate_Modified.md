@@ -1,3 +1,48 @@
+## HIST-20260901-001
+
+- **날짜**: 2026-09-01
+- **수정 범위**: 관리자 프론트엔드 / 이메일 템플릿 관리 최종 상호작용
+- **수정 개요**: 저장·미리보기·테스트 발송과 행별 mutation을 배타적으로 제어하고, HTML 편집기의 접근 가능한 이름과 비활성 연결 안내 문구를 회귀 테스트로 고정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/types/index.ts` | 수정 | RichTextEditor 비활성·접근성 props 계약 추가 |
+| `frontend/src/components/ui/RichTextEditor.tsx` | 수정 | disabled를 Quill readOnly에 전달하고 실제 `.ql-editor` root에 접근 가능한 이름 적용 |
+| `frontend/src/components/ui/RichTextEditor.test.tsx` | 수정 | 실제 Quill root의 aria-label 적용 회귀 테스트 추가 |
+| `frontend/src/components/admin/EmailTemplateForm.tsx` | 수정 | 저장·미리보기·테스트 발송 단일 operation lock과 저장 중 전체 편집 잠금, HTML label 연결 적용 |
+| `frontend/src/components/admin/EmailTemplateForm.test.tsx` | 수정 | deferred 저장 경합, 테스트 발송 차단, HTML 접근성 이름, 비활성 연결 문구 테스트 추가 |
+| `frontend/src/components/admin/EmailTemplateListPanel.tsx` | 수정 | 목록 전체에서 동시에 하나의 복제·초기화·삭제 mutation만 허용 |
+| `frontend/src/components/admin/EmailTemplateListPanel.test.tsx` | 수정 | 다른 행 복제·삭제까지 잠기는 deferred 회귀 테스트 추가 |
+| `frontend/src/components/admin/EmailTemplateBindingsPanel.tsx` | 수정 | 이벤트 전체에서 동시에 하나의 bind/unbind만 허용하고 mutation 중 선택 잠금 |
+| `frontend/src/components/admin/EmailTemplateBindingsPanel.test.tsx` | 수정 | 다른 이벤트 bind/unbind 경합 차단 deferred 테스트 추가 |
+
+### 수정 상세
+
+#### 비동기 operation 상호 배제
+- 변경 전: 폼 저장 중 입력과 테스트 발송이 활성이고, 목록·연결 패널은 처리 중인 한 행만 비활성화해 다른 행 요청과 오래된 `finally`가 경합할 수 있었다.
+- 변경 후: 폼은 ref와 state가 공유하는 단일 `save`/`preview`/`testSend` operation을 사용하고 저장 중 모든 입력·변수 삽입·에디터를 잠근다. 목록과 연결 패널도 전역 mutation lock으로 모든 관련 버튼을 비활성화한다.
+- 이유: 늦은 서버 snapshot의 입력 덮어쓰기와 동시 mutation으로 인한 메시지·진행 상태 역전을 요청 시작점에서 차단하기 위해서다.
+
+#### HTML 편집기 접근성과 안내 문구
+- 변경 전: `HTML 본문` label이 실제 Quill `.ql-editor` root와 연결되지 않았고 비활성 연결 안내 문구를 보호하는 테스트가 없었다.
+- 변경 후: `ariaLabel`/`ariaLabelledBy`를 실제 편집 root에 적용하고 폼 label ID를 연결한다. `연결은 유지되지만` 문구를 회귀 테스트로 고정한다.
+- 이유: 보조기기가 편집 목적을 인식하고 최종 리뷰에서 확인한 한국어 안내 문구가 회귀하지 않게 하기 위해서다.
+
+### 검증
+
+- RED: 저장 중 첫 입력이 disabled가 아니어서 폼 신규 테스트가 실패했다.
+- RED: 목록의 두 번째 행과 연결 패널의 다른 이벤트 버튼이 활성이라 mutation 신규 테스트 2개가 실패했다.
+- GREEN: 이메일 템플릿·RichTextEditor·문의 상태 focused 5 suites, 43 tests 통과.
+- 전체 Jest 33 suites/168 tests, `npx tsc --noEmit`, `npm run build`, `git diff --check` 통과. build의 기존 viewport metadata 경고만 재현됐다.
+
+### 복원 방법
+
+이 ID(`AdminEmailTemplate_Modified.md` 기준 HIST-20260901-001)로 복원 시 위 파일의 단일 operation/mutation lock, RichTextEditor disabled·aria props와 신규 회귀 테스트를 제거하고 기존 행별 진행 상태로 되돌린다. (순번은 파일별이므로 복원 시 파일명도 함께 지정한다.)
+
+---
+
 ## HIST-20260831-004
 
 - **날짜**: 2026-08-31

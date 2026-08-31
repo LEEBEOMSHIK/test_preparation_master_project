@@ -312,7 +312,23 @@ describe('AdminInquiryDetailPage', () => {
     expect(screen.queryByLabelText('상태 변경 안내 이메일 발송')).toBeNull();
 
     fireEvent.change(statusSelect, { target: { value: 'IN_PROGRESS' } });
-    expect((screen.getByRole('button', { name: '검토 중로 변경' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '검토 중으로 변경' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('검토 중 상태의 변경 버튼과 성공 메시지에 완성된 문구를 표시한다', async () => {
+    jest.mocked(inquiryService.adminGetOne).mockResolvedValue(apiSuccess({ ...baseInquiry, status: 'PENDING' }));
+    jest.mocked(inquiryService.adminUpdateStatus).mockResolvedValue(apiSuccess({
+      inquiry: { ...baseInquiry, status: 'IN_PROGRESS' },
+      emailOutcome: 'NOT_REQUESTED',
+      emailMessage: '',
+      templateSettingsUrl: null,
+    }));
+    render(<AdminInquiryDetailPage />);
+
+    fireEvent.change(await screen.findByLabelText('처리 상태'), { target: { value: 'IN_PROGRESS' } });
+    fireEvent.click(screen.getByRole('button', { name: '검토 중으로 변경' }));
+
+    expect(await screen.findByText('상태를 검토 중으로 변경했습니다.')).toBeTruthy();
   });
 
   it('활성 binding이 없으면 상태 이메일 선택을 막고 설정 링크를 제공한다', async () => {

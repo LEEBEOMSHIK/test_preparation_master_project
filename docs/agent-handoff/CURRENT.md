@@ -2,56 +2,56 @@
 
 ## 현재 목표와 사용자 결정 사항
 
-- 목표: Task 7 글로벌 관리자 메뉴·DB 설명·운영 문서와 Tasks 1~7 최종 검증을 완료한다.
-- 관리자 메뉴 계약: `이메일 템플릿 관리`, `/admin/email-templates`, `iconKey=email`, `displayOrder=15`, 전역 ADMIN 메뉴다.
-- 운영 `ddl-auto=validate`에서는 `docs/db-migration/20260831_01_admin_email_template_management.sql`을 애플리케이션보다 먼저 적용한다.
+- 목표: 관리자 이메일 템플릿/문의 UI의 최종 리뷰 Important 2건과 Minor 3건을 TDD로 수정하고 전체 프론트 검증 후 지정 메시지로 커밋했다.
+- 폼은 저장·미리보기·테스트 발송 중 하나만 실행하며 저장 중 입력·에디터·테스트 발송을 잠근다.
+- 목록·연결 패널은 화면 전체에서 mutation 하나만 허용한다.
 
 ## 완료한 작업
 
-- DataInitializer 메뉴 생성·반복 실행 중복 방지 테스트를 RED에서 GREEN으로 구현했다.
-- AdminLayoutShell API/fallback 메뉴·email 아이콘·base/new/edit 제목을 구현하고 fallback 편집 경로 테스트를 RED에서 GREEN으로 전환했다.
-- `tableComments.ts`, 프로젝트 개요, DB 가이드에 신규 테이블·감사/FK·HTML 스냅샷·문의 6상태·운영 적용 순서를 기록했다.
-- PostgreSQL 실제 목록 API에서 발견한 null keyword 500을 회귀 테스트 RED 후 빈 문자열 정규화로 수정해 GREEN 및 실제 200/3건을 확인했다.
-- 로컬 PostgreSQL 15에 마이그레이션 SQL을 두 번 적용하고 시드/바인딩 멱등성, 6상태 제약, unbind 재기동 비복구, 메뉴 단일 시드를 확인했다.
-- 실제 API로 PENDING/IN_PROGRESS/ON_HOLD/ANSWERED/COMPLETED/UNABLE_TO_PROCESS, QUEUED/missing/inactive outcome, 상태 보존, 설정 URL, 상태 HTML 스냅샷을 확인했다. BUG_REPORT 완료 전후 메시지 수도 2건으로 유지됐다.
+- 폼 저장 deferred RED에서 입력이 활성인 문제를 확인하고 단일 operation ref/state와 저장 중 전체 편집 잠금을 구현했다.
+- 목록·연결 deferred RED에서 다른 행/이벤트가 활성인 문제를 확인하고 전역 mutation lock을 구현했다.
+- RichTextEditor 실제 Quill root에 aria-label/aria-labelledby를 적용하고 `HTML 본문` label을 연결했다.
+- 문의 상태별 action/success 완성 문구 표로 `검토 중으로 변경`, `상태를 검토 중으로 변경했습니다.`를 적용했다.
+- `연결은 유지되지지만` 오타는 코드에 없음을 확인하고 기존 올바른 `연결은 유지되지만` 문구 테스트를 추가했다.
+- 관리자 프론트 히스토리 `HIST-20260901-001`을 이메일 템플릿·문의 파일에 각각 추가했다.
+- 완료 커밋은 현재 HEAD의 `[FE] fix: 이메일 템플릿 관리자 상호작용 마무리`다.
 
 ## 미완료 작업
 
-- 없음. Task 7 완료 커밋은 현재 HEAD의 `[INFRA] feat: 이메일 템플릿 메뉴와 운영 문서 반영`이다.
+- 없음.
 
 ## 수정한 파일 목록
 
-- `backend/src/main/java/com/tpmp/testprep/config/DataInitializer.java`
-- `backend/src/test/java/com/tpmp/testprep/config/DataInitializerTest.java`
-- `backend/src/main/java/com/tpmp/testprep/service/EmailTemplateService.java`
-- `backend/src/test/java/com/tpmp/testprep/service/EmailTemplateServiceTest.java`
-- `frontend/src/components/layout/AdminLayoutShell.tsx`
-- `frontend/src/components/layout/AdminLayoutShell.test.tsx`
-- `frontend/src/data/tableComments.ts`
-- `docs/project-overview.md`
-- `docs/db-guidelines.md`
-- `docs/history/back/adm/AdminInit_Modified.md`
-- `docs/history/back/adm/AdminEmailTemplate_Modified.md`
-- `docs/history/front/adm/AdminLayout_Modified.md`
+- `frontend/src/types/index.ts`
+- `frontend/src/components/ui/RichTextEditor.tsx`
+- `frontend/src/components/ui/RichTextEditor.test.tsx`
+- `frontend/src/components/admin/EmailTemplateForm.tsx`
+- `frontend/src/components/admin/EmailTemplateForm.test.tsx`
+- `frontend/src/components/admin/EmailTemplateListPanel.tsx`
+- `frontend/src/components/admin/EmailTemplateListPanel.test.tsx`
+- `frontend/src/components/admin/EmailTemplateBindingsPanel.tsx`
+- `frontend/src/components/admin/EmailTemplateBindingsPanel.test.tsx`
+- `frontend/src/app/admin/inquiries/[id]/page.tsx`
+- `frontend/src/app/admin/inquiries/[id]/page.test.tsx`
 - `docs/history/front/adm/AdminEmailTemplate_Modified.md`
+- `docs/history/front/adm/AdminInquiry_Modified.md`
 - `docs/agent-handoff/CURRENT.md`
 
 ## 실행한 검증 명령과 결과
 
-- RED backend: `DataInitializerTest` 7개 중 신규 2개 `WantedButNotInvoked` 실패; PostgreSQL 호환 service 테스트는 실제 null 전달로 실패.
-- RED frontend: `AdminLayoutShell.test.tsx` 2개 중 fallback 편집 경로 링크 미발견 1개 실패.
-- focused GREEN: `DataInitializerTest` 7개, AdminLayoutShell 2개, PostgreSQL 호환 service 테스트 모두 성공.
-- backend 전체: PostgreSQL 수정 후 최종 재실행, 49 suites/446 tests, 실패·오류·skip 0, `BUILD SUCCESSFUL`.
-- frontend: `npx tsc --noEmit` 성공, Jest 33 suites/161 tests 성공, `npm run build` 성공.
-- PostgreSQL: `tpmp-db-local-55432`(`postgres:15-alpine`, PostgreSQL 15.18, DB/user `tpmp/tpmp`, host port 55432)에 SQL 2회 성공. 기본 템플릿·binding 각각 3개/중복 없음, 6상태 check, unbind 후 재기동 비복구, 메뉴 1건을 확인했다.
-- 실제 API: keyword 없는 템플릿 목록 200/3건, 6상태 수용, COMPLETED/ANSWERED/UNABLE_TO_PROCESS `QUEUED`, 미바인딩 `SKIPPED_TEMPLATE_MISSING`, 비활성 `SKIPPED_TEMPLATE_INACTIVE`, 두 skip 모두 상태 저장 및 `/admin/email-templates?tab=bindings` 반환을 확인했다.
-- delivery: NEW_INQUIRY/USER_MESSAGE/ADMIN_MESSAGE는 body가 있고 `html_body`는 없으며, 상태 템플릿 delivery는 body와 `html_body`가 모두 있다. 사용자·관리자 타임라인 메시지 각 1건도 확인했다. 수동 회귀 데이터는 정확한 ID/제목 조건으로 정리했다.
+- RED 폼: 신규 저장 경합 테스트 1 failed/7 skipped. 저장 중 `템플릿 이름`이 disabled가 아님을 확인했다.
+- RED 목록·연결: 신규 2 tests failed/7 skipped. 다른 행 복제와 다른 이벤트 관리 버튼이 활성임을 확인했다.
+- RED 접근성·문구: Quill root aria-label, 폼 HTML label, `검토 중으로 변경`이 각각 예상 원인으로 실패했다. 기존 `연결은 유지되지만` 특성 테스트는 통과했다.
+- focused GREEN: 5 suites/43 tests 통과.
+- 전체 Jest: 33 suites/168 tests 통과.
+- `npx tsc --noEmit`: exit 0.
+- `npm run build`: exit 0. 57개 정적 페이지 생성 완료.
+- `git diff --check`: exit 0. CRLF 변환 예고 외 오류 없음.
 
 ## 실패·경고·주의사항
 
-- 로컬 SMTP가 구성되지 않아 수신자 body 없는 `POST /api/admin/email-templates/2/test-send`는 계약대로 요청됐지만 실제 발송은 502 `EMAIL_TEMPLATE_TEST_SEND_FAILED`였다.
-- frontend build의 기존 viewport metadata 경고가 남아 있다.
-- SQL 선행 적용 없이 운영 애플리케이션을 기동하면 `ddl-auto=validate`가 실패한다.
+- build에서 기존 전역 viewport metadata 경고가 재현됐으며 이번 변경 범위 밖이다.
+- `.superpowers/.../final-fix-report.md`는 기존 task report와 동일하게 git 추적 대상이 아닌 작업 보고서다.
 
 ## 다음 세션이 바로 실행할 명령
 
@@ -59,5 +59,4 @@
 
 ## 건드리면 안 되는 파일 또는 기존 미추적 파일
 
-- Task 1~6 이메일 템플릿·문의 상태 기능과 관련 커밋 전체.
-- Task 7 명시 경로 밖의 사용자 변경.
+- 위 수정 파일과 `.superpowers/sdd/2026-08-31-admin-email-template-management/final-fix-report.md` 밖의 사용자·다른 작업자 변경.

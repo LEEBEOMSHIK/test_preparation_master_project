@@ -34,15 +34,30 @@ function referencedEventsFromError(error: unknown): EmailTemplateReference[] {
 
 export function EmailTemplateListPanel() {
   const requestGeneration = useRef(0);
+  const mutationInProgressRef = useRef(false);
   const [pageData, setPageData] = useState<PageResponse<EmailTemplateSummary> | null>(null);
   const [page, setPage] = useState(0);
   const [keywordInput, setKeywordInput] = useState('');
   const [keyword, setKeyword] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState<number | null>(null);
+  const [mutationInProgress, setMutationInProgress] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+
+  const beginMutation = (): boolean => {
+    if (mutationInProgressRef.current) return false;
+    mutationInProgressRef.current = true;
+    setMutationInProgress(true);
+    setError('');
+    setMessage('');
+    return true;
+  };
+
+  const finishMutation = (): void => {
+    mutationInProgressRef.current = false;
+    setMutationInProgress(false);
+  };
 
   const loadTemplates = useCallback(async () => {
     const generation = requestGeneration.current + 1;
@@ -80,9 +95,7 @@ export function EmailTemplateListPanel() {
   };
 
   const cloneTemplate = async (template: EmailTemplateSummary) => {
-    setProcessingId(template.id);
-    setError('');
-    setMessage('');
+    if (!beginMutation()) return;
     try {
       const response = await emailTemplateService.cloneTemplate(template.id);
       if (!response.data.success) throw new ApiApplicationError(response.data.error?.message ?? '복제에 실패했습니다.');
@@ -90,14 +103,12 @@ export function EmailTemplateListPanel() {
       await loadTemplates();
     } catch (requestError: unknown) {
       setError(extractApiErrorMessage(requestError, '템플릿 복제에 실패했습니다.'));
-    } finally { setProcessingId(null); }
+    } finally { finishMutation(); }
   };
 
   const resetDefault = async (template: EmailTemplateSummary) => {
     if (!window.confirm('기본 템플릿 내용을 초기 상태로 복원하시겠습니까?')) return;
-    setProcessingId(template.id);
-    setError('');
-    setMessage('');
+    if (!beginMutation()) return;
     try {
       const response = await emailTemplateService.resetDefault(template.id);
       if (!response.data.success) throw new ApiApplicationError(response.data.error?.message ?? '초기화에 실패했습니다.');
@@ -105,14 +116,12 @@ export function EmailTemplateListPanel() {
       await loadTemplates();
     } catch (requestError: unknown) {
       setError(extractApiErrorMessage(requestError, '기본 템플릿 초기화에 실패했습니다.'));
-    } finally { setProcessingId(null); }
+    } finally { finishMutation(); }
   };
 
   const deleteTemplate = async (template: EmailTemplateSummary) => {
     if (!template.deletable || !window.confirm('이 템플릿을 삭제하시겠습니까?')) return;
-    setProcessingId(template.id);
-    setError('');
-    setMessage('');
+    if (!beginMutation()) return;
     try {
       const response = await emailTemplateService.deleteTemplate(template.id);
       if (!response.data.success) throw new ApiApplicationError(response.data.error?.message ?? '삭제에 실패했습니다.');
@@ -124,7 +133,7 @@ export function EmailTemplateListPanel() {
       setError(references.length > 0
         ? `${references.map((reference) => reference.eventLabel).join(', ')}에서 사용 중인 템플릿입니다. 연결을 해제한 후 삭제해 주세요.`
         : extractApiErrorMessage(requestError, '템플릿 삭제에 실패했습니다.'));
-    } finally { setProcessingId(null); }
+    } finally { finishMutation(); }
   };
 
   return (
@@ -154,9 +163,9 @@ export function EmailTemplateListPanel() {
                 <td className="px-4 py-3">{new Date(template.updatedAt).toLocaleString('ko-KR')}</td>
                 <td className="px-4 py-3"><div className="flex justify-end gap-2">
                   <Link href={`/admin/email-templates/${template.id}/edit`} className="rounded border border-gray-300 px-2.5 py-1.5">편집</Link>
-                  <button type="button" disabled={processingId === template.id} onClick={() => void cloneTemplate(template)} className="rounded border border-gray-300 px-2.5 py-1.5 disabled:opacity-50">복제</button>
-                  {template.defaultTemplate && <button type="button" disabled={processingId === template.id} onClick={() => void resetDefault(template)} className="rounded border border-gray-300 px-2.5 py-1.5 disabled:opacity-50">초기화</button>}
-                  <button type="button" disabled={!template.deletable || processingId === template.id} title={!template.deletable ? '연결을 해제해야 삭제할 수 있습니다.' : undefined} onClick={() => void deleteTemplate(template)} className="rounded border border-red-200 px-2.5 py-1.5 text-red-600 disabled:cursor-not-allowed disabled:opacity-40">삭제</button>
+                  <button type="button" disabled={mutationInProgress} onClick={() => void cloneTemplate(template)} className="rounded border border-gray-300 px-2.5 py-1.5 disabled:opacity-50">복제</button>
+                  {template.defaultTemplate && <button type="button" disabled={mutationInProgress} onClick={() => void resetDefault(template)} className="rounded border border-gray-300 px-2.5 py-1.5 disabled:opacity-50">초기화</button>}
+                  <button type="button" disabled={!template.deletable || mutationInProgress} title={!template.deletable ? '연결을 해제해야 삭제할 수 있습니다.' : undefined} onClick={() => void deleteTemplate(template)} className="rounded border border-red-200 px-2.5 py-1.5 text-red-600 disabled:cursor-not-allowed disabled:opacity-40">삭제</button>
                 </div></td>
               </tr>
             ))}</tbody>

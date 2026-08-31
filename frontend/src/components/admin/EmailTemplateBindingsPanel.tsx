@@ -1,19 +1,34 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { ApiApplicationError, extractApiErrorMessage } from '@/lib/apiError';
 import { emailTemplateService } from '@/services/emailTemplateService';
 import type { EmailTemplateBinding, EmailTemplateEventCode, EmailTemplateSummary } from '@/types';
 
 export function EmailTemplateBindingsPanel() {
+  const mutationInProgressRef = useRef(false);
   const [bindings, setBindings] = useState<EmailTemplateBinding[]>([]);
   const [templates, setTemplates] = useState<EmailTemplateSummary[]>([]);
   const [selection, setSelection] = useState<Partial<Record<EmailTemplateEventCode, string>>>({});
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState<EmailTemplateEventCode | null>(null);
+  const [mutationInProgress, setMutationInProgress] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+
+  const beginMutation = (): boolean => {
+    if (mutationInProgressRef.current) return false;
+    mutationInProgressRef.current = true;
+    setMutationInProgress(true);
+    setError('');
+    setMessage('');
+    return true;
+  };
+
+  const finishMutation = (): void => {
+    mutationInProgressRef.current = false;
+    setMutationInProgress(false);
+  };
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -71,7 +86,7 @@ export function EmailTemplateBindingsPanel() {
       setError('연결할 활성 템플릿을 선택해 주세요.');
       return;
     }
-    setProcessing(eventCode); setError(''); setMessage('');
+    if (!beginMutation()) return;
     try {
       const response = await emailTemplateService.bind(eventCode, templateId);
       if (!response.data.success || !response.data.data) throw new ApiApplicationError(response.data.error?.message ?? '연결에 실패했습니다.');
@@ -79,12 +94,12 @@ export function EmailTemplateBindingsPanel() {
       setMessage('이메일 이벤트 연결을 저장했습니다.');
     } catch (requestError: unknown) {
       setError(extractApiErrorMessage(requestError, '이메일 이벤트 연결에 실패했습니다.'));
-    } finally { setProcessing(null); }
+    } finally { finishMutation(); }
   };
 
   const unbind = async (eventCode: EmailTemplateEventCode) => {
     if (!window.confirm('이 이벤트의 이메일 템플릿 연결을 해제하시겠습니까?')) return;
-    setProcessing(eventCode); setError(''); setMessage('');
+    if (!beginMutation()) return;
     try {
       const response = await emailTemplateService.unbind(eventCode);
       if (!response.data.success || !response.data.data) throw new ApiApplicationError(response.data.error?.message ?? '연결 해제에 실패했습니다.');
@@ -92,7 +107,7 @@ export function EmailTemplateBindingsPanel() {
       setMessage('이메일 이벤트 연결을 해제했습니다.');
     } catch (requestError: unknown) {
       setError(extractApiErrorMessage(requestError, '이메일 이벤트 연결 해제에 실패했습니다.'));
-    } finally { setProcessing(null); }
+    } finally { finishMutation(); }
   };
 
   return (
@@ -113,7 +128,7 @@ export function EmailTemplateBindingsPanel() {
               return (
                 <tr key={binding.eventCode}>
                   <td className="px-4 py-3 font-medium text-gray-900">{binding.eventLabel}</td>
-                  <td className="px-4 py-3"><select aria-label={`${binding.eventLabel} 템플릿`} value={selection[binding.eventCode] ?? ''} onChange={(event) => setSelection((current) => ({ ...current, [binding.eventCode]: event.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2">
+                  <td className="px-4 py-3"><select aria-label={`${binding.eventLabel} 템플릿`} value={selection[binding.eventCode] ?? ''} disabled={mutationInProgress} onChange={(event) => setSelection((current) => ({ ...current, [binding.eventCode]: event.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2">
                     <option value="">연결 안 함</option>
                     {inactiveCurrentMissing && <option value={binding.templateId ?? undefined} disabled>{binding.templateName}</option>}
                     {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
@@ -124,8 +139,8 @@ export function EmailTemplateBindingsPanel() {
                         : <span className="text-gray-500">{binding.unavailableReason ?? '연결된 템플릿이 없습니다.'}</span>}
                   </td>
                   <td className="px-4 py-3"><div className="flex justify-end gap-2">
-                    <button type="button" disabled={processing === binding.eventCode || !selectedTemplateActive} onClick={() => void bind(binding.eventCode)} className="rounded bg-indigo-600 px-3 py-1.5 text-white disabled:opacity-40">연결 저장</button>
-                    <button type="button" disabled={processing === binding.eventCode || !binding.configured} onClick={() => void unbind(binding.eventCode)} className="rounded border border-gray-300 px-3 py-1.5 disabled:opacity-40">연결 해제</button>
+                    <button type="button" disabled={mutationInProgress || !selectedTemplateActive} onClick={() => void bind(binding.eventCode)} className="rounded bg-indigo-600 px-3 py-1.5 text-white disabled:opacity-40">연결 저장</button>
+                    <button type="button" disabled={mutationInProgress || !binding.configured} onClick={() => void unbind(binding.eventCode)} className="rounded border border-gray-300 px-3 py-1.5 disabled:opacity-40">연결 해제</button>
                   </div></td>
                 </tr>
               );

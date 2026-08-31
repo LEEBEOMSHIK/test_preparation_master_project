@@ -45,6 +45,8 @@ function transferEvent(type: 'paste' | 'drop', values: Record<string, string>): 
 describe('RichTextEditor', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockQuill.root.removeAttribute('aria-label');
+    mockQuill.root.removeAttribute('aria-labelledby');
   });
 
   it('allowImages=false이면 이미지 툴바와 업로드 입력을 노출하지 않는다', async () => {
@@ -104,5 +106,12 @@ describe('RichTextEditor', () => {
 
     expect(pasteEvent.defaultPrevented).toBe(false);
     expect(dropEvent.defaultPrevented).toBe(false);
+  });
+
+  it('ariaLabel을 실제 Quill 편집 root의 접근 가능한 이름으로 적용한다', async () => {
+    render(<RichTextEditor value="" onChange={jest.fn()} allowImages={false} ariaLabel="HTML 본문" />);
+
+    await screen.findByTestId('quill-instance');
+    await waitFor(() => expect(mockQuill.root).toHaveAttribute('aria-label', 'HTML 본문'));
   });
 });
