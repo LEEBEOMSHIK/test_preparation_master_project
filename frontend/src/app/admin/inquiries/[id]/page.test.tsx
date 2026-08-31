@@ -87,10 +87,12 @@ function apiSuccess<T>(data: T) {
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 describe('AdminInquiryDetailPage', () => {
@@ -180,6 +182,7 @@ describe('AdminInquiryDetailPage', () => {
     const content = container.firstElementChild as HTMLElement;
     const cancel = screen.getByRole('button', { name: '취소' });
     const confirm = screen.getByRole('button', { name: '답변 없이 상태 변경' });
+    const triggerFocus = jest.spyOn(trigger, 'focus');
     await waitFor(() => expect(document.activeElement).toBe(cancel));
     expect(content.hasAttribute('inert')).toBe(true);
 
@@ -194,6 +197,37 @@ describe('AdminInquiryDetailPage', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(content.hasAttribute('inert')).toBe(false);
     expect(document.activeElement).toBe(trigger);
+    expect(triggerFocus).toHaveBeenCalledTimes(1);
+  });
+
+  it('답변 없는 종료 확인 요청이 끝나면 다시 활성화된 trigger로 focus를 복귀한다', async () => {
+    const statusUpdateRequest = createDeferred<never>();
+    jest.mocked(inquiryService.adminGetOne).mockResolvedValue(apiSuccess({
+      ...baseInquiry,
+      requestType: 'BUG_REPORT',
+    }));
+    jest.mocked(inquiryService.adminUpdateStatus).mockImplementation(() => statusUpdateRequest.promise);
+
+    render(<AdminInquiryDetailPage />);
+
+    const statusSelect = await screen.findByLabelText('처리 상태');
+    fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
+    const trigger = screen.getByRole('button', { name: '처리 완료로 변경' }) as HTMLButtonElement;
+    fireEvent.click(trigger);
+    const triggerFocus = jest.spyOn(trigger, 'focus');
+    fireEvent.click(screen.getByRole('button', { name: '답변 없이 상태 변경' }));
+
+    await waitFor(() => expect(inquiryService.adminUpdateStatus).toHaveBeenCalled());
+    expect(trigger.disabled).toBe(true);
+    expect(document.activeElement).not.toBe(trigger);
+
+    await act(async () => statusUpdateRequest.reject(new Error('상태 변경 실패')));
+
+    await waitFor(() => {
+      expect(trigger.disabled).toBe(false);
+      expect(document.activeElement).toBe(trigger);
+    });
+    expect(triggerFocus).toHaveBeenCalledTimes(1);
   });
 
   it('답변 없는 종료 승인은 dialog를 연 시점의 상태와 이메일 선택을 제출한다', async () => {

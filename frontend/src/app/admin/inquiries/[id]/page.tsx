@@ -85,6 +85,7 @@ export default function AdminInquiryDetailPage() {
   const statusUpdateTriggerRef = useRef<HTMLButtonElement>(null);
   const statusUpdateCancelRef = useRef<HTMLButtonElement>(null);
   const statusUpdateConfirmRef = useRef<HTMLButtonElement>(null);
+  const restoreStatusTriggerAfterRequestRef = useRef(false);
 
   const loadDeliveries = useCallback(async () => {
     const requestGeneration = ++deliveryRequestGenerationRef.current;
@@ -189,9 +190,20 @@ export default function AdminInquiryDetailPage() {
     return () => {
       document.removeEventListener('keydown', handleDialogKeyDown);
       content?.removeAttribute('inert');
-      trigger?.focus();
+      if (!restoreStatusTriggerAfterRequestRef.current) {
+        trigger?.focus();
+      }
     };
   }, [pendingStatusUpdate]);
+
+  useEffect(() => {
+    if (updatingStatus || !restoreStatusTriggerAfterRequestRef.current) return;
+    restoreStatusTriggerAfterRequestRef.current = false;
+    const trigger = statusUpdateTriggerRef.current;
+    if (trigger && !trigger.disabled) {
+      trigger.focus();
+    }
+  }, [pendingStatusUpdate, updatingStatus]);
 
   const handleMessageSent = () => {
     void loadInquiry();
@@ -643,7 +655,10 @@ export default function AdminInquiryDetailPage() {
               <button
                 ref={statusUpdateConfirmRef}
                 type="button"
-                onClick={() => void performStatusUpdate(pendingStatusUpdate)}
+                onClick={() => {
+                  restoreStatusTriggerAfterRequestRef.current = true;
+                  void performStatusUpdate(pendingStatusUpdate);
+                }}
                 disabled={updatingStatus}
                 className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >

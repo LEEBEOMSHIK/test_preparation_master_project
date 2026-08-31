@@ -1,3 +1,35 @@
+## HIST-20260831-004
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 프론트엔드 / 문의 상태 확인 포커스 복귀
+- **수정 개요**: 답변 없는 종료 확인 후 상태 요청이 끝나 활성화된 상태 변경 버튼으로 포커스를 한 번만 복귀하도록 보강했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/admin/inquiries/[id]/page.tsx` | 수정 | 확인 요청 중 포커스 복귀 보류 및 요청 종료 후 1회 복귀 적용 |
+| `frontend/src/app/admin/inquiries/[id]/page.test.tsx` | 수정 | deferred 실패 요청과 취소 경로의 활성 trigger 포커스·호출 횟수 검증 추가 |
+
+### 수정 상세
+
+#### 답변 없는 종료 확인 포커스
+- 변경 전: 확인 버튼을 누르면 dialog cleanup이 `updatingStatus=true`로 비활성화된 상태 변경 버튼에 즉시 포커스를 시도하고, 요청 종료 뒤에는 다시 시도하지 않아 포커스가 `body`에 남았다.
+- 변경 후: 확인 경로만 포커스 복귀를 요청 종료까지 보류하고 `updatingStatus=false`가 된 뒤 연결되어 있고 활성화된 trigger에 한 번 포커스한다. Escape·취소 경로는 기존처럼 dialog cleanup에서 즉시 한 번 복귀한다.
+- 이유: 비동기 요청 중 비활성 요소에 포커스를 잃지 않고 성공·실패·취소 경로에서 중복 포커스를 방지하기 위해서다.
+
+### 검증
+
+- RED: 문의 상세 1 suite, 16 tests 중 신규 포커스 테스트 1 failed/15 passed. 요청 실패 후 버튼은 활성화됐지만 `document.activeElement`가 `body`에 남음을 확인했다.
+- GREEN: 문의 상세 focused 1 suite, 16 tests passed.
+- 문의 소비 경로 회귀 6 suites, 43 tests passed 및 `npx tsc --noEmit` exit 0.
+
+### 복원 방법
+
+이 ID(`AdminInquiry_Modified.md` 기준 HIST-20260831-004)로 복원 시 요청 종료 포커스 보류 ref/effect와 deferred 실패 포커스 테스트를 제거하고, dialog cleanup의 즉시 trigger 포커스 동작으로 되돌린다. (순번은 파일별이므로 복원 시 파일명도 함께 지정한다.)
+
+---
+
 ## HIST-20260831-003
 
 - **날짜**: 2026-08-31
