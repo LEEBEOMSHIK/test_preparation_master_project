@@ -2,64 +2,55 @@
 
 ## 현재 목표와 사용자 결정 사항
 
-- 목표: 최초 문의의 조건부 사용자 수정 API·상세 UX와 문의 대화 문맥 라벨을 마무리한다.
-- 사용자 결정: 수정은 소유자·`PENDING`·후속 메시지 0건일 때만 허용하고 기존 첨부는 보존한다. 메일 수신 로직은 변경하지 않는다.
-- 완료 커밋: `8b7bded [BE] feat: 문의 수정 및 답변 UX 개선`. push는 사용자 요청이 없어 수행하지 않았다.
+- 목표: 관리자 문의·요청 목록에서 검색어를 지정하지 않을 때 발생하는 PostgreSQL 500 오류를 수정한다.
+- 결정: null·공백 검색어는 서비스에서 빈 문자열로 정규화하고, Repository JPQL의 `:keyword IS NULL` 분기를 제거한다.
+- 상태·요청 유형·발생 영역 필터 동작은 유지한다.
+- 커밋·푸시는 수행하지 않는다.
 
 ## 완료한 작업
 
-- `PUT /api/user/inquiries/{id}`와 수정 DTO·서비스·도메인 갱신을 추가했다.
-- 수정·삭제·사용자/관리자 메시지·상태 변경 경로가 `PESSIMISTIC_WRITE` 문의 조회를 사용하도록 했다.
-- 사용자 상세에 수정 진입·취소·저장·수정 불가 사유·저장 후 재조회를 추가하고, 기존 첨부는 편집하지 않도록 유지했다.
-- 신규 등록과 상세 편집의 도메인 옵션 로딩을 `loadInquiryDomainOptions`로 공통화하고 AGENTS Shared Utilities 표를 갱신했다.
-- 작성기·이미지 업로더·타임라인의 사용자/관리자 문맥을 구분하고 관리자 상세의 중복 답변 제목을 제거했다.
-- `UserInquiryControllerWebMvcTest`를 추가했다. 익명 PUT 401, 실제 JWT와 같은 String principal의 유효 PUT 200·`ApiResponse`·서비스 인자 전달, 빈/잘못된 payload 400을 검증한다. 기존 production PUT 구현이 계약을 충족해 추가 production 수정은 없었다.
-- 도메인 API subset/빈 목록에 현재 유형·영역이 없어도 수정 select에 `현재 설정` option으로 한 번만 보존하고, 제목·내용만 저장할 때 기존 payload를 유지하도록 했다.
-- 수정 성공 테스트가 직접 주입한 `InquiryEmailService` mock으로 이메일 알림 큐가 호출되지 않음을 검증했다.
-- BUG_REPORT 수정은 활성 발생 영역을 허용하고, 도메인에서 제거된 legacy 영역은 기존 BUG_REPORT가 같은 영역을 유지할 때만 허용한다. 다른 비활성 영역으로 변경하거나 비-BUG 문의를 비활성 영역의 BUG_REPORT로 전환하면 거부한다.
-- 사용자/관리자/백엔드 히스토리를 실제 수정 파일·검증 결과로 정리했다.
-- 로컬 기능 커밋 `8b7bded [BE] feat: 문의 수정 및 답변 UX 개선`을 생성했다.
+- `InquiryService.adminGetAll`이 null·공백 검색어를 `""`로 정규화하도록 수정했다.
+- `InquiryRepository.findAdminFiltered`에서 nullable keyword guard를 제거했다.
+- 빈 문자열의 `LIKE '%%'` 동작으로 검색어 미지정 시 전체 문자열을 매치하면서 PostgreSQL의 `lower(bytea)` 타입 추론 문제를 피하도록 했다.
+- null·공백 입력 모두 Repository에 빈 문자열로 전달되는 회귀 테스트를 TDD로 추가했다.
+- 관리자 백엔드 수정 히스토리 `HIST-20260831-001`을 기록했다.
 
 ## 미완료 작업
 
-- 없음. 구현·검증·로컬 커밋이 모두 완료됐다.
-- push는 사용자 요청이 없어 수행하지 않았다.
+- 없음. 정적 검토, 백엔드 전체 테스트, 실제 PostgreSQL 관리자 목록 API 및 브라우저 화면 검증까지 완료했다.
+- 커밋·푸시는 수행하지 않았다.
 
 ## 수정한 파일 목록
 
-- `AGENTS.md`
-- `backend/src/main/java/com/tpmp/testprep/{controller/UserInquiryController.java,dto/request/InquiryUpdateRequest.java,entity/Inquiry.java,repository/InquiryRepository.java,service/InquiryService.java}`
-- `backend/src/test/java/com/tpmp/testprep/{controller/UserInquiryControllerWebMvcTest.java,repository/InquiryRepositoryLockTest.java,service/InquiryServiceTest.java}`
-- `frontend/src/{lib/inquiryDomain.ts,services/inquiryService.ts}`
-- `frontend/src/app/{user/inquiries/new/page.tsx,user/inquiries/[id]/page.tsx,user/inquiries/[id]/page.test.tsx,admin/inquiries/[id]/page.tsx}`
-- `frontend/src/components/ui/{InquiryImageUploader.tsx,InquiryImageUploader.test.tsx,InquiryMessageComposer.tsx,InquiryMessageComposer.test.tsx,InquiryTimeline.tsx,InquiryTimeline.test.tsx}`
-- `docs/history/{back/usr/UserInquiry_Modified.md,front/usr/UserInquiry_Modified.md,front/adm/AdminInquiry_Modified.md}`
+- `backend/src/main/java/com/tpmp/testprep/repository/InquiryRepository.java`
+- `backend/src/main/java/com/tpmp/testprep/service/InquiryService.java`
+- `backend/src/test/java/com/tpmp/testprep/service/InquiryServiceTest.java`
+- `docs/history/back/adm/AdminInquiry_Modified.md`
 - `docs/agent-handoff/CURRENT.md`
 
 ## 실행한 검증 명령과 결과
 
-- `gradlew.bat test --tests com.tpmp.testprep.repository.InquiryRepositoryLockTest --tests com.tpmp.testprep.service.InquiryServiceTest --tests com.tpmp.testprep.controller.UserInquiryControllerWebMvcTest` 성공: 3 suites, 14 tests, 실패 0.
-- `npx jest --watch=false --runInBand` focused 실행: 신규 등록·사용자 상세·공용 업로더/작성기/타임라인 5 suites, 33 tests 통과.
-- 재리뷰 user page focused: 신규 등록·사용자 상세 2 suites, 14 tests 통과.
-- 재리뷰 service focused: `InquiryServiceTest` 1 suite, 9 tests 통과.
-- 최종 재리뷰 service focused: `InquiryServiceTest` 1 suite, 12 tests 통과. 기존 BUG_REPORT legacy 영역 보존 RED(1 failed) 뒤 GREEN을 확인했다.
-- 최종 재리뷰 user page focused: 신규 등록·사용자 상세 2 suites, 14 tests 통과.
-- 관리자 문의 상세·설정 focused Jest 실행: 2 suites, 10 tests 통과.
-- 백엔드 전체 `gradlew.bat test` 성공: 34 suites, 355 tests, fail/error/skipped 0.
-- 프론트엔드 `npx tsc --noEmit` 성공: 오류 0. 전체 Jest 성공: 26 suites, 124 tests, 실패 0. `npm run build` 성공: 정적 페이지 55개 생성.
-- 실서버 재기동 후 backend session `30823`/PID `50700`/`:8080` 확인: health `200 UP`, 익명 `PUT /api/user/inquiries/1`은 `401`.
-- 프론트엔드 `/user/inquiries/1`은 `200`, 동적 페이지 chunk 로드까지 확인했다.
-- root `git diff --check` 성공: 오류 0.
+- RED: `cd backend; .\gradlew.bat test --tests com.tpmp.testprep.service.InquiryServiceTest.adminGetAllNormalizesMissingKeywordToEmptyString`
+  - 결과: 1 test, 1 failed.
+  - 실패 이유: 서비스가 빈 문자열 대신 null을 Repository에 전달해 Mockito `ArgumentsAreDifferent` 발생.
+- GREEN: 동일 focused 명령 재실행.
+  - 결과: `BUILD SUCCESSFUL`.
+- 회귀 범위: `cd backend; .\gradlew.bat test --tests com.tpmp.testprep.service.InquiryServiceTest`
+  - 결과: 13 tests, failures 0, errors 0, skipped 0, `BUILD SUCCESSFUL`.
+- 정적 검토: webapp-verifier `Ready to merge: Yes`, Critical/Important/Minor 문제 없음.
+- 백엔드 전체: `cd backend; .\gradlew.bat test`
+  - 결과: 34 suites, 356 tests, failures 0, errors 0, skipped 0, `BUILD SUCCESSFUL in 2m 3s`.
+- 런타임: 수정본 백엔드 session `68822`, PID `7708`, PostgreSQL `localhost:55432`에서 검증했다.
+  - 기존 관리자 로그인 Chrome 탭 `http://localhost:3000/admin/inquiries`를 새로고침한 결과 목록 2건과 `/ 총 2건`이 표시되고 console error는 0건이었다.
+  - 백엔드 SQL은 keyword null guard 없이 LIKE 3조건을 실행했으며 `lower(bytea)` 오류와 HTTP 500이 재발하지 않았다.
 
 ## 실패·경고·주의사항
 
-- 이전 backend session `37598`/PID `55444`는 종료됐다. 현재 backend session은 `30823`/PID `50700`이다.
-- Gradle의 기존 `ExamQuestionSyncServiceTest` unchecked 경고와 Gradle 9 호환 deprecated 경고는 테스트 성공과 별개다.
-- Next build의 기존 viewport metadata 경고는 build 성공과 별개다.
-- `git diff --check` 시 표시되는 CRLF 변환 경고는 공백 오류가 아니다.
-- Windows cmd에서 동적 라우트(`[id]`) `--runTestsByPath`는 경로 인용 문제를 일으켜 `--testPathPattern`으로 focused 실행했다.
-- `frontend/node_modules`, `backend/uploads`, DB 컨테이너·볼륨과 다른 작업자의 변경은 건드리지 않는다.
+- 샌드박스 내부 Gradle 실행은 배포본 다운로드 네트워크 차단으로 테스트에 도달하지 못해 승인된 외부 실행 환경에서 RED/GREEN을 확인했다.
+- Gradle 9 호환 deprecated 경고와 기존 JVM class sharing 경고가 있으나 focused 테스트는 성공했다.
+- 로컬 프론트엔드·백엔드·DB는 계속 실행 중이다.
+- 다른 작업자의 변경, `frontend/node_modules`, `backend/uploads`, DB 볼륨은 건드리지 않는다.
 
 ## 다음 세션이 바로 실행할 명령
 
-추가 작업 요청이 있을 때만 관련 범위를 확인한다.
+추가 요청이 있을 때만 관련 범위를 확인한다.

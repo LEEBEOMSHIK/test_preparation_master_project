@@ -1,3 +1,30 @@
+## HIST-20260831-001
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 백엔드 / 문의·요청 목록 검색
+- **수정 개요**: 검색어를 입력하지 않은 관리자 문의·요청 목록 조회가 PostgreSQL에서 `lower(bytea)` 오류로 500 응답을 반환하던 문제를 수정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/InquiryRepository.java` | 수정 | 검색어 JPQL에서 nullable 분기를 제거하고 항상 문자열 부분 일치 조건을 사용 |
+| `backend/src/main/java/com/tpmp/testprep/service/InquiryService.java` | 수정 | null·공백 검색어를 null이 아닌 빈 문자열로 정규화 |
+| `backend/src/test/java/com/tpmp/testprep/service/InquiryServiceTest.java` | 수정 | null·공백 검색어 정규화 회귀 테스트 추가 |
+
+### 수정 상세
+
+- 변경 전: 검색어 미지정 시 서비스가 `null`을 전달했고 JPQL은 동일한 `:keyword`를 `IS NULL`과 `LOWER(CONCAT(...))` 양쪽에 사용했다. PostgreSQL이 해당 바인딩 값을 `bytea`로 추론하면서 `function lower(bytea) does not exist` 오류가 발생했다.
+- 변경 후: 서비스가 null·공백 검색어를 빈 문자열로 전달하고, JPQL은 `:keyword IS NULL` 분기 없이 제목·본문·작성자명 부분 일치를 수행한다. 빈 문자열은 모든 문자열을 일치시키므로 검색어 미지정 목록 동작을 유지한다.
+- 구조화 필터: 상태·요청 유형·발생 영역 조건은 변경하지 않아 기존 필터 조합을 그대로 보존한다.
+- 검증: production 수정 전 회귀 테스트가 실제 null 인수 차이로 실패하는 RED를 확인했고, 수정 후 `InquiryServiceTest` 13건과 백엔드 전체 34 suites/356 tests가 모두 통과했다. 정적 검토는 `Ready to merge: Yes`이며, 실제 PostgreSQL·관리자 브라우저 검증에서도 목록 2건이 표시되고 `lower(bytea)` 오류·HTTP 500·console error가 재발하지 않았다.
+
+### 복원 방법
+
+`AdminInquiry_Modified.md`의 HIST-20260831-001 복원 시 `InquiryService.adminGetAll`의 빈 검색어 정규화를 다시 null로 돌리고 `InquiryRepository.findAdminFiltered`의 `:keyword IS NULL` 분기를 복원한 뒤 회귀 테스트를 제거한다. 단, 복원하면 PostgreSQL에서 검색어 미지정 목록 조회가 다시 500 오류를 낼 수 있다.
+
+---
+
 ## HIST-20260830-001
 
 - **날짜**: 2026-08-30

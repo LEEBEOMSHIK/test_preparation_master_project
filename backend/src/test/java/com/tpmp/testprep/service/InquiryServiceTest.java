@@ -271,6 +271,23 @@ class InquiryServiceTest {
     }
 
     @Test
+    void adminGetAllNormalizesMissingKeywordToEmptyString() {
+        InquiryRepository inquiryRepository = mock(InquiryRepository.class);
+        Pageable pageable = PageRequest.of(0, 20);
+        when(inquiryRepository.findAdminFiltered(any(), any(), any(), any(), any()))
+                .thenReturn(Page.empty(pageable));
+        InquiryService service = service(inquiryRepository, mock(UserRepository.class),
+                mock(InquiryMessageRepository.class));
+
+        service.adminGetAll(null, null, null, null, pageable);
+        service.adminGetAll(null, null, null, "   ", pageable);
+
+        verify(inquiryRepository, times(2)).findAdminFiltered(
+                isNull(), isNull(), isNull(), eq(""), eq(pageable)
+        );
+    }
+
+    @Test
     void detailFallsBackToLegacyImageUrlsWhenAttachmentRowsAreMissing() {
         User owner = user("user@tpmp.com");
         Inquiry inquiry = Inquiry.builder()

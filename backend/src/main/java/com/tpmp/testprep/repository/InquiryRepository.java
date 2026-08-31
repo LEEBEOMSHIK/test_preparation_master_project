@@ -27,8 +27,7 @@ public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
             WHERE (:status IS NULL OR i.status = :status)
               AND (:requestType IS NULL OR i.requestType = :requestType)
               AND (:targetArea IS NULL OR i.targetArea = :targetArea)
-              AND (:keyword IS NULL
-                   OR LOWER(i.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
+              AND (LOWER(i.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
                    OR LOWER(i.content) LIKE LOWER(CONCAT('%', :keyword, '%'))
                    OR LOWER(i.user.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
             """)

@@ -113,7 +113,7 @@ public class InquiryService {
 
     public Page<InquirySummaryResponse> adminGetAll(Inquiry.Status status, Inquiry.RequestType requestType,
                                                     String targetArea, String keyword, Pageable pageable) {
-        String normalizedKeyword = keyword == null || keyword.isBlank() ? null : keyword.trim();
+        String normalizedKeyword = keyword == null || keyword.isBlank() ? "" : keyword.trim();
         return inquiryRepository.findAdminFiltered(status, requestType, targetArea, normalizedKeyword, pageable)
                 .map(InquirySummaryResponse::from);
     }
