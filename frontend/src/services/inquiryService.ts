@@ -38,6 +38,12 @@ export interface InquiryNotificationSettings {
 }
 
 export type InquiryEmailDeliveryStatus = 'PENDING' | 'SENT' | 'FAILED';
+export type InquiryStatusEmailOutcome =
+  | 'NOT_REQUESTED'
+  | 'QUEUED'
+  | 'SKIPPED_TEMPLATE_MISSING'
+  | 'SKIPPED_TEMPLATE_INACTIVE'
+  | 'SKIPPED_TEMPLATE_INVALID';
 export type InquiryEmailEventType =
   | 'NEW_INQUIRY'
   | 'USER_MESSAGE'
@@ -54,10 +60,18 @@ export interface InquiryEmailDelivery {
   status: InquiryEmailDeliveryStatus;
   recipientEmail: string;
   subject: string;
+  htmlContent: boolean;
   attemptCount: number;
   lastError: string | null;
   createdAt: string;
   sentAt: string | null;
+}
+
+export interface InquiryStatusUpdateResult {
+  inquiry: InquiryDetail;
+  emailOutcome: InquiryStatusEmailOutcome;
+  emailMessage: string;
+  templateSettingsUrl: string | null;
 }
 
 interface AdminInquiryFilters {
@@ -115,15 +129,9 @@ export const inquiryService = {
   adminGetOne: (id: number) =>
     apiClient.get<ApiResponse<InquiryDetail>>(`/admin/inquiries/${id}`),
 
-  adminUpdateStatus: (
-    id: number,
-    status: InquiryStatus,
-    message: string,
-    sendEmail = false,
-  ) =>
-    apiClient.patch<ApiResponse<InquiryDetail>>(`/admin/inquiries/${id}/status`, {
+  adminUpdateStatus: (id: number, status: InquiryStatus, sendEmail = false) =>
+    apiClient.patch<ApiResponse<InquiryStatusUpdateResult>>(`/admin/inquiries/${id}/status`, {
       status,
-      message,
       sendEmail,
     }),
 

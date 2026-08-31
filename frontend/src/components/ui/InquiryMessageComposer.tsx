@@ -18,8 +18,8 @@ export function InquiryMessageComposer({
 }: InquiryMessageComposerProps) {
   const context = admin
     ? {
-      heading: '사용자 답변 작성',
-      guide: '사용자에게 전달할 답변을 작성해 주세요.',
+      heading: '사용자에게 답변',
+      guide: '등록한 내용은 문의 타임라인에 관리자 답변으로 추가되며 상태는 변경되지 않습니다.',
       imageTitle: '답변 첨부 이미지 (선택)',
       submit: '답변 보내기',
       error: '답변 전송에 실패했습니다. 다시 시도해 주세요.',
@@ -106,7 +106,7 @@ export function InquiryMessageComposer({
               onChange={(event) => setSendEmail(event.target.checked)}
               className="mr-1"
             />
-            사용자에게 이메일 알림 발송
+            이 답변 내용을 이메일로도 발송
           </label>
         )}
         <button

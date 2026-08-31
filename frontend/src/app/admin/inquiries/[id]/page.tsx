@@ -9,13 +9,19 @@ import { Pagination } from '@/components/ui/Pagination';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { extractApiErrorMessage } from '@/lib/apiError';
 import { getAllowedAdminStatuses, getInquiryTargetAreaLabel, isInquiryClosed } from '@/lib/inquiry';
+import { emailTemplateService } from '@/services/emailTemplateService';
 import {
   inquiryService,
   type InquiryEmailDelivery,
   type InquiryEmailDeliveryStatus,
   type InquiryEmailEventType,
 } from '@/services/inquiryService';
-import type { InquiryDetail, InquiryStatus } from '@/types';
+import type {
+  EmailTemplateBinding,
+  EmailTemplateEventCode,
+  InquiryDetail,
+  InquiryStatus,
+} from '@/types';
 import { INQUIRY_STATUS_LABEL, INQUIRY_TYPE_LABEL } from '@/types';
 
 const STATUS_COLOR: Record<InquiryStatus, string> = {
@@ -36,6 +42,12 @@ const DELIVERY_EVENT_LABEL: Record<InquiryEmailEventType, string> = {
   UNABLE_TO_PROCESS: '처리 불가',
 };
 
+const STATUS_EMAIL_EVENT_CODE: Partial<Record<InquiryStatus, EmailTemplateEventCode>> = {
+  ANSWERED: 'INQUIRY_ANSWERED',
+  COMPLETED: 'INQUIRY_COMPLETED',
+  UNABLE_TO_PROCESS: 'INQUIRY_UNABLE_TO_PROCESS',
+};
+
 export default function AdminInquiryDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -51,9 +63,15 @@ export default function AdminInquiryDetailPage() {
   const [deliveryTotalElements, setDeliveryTotalElements] = useState(0);
   const [deliveryTotalPages, setDeliveryTotalPages] = useState(0);
   const [deliveryStatus, setDeliveryStatus] = useState<InquiryEmailDeliveryStatus | ''>('');
+  const [emailBindings, setEmailBindings] = useState<EmailTemplateBinding[]>([]);
+  const [emailBindingsLoading, setEmailBindingsLoading] = useState(true);
+  const [emailBindingsError, setEmailBindingsError] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<InquiryStatus | ''>('');
-  const [statusMessage, setStatusMessage] = useState('');
   const [sendEmail, setSendEmail] = useState(false);
+  const [statusSuccess, setStatusSuccess] = useState('');
+  const [statusEmailWarning, setStatusEmailWarning] = useState('');
+  const [statusTemplateSettingsUrl, setStatusTemplateSettingsUrl] = useState<string | null>(null);
+  const [confirmingStatusUpdate, setConfirmingStatusUpdate] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [retryingDeliveryId, setRetryingDeliveryId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -103,32 +121,59 @@ export default function AdminInquiryDetailPage() {
     void loadDeliveries();
   }, [loadDeliveries]);
 
+  useEffect(() => {
+    const loadEmailBindings = async () => {
+      setEmailBindingsLoading(true);
+      setEmailBindingsError('');
+      try {
+        const response = await emailTemplateService.getBindings();
+        setEmailBindings(response.data.data ?? []);
+      } catch (requestError: unknown) {
+        setEmailBindingsError(extractApiErrorMessage(
+          requestError,
+          '이메일 템플릿 연결 정보를 불러오지 못했습니다.',
+        ));
+      } finally {
+        setEmailBindingsLoading(false);
+      }
+    };
+    void loadEmailBindings();
+  }, []);
+
   const handleMessageSent = () => {
     void loadInquiry();
     void loadDeliveries();
   };
 
-  const handleStatusUpdate = async () => {
+  const performStatusUpdate = async () => {
     if (!inquiry || !selectedStatus || updatingStatus) return;
-    if (isInquiryClosed(selectedStatus) && !statusMessage.trim()) {
-      setError('종료 안내 내용을 입력해 주세요.');
-      return;
-    }
 
     setUpdatingStatus(true);
     setError('');
+    setStatusSuccess('');
+    setStatusEmailWarning('');
+    setStatusTemplateSettingsUrl(null);
+    setConfirmingStatusUpdate(false);
     try {
       const response = await inquiryService.adminUpdateStatus(
         inquiry.id,
         selectedStatus,
-        statusMessage.trim(),
         isInquiryClosed(selectedStatus) ? sendEmail : false,
       );
-      if (response.data.data) setInquiry(response.data.data);
+      const result = response.data.data;
+      if (result) {
+        setInquiry(result.inquiry);
+        setStatusSuccess(`상태를 ${INQUIRY_STATUS_LABEL[selectedStatus]}로 변경했습니다.`);
+        if (result.emailOutcome.startsWith('SKIPPED_')) {
+          setStatusEmailWarning(result.emailMessage);
+          setStatusTemplateSettingsUrl(result.templateSettingsUrl);
+        }
+        if (result.emailOutcome === 'QUEUED') {
+          await loadDeliveries();
+        }
+      }
       setSelectedStatus('');
-      setStatusMessage('');
       setSendEmail(false);
-      await loadDeliveries();
     } catch (requestError: unknown) {
       setError(extractApiErrorMessage(requestError, '상태를 변경하지 못했습니다.'));
     } finally {
@@ -136,17 +181,31 @@ export default function AdminInquiryDetailPage() {
     }
   };
 
+  const handleStatusUpdate = () => {
+    if (!inquiry || !selectedStatus || updatingStatus || selectedStatus === inquiry.status) return;
+    const hasAdminMessage = inquiry.messages.some((message) => message.authorRole === 'ADMIN');
+    if (isInquiryClosed(selectedStatus) && !hasAdminMessage) {
+      setConfirmingStatusUpdate(true);
+      return;
+    }
+    void performStatusUpdate();
+  };
+
   const handleReopen = async () => {
     if (!inquiry || updatingStatus) return;
     setUpdatingStatus(true);
     setError('');
+    setStatusSuccess('');
+    setStatusEmailWarning('');
+    setStatusTemplateSettingsUrl(null);
     try {
-      const response = await inquiryService.adminUpdateStatus(inquiry.id, 'IN_PROGRESS', '', false);
-      if (response.data.data) setInquiry(response.data.data);
+      const response = await inquiryService.adminUpdateStatus(inquiry.id, 'IN_PROGRESS', false);
+      if (response.data.data) {
+        setInquiry(response.data.data.inquiry);
+        setStatusSuccess(`상태를 ${INQUIRY_STATUS_LABEL.IN_PROGRESS}으로 변경했습니다.`);
+      }
       setSelectedStatus('');
-      setStatusMessage('');
       setSendEmail(false);
-      await loadDeliveries();
     } catch (requestError: unknown) {
       setError(extractApiErrorMessage(requestError, '문의·요청을 다시 열지 못했습니다.'));
     } finally {
@@ -202,9 +261,20 @@ export default function AdminInquiryDetailPage() {
   }
 
   const closed = isInquiryClosed(inquiry.status);
-  const allowedStatuses = getAllowedAdminStatuses(inquiry.requestType)
-    .filter((status) => status !== inquiry.status);
+  const allowedStatuses = getAllowedAdminStatuses(inquiry.requestType);
   const selectedIsClosed = selectedStatus !== '' && isInquiryClosed(selectedStatus);
+  const selectedEmailEventCode = selectedStatus === ''
+    ? undefined
+    : STATUS_EMAIL_EVENT_CODE[selectedStatus];
+  const selectedEmailBinding = emailBindings.find(
+    (binding) => binding.eventCode === selectedEmailEventCode,
+  );
+  const statusEmailAvailable = selectedEmailBinding?.sendable === true;
+  const bindingUnavailableReason = emailBindingsLoading
+    ? '이메일 템플릿 연결 정보를 확인하는 중입니다.'
+    : emailBindingsError
+      || selectedEmailBinding?.unavailableReason
+      || (!selectedEmailBinding ? '연결된 이메일 템플릿이 없습니다.' : '이메일을 발송할 수 없습니다.');
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -303,14 +373,16 @@ export default function AdminInquiryDetailPage() {
         {!closed && (
           <div className="space-y-3">
             <label className="block text-sm text-gray-700 dark:text-gray-300">
-              변경할 상태
+              처리 상태
               <select
                 value={selectedStatus}
                 onChange={(event) => {
                   setSelectedStatus(event.target.value as InquiryStatus | '');
-                  setStatusMessage('');
                   setSendEmail(false);
                   setError('');
+                  setStatusSuccess('');
+                  setStatusEmailWarning('');
+                  setStatusTemplateSettingsUrl(null);
                 }}
                 className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               >
@@ -322,37 +394,43 @@ export default function AdminInquiryDetailPage() {
             </label>
 
             {selectedIsClosed && (
-              <>
-                <label className="block text-sm text-gray-700 dark:text-gray-300">
-                  종료 안내
-                  <textarea
-                    value={statusMessage}
-                    onChange={(event) => setStatusMessage(event.target.value)}
-                    rows={4}
-                    placeholder="사용자에게 전달할 최종 안내를 입력하세요."
-                    className="mt-1 w-full resize-y rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                  />
-                </label>
+              <div className="space-y-2 rounded-lg bg-gray-50 p-3 dark:bg-gray-800/60">
                 <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                   <input
                     type="checkbox"
                     checked={sendEmail}
                     onChange={(event) => setSendEmail(event.target.checked)}
+                    disabled={!statusEmailAvailable || emailBindingsLoading}
                     className="h-4 w-4 rounded border-gray-300 text-indigo-600"
                   />
-                  사용자에게 이메일 알림 발송
+                  상태 변경 안내 이메일 발송
                 </label>
-              </>
+                {!statusEmailAvailable && (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    {bindingUnavailableReason}{' '}
+                    <Link
+                      href="/admin/email-templates?tab=bindings"
+                      className="font-medium underline underline-offset-2"
+                    >
+                      이메일 템플릿 관리
+                    </Link>
+                  </p>
+                )}
+              </div>
             )}
 
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => void handleStatusUpdate()}
-                disabled={!selectedStatus || updatingStatus}
+                onClick={handleStatusUpdate}
+                disabled={!selectedStatus || selectedStatus === inquiry.status || updatingStatus}
                 className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
               >
-                {updatingStatus ? '변경 중...' : '상태 변경'}
+                {updatingStatus
+                  ? '변경 중...'
+                  : selectedStatus
+                    ? `${INQUIRY_STATUS_LABEL[selectedStatus]}로 변경`
+                    : '상태 변경'}
               </button>
             </div>
           </div>
@@ -360,6 +438,24 @@ export default function AdminInquiryDetailPage() {
       </section>
 
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {statusSuccess && (
+        <p role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950/30 dark:text-green-300">
+          {statusSuccess}
+        </p>
+      )}
+      {statusEmailWarning && (
+        <div role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+          <p>{statusEmailWarning}</p>
+          {statusTemplateSettingsUrl && (
+            <Link
+              href={statusTemplateSettingsUrl}
+              className="mt-1 inline-block font-medium underline underline-offset-2"
+            >
+              이메일 템플릿 관리
+            </Link>
+          )}
+        </div>
+      )}
 
       <section className="space-y-3 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -460,6 +556,41 @@ export default function AdminInquiryDetailPage() {
           </div>
         )}
       </section>
+
+      {confirmingStatusUpdate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="status-update-confirm-title"
+            className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl dark:bg-gray-900"
+          >
+            <h2 id="status-update-confirm-title" className="text-base font-semibold text-gray-900 dark:text-gray-100">
+              답변 없이 상태 변경
+            </h2>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              사용자에게 별도 답변을 등록하지 않고 상태를 종료합니다. 계속하시겠습니까?
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmingStatusUpdate(false)}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-300"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void performStatusUpdate()}
+                disabled={updatingStatus}
+                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                답변 없이 상태 변경
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

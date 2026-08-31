@@ -20,7 +20,12 @@ describe('InquiryMessageComposer', () => {
 
   it('keeps the admin email notification unchecked initially', () => {
     render(<InquiryMessageComposer inquiryId={1} admin onSent={() => undefined} />);
-    expect((screen.getByLabelText('사용자에게 이메일 알림 발송') as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByLabelText('이 답변 내용을 이메일로도 발송') as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('답변 작성기의 이메일 옵션은 답변 내용 발송이라고 명시한다', () => {
+    render(<InquiryMessageComposer inquiryId={7} onSent={jest.fn()} admin />);
+    expect(screen.getByLabelText('이 답변 내용을 이메일로도 발송')).toBeTruthy();
   });
 
   it('후속 메시지 입력란에 명확한 접근성 이름을 제공한다', () => {
@@ -36,7 +41,8 @@ describe('InquiryMessageComposer', () => {
     expect(screen.getByText('추가 문의 첨부 이미지 (선택)')).toBeTruthy();
 
     rerender(<InquiryMessageComposer inquiryId={1} admin onSent={() => undefined} />);
-    expect(screen.getByRole('heading', { name: '사용자 답변 작성' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: '사용자에게 답변' })).toBeTruthy();
+    expect(screen.getByText('등록한 내용은 문의 타임라인에 관리자 답변으로 추가되며 상태는 변경되지 않습니다.')).toBeTruthy();
     expect(screen.getByRole('button', { name: '답변 보내기' })).toBeTruthy();
     expect(screen.getByText('답변 첨부 이미지 (선택)')).toBeTruthy();
   });
@@ -51,7 +57,7 @@ describe('InquiryMessageComposer', () => {
     fireEvent.change(screen.getByPlaceholderText('추가 내용을 입력해 주세요.'), {
       target: { value: '중간 답변입니다.' },
     });
-    const emailCheckbox = screen.getByLabelText('사용자에게 이메일 알림 발송') as HTMLInputElement;
+    const emailCheckbox = screen.getByLabelText('이 답변 내용을 이메일로도 발송') as HTMLInputElement;
     fireEvent.click(emailCheckbox);
     fireEvent.click(screen.getByRole('button', { name: '답변 보내기' }));
 

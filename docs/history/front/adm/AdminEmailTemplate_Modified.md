@@ -1,3 +1,35 @@
+## HIST-20260831-003
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 프론트엔드 / 문의 상태 이메일 연결
+- **수정 개요**: 문의 종료 상태별 이메일 binding 가용성을 상세 화면에 연결하고 QUEUED·SKIPPED 결과를 운영자가 확인할 수 있게 했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/services/inquiryService.ts` | 수정 | 상태 이메일 outcome·응답과 발송 이력 `htmlContent` 타입 추가 |
+| `frontend/src/app/admin/inquiries/[id]/page.tsx` | 수정 | 종료 상태 이벤트 mapping, 9필드 binding 조회·가용성 안내·설정 링크 적용 |
+| `frontend/src/app/admin/inquiries/[id]/page.test.tsx` | 수정 | binding 미설정, SKIPPED 병행 경고, QUEUED 이력 갱신 검증 |
+
+### 수정 상세
+
+#### 종료 상태 이메일 선택
+- 변경 전: 모든 종료 상태에서 템플릿 연결 상태와 무관하게 이메일 알림 checkbox를 선택할 수 있었다.
+- 변경 후: `ANSWERED`, `COMPLETED`, `UNABLE_TO_PROCESS`를 해당 이메일 이벤트에 연결하고 9필드 binding의 `sendable=true`일 때만 상태 이메일을 선택할 수 있다. 미사용 가능 상태에는 서버 사유와 `/admin/email-templates?tab=bindings` 링크를 표시한다.
+- 이유: 미설정·비활성·유효하지 않은 템플릿으로 발송을 요청하기 전에 운영 상태를 정확히 안내하기 위해서다.
+
+#### 상태 이메일 결과
+- 변경 전: 상태 변경 응답을 문의 상세 하나로 처리해 이메일 대기열 등록 또는 건너뜀 결과를 구분하지 못했다.
+- 변경 후: `InquiryStatusUpdateResult`의 `emailOutcome`, `emailMessage`, `templateSettingsUrl`을 처리하며 QUEUED이면 이력을 갱신하고 SKIPPED이면 상태 성공과 이메일 경고를 함께 표시한다.
+- 이유: 상태 변경 성공과 부가 이메일 처리 결과를 독립적으로 전달하기 위해서다.
+
+### 복원 방법
+
+이 ID(`AdminEmailTemplate_Modified.md` 기준 HIST-20260831-003)로 복원 시 문의 상세의 binding 조회·종료 이벤트 mapping·이메일 가용성 안내·QUEUED/SKIPPED 결과 처리를 제거하고 이전 단순 이메일 checkbox 및 응답 타입으로 되돌린다. (순번은 파일별이므로 복원 시 파일명도 함께 지정한다.)
+
+---
+
 ## HIST-20260831-002
 
 - **날짜**: 2026-08-31
