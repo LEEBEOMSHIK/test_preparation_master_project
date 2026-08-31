@@ -5,6 +5,8 @@ import com.tpmp.testprep.dto.request.EmailTemplateCreateRequest;
 import com.tpmp.testprep.dto.request.EmailTemplatePreviewRequest;
 import com.tpmp.testprep.dto.request.EmailTemplateUpdateRequest;
 import com.tpmp.testprep.dto.response.EmailTemplateDetailResponse;
+import com.tpmp.testprep.dto.response.EmailTemplateInUseDetails;
+import com.tpmp.testprep.dto.response.EmailTemplateReferenceResponse;
 import com.tpmp.testprep.dto.response.EmailTemplatePreviewResponse;
 import com.tpmp.testprep.dto.response.EmailTemplateSummaryResponse;
 import com.tpmp.testprep.dto.response.EmailTemplateTestSendResponse;
@@ -149,14 +151,16 @@ class AdminEmailTemplateControllerWebMvcTest {
     void deleteReturnsDetailedConflict() throws Exception {
         org.mockito.Mockito.doThrow(new BusinessException(
                         ErrorCode.EMAIL_TEMPLATE_IN_USE,
-                        List.of(new com.tpmp.testprep.dto.response.EmailTemplateReferenceResponse(
-                                com.tpmp.testprep.entity.EmailTemplateEvent.INQUIRY_COMPLETED, "처리 완료"))))
+                        new EmailTemplateInUseDetails(List.of(new EmailTemplateReferenceResponse(
+                                com.tpmp.testprep.entity.EmailTemplateEvent.INQUIRY_COMPLETED,
+                                "처리 완료")))))
                 .when(service).delete(1L, "admin@tpmp.com");
 
         mvc.perform(delete("/api/admin/email-templates/1"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.code").value("EMAIL_TEMPLATE_IN_USE"))
-                .andExpect(jsonPath("$.error.details[0].eventCode").value("INQUIRY_COMPLETED"));
+                .andExpect(jsonPath("$.error.details.referencedEvents[0].eventCode")
+                        .value("INQUIRY_COMPLETED"));
     }
 
     @Test

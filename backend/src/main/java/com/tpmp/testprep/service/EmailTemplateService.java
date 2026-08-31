@@ -5,6 +5,7 @@ import com.tpmp.testprep.dto.request.EmailTemplateCreateRequest;
 import com.tpmp.testprep.dto.request.EmailTemplatePreviewRequest;
 import com.tpmp.testprep.dto.request.EmailTemplateUpdateRequest;
 import com.tpmp.testprep.dto.response.EmailTemplateDetailResponse;
+import com.tpmp.testprep.dto.response.EmailTemplateInUseDetails;
 import com.tpmp.testprep.dto.response.EmailTemplatePreviewResponse;
 import com.tpmp.testprep.dto.response.EmailTemplateReferenceResponse;
 import com.tpmp.testprep.dto.response.EmailTemplateSummaryResponse;
@@ -25,6 +26,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
@@ -133,7 +135,9 @@ public class EmailTemplateService {
         EmailTemplate template = findTemplateForUpdate(id);
         List<EmailTemplateReferenceResponse> references = findReferences(id);
         if (!references.isEmpty()) {
-            throw new BusinessException(ErrorCode.EMAIL_TEMPLATE_IN_USE, references);
+            throw new BusinessException(
+                    ErrorCode.EMAIL_TEMPLATE_IN_USE,
+                    new EmailTemplateInUseDetails(references));
         }
         template.softDelete(findAdmin(adminEmail));
     }
@@ -150,6 +154,7 @@ public class EmailTemplateService {
                 !request.htmlBody().equals(prepared.sanitizedHtmlBody()));
     }
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public EmailTemplateTestSendResponse testSend(Long id, String adminEmail) {
         return testMailSender.send(findTemplate(id), adminEmail);
     }

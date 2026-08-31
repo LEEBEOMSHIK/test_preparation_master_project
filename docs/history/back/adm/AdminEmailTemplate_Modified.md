@@ -1,3 +1,38 @@
+## HIST-20260831-007
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 백엔드 / 이메일 템플릿 삭제 오류 계약·테스트 발송 트랜잭션 경계 보강
+- **수정 개요**: 사용 중 삭제의 `error.details`를 고정 객체 계약으로 감싸고, 동기 SMTP 테스트 발송이 service read-only transaction 밖에서 실행되도록 경계를 분리했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/dto/response/EmailTemplateInUseDetails.java` | 추가 | 참조 이벤트 목록을 `referencedEvents`로 감싸는 삭제 충돌 details 계약 |
+| `backend/src/main/java/com/tpmp/testprep/service/EmailTemplateService.java` | 수정 | 삭제 충돌 details 래핑 및 테스트 발송 `NOT_SUPPORTED` 트랜잭션 경계 적용 |
+| `backend/src/test/java/com/tpmp/testprep/controller/AdminEmailTemplateControllerWebMvcTest.java` | 수정 | `error.details.referencedEvents` 고정 JSON 경로 회귀 테스트 |
+| `backend/src/test/java/com/tpmp/testprep/service/EmailTemplateServiceTest.java` | 수정 | 전용 삭제 충돌 details 타입과 참조 이벤트 검증 |
+| `backend/src/test/java/com/tpmp/testprep/service/EmailTemplateTestSendTransactionIntegrationTest.java` | 추가 | 실제 Spring proxy에서 SMTP 호출 시 transaction 비활성 검증 |
+| `docs/agent-handoff/CURRENT.md` | 수정 | Task 3 Fix round 1 finding·TDD·검증 상태 인계 |
+
+### 수정 상세
+
+#### 삭제 충돌 오류 details 계약
+
+- 변경 전: `EMAIL_TEMPLATE_IN_USE`의 details로 `List<EmailTemplateReferenceResponse>`를 직접 전달해 JSON이 `error.details[]` 배열로 직렬화됐다.
+- 변경 후: `EmailTemplateInUseDetails` record가 목록을 `referencedEvents` 필드로 감싸 `error.details.referencedEvents[]`로 직렬화한다.
+- 이유: 후속 frontend가 소비하는 고정 오류 JSON 계약을 지키고 향후 details 메타데이터 확장 시 배열 루트를 깨지 않기 위함이다.
+
+#### 테스트 발송 트랜잭션 경계
+
+- 변경 전: 클래스 레벨 `@Transactional(readOnly = true)`가 `testSend` 전체에 적용되어 repository 조회 후 동기 SMTP 네트워크 호출이 끝날 때까지 transaction과 connection을 유지했다.
+- 변경 후: public `testSend`에 `Propagation.NOT_SUPPORTED`를 명시해 외부 transaction을 일시 중단하고 repository의 짧은 조회 경계가 종료된 상태에서 SMTP를 호출한다. 통합 테스트가 실제 `JavaMailSender.send` 순간 transaction 비활성을 검증한다.
+- 이유: 느리거나 실패할 수 있는 외부 SMTP I/O 동안 DB connection을 장기 점유하지 않도록 하기 위함이다.
+
+### 복원 방법
+
+이 ID(`AdminEmailTemplate_Modified.md` 기준 HIST-20260831-007)로 복원 시 `EmailTemplateInUseDetails`와 SMTP transaction 통합 테스트를 제거한다. `EmailTemplateService.delete`가 참조 목록을 직접 details로 넘기고 `testSend`가 클래스 read-only transaction을 상속하도록 되돌린 뒤 두 기존 테스트 assertion을 이전 배열 계약으로 복원한다.
+
 ## HIST-20260831-006
 
 - **날짜**: 2026-08-31

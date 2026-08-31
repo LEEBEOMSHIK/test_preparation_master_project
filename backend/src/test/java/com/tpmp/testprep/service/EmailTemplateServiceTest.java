@@ -5,6 +5,7 @@ import com.tpmp.testprep.dto.request.EmailTemplateCreateRequest;
 import com.tpmp.testprep.dto.request.EmailTemplatePreviewRequest;
 import com.tpmp.testprep.dto.request.EmailTemplateUpdateRequest;
 import com.tpmp.testprep.dto.response.EmailTemplateDetailResponse;
+import com.tpmp.testprep.dto.response.EmailTemplateInUseDetails;
 import com.tpmp.testprep.dto.response.EmailTemplatePreviewResponse;
 import com.tpmp.testprep.dto.response.EmailTemplateSummaryResponse;
 import com.tpmp.testprep.dto.response.EmailTemplateTestSendResponse;
@@ -175,8 +176,9 @@ class EmailTemplateServiceTest {
         assertThatThrownBy(() -> service.delete(1L, "admin@tpmp.com"))
                 .isInstanceOfSatisfying(BusinessException.class, exception -> {
                     assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.EMAIL_TEMPLATE_IN_USE);
-                    assertThat(exception.getDetails()).isInstanceOf(List.class);
-                    assertThat((List<?>) exception.getDetails()).hasSize(1);
+                    assertThat(exception.getDetails()).isInstanceOfSatisfying(
+                            EmailTemplateInUseDetails.class,
+                            details -> assertThat(details.referencedEvents()).hasSize(1));
                 });
         verify(userRepository, never()).findByEmail(anyString());
     }
