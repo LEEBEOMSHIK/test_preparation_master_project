@@ -1,3 +1,45 @@
+## HIST-20260831-002
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 프론트엔드 / 이메일 템플릿 관리 상호작용
+- **수정 개요**: 비동기 요청 경합, 비활성 연결 재저장, 전체 후보 조회와 이미지 HTML·URI 입력 차단을 보강했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/admin/EmailTemplateListPanel.tsx` | 수정 | 요청 generation으로 오래된 목록 응답의 state 반영 차단 |
+| `frontend/src/components/admin/EmailTemplateListPanel.test.tsx` | 수정 | 필터 요청 역순 완료 경쟁 회귀 테스트 추가 |
+| `frontend/src/components/admin/EmailTemplateForm.tsx` | 수정 | 입력 revision 기반 stale preview 차단과 save/preview 상호 배제 추가 |
+| `frontend/src/components/admin/EmailTemplateForm.test.tsx` | 수정 | 미리보기 중 입력 변경·저장 차단 테스트 추가 |
+| `frontend/src/components/admin/EmailTemplateBindingsPanel.tsx` | 수정 | 전체 활성 후보 page 병합·중복 제거와 비활성 현재 연결 재저장 차단 |
+| `frontend/src/components/admin/EmailTemplateBindingsPanel.test.tsx` | 수정 | 비활성 option·활성 교체·101번째 후보 테스트 추가 |
+| `frontend/src/components/ui/RichTextEditor.tsx` | 수정 | 이미지 HTML과 URI/data payload paste/drop 차단 추가 |
+| `frontend/src/components/ui/RichTextEditor.test.tsx` | 수정 | 실제 paste/drop 이미지 차단과 일반 입력 허용 테스트 추가 |
+
+### 수정 상세
+
+#### 목록·폼 비동기 상태
+- 변경 전: 이전 목록/미리보기 요청이 늦게 완료되면 최신 입력과 무관한 data·error·loading 상태를 반영할 수 있었다.
+- 변경 후: 목록 request generation과 폼 input revision을 확인한 최신 요청만 상태에 반영하고 save/preview를 동시에 시작하지 못하게 했다.
+- 이유: 네트워크 완료 순서와 빠른 관리자 입력에서도 화면이 최신 조건을 유지하도록 하기 위해서다.
+
+#### 이벤트 연결 후보
+- 변경 전: 활성 후보 첫 100개만 조회하고 현재 연결된 비활성 option도 다시 저장할 수 있었다.
+- 변경 후: 첫 응답의 `totalPages` 전체를 조회해 ID 기준 병합하며, 비활성 현재 option은 disabled로 유지하고 활성 후보 membership을 저장 전 검증한다.
+- 이유: 모든 활성 템플릿을 선택 가능하게 하면서 비활성 템플릿 재연결을 막기 위해서다.
+
+#### `frontend/src/components/ui/RichTextEditor.tsx`
+- 변경 전: `allowImages=false`가 File image만 차단해 HTML `<img>`와 image URI/data payload가 Quill 기본 처리로 전달될 수 있었다.
+- 변경 후: `text/html`의 `<img>`와 `text/uri-list`의 image data/확장자 URI를 capture 단계에서 차단하고 일반 텍스트·비이미지 링크는 허용한다.
+- 이유: 이메일 템플릿의 이미지 금지 정책을 모든 paste/drop 입력 경로에 적용하기 위해서다.
+
+### 복원 방법
+
+이 ID(`AdminEmailTemplate_Modified.md` 기준 HIST-20260831-002)로 복원 시 위 8개 프론트 파일의 request generation, input revision, 전체 page 병합, 비활성 option 및 HTML·URI 이미지 차단 변경과 대응 테스트를 제거한다. (순번은 파일별이므로 복원 시 파일명도 함께 지정한다.)
+
+---
+
 ## HIST-20260831-001
 
 - **날짜**: 2026-08-31

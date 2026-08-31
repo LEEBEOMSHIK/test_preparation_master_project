@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Pagination } from '@/components/ui/Pagination';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { ApiApplicationError, extractApiErrorMessage } from '@/lib/apiError';
@@ -33,6 +33,7 @@ function referencedEventsFromError(error: unknown): EmailTemplateReference[] {
 }
 
 export function EmailTemplateListPanel() {
+  const requestGeneration = useRef(0);
   const [pageData, setPageData] = useState<PageResponse<EmailTemplateSummary> | null>(null);
   const [page, setPage] = useState(0);
   const [keywordInput, setKeywordInput] = useState('');
@@ -44,6 +45,8 @@ export function EmailTemplateListPanel() {
   const [message, setMessage] = useState('');
 
   const loadTemplates = useCallback(async () => {
+    const generation = requestGeneration.current + 1;
+    requestGeneration.current = generation;
     setLoading(true);
     setError('');
     try {
@@ -57,12 +60,14 @@ export function EmailTemplateListPanel() {
       if (!response.data.success || !response.data.data) {
         throw new ApiApplicationError(response.data.error?.message ?? '템플릿 목록을 불러오지 못했습니다.');
       }
-      setPageData(response.data.data);
+      if (generation === requestGeneration.current) setPageData(response.data.data);
     } catch (requestError: unknown) {
-      setPageData(null);
-      setError(extractApiErrorMessage(requestError, '템플릿 목록을 불러오지 못했습니다.'));
+      if (generation === requestGeneration.current) {
+        setPageData(null);
+        setError(extractApiErrorMessage(requestError, '템플릿 목록을 불러오지 못했습니다.'));
+      }
     } finally {
-      setLoading(false);
+      if (generation === requestGeneration.current) setLoading(false);
     }
   }, [activeFilter, keyword, page]);
 

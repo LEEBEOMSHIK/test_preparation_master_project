@@ -43,6 +43,22 @@ function clipboardImageFiles(event: ClipboardEvent): File[] {
     .filter((file): file is File => file !== null);
 }
 
+function isImageUri(value: string): boolean {
+  const uri = value.trim();
+  if (/^data:image\//i.test(uri)) return true;
+  const withoutQueryOrHash = uri.split(/[?#]/, 1)[0];
+  return /\.(?:avif|bmp|gif|ico|jpe?g|png|svg|webp)$/i.test(withoutQueryOrHash);
+}
+
+function transferHasImagePayload(transfer: DataTransfer | null): boolean {
+  if (!transfer) return false;
+  const html = transfer.getData('text/html');
+  if (/<img\b/i.test(html)) return true;
+  return transfer.getData('text/uri-list')
+    .split(/\r?\n/)
+    .some((line) => line.trim() !== '' && !line.trimStart().startsWith('#') && isImageUri(line));
+}
+
 export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(function RichTextEditor(
   { value, onChange, placeholder = '내용을 입력하세요.', minHeight = 160, allowImages = true },
   ref,
@@ -111,15 +127,21 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
       };
       const onPaste = (event: ClipboardEvent) => {
         const files = clipboardImageFiles(event);
-        if (files.length === 0) return;
-        stopImageEvent(event);
-        if (allowImages) void insertSequentially(files, currentIndex(quill));
+        if (files.length > 0) {
+          stopImageEvent(event);
+          if (allowImages) void insertSequentially(files, currentIndex(quill));
+          return;
+        }
+        if (!allowImages && transferHasImagePayload(event.clipboardData)) stopImageEvent(event);
       };
       const onDrop = (event: DragEvent) => {
         const files = Array.from(event.dataTransfer?.files ?? []).filter((file) => file.type.startsWith('image/'));
-        if (files.length === 0) return;
-        stopImageEvent(event);
-        if (allowImages) void insertSequentially(files, currentIndex(quill));
+        if (files.length > 0) {
+          stopImageEvent(event);
+          if (allowImages) void insertSequentially(files, currentIndex(quill));
+          return;
+        }
+        if (!allowImages && transferHasImagePayload(event.dataTransfer)) stopImageEvent(event);
       };
       captureTarget.addEventListener('paste', onPaste, true);
       captureTarget.addEventListener('drop', onDrop, true);

@@ -19,19 +19,37 @@ export function EmailTemplateBindingsPanel() {
     setLoading(true);
     setError('');
     try {
-      const [bindingsResponse, templatesResponse] = await Promise.all([
+      const [bindingsResponse, firstTemplatesResponse] = await Promise.all([
         emailTemplateService.getBindings(),
         emailTemplateService.getTemplates({ scope: 'INQUIRY_STATUS', active: true, page: 0, size: 100 }),
       ]);
       if (!bindingsResponse.data.success || !bindingsResponse.data.data) {
         throw new ApiApplicationError(bindingsResponse.data.error?.message ?? '연결 정보를 불러오지 못했습니다.');
       }
-      if (!templatesResponse.data.success || !templatesResponse.data.data) {
-        throw new ApiApplicationError(templatesResponse.data.error?.message ?? '템플릿 목록을 불러오지 못했습니다.');
+      if (!firstTemplatesResponse.data.success || !firstTemplatesResponse.data.data) {
+        throw new ApiApplicationError(firstTemplatesResponse.data.error?.message ?? '템플릿 목록을 불러오지 못했습니다.');
+      }
+      const firstPage = firstTemplatesResponse.data.data;
+      const remainingResponses = await Promise.all(
+        Array.from({ length: Math.max(0, firstPage.totalPages - 1) }, (_, index) =>
+          emailTemplateService.getTemplates({ scope: 'INQUIRY_STATUS', active: true, page: index + 1, size: 100 }),
+        ),
+      );
+      const remainingPages = remainingResponses.map((response) => {
+        if (!response.data.success || !response.data.data) {
+          throw new ApiApplicationError(response.data.error?.message ?? '템플릿 목록을 불러오지 못했습니다.');
+        }
+        return response.data.data;
+      });
+      const uniqueTemplates = new Map<number, EmailTemplateSummary>();
+      for (const templatePage of [firstPage, ...remainingPages]) {
+        for (const template of templatePage.content) {
+          if (template.active) uniqueTemplates.set(template.id, template);
+        }
       }
       const loadedBindings = bindingsResponse.data.data;
       setBindings(loadedBindings);
-      setTemplates(templatesResponse.data.data.content);
+      setTemplates(Array.from(uniqueTemplates.values()));
       setSelection(Object.fromEntries(loadedBindings.map((binding) => [binding.eventCode, binding.templateId?.toString() ?? ''])));
     } catch (requestError: unknown) {
       setBindings([]);
@@ -49,7 +67,7 @@ export function EmailTemplateBindingsPanel() {
 
   const bind = async (eventCode: EmailTemplateEventCode) => {
     const templateId = Number(selection[eventCode]);
-    if (!Number.isSafeInteger(templateId) || templateId <= 0) {
+    if (!Number.isSafeInteger(templateId) || templateId <= 0 || !templates.some((template) => template.id === templateId && template.active)) {
       setError('연결할 활성 템플릿을 선택해 주세요.');
       return;
     }
@@ -89,12 +107,15 @@ export function EmailTemplateBindingsPanel() {
             <tbody className="divide-y divide-gray-100">{bindings.map((binding) => {
               const inactiveCurrentMissing = binding.configured && binding.templateActive === false
                 && !templates.some((template) => template.id === binding.templateId);
+              const selectedTemplateActive = templates.some(
+                (template) => template.active && template.id.toString() === selection[binding.eventCode],
+              );
               return (
                 <tr key={binding.eventCode}>
                   <td className="px-4 py-3 font-medium text-gray-900">{binding.eventLabel}</td>
                   <td className="px-4 py-3"><select aria-label={`${binding.eventLabel} 템플릿`} value={selection[binding.eventCode] ?? ''} onChange={(event) => setSelection((current) => ({ ...current, [binding.eventCode]: event.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2">
                     <option value="">연결 안 함</option>
-                    {inactiveCurrentMissing && <option value={binding.templateId ?? undefined}>{binding.templateName}</option>}
+                    {inactiveCurrentMissing && <option value={binding.templateId ?? undefined} disabled>{binding.templateName}</option>}
                     {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
                   </select></td>
                   <td className="px-4 py-3">
@@ -103,7 +124,7 @@ export function EmailTemplateBindingsPanel() {
                         : <span className="text-gray-500">{binding.unavailableReason ?? '연결된 템플릿이 없습니다.'}</span>}
                   </td>
                   <td className="px-4 py-3"><div className="flex justify-end gap-2">
-                    <button type="button" disabled={processing === binding.eventCode || !selection[binding.eventCode]} onClick={() => void bind(binding.eventCode)} className="rounded bg-indigo-600 px-3 py-1.5 text-white disabled:opacity-40">연결 저장</button>
+                    <button type="button" disabled={processing === binding.eventCode || !selectedTemplateActive} onClick={() => void bind(binding.eventCode)} className="rounded bg-indigo-600 px-3 py-1.5 text-white disabled:opacity-40">연결 저장</button>
                     <button type="button" disabled={processing === binding.eventCode || !binding.configured} onClick={() => void unbind(binding.eventCode)} className="rounded border border-gray-300 px-3 py-1.5 disabled:opacity-40">연결 해제</button>
                   </div></td>
                 </tr>

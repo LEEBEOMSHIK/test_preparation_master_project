@@ -141,4 +141,28 @@ describe('EmailTemplateForm', () => {
     expect(mockPreview).toHaveBeenCalledTimes(2);
     expect(mockPreview).toHaveBeenLastCalledWith({ scope: 'INQUIRY_STATUS', subjectTemplate: '제목', htmlBody: '<p>저장 정화</p>' });
   });
+
+  it('미리보기 요청 중 입력이 바뀌면 오래된 응답을 표시하지 않는다', async () => {
+    let resolvePreview: ((value: PreviewResponse) => void) | undefined;
+    mockPreview.mockReturnValue(new Promise((resolve) => { resolvePreview = resolve; }));
+    render(<EmailTemplateForm mode="create" />);
+    fireEvent.change(screen.getByLabelText('제목 템플릿'), { target: { value: '이전 제목' } });
+    fireEvent.change(screen.getByLabelText('HTML 본문'), { target: { value: '<p>이전 본문</p>' } });
+    fireEvent.click(screen.getByRole('button', { name: '미리보기' }));
+
+    fireEvent.change(screen.getByLabelText('HTML 본문'), { target: { value: '<p>현재 본문</p>' } });
+    resolvePreview?.({ data: { success: true, data: { sanitizedHtmlBody: '<p>이전 본문</p>', renderedSubject: '이전 제목', renderedHtmlBody: '<p>오래된 미리보기</p>', renderedTextBody: '오래된 미리보기', unsafeContentRemoved: false }, timestamp: '2026-08-31T09:00:00' } });
+
+    await waitFor(() => expect(screen.getByRole('button', { name: '미리보기' })).toBeEnabled());
+    expect(screen.queryByText('오래된 미리보기')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('HTML 본문')).toHaveValue('<p>현재 본문</p>');
+  });
+
+  it('미리보기 요청 중에는 저장을 시작할 수 없다', () => {
+    mockPreview.mockReturnValue(new Promise(() => undefined));
+    render(<EmailTemplateForm mode="create" />);
+    fireEvent.click(screen.getByRole('button', { name: '미리보기' }));
+
+    expect(screen.getByRole('button', { name: '저장' })).toBeDisabled();
+  });
 });

@@ -7,7 +7,7 @@ import type { ApiResponse, EmailTemplateDetail, EmailTemplateSummary, PageRespon
 type TemplatesResponse = { data: ApiResponse<PageResponse<EmailTemplateSummary>> };
 type DetailResponse = { data: ApiResponse<EmailTemplateDetail> };
 type VoidResponse = { data: ApiResponse<void> };
-const mockGetTemplates = jest.fn<() => Promise<TemplatesResponse>>();
+const mockGetTemplates = jest.fn<(params?: unknown) => Promise<TemplatesResponse>>();
 const mockDelete = jest.fn<(id: number) => Promise<VoidResponse>>();
 const mockClone = jest.fn<(id: number) => Promise<DetailResponse>>();
 
@@ -90,5 +90,27 @@ describe('EmailTemplateListPanel', () => {
 
     expect(await screen.findByText(/처리 완료에서 사용 중/)).toBeInTheDocument();
     await waitFor(() => expect(mockDelete).toHaveBeenCalledWith(1));
+  });
+
+  it('이전 필터 요청이 늦게 끝나도 최신 목록을 덮어쓰지 않는다', async () => {
+    let resolveActive: ((value: TemplatesResponse) => void) | undefined;
+    let resolveInactive: ((value: TemplatesResponse) => void) | undefined;
+    mockGetTemplates
+      .mockResolvedValueOnce(pageOf([summary({ id: 10, name: '초기 템플릿' })]))
+      .mockReturnValueOnce(new Promise((resolve) => { resolveActive = resolve; }))
+      .mockReturnValueOnce(new Promise((resolve) => { resolveInactive = resolve; }));
+    render(<EmailTemplateListPanel />);
+    expect(await screen.findByText('초기 템플릿')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('활성 상태'), { target: { value: 'active' } });
+    await waitFor(() => expect(mockGetTemplates).toHaveBeenCalledTimes(2));
+    fireEvent.change(screen.getByLabelText('활성 상태'), { target: { value: 'inactive' } });
+    await waitFor(() => expect(mockGetTemplates).toHaveBeenCalledTimes(3));
+
+    resolveInactive?.(pageOf([summary({ id: 30, name: '최신 비활성 템플릿' })]));
+    expect(await screen.findByText('최신 비활성 템플릿')).toBeInTheDocument();
+    resolveActive?.(pageOf([summary({ id: 20, name: '오래된 활성 템플릿' })]));
+    await waitFor(() => expect(screen.queryByText('오래된 활성 템플릿')).not.toBeInTheDocument());
+    expect(screen.getByText('최신 비활성 템플릿')).toBeInTheDocument();
   });
 });
