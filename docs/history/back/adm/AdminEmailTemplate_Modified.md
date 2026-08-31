@@ -1,3 +1,33 @@
+## HIST-20260831-003
+
+- **날짜**: 2026-08-31
+- **수정 범위**: 관리자 백엔드 / 이메일 템플릿 토큰 무결성 보강
+- **수정 개요**: 여분 중괄호 토큰, sanitizer 경계 병합에 의한 토큰·placeholder 생성/소실, 정화·치환 후 비가시 본문을 거부하도록 렌더러 보안 경계를 강화했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/EmailTemplateRenderer.java` | 수정 | brace 경계 토큰 문법, 단계별 토큰·placeholder 개수 무결성, 가시 본문 검증 추가 |
+| `backend/src/test/java/com/tpmp/testprep/service/EmailTemplateRendererTest.java` | 수정 | extra brace, 태그·엔티티 분할, placeholder 합성·토큰 소실, 정화/치환 후 빈 본문 회귀 테스트 추가 |
+| `docs/agent-handoff/CURRENT.md` | 수정 | Task 2 Fix round 1 구현·검증 결과와 주의사항으로 최신 인계 갱신 |
+
+### 수정 상세
+
+#### `EmailTemplateRenderer.java`
+- 변경 전: 토큰 정규식이 triple brace 내부의 유효 부분 문자열을 매칭했고, sanitizer가 제거 태그 경계를 합쳐 토큰·고정 placeholder를 생성하거나 주석 토큰을 제거해도 복원 로직이 이를 구분하지 못했다. 정화된 HTML과 최종 렌더 HTML의 표시 텍스트가 없어도 성공했다.
+- 변경 후: negative lookaround로 정확한 double-brace 경계만 허용한다. raw HTML과 jsoup 파싱 결과의 토큰 개수, 원본과 보호된 토큰 개수, 정화 결과의 placeholder별 예상 출현 횟수를 비교하며 실제 링크 토큰이 있을 때만 링크 placeholder를 등록한다. 정화 전후 새 토큰·placeholder 생성과 토큰 소실을 거부한다. 준비 및 렌더 정화 직후 jsoup 텍스트에서 Unicode whitespace·space separator·format 문자를 비가시 문자로 정규화해 표시 본문이 없으면 `INVALID_CONTENT`를 반환한다.
+- 이유: HTML 파싱·정화가 문자열 경계를 바꾸더라도 토큰 의미가 생성·복제·소실되지 않게 하고 내용 없는 이메일 저장·발송을 차단하기 위함이다.
+
+#### `EmailTemplateRendererTest.java`
+- 변경 전: 여분 brace, 태그/엔티티 분할, sanitizer가 합성한 예약값, 주석 토큰 소실, script/이미지/줄바꿈/NBSP 전용 본문과 빈 변수 치환을 검증하지 않았다.
+- 변경 후: 해당 경계를 포함해 focused 테스트를 10개에서 19개로 확장했다.
+- 이유: sanitizer 정책 또는 토큰 보호 순서가 변경돼 같은 우회가 재발하는 것을 방지하기 위함이다.
+
+### 복원 방법
+
+이 ID(`AdminEmailTemplate_Modified.md` 기준 HIST-20260831-003)로 복원 시 `EmailTemplateRenderer`의 brace 경계 정규식, 토큰/placeholder 개수 검증, 가시 본문 검증을 제거하고 `EmailTemplateRendererTest`에서 Fix round 1 회귀 테스트를 제거한다. 그러면 `HIST-20260831-002` 시점의 렌더러 동작으로 돌아간다.
+
 ## HIST-20260831-002
 
 - **날짜**: 2026-08-31

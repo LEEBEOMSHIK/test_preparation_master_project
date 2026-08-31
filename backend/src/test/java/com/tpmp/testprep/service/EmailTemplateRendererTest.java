@@ -2,6 +2,8 @@ package com.tpmp.testprep.service;
 
 import com.tpmp.testprep.entity.EmailTemplate;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -96,10 +98,68 @@ class EmailTemplateRendererTest {
     }
 
     @Test
+    void prepareAndRenderRejectTokensWithExtraBraces() {
+        assertInvalidVariable(() -> renderer.prepare(EmailTemplate.Scope.INQUIRY_STATUS,
+                "{{{recipientName}}}", "<p>본문</p>"));
+        assertInvalidVariable(() -> renderer.prepare(EmailTemplate.Scope.INQUIRY_STATUS,
+                "{{recipientName}}}", "<p>본문</p>"));
+        assertInvalidVariable(() -> renderer.prepare(EmailTemplate.Scope.INQUIRY_STATUS,
+                "제목", "<p>{{{recipientName}}}</p>"));
+        assertInvalidVariable(() -> renderer.render(EmailTemplate.Scope.INQUIRY_STATUS,
+                "제목", "<p>{{recipientName}}}</p>", validValues()));
+    }
+
+    @Test
     void prepareRejectsAnEncodedCollisionWithTheReservedLinkPlaceholder() {
         assertInvalidContent(() -> renderer.prepare(EmailTemplate.Scope.INQUIRY_STATUS, "제목",
                 "<p>https&#58;//tpmp.invalid/TPMP_LINK_TOKEN</p>"
                         + "<a href=\"{{inquiryDetailUrl}}\">보기</a>"));
+    }
+
+    @Test
+    void prepareRejectsPlaceholdersCreatedBySanitizerTagMerging() {
+        assertInvalidContent(() -> renderer.prepare(EmailTemplate.Scope.INQUIRY_STATUS, "제목",
+                "<p>https://tpmp.invalid/TPMP_<span>LINK_TOKEN</span></p>"
+                        + "<a href=\"{{inquiryDetailUrl}}\">보기</a>"));
+        assertInvalidContent(() -> renderer.prepare(EmailTemplate.Scope.INQUIRY_STATUS, "제목",
+                "<p>TPMP_<span>TOKEN_0</span> {{recipientName}}</p>"));
+    }
+
+    @Test
+    void prepareRejectsAllowedTokensCreatedAcrossTagAndEntityBoundaries() {
+        assertInvalidVariable(() -> renderer.prepare(EmailTemplate.Scope.INQUIRY_STATUS, "제목",
+                "<p>{<span>{recipient</span>Name}<span>}</span>}</p>"));
+        assertInvalidVariable(() -> renderer.prepare(EmailTemplate.Scope.INQUIRY_STATUS, "제목",
+                "<p>&#123;&#123;recipientName&#125;&#125;</p>"));
+    }
+
+    @Test
+    void prepareRejectsTokensRemovedBySanitizing() {
+        assertInvalidVariable(() -> renderer.prepare(EmailTemplate.Scope.INQUIRY_STATUS, "제목",
+                "<p>본문</p><!--{{recipientName}}-->"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "<script>alert(1)</script>",
+            "<img src=\"https://evil.example/tracker.png\">",
+            "<p><br></p>",
+            "<p>&nbsp;&#8203;</p>"
+    })
+    void prepareRejectsHtmlWithoutVisibleTextAfterSanitizing(String htmlBody) {
+        assertInvalidContent(() -> renderer.prepare(EmailTemplate.Scope.INQUIRY_STATUS, "제목", htmlBody));
+    }
+
+    @Test
+    void renderRejectsHtmlWithoutVisibleTextAfterVariableReplacement() {
+        Map<String, String> values = validValues();
+        values.put("recipientName", "");
+        assertInvalidContent(() -> renderer.render(EmailTemplate.Scope.INQUIRY_STATUS,
+                "제목", "<p>{{recipientName}}</p>", values));
+
+        values.put("recipientName", "\u00A0\u200B");
+        assertInvalidContent(() -> renderer.render(EmailTemplate.Scope.INQUIRY_STATUS,
+                "제목", "<p>{{recipientName}}</p>", values));
     }
 
     @Test

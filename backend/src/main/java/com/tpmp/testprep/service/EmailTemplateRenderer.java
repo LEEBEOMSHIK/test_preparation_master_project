@@ -31,8 +31,11 @@ public final class EmailTemplateRenderer {
     private static final String DETAIL_URL_NAME = "inquiryDetailUrl";
     private static final String DETAIL_URL_TOKEN = "{{inquiryDetailUrl}}";
     private static final String LINK_PLACEHOLDER = "https://tpmp.invalid/TPMP_LINK_TOKEN";
-    private static final Pattern TOKEN_PATTERN = Pattern.compile("\\{\\{([A-Za-z][A-Za-z0-9]*)}}");
-    private static final Pattern TOKEN_CANDIDATE_PATTERN = Pattern.compile("\\{\\{[^{}]*}}", Pattern.DOTALL);
+    private static final Pattern TOKEN_PATTERN = Pattern.compile(
+            "(?<!\\{)\\{\\{([A-Za-z][A-Za-z0-9]*)\\}\\}(?!\\})");
+    private static final Pattern TOKEN_CANDIDATE_PATTERN = Pattern.compile(
+            "(?<!\\{)\\{\\{[^{}]*\\}\\}(?!\\})", Pattern.DOTALL);
+    private static final Pattern GENERIC_PLACEHOLDER_PATTERN = Pattern.compile("TPMP_TOKEN_[0-9]+");
     private static final List<AllowedVariable> INQUIRY_STATUS_VARIABLES = List.of(
             new AllowedVariable("{{recipientName}}", "recipientName", "문의자 이름", "문의자 표시 이름"),
             new AllowedVariable("{{inquiryId}}", "inquiryId", "문의 번호", "문의 식별자"),
@@ -69,9 +72,12 @@ public final class EmailTemplateRenderer {
 
         ProtectedHtml protectedHtml = protectHtmlTokens(htmlBody);
         String sanitized = HTML_POLICY.sanitize(protectedHtml.html());
+        validateProtectedHtml(sanitized, protectedHtml);
         String restored = restoreTokens(sanitized, protectedHtml.tokens());
         validateTokens(scope, restored);
-        return new PreparedTemplate(subjectTemplate, restored, toText(restored));
+        String textBody = toText(restored);
+        validateVisibleText(textBody);
+        return new PreparedTemplate(subjectTemplate, restored, textBody);
     }
 
     public RenderedEmail render(EmailTemplate.Scope scope, String subjectTemplate,
@@ -83,7 +89,9 @@ public final class EmailTemplateRenderer {
         validateRenderedSubject(subject);
         String renderedHtml = replaceTokens(prepared.sanitizedHtmlBody(), variables, true);
         String finalHtml = HTML_POLICY.sanitize(renderedHtml);
-        return new RenderedEmail(subject, finalHtml, toText(finalHtml));
+        String textBody = toText(finalHtml);
+        validateVisibleText(textBody);
+        return new RenderedEmail(subject, finalHtml, textBody);
     }
 
     public List<AllowedVariable> getAllowedVariables(EmailTemplate.Scope scope) {
@@ -136,8 +144,13 @@ public final class EmailTemplateRenderer {
         if (parsedHtml.contains(LINK_PLACEHOLDER)) {
             throw invalidContent("이메일 HTML에 예약된 값이 포함되어 있습니다.");
         }
+        Map<String, Integer> originalTokenCounts = countTokens(htmlBody);
+        if (!originalTokenCounts.equals(countTokens(parsedHtml))) {
+            throw invalidVariable("HTML 파싱 과정에서 이메일 템플릿 변수가 변경되었습니다.");
+        }
         Map<String, String> protectedTokens = new LinkedHashMap<>();
         int tokenIndex = 0;
+        int linkTokenCount = 0;
 
         for (Element element : document.body().getAllElements()) {
             for (Attribute attribute : new ArrayList<>(element.attributes().asList())) {
@@ -150,6 +163,7 @@ public final class EmailTemplateRenderer {
                     throw invalidVariable("HTML 속성에는 문의 상세 URL 변수만 사용할 수 있습니다.");
                 }
                 element.attr(attribute.getKey(), LINK_PLACEHOLDER);
+                linkTokenCount++;
             }
 
             for (TextNode textNode : element.textNodes()) {
@@ -160,9 +174,15 @@ public final class EmailTemplateRenderer {
             }
         }
 
+        int originalTokenCount = originalTokenCounts.values().stream().mapToInt(Integer::intValue).sum();
+        if (protectedTokens.size() + linkTokenCount != originalTokenCount) {
+            throw invalidVariable("HTML 정화 전에 이메일 템플릿 변수가 소실되었습니다.");
+        }
         String protectedBody = document.body().html();
-        protectedTokens.put(LINK_PLACEHOLDER, DETAIL_URL_TOKEN);
-        return new ProtectedHtml(protectedBody, protectedTokens);
+        if (linkTokenCount > 0) {
+            protectedTokens.put(LINK_PLACEHOLDER, DETAIL_URL_TOKEN);
+        }
+        return new ProtectedHtml(protectedBody, protectedTokens, linkTokenCount);
     }
 
     private ProtectedText protectTextTokens(String text, String originalHtml,
@@ -182,12 +202,54 @@ public final class EmailTemplateRenderer {
         return new ProtectedText(protectedText.toString(), tokenIndex);
     }
 
+    private void validateProtectedHtml(String sanitized, ProtectedHtml protectedHtml) {
+        if (containsTemplateToken(sanitized)) {
+            throw invalidVariable("HTML 정화 과정에서 이메일 템플릿 변수가 변경되었습니다.");
+        }
+
+        Matcher placeholderMatcher = GENERIC_PLACEHOLDER_PATTERN.matcher(sanitized);
+        while (placeholderMatcher.find()) {
+            if (!protectedHtml.tokens().containsKey(placeholderMatcher.group())) {
+                throw invalidContent("HTML 정화 과정에서 예약된 값이 생성되었습니다.");
+            }
+        }
+
+        for (String placeholder : protectedHtml.tokens().keySet()) {
+            int expectedCount = LINK_PLACEHOLDER.equals(placeholder) ? protectedHtml.linkTokenCount() : 1;
+            if (countOccurrences(sanitized, placeholder) != expectedCount) {
+                throw invalidContent("HTML 정화 과정에서 이메일 템플릿 변수가 변경되었습니다.");
+            }
+        }
+        if (!protectedHtml.tokens().containsKey(LINK_PLACEHOLDER) && sanitized.contains(LINK_PLACEHOLDER)) {
+            throw invalidContent("HTML 정화 과정에서 예약된 값이 생성되었습니다.");
+        }
+    }
+
     private String restoreTokens(String html, Map<String, String> protectedTokens) {
         String restored = html;
         for (Map.Entry<String, String> token : protectedTokens.entrySet()) {
             restored = restored.replace(token.getKey(), token.getValue());
         }
         return restored;
+    }
+
+    private Map<String, Integer> countTokens(String template) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        Matcher matcher = TOKEN_PATTERN.matcher(template);
+        while (matcher.find()) {
+            counts.merge(matcher.group(), 1, Integer::sum);
+        }
+        return counts;
+    }
+
+    private int countOccurrences(String value, String target) {
+        int count = 0;
+        int offset = 0;
+        while ((offset = value.indexOf(target, offset)) >= 0) {
+            count++;
+            offset += target.length();
+        }
+        return count;
     }
 
     private void validateVariableValues(EmailTemplate.Scope scope, Map<String, String> variables) {
@@ -270,6 +332,18 @@ public final class EmailTemplateRenderer {
         return Jsoup.parse(html).text();
     }
 
+    private static void validateVisibleText(String text) {
+        if (text.codePoints().allMatch(EmailTemplateRenderer::isInvisibleCodePoint)) {
+            throw invalidContent("이메일 본문에 표시할 내용이 없습니다.");
+        }
+    }
+
+    private static boolean isInvisibleCodePoint(int codePoint) {
+        return Character.isWhitespace(codePoint)
+                || Character.isSpaceChar(codePoint)
+                || Character.getType(codePoint) == Character.FORMAT;
+    }
+
     private static EmailTemplateRenderingException invalidVariable(String safeMessage) {
         return new EmailTemplateRenderingException(
                 EmailTemplateRenderingException.Reason.INVALID_VARIABLE, safeMessage);
@@ -289,7 +363,7 @@ public final class EmailTemplateRenderer {
     public record AllowedVariable(String token, String name, String label, String description) {
     }
 
-    private record ProtectedHtml(String html, Map<String, String> tokens) {
+    private record ProtectedHtml(String html, Map<String, String> tokens, int linkTokenCount) {
     }
 
     private record ProtectedText(String text, int nextIndex) {
