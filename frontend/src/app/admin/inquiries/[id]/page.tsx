@@ -419,7 +419,7 @@ export default function AdminInquiryDetailPage() {
 
       <section className="space-y-3" aria-label="문의·요청 대화">
         <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">대화 이력</h3>
-        <InquiryTimeline inquiry={inquiry} />
+        <InquiryTimeline inquiry={inquiry} context="ADMIN" />
       </section>
 
       {!closed && (

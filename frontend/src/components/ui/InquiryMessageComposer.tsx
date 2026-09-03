@@ -25,11 +25,11 @@ export function InquiryMessageComposer({
       error: '답변 전송에 실패했습니다. 다시 시도해 주세요.',
     }
     : {
-      heading: '추가 문의 작성',
-      guide: '최초 문의를 수정하는 것이 아니라 새 메시지로 전달됩니다.',
-      imageTitle: '추가 문의 첨부 이미지 (선택)',
-      submit: '추가 문의 보내기',
-      error: '추가 문의 전송에 실패했습니다. 다시 시도해 주세요.',
+      heading: '답변 등록',
+      guide: '관리자와의 대화는 새 메시지로 등록됩니다.',
+      imageTitle: '답변 첨부 이미지 (선택)',
+      submit: '답변 등록',
+      error: '답변 등록에 실패했습니다. 다시 시도해 주세요.',
     };
   const [content, setContent] = useState('');
   const [images, setImages] = useState<InquiryUploadedImage[]>([]);
@@ -85,8 +85,8 @@ export function InquiryMessageComposer({
         value={content}
         onChange={(event) => setContent(event.target.value)}
         rows={4}
-        aria-label="추가 메시지 내용"
-        placeholder="추가 내용을 입력해 주세요."
+        aria-label="답변 내용"
+        placeholder="답변 내용을 입력해 주세요."
         className="w-full rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
       />
       <InquiryImageUploader

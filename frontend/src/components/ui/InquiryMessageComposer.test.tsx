@@ -30,15 +30,15 @@ describe('InquiryMessageComposer', () => {
 
   it('후속 메시지 입력란에 명확한 접근성 이름을 제공한다', () => {
     render(<InquiryMessageComposer inquiryId={1} onSent={() => undefined} />);
-    expect(screen.getByLabelText('추가 메시지 내용')).toBeTruthy();
+    expect(screen.getByLabelText('답변 내용')).toBeTruthy();
   });
 
   it('사용자와 관리자 작성기에 문맥별 제목, 안내, 전송 버튼을 표시한다', () => {
     const { rerender } = render(<InquiryMessageComposer inquiryId={1} onSent={() => undefined} />);
-    expect(screen.getByRole('heading', { name: '추가 문의 작성' })).toBeTruthy();
-    expect(screen.getByText('최초 문의를 수정하는 것이 아니라 새 메시지로 전달됩니다.')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '추가 문의 보내기' })).toBeTruthy();
-    expect(screen.getByText('추가 문의 첨부 이미지 (선택)')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: '답변 등록' })).toBeTruthy();
+    expect(screen.getByText('관리자와의 대화는 새 메시지로 등록됩니다.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '답변 등록' })).toBeTruthy();
+    expect(screen.getByText('답변 첨부 이미지 (선택)')).toBeTruthy();
 
     rerender(<InquiryMessageComposer inquiryId={1} admin onSent={() => undefined} />);
     expect(screen.getByRole('heading', { name: '사용자에게 답변' })).toBeTruthy();
@@ -54,7 +54,7 @@ describe('InquiryMessageComposer', () => {
     const onSent = jest.fn();
     render(<InquiryMessageComposer inquiryId={1} admin onSent={onSent} />);
 
-    fireEvent.change(screen.getByPlaceholderText('추가 내용을 입력해 주세요.'), {
+    fireEvent.change(screen.getByPlaceholderText('답변 내용을 입력해 주세요.'), {
       target: { value: '중간 답변입니다.' },
     });
     const emailCheckbox = screen.getByLabelText('이 답변 내용을 이메일로도 발송') as HTMLInputElement;
@@ -89,10 +89,10 @@ describe('InquiryMessageComposer', () => {
 
     fireEvent.change(fileInput, { target: { files: [file] } });
     expect(await screen.findByRole('button', { name: 'bug.png 삭제' })).toBeTruthy();
-    fireEvent.change(screen.getByPlaceholderText('추가 내용을 입력해 주세요.'), {
+    fireEvent.change(screen.getByPlaceholderText('답변 내용을 입력해 주세요.'), {
       target: { value: '  이미지 포함 메시지  ' },
     });
-    fireEvent.click(screen.getByRole('button', { name: '추가 문의 보내기' }));
+    fireEvent.click(screen.getByRole('button', { name: '답변 등록' }));
 
     await waitFor(() => {
       expect(inquiryService.uploadMessageImage).toHaveBeenCalledWith(file);
@@ -125,10 +125,10 @@ describe('InquiryMessageComposer', () => {
       dataTransfer: { files: [first, second] },
     });
     await screen.findAllByText('업로드 완료');
-    fireEvent.change(screen.getByPlaceholderText('추가 내용을 입력해 주세요.'), {
+    fireEvent.change(screen.getByPlaceholderText('답변 내용을 입력해 주세요.'), {
       target: { value: '여러 이미지 메시지' },
     });
-    fireEvent.click(screen.getByRole('button', { name: '추가 문의 보내기' }));
+    fireEvent.click(screen.getByRole('button', { name: '답변 등록' }));
 
     await waitFor(() => expect(inquiryService.addMessage).toHaveBeenCalledWith(
       9,
@@ -143,10 +143,10 @@ describe('InquiryMessageComposer', () => {
     });
     render(<InquiryMessageComposer inquiryId={9} onSent={() => undefined} />);
 
-    fireEvent.change(screen.getByPlaceholderText('추가 내용을 입력해 주세요.'), {
+    fireEvent.change(screen.getByPlaceholderText('답변 내용을 입력해 주세요.'), {
       target: { value: '추가 메시지' },
     });
-    fireEvent.click(screen.getByRole('button', { name: '추가 문의 보내기' }));
+    fireEvent.click(screen.getByRole('button', { name: '답변 등록' }));
 
     const errorAlert = await screen.findByRole('alert');
     expect(errorAlert.textContent).toContain('이미 종료된 문의입니다.');
@@ -163,10 +163,10 @@ describe('InquiryMessageComposer', () => {
       target: { files: [new File(['image'], 'pending.png', { type: 'image/png' })] },
     });
     expect(await screen.findByText('업로드 중')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('추가 메시지 내용'), {
+    fireEvent.change(screen.getByLabelText('답변 내용'), {
       target: { value: '업로드 대기 메시지' },
     });
-    const submitButton = screen.getByRole('button', { name: '추가 문의 보내기' }) as HTMLButtonElement;
+    const submitButton = screen.getByRole('button', { name: '답변 등록' }) as HTMLButtonElement;
 
     expect(submitButton.disabled).toBe(true);
     fireEvent.click(submitButton);

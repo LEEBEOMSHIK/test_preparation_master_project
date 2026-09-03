@@ -1,3 +1,22 @@
+## HIST-20260904-001
+
+- **날짜**: 2026-09-04
+- **수정 범위**: 관리자 프론트엔드 / 문의 상세 타임라인
+- **수정 개요**: 관리자 조회 시 사용자 메시지 라벨을 “사용자 답변”으로 표시하도록 타임라인 문구 문맥을 분기.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/components/ui/InquiryTimeline.tsx` | 수정 | 타임라인 라벨 렌더링에 `context`를 추가하고 USER 라벨을 `내 답변`/`사용자 답변`으로 분기 |
+| `frontend/src/app/admin/inquiries/[id]/page.tsx` | 수정 | 관리자 문의 상세에서 `<InquiryTimeline context="ADMIN" />`로 렌더링 |
+| `frontend/src/components/ui/InquiryTimeline.test.tsx` | 수정 | 사용자/관리자 라벨 분기 테스트 보강 |
+
+### 수정 상세
+
+- 기존에는 공용 타임라인 컴포넌트의 USER 라벨이 항상 “내 답변”이라 관리자 화면에서도 동일하게 표시됨.
+- `InquiryTimeline`에 표시 목적 context를 전달하도록 변경해 `USER` 항목이 admin 화면에서는 “사용자 답변”으로 보이게 했고, 사용자 화면 동작은 그대로 “내 답변” 유지.
+
 ## HIST-20260901-001
 
 - **날짜**: 2026-09-01

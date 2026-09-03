@@ -41,6 +41,10 @@ describe('InquiryDetailPage', () => {
     jest.mocked(inquiryService.update).mockResolvedValue({ data: { success: true, data: null } } as never);
     render(<InquiryDetailPage />);
 
+    expect(await screen.findByText('수정 전')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('답변 내용을 입력해 주세요.')).toBeNull();
+    expect(screen.queryByRole('heading', { name: '답변 등록' })).toBeNull();
+
     fireEvent.click(await screen.findByRole('button', { name: '문의 수정' }));
     expect(screen.getByText('기존 첨부 이미지는 유지됩니다.')).toBeTruthy();
     await waitFor(() => expect((screen.getByRole('button', { name: '수정 저장' }) as HTMLButtonElement).disabled).toBe(false));
@@ -116,7 +120,8 @@ describe('InquiryDetailPage', () => {
 
     expect(await screen.findByText('종료된 일반 문의')).toBeTruthy();
     expect(screen.getByText('처리가 종료되었습니다.')).toBeTruthy();
-    expect(screen.queryByPlaceholderText('추가 내용을 입력해 주세요.')).toBeNull();
+    expect(screen.queryByPlaceholderText('답변 내용을 입력해 주세요.')).toBeNull();
+    expect(screen.queryByRole('heading', { name: '답변 등록' })).toBeNull();
     expect(inquiryService.getMyInquiry).toHaveBeenCalledWith(31);
   });
 });

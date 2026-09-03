@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { InquiryMessageComposer } from '@/components/ui/InquiryMessageComposer';
 import { InquiryTimeline } from '@/components/ui/InquiryTimeline';
+import { InquiryMessageComposer } from '@/components/ui/InquiryMessageComposer';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { extractApiErrorMessage } from '@/lib/apiError';
 import { loadInquiryDomainOptions } from '@/lib/inquiryDomain';
@@ -206,7 +206,7 @@ export default function InquiryDetailPage() {
           처리가 종료되었습니다.
         </p>
       ) : (
-        <InquiryMessageComposer inquiryId={inquiry.id} onSent={load} />
+        !editable && <InquiryMessageComposer inquiryId={inquiry.id} onSent={load} />
       )}
     </div>
   );
