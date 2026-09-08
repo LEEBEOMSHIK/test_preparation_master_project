@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { examinationService } from '@/services/examinationService';
 import { CardListSkeleton } from '@/components/ui/Skeleton';
+import { ListPagination } from '@/components/ui/ListPagination';
+import { ListLoadError } from '@/components/ui/ListLoadError';
 import type { UserExamHistorySummary } from '@/types';
 
 function formatTakenAt(takenAt: string): string {
@@ -33,23 +35,42 @@ export default function ExamHistoryPage() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+  const [loadError, setLoadError] = useState(false);
+  const requestIdRef = useRef(0);
 
-  useEffect(() => {
+  const loadHistories = useCallback(() => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
+    setLoadError(false);
     examinationService
       .userGetExamHistories(page, 10)
       .then(res => {
+        if (requestId !== requestIdRef.current) return;
         if (res.data.success && res.data.data) {
           setHistories(res.data.data.content);
           setTotalPages(res.data.data.totalPages);
           setTotalElements(res.data.data.totalElements);
+        } else {
+          setLoadError(true);
         }
       })
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (requestId === requestIdRef.current) setLoadError(true);
+      })
+      .finally(() => {
+        if (requestId === requestIdRef.current) setLoading(false);
+      });
   }, [page]);
 
+  useEffect(() => {
+    loadHistories();
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, [loadHistories]);
+
   return (
-    <div className="space-y-4">
+    <div id="exam-history-list" className="space-y-4">
       {/* 시험 목록으로 */}
       <button
         onClick={() => router.push('/user/exams')}
@@ -71,7 +92,7 @@ export default function ExamHistoryPage() {
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">시험 이력</h1>
-        {!loading && (
+        {!loading && !loadError && (
           <span className="text-sm text-gray-500 dark:text-gray-400">총 {totalElements}건</span>
         )}
       </div>
@@ -79,8 +100,12 @@ export default function ExamHistoryPage() {
       {/* 로딩 */}
       {loading && <CardListSkeleton rows={10} />}
 
+      {!loading && loadError && (
+        <ListLoadError message="시험 이력을 불러오지 못했습니다." onRetry={loadHistories} />
+      )}
+
       {/* 빈 상태 */}
-      {!loading && histories.length === 0 && (
+      {!loading && !loadError && histories.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
             <svg
@@ -108,7 +133,7 @@ export default function ExamHistoryPage() {
       )}
 
       {/* 이력 목록 */}
-      {!loading && histories.length > 0 && (
+      {!loading && !loadError && histories.length > 0 && (
         <div className="space-y-2">
           {histories.map(h => (
             <button
@@ -147,27 +172,15 @@ export default function ExamHistoryPage() {
         </div>
       )}
 
-      {/* 페이지네이션 */}
-      {!loading && totalPages > 1 && (
-        <div className="flex items-center justify-center gap-3 pt-2">
-          <button
-            onClick={() => setPage(p => Math.max(0, p - 1))}
-            disabled={page === 0}
-            className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition"
-          >
-            이전
-          </button>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            페이지 {page + 1} / {totalPages}
-          </span>
-          <button
-            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-            disabled={page >= totalPages - 1}
-            className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition"
-          >
-            다음
-          </button>
-        </div>
+      {!loading && !loadError && histories.length > 0 && (
+        <ListPagination
+          page={page}
+          totalPages={totalPages}
+          totalElements={totalElements}
+          pageSize={10}
+          onChange={setPage}
+          scrollTargetId="exam-history-list"
+        />
       )}
     </div>
   );

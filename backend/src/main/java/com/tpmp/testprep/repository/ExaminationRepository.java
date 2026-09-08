@@ -29,6 +29,52 @@ public interface ExaminationRepository extends JpaRepository<Examination, Long> 
            "ORDER BY e.examYear DESC NULLS LAST, e.examRound DESC NULLS LAST, e.createdAt DESC")
     Page<Examination> findAllWithDetailsActive(Pageable pageable);
 
+    /** 사용자 시험 목록 서버 검색. 모든 조건을 DB에서 적용한 뒤 페이지를 계산한다. */
+    @Query(
+            value = "SELECT e FROM Examination e " +
+                    "LEFT JOIN FETCH e.category " +
+                    "LEFT JOIN FETCH e.examPaper " +
+                    "WHERE e.delYn = 'N' AND e.useYn = 'Y' " +
+                    "AND (CAST(:title AS string) IS NULL " +
+                    "OR LOWER(e.title) LIKE LOWER(CONCAT('%', CAST(:title AS string), '%')) ESCAPE '!') " +
+                    "AND (:category IS NULL OR e.category.name = :category) " +
+                    "AND (:filterInterests = false OR e.category.name IN :interests) " +
+                    "AND (:year IS NULL OR e.examYear = :year) " +
+                    "AND (:round IS NULL OR e.examRound = :round) " +
+                    "AND (:aiCustom IS NULL OR e.isAiCustom = :aiCustom) " +
+                    "ORDER BY e.examYear DESC NULLS LAST, e.examRound DESC NULLS LAST, " +
+                    "e.createdAt DESC, e.id DESC",
+            countQuery = "SELECT COUNT(e) FROM Examination e " +
+                    "WHERE e.delYn = 'N' AND e.useYn = 'Y' " +
+                    "AND (CAST(:title AS string) IS NULL " +
+                    "OR LOWER(e.title) LIKE LOWER(CONCAT('%', CAST(:title AS string), '%')) ESCAPE '!') " +
+                    "AND (:category IS NULL OR e.category.name = :category) " +
+                    "AND (:filterInterests = false OR e.category.name IN :interests) " +
+                    "AND (:year IS NULL OR e.examYear = :year) " +
+                    "AND (:round IS NULL OR e.examRound = :round) " +
+                    "AND (:aiCustom IS NULL OR e.isAiCustom = :aiCustom)"
+    )
+    Page<Examination> searchActive(
+            @Param("title") String title,
+            @Param("category") String category,
+            @Param("interests") List<String> interests,
+            @Param("filterInterests") boolean filterInterests,
+            @Param("year") Integer year,
+            @Param("round") Integer round,
+            @Param("aiCustom") Boolean aiCustom,
+            Pageable pageable
+    );
+
+    @Query("SELECT DISTINCT e.examYear FROM Examination e " +
+            "WHERE e.delYn = 'N' AND e.useYn = 'Y' AND e.examYear IS NOT NULL " +
+            "ORDER BY e.examYear DESC")
+    List<Integer> findActiveYears();
+
+    @Query("SELECT DISTINCT e.examRound FROM Examination e " +
+            "WHERE e.delYn = 'N' AND e.useYn = 'Y' AND e.examRound IS NOT NULL " +
+            "ORDER BY e.examRound DESC")
+    List<Integer> findActiveRounds();
+
     /** 슬레이브 ID가 category로 참조되는 시험(삭제되지 않은 것만)이 있는지 확인 */
     boolean existsByCategoryIdAndDelYn(Long categoryId, String delYn);
 

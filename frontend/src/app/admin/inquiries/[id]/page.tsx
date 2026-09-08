@@ -42,13 +42,13 @@ const DELIVERY_EVENT_LABEL: Record<InquiryEmailEventType, string> = {
   UNABLE_TO_PROCESS: '처리 불가',
 };
 
-const STATUS_CHANGE_TEXT: Record<InquiryStatus, { action: string; success: string }> = {
-  PENDING: { action: '접수로 변경', success: '상태를 접수로 변경했습니다.' },
-  IN_PROGRESS: { action: '검토 중으로 변경', success: '상태를 검토 중으로 변경했습니다.' },
-  ON_HOLD: { action: '보류로 변경', success: '상태를 보류로 변경했습니다.' },
-  ANSWERED: { action: '답변 완료로 변경', success: '상태를 답변 완료로 변경했습니다.' },
-  COMPLETED: { action: '처리 완료로 변경', success: '상태를 처리 완료로 변경했습니다.' },
-  UNABLE_TO_PROCESS: { action: '처리 불가로 변경', success: '상태를 처리 불가로 변경했습니다.' },
+const STATUS_CHANGE_TEXT: Record<InquiryStatus, { success: string }> = {
+  PENDING: { success: '상태를 접수로 변경했습니다.' },
+  IN_PROGRESS: { success: '상태를 검토 중으로 변경했습니다.' },
+  ON_HOLD: { success: '상태를 보류로 변경했습니다.' },
+  ANSWERED: { success: '상태를 답변 완료로 변경했습니다.' },
+  COMPLETED: { success: '상태를 처리 완료로 변경했습니다.' },
+  UNABLE_TO_PROCESS: { success: '상태를 처리 불가로 변경했습니다.' },
 };
 
 const STATUS_EMAIL_EVENT_CODE: Partial<Record<InquiryStatus, EmailTemplateEventCode>> = {
@@ -62,12 +62,19 @@ interface PendingStatusUpdate {
   sendEmail: boolean;
 }
 
+const DETAIL_TABS = [
+  { id: 'conversation', label: '문의·답변' },
+  { id: 'deliveries', label: '이메일 발송 이력' },
+] as const;
+
 export default function AdminInquiryDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = Number(params.id);
 
   const [inquiry, setInquiry] = useState<InquiryDetail | null>(null);
+  const [activeTab, setActiveTab] = useState<typeof DETAIL_TABS[number]['id']>('conversation');
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [deliveries, setDeliveries] = useState<InquiryEmailDelivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -125,7 +132,11 @@ export default function AdminInquiryDetailPage() {
 
   const loadInquiry = useCallback(async () => {
     const response = await inquiryService.adminGetOne(id);
-    if (response.data.data) setInquiry(response.data.data);
+    if (response.data.data) {
+      setInquiry(response.data.data);
+      setSelectedStatus(response.data.data.status);
+      setSendEmail(false);
+    }
   }, [id]);
 
   useEffect(() => {
@@ -150,24 +161,26 @@ export default function AdminInquiryDetailPage() {
     };
   }, [loadDeliveries]);
 
-  useEffect(() => {
-    const loadEmailBindings = async () => {
-      setEmailBindingsLoading(true);
-      setEmailBindingsError('');
-      try {
-        const response = await emailTemplateService.getBindings();
-        setEmailBindings(response.data.data ?? []);
-      } catch (requestError: unknown) {
-        setEmailBindingsError(extractApiErrorMessage(
-          requestError,
-          '이메일 템플릿 연결 정보를 불러오지 못했습니다.',
-        ));
-      } finally {
-        setEmailBindingsLoading(false);
-      }
-    };
-    void loadEmailBindings();
+  const loadEmailBindings = useCallback(async () => {
+    setEmailBindingsLoading(true);
+    setEmailBindingsError('');
+    setSendEmail(false);
+    try {
+      const response = await emailTemplateService.getBindings();
+      setEmailBindings(response.data.data ?? []);
+    } catch (requestError: unknown) {
+      setEmailBindingsError(extractApiErrorMessage(
+        requestError,
+        '이메일 템플릿 연결 정보를 불러오지 못했습니다.',
+      ));
+    } finally {
+      setEmailBindingsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadEmailBindings();
+  }, [loadEmailBindings]);
 
   useEffect(() => {
     if (!pendingStatusUpdate) return;
@@ -235,11 +248,14 @@ export default function AdminInquiryDetailPage() {
       const response = await inquiryService.adminUpdateStatus(
         inquiry.id,
         request.status,
-        request.sendEmail,
+        request.sendEmail && !emailBindingsLoading && !emailBindingsError
+          && emailBindings.some((binding) => binding.eventCode === STATUS_EMAIL_EVENT_CODE[request.status]
+            && binding.sendable),
       );
       const result = response.data.data;
       if (result) {
         setInquiry(result.inquiry);
+        setSelectedStatus(result.inquiry.status);
         setStatusSuccess(STATUS_CHANGE_TEXT[request.status].success);
         if (result.emailOutcome.startsWith('SKIPPED_')) {
           setStatusEmailWarning(result.emailMessage);
@@ -249,7 +265,6 @@ export default function AdminInquiryDetailPage() {
           await loadDeliveries();
         }
       }
-      setSelectedStatus('');
       setSendEmail(false);
     } catch (requestError: unknown) {
       setError(extractApiErrorMessage(requestError, '상태를 변경하지 못했습니다.'));
@@ -283,9 +298,9 @@ export default function AdminInquiryDetailPage() {
       const response = await inquiryService.adminUpdateStatus(inquiry.id, 'IN_PROGRESS', false);
       if (response.data.data) {
         setInquiry(response.data.data.inquiry);
+        setSelectedStatus(response.data.data.inquiry.status);
         setStatusSuccess(STATUS_CHANGE_TEXT.IN_PROGRESS.success);
       }
-      setSelectedStatus('');
       setSendEmail(false);
     } catch (requestError: unknown) {
       setError(extractApiErrorMessage(requestError, '문의·요청을 다시 열지 못했습니다.'));
@@ -350,12 +365,9 @@ export default function AdminInquiryDetailPage() {
   const selectedEmailBinding = emailBindings.find(
     (binding) => binding.eventCode === selectedEmailEventCode,
   );
-  const statusEmailAvailable = selectedEmailBinding?.sendable === true;
-  const bindingUnavailableReason = emailBindingsLoading
-    ? '이메일 템플릿 연결 정보를 확인하는 중입니다.'
-    : emailBindingsError
-      || selectedEmailBinding?.unavailableReason
-      || (!selectedEmailBinding ? '연결된 이메일 템플릿이 없습니다.' : '이메일을 발송할 수 없습니다.');
+  const statusEmailAvailable = !emailBindingsLoading && !emailBindingsError
+    && selectedEmailBinding?.sendable === true;
+  const emailStatuses = allowedStatuses.filter((status) => STATUS_EMAIL_EVENT_CODE[status]);
 
   return (
     <>
@@ -377,7 +389,7 @@ export default function AdminInquiryDetailPage() {
         </button>
       </div>
 
-      <section className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+      <section aria-label="기본정보" className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
         <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
           <div>
             <h2 className="font-semibold text-gray-900 dark:text-gray-100">{inquiry.title}</h2>
@@ -415,137 +427,217 @@ export default function AdminInquiryDetailPage() {
             </div>
           )}
         </dl>
-      </section>
-
-      <section className="space-y-3" aria-label="문의·요청 대화">
-        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">대화 이력</h3>
-        <InquiryTimeline inquiry={inquiry} context="ADMIN" />
-      </section>
-
-      {!closed && (
-        <section className="space-y-3">
-          <InquiryMessageComposer inquiryId={inquiry.id} admin onSent={handleMessageSent} />
-        </section>
-      )}
-
-      <section
-        role="region"
-        aria-label="상태 변경"
-        className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"
-      >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">상태 변경</h3>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              접수 유형에 허용된 상태만 선택할 수 있습니다.
-            </p>
-          </div>
+        <div className="space-y-3 border-t border-gray-100 px-5 py-4 dark:border-gray-800">
           {closed && (
-            <button
-              type="button"
-              onClick={() => void handleReopen()}
-              disabled={updatingStatus}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
-            >
-              다시 열기
-            </button>
-          )}
-        </div>
-
-        {!closed && (
-          <div className="space-y-3">
-            <label className="block text-sm text-gray-700 dark:text-gray-300">
-              처리 상태
-              <select
-                value={selectedStatus}
-                onChange={(event) => {
-                  setSelectedStatus(event.target.value as InquiryStatus | '');
-                  setSendEmail(false);
-                  setError('');
-                  setStatusSuccess('');
-                  setStatusEmailWarning('');
-                  setStatusTemplateSettingsUrl(null);
-                }}
-                className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-              >
-                <option value="">선택하세요</option>
-                {allowedStatuses.map((status) => (
-                  <option key={status} value={status}>{INQUIRY_STATUS_LABEL[status]}</option>
-                ))}
-              </select>
-            </label>
-
-            {selectedIsClosed && (
-              <div className="space-y-2 rounded-lg bg-gray-50 p-3 dark:bg-gray-800/60">
-                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                  <input
-                    type="checkbox"
-                    checked={sendEmail}
-                    onChange={(event) => setSendEmail(event.target.checked)}
-                    disabled={!statusEmailAvailable || emailBindingsLoading}
-                    className="h-4 w-4 rounded border-gray-300 text-indigo-600"
-                  />
-                  상태 변경 안내 이메일 발송
-                </label>
-                {!statusEmailAvailable && (
-                  <p className="text-xs text-amber-700 dark:text-amber-300">
-                    {bindingUnavailableReason}{' '}
-                    <Link
-                      href="/admin/email-templates?tab=bindings"
-                      className="font-medium underline underline-offset-2"
-                    >
-                      이메일 템플릿 관리
-                    </Link>
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div className="flex justify-end">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                처리 상태: {INQUIRY_STATUS_LABEL[inquiry.status]}
+              </p>
               <button
-                ref={statusUpdateTriggerRef}
                 type="button"
-                onClick={handleStatusUpdate}
-                disabled={!selectedStatus || selectedStatus === inquiry.status || updatingStatus}
+                onClick={() => void handleReopen()}
+                disabled={updatingStatus}
                 className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
               >
-                {updatingStatus
-                  ? '변경 중...'
-                  : selectedStatus
-                    ? STATUS_CHANGE_TEXT[selectedStatus].action
-                    : '상태 변경'}
+                다시 열기
               </button>
             </div>
-          </div>
-        )}
-      </section>
+          )}
 
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-      {statusSuccess && (
-        <p
-          ref={statusSuccessRef}
-          role="status"
-          tabIndex={-1}
-          className="rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950/30 dark:text-green-300"
-        >
-          {statusSuccess}
-        </p>
-      )}
-      {statusEmailWarning && (
-        <div role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
-          <p>{statusEmailWarning}</p>
-          {statusTemplateSettingsUrl && (
-            <Link
-              href={statusTemplateSettingsUrl}
-              className="mt-1 inline-block font-medium underline underline-offset-2"
+          {!closed && (
+            <div className="space-y-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <label className="block flex-1 text-sm text-gray-700 dark:text-gray-300">
+                  처리 상태
+                  <select
+                    value={selectedStatus}
+                    onChange={(event) => {
+                      setSelectedStatus(event.target.value as InquiryStatus | '');
+                      setSendEmail(false);
+                      setError('');
+                      setStatusSuccess('');
+                      setStatusEmailWarning('');
+                      setStatusTemplateSettingsUrl(null);
+                    }}
+                    className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                  >
+                    {allowedStatuses.map((status) => (
+                      <option key={status} value={status}>{INQUIRY_STATUS_LABEL[status]}</option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  ref={statusUpdateTriggerRef}
+                  type="button"
+                  onClick={handleStatusUpdate}
+                  disabled={!selectedStatus || selectedStatus === inquiry.status || updatingStatus}
+                  className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {updatingStatus ? '변경 중...' : '변경 저장'}
+                </button>
+              </div>
+
+              {selectedIsClosed && (
+                <div className="space-y-2 rounded-lg bg-gray-50 p-3 dark:bg-gray-800/60">
+                  <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={sendEmail}
+                      onChange={(event) => setSendEmail(event.target.checked)}
+                      disabled={!statusEmailAvailable || emailBindingsLoading}
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600"
+                    />
+                    상태 변경 안내 이메일 발송
+                  </label>
+                </div>
+              )}
+
+            </div>
+          )}
+
+          <div aria-label="상태 안내 이메일 템플릿" className="space-y-2 rounded-lg bg-gray-50 p-3 dark:bg-gray-800/60">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-xs font-medium text-gray-700 dark:text-gray-300">상태 안내 이메일 템플릿</h3>
+              <div className="flex items-center gap-3 text-xs">
+                <Link href="/admin/email-templates?tab=bindings" className="text-indigo-600 underline underline-offset-2 dark:text-indigo-300">
+                  이벤트 연결 관리
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => void loadEmailBindings()}
+                  disabled={emailBindingsLoading}
+                  className="text-gray-600 underline underline-offset-2 disabled:opacity-50 dark:text-gray-300"
+                >
+                  {emailBindingsError ? '템플릿 연결 재시도' : '템플릿 연결 새로고침'}
+                </button>
+              </div>
+            </div>
+            {emailBindingsLoading ? (
+              <Skeleton className="h-10 w-full" />
+            ) : emailBindingsError ? (
+              <p role="alert" className="text-xs text-amber-700 dark:text-amber-300">
+                연결 상태 확인 실패: {emailBindingsError}
+              </p>
+            ) : (
+              <ul className="space-y-1 text-xs text-gray-600 dark:text-gray-300">
+                {emailStatuses.map((status) => {
+                  const binding = emailBindings.find((item) => item.eventCode === STATUS_EMAIL_EVENT_CODE[status]);
+                  const connectionState = !binding?.configured
+                    ? '미연결'
+                    : !binding.templateActive ? '비활성' : binding.sendable ? '연결됨' : '발송 불가';
+                  return (
+                    <li key={status} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span>{INQUIRY_STATUS_LABEL[status]}</span>
+                      <span className={binding?.sendable ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300'}>
+                        {connectionState}
+                      </span>
+                      {binding?.templateId != null && (
+                        <Link
+                          href={`/admin/email-templates/${binding.templateId}/edit`}
+                          className="text-indigo-600 underline underline-offset-2 dark:text-indigo-300"
+                        >
+                          {binding.templateName ?? '템플릿 편집'}
+                        </Link>
+                      )}
+                      {!binding?.sendable && binding?.unavailableReason && <span>{binding.unavailableReason}</span>}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {statusSuccess && (
+            <p
+              ref={statusSuccessRef}
+              role="status"
+              tabIndex={-1}
+              className="rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950/30 dark:text-green-300"
             >
-              이메일 템플릿 관리
-            </Link>
+              {statusSuccess}
+            </p>
+          )}
+          {statusEmailWarning && (
+            <div role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+              <p>{statusEmailWarning}</p>
+              {statusTemplateSettingsUrl && (
+                <Link
+                  href={statusTemplateSettingsUrl}
+                  className="mt-1 inline-block font-medium underline underline-offset-2"
+                >
+                  이메일 템플릿 관리
+                </Link>
+              )}
+            </div>
           )}
         </div>
-      )}
+      </section>
 
-      <section className="space-y-3 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
+      <div role="tablist" aria-label="문의·요청 상세 탭" className="flex border-b border-gray-200 dark:border-gray-700">
+        {DETAIL_TABS.map((tab, index) => (
+          <button
+            key={tab.id}
+            ref={(element) => { tabRefs.current[index] = element; }}
+            type="button"
+            role="tab"
+            id={`inquiry-tab-${tab.id}`}
+            aria-controls={`inquiry-panel-${tab.id}`}
+            aria-selected={activeTab === tab.id}
+            tabIndex={activeTab === tab.id ? 0 : -1}
+            onClick={() => setActiveTab(tab.id)}
+            onKeyDown={(event) => {
+              let nextIndex: number;
+              switch (event.key) {
+                case 'ArrowRight': nextIndex = (index + 1) % DETAIL_TABS.length; break;
+                case 'ArrowLeft': nextIndex = (index - 1 + DETAIL_TABS.length) % DETAIL_TABS.length; break;
+                case 'Home': nextIndex = 0; break;
+                case 'End': nextIndex = DETAIL_TABS.length - 1; break;
+                default: return;
+              }
+              event.preventDefault();
+              setActiveTab(DETAIL_TABS[nextIndex].id);
+              tabRefs.current[nextIndex]?.focus();
+            }}
+            className={`border-b-2 px-4 py-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+              activeTab === tab.id
+                ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-300'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        role="tabpanel"
+        id="inquiry-panel-conversation"
+        aria-labelledby="inquiry-tab-conversation"
+        hidden={activeTab !== 'conversation'}
+        tabIndex={0}
+        className="space-y-6"
+      >
+        <section className="space-y-3" aria-label="문의·요청 대화">
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">대화 이력</h3>
+          <InquiryTimeline inquiry={inquiry} context="ADMIN" />
+        </section>
+
+        {!closed && (
+          <section className="space-y-3">
+            <InquiryMessageComposer inquiryId={inquiry.id} admin onSent={handleMessageSent} />
+          </section>
+        )}
+      </div>
+
+      <section
+        role="tabpanel"
+        id="inquiry-panel-deliveries"
+        aria-labelledby="inquiry-tab-deliveries"
+        hidden={activeTab !== 'deliveries'}
+        tabIndex={0}
+        className="space-y-3 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"
+      >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">이메일 발송 이력</h3>

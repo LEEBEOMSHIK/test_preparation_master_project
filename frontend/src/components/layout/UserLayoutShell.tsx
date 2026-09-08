@@ -9,6 +9,7 @@ import { authService } from '@/services/authService';
 import { menuService } from '@/services/menuService';
 import { PermissionDeniedModal } from '@/components/ui/PermissionDeniedModal';
 import { normalizeInquiryMenuNames } from '@/lib/menu';
+import { LegalLinks } from '@/components/ui/LegalLinks';
 import type { MenuConfig } from '@/types';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -386,6 +387,9 @@ export default function UserLayoutShell({ children }: { children: React.ReactNod
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
           {children}
         </div>
+        <footer className="max-w-5xl mx-auto px-4 sm:px-6 py-6 border-t border-gray-200 dark:border-gray-800">
+          <LegalLinks />
+        </footer>
       </main>
 
       {/* ── Mobile group panel (펼쳐진 그룹의 자식 목록) ── */}

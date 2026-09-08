@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { CardListSkeleton } from '@/components/ui/Skeleton';
 import { QuestionDetailModal } from '@/components/ui/QuestionDetailModal';
+import { ListPagination } from '@/components/ui/ListPagination';
+import { ListLoadError } from '@/components/ui/ListLoadError';
 import { bookmarkService } from '@/services/bookmarkService';
 import { stripHtml } from '@/lib/html';
 import type { BookmarkQuestion, QuestionType } from '@/types';
@@ -48,17 +50,38 @@ export default function BookmarksPage() {
   const [loading, setLoading] = useState(true);
   const [selectedQuestion, setSelectedQuestion] = useState<QuestionDetailItem | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(5);
+  const [loadError, setLoadError] = useState(false);
+  const requestIdRef = useRef(0);
 
-  useEffect(() => {
+  const loadBookmarks = useCallback(() => {
+    const requestId = ++requestIdRef.current;
+    setLoading(true);
+    setLoadError(false);
     bookmarkService.getBookmarks()
       .then((res) => {
+        if (requestId !== requestIdRef.current) return;
         if (res.data.success && res.data.data) {
           setBookmarks(res.data.data);
+        } else {
+          setLoadError(true);
         }
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (requestId === requestIdRef.current) setLoadError(true);
+      })
+      .finally(() => {
+        if (requestId === requestIdRef.current) setLoading(false);
+      });
   }, []);
+
+  useEffect(() => {
+    loadBookmarks();
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, [loadBookmarks]);
 
   const handleRemoveBookmark = useCallback(async (bq: BookmarkQuestion, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -77,11 +100,28 @@ export default function BookmarksPage() {
     }
   }, [togglingId]);
 
+  useEffect(() => {
+    const lastPage = Math.max(0, Math.ceil(bookmarks.length / pageSize) - 1);
+    setPage(currentPage => Math.min(currentPage, lastPage));
+  }, [bookmarks.length, pageSize]);
+
+  const totalPages = Math.ceil(bookmarks.length / pageSize);
+  const visibleBookmarks = bookmarks.slice(page * pageSize, (page + 1) * pageSize);
+
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto space-y-4">
         <h1 className="text-lg font-bold text-gray-900">복습 표시</h1>
         <CardListSkeleton rows={6} />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-4">
+        <h1 className="text-lg font-bold text-gray-900">복습 표시</h1>
+        <ListLoadError message="복습 표시를 불러오지 못했습니다." onRetry={loadBookmarks} />
       </div>
     );
   }
@@ -127,8 +167,8 @@ export default function BookmarksPage() {
         )}
       </div>
 
-      <div className="grid gap-3">
-        {bookmarks.map((bq) => {
+      <div id="bookmark-list" className="grid gap-3">
+        {visibleBookmarks.map((bq) => {
           const preview = stripHtml(bq.content);
           return (
             <div
@@ -198,6 +238,19 @@ export default function BookmarksPage() {
           );
         })}
       </div>
+
+      <ListPagination
+        page={page}
+        totalPages={totalPages}
+        totalElements={bookmarks.length}
+        pageSize={pageSize}
+        onChange={setPage}
+        onPageSizeChange={(nextPageSize) => {
+          setPage(0);
+          setPageSize(nextPageSize);
+        }}
+        scrollTargetId="bookmark-list"
+      />
 
       <QuestionDetailModal
         question={selectedQuestion}

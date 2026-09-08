@@ -15,6 +15,10 @@ public interface ConceptNoteRepository extends JpaRepository<ConceptNote, Long> 
            countQuery = "SELECT COUNT(n) FROM ConceptNote n WHERE n.user.id = :userId")
     Page<ConceptNote> findByUserIdWithRelations(@Param("userId") Long userId, Pageable pageable);
 
+    @Query(value = "SELECT n FROM ConceptNote n LEFT JOIN FETCH n.question LEFT JOIN FETCH n.questionBank WHERE n.user.id = :userId AND (CAST(:keyword AS string) IS NULL OR LOWER(n.title) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) ESCAPE '!')",
+           countQuery = "SELECT COUNT(n) FROM ConceptNote n WHERE n.user.id = :userId AND (CAST(:keyword AS string) IS NULL OR LOWER(n.title) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) ESCAPE '!')")
+    Page<ConceptNote> searchOwnedByTitle(@Param("userId") Long userId, @Param("keyword") String keyword, Pageable pageable);
+
     @Query("SELECT n FROM ConceptNote n LEFT JOIN FETCH n.question LEFT JOIN FETCH n.questionBank WHERE n.id = :id")
     Optional<ConceptNote> findByIdWithRelations(@Param("id") Long id);
 

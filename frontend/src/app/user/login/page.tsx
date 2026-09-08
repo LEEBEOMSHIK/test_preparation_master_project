@@ -8,6 +8,8 @@ import { useAuthStore } from '@/store/authStore';
 import { Skeleton } from '@/components/ui/Skeleton';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { extractApiErrorMessage } from '@/lib/apiError';
+import { LegalLinks } from '@/components/ui/LegalLinks';
+import { LEGAL_INFO } from '@/lib/legal';
 
 function UserLoginFallback() {
   return (
@@ -142,6 +144,14 @@ function UserLoginContent() {
               </svg>
               Google로 로그인
             </button>
+            <div className="mt-4 space-y-2 text-xs leading-relaxed text-gray-600 dark:text-gray-300">
+              {LEGAL_INFO.minimumAge !== null && (
+                <p>TPMP는 만 {LEGAL_INFO.minimumAge}세 이상만 이용할 수 있으며, 만 {LEGAL_INFO.minimumAge}세 미만은 이용할 수 없습니다.</p>
+              )}
+              <p>처음 Google로 로그인하면 TPMP 계정이 생성됩니다. 이메일·이름·Google 계정 식별자를 계정 관리와 문의 응답 등에 사용합니다.</p>
+              <p>Google 로그인은 Gmail 메일함을 읽거나 관리할 권한을 요청하지 않습니다.</p>
+              <LegalLinks />
+            </div>
           </div>
 
           <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-5">

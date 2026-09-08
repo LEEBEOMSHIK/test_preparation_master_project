@@ -37,9 +37,10 @@ public class UserConceptNoteController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<Page<ConceptNoteResponse>>> getMyNotes(
+            @RequestParam(required = false) String keyword,
             Pageable pageable,
             @AuthenticationPrincipal String email) {
-        return ResponseEntity.ok(ApiResponse.success(conceptNoteService.getMyNotes(email, pageable)));
+        return ResponseEntity.ok(ApiResponse.success(conceptNoteService.getMyNotes(email, keyword, pageable)));
     }
 
     @GetMapping("/{id}")

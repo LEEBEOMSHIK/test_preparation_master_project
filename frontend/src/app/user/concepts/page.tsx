@@ -6,9 +6,9 @@ import { conceptNoteService } from '@/services/conceptNoteService';
 import { notionService, type NotionStatus } from '@/services/notionService';
 import { CardListSkeleton } from '@/components/ui/Skeleton';
 import { stripHtml } from '@/lib/html';
+import { ListPagination } from '@/components/ui/ListPagination';
+import { extractApiErrorMessage } from '@/lib/apiError';
 import type { ConceptNote } from '@/types';
-
-const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 export default function UserConceptsPage() {
   const router = useRouter();
@@ -16,10 +16,13 @@ export default function UserConceptsPage() {
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(5);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reload, setReload] = useState(0);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // Notion 연동 상태 — 연결 관리는 설정(/user/settings)에서, 여기선 내보내기 버튼 노출 판단용
   const [notion, setNotion] = useState<NotionStatus | null>(null);
@@ -45,25 +48,31 @@ export default function UserConceptsPage() {
   }
 
   useEffect(() => {
+    let active = true;
     setLoading(true);
-    conceptNoteService.getMyNotes(page, pageSize)
+    setError('');
+    conceptNoteService.getMyNotes(page, pageSize, search || undefined)
       .then(res => {
+        if (!active) return;
         const data = res.data.data;
-        if (data) {
+        if (!data) throw new Error('Missing page response');
+        if (page > 0 && page >= data.totalPages) {
+          setPage(Math.max(0, data.totalPages - 1));
+        } else {
           setNotes(data.content);
           setTotalElements(data.totalElements);
           setTotalPages(data.totalPages);
         }
       })
-      .finally(() => setLoading(false));
-  }, [page, pageSize]);
-
-  const filtered = search
-    ? notes.filter(n => n.title.toLowerCase().includes(search.toLowerCase()))
-    : notes;
+      .catch((err: unknown) => {
+        if (active) setError(extractApiErrorMessage(err, '개념노트를 불러오지 못했습니다.'));
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [page, pageSize, search, reload]);
 
   function handleSearch() {
-    setSearch(searchInput);
+    setSearch(searchInput.trim());
     setPage(0);
   }
 
@@ -72,12 +81,17 @@ export default function UserConceptsPage() {
     setPage(0);
   }
 
-  function handleDelete(id: number) {
+  async function handleDelete(id: number) {
     if (!confirm('개념노트를 삭제하시겠습니까?')) return;
-    conceptNoteService.delete(id).then(() => {
-      setNotes(prev => prev.filter(n => n.id !== id));
-      setTotalElements(prev => prev - 1);
-    });
+    setDeletingId(id);
+    try {
+      await conceptNoteService.delete(id);
+      setReload(value => value + 1);
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, '개념노트를 삭제하지 못했습니다.'));
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -109,27 +123,24 @@ export default function UserConceptsPage() {
         >
           검색
         </button>
-        <select
-          value={pageSize}
-          onChange={e => handlePageSizeChange(Number(e.target.value))}
-          className="shrink-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none"
-        >
-          {PAGE_SIZE_OPTIONS.map(s => (
-            <option key={s} value={s}>{s}개</option>
-          ))}
-        </select>
       </div>
 
       {/* List */}
+      <div id="my-concept-list" className="scroll-mt-24">
       {loading ? (
         <CardListSkeleton rows={5} />
-      ) : filtered.length === 0 ? (
+      ) : error ? (
+        <div role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
+          <p>{error}</p>
+          <button onClick={() => setReload(value => value + 1)} className="mt-2 underline">다시 시도</button>
+        </div>
+      ) : notes.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           {search ? '검색 결과가 없습니다.' : '작성된 개념노트가 없습니다.'}
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map(note => (
+          {notes.map(note => (
             <div
               key={note.id}
               className="bg-white border border-gray-200 rounded-xl p-4 hover:border-indigo-300 transition-colors cursor-pointer"
@@ -163,7 +174,7 @@ export default function UserConceptsPage() {
                       {stripHtml(note.questionContent || note.questionBankContent || '')}
                     </p>
                   )}
-                  <p className="text-sm text-gray-500 line-clamp-2">{note.content}</p>
+                  <p className="text-sm text-gray-500 line-clamp-2">{stripHtml(note.content)}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xs text-gray-400">
@@ -180,6 +191,7 @@ export default function UserConceptsPage() {
                   )}
                   <button
                     onClick={e => { e.stopPropagation(); handleDelete(note.id); }}
+                    disabled={deletingId !== null}
                     className="text-xs text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 px-2 py-1 rounded"
                   >
                     삭제
@@ -190,41 +202,14 @@ export default function UserConceptsPage() {
           ))}
         </div>
       )}
+      </div>
 
       {/* Pagination */}
-      {!search && totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-6">
-          <button
-            disabled={page === 0}
-            onClick={() => setPage(p => p - 1)}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-          >
-            이전
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i)}
-              className={`px-3 py-1.5 text-sm rounded-lg border ${
-                i === page
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            disabled={page >= totalPages - 1}
-            onClick={() => setPage(p => p + 1)}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-          >
-            다음
-          </button>
-        </div>
+      {!loading && !error && (
+        <ListPagination page={page} totalPages={totalPages} totalElements={totalElements}
+          pageSize={pageSize} onChange={setPage} onPageSizeChange={handlePageSizeChange}
+          scrollTargetId="my-concept-list" />
       )}
-
-      <p className="text-xs text-gray-400 text-right mt-3">전체 {totalElements}개</p>
     </div>
   );
 }

@@ -5,8 +5,10 @@ import com.tpmp.testprep.dto.response.ExamSessionResponse;
 import com.tpmp.testprep.dto.response.ExaminationDetailResponse;
 import com.tpmp.testprep.dto.response.ExaminationResponse;
 import com.tpmp.testprep.dto.response.ExaminationSubmitResponse;
+import com.tpmp.testprep.dto.request.UserExaminationSearchRequest;
 import com.tpmp.testprep.dto.response.PagedResponse;
 import com.tpmp.testprep.dto.response.QuestionResultResponse;
+import com.tpmp.testprep.dto.response.UserExaminationFilterOptionsResponse;
 import com.tpmp.testprep.dto.response.UserExamHistoryResponse;
 import com.tpmp.testprep.entity.Exam;
 import com.tpmp.testprep.entity.ExamHistory;
@@ -93,10 +95,62 @@ public class UserExaminationService {
         return ExamSessionResponse.of(session, remainingSeconds);
     }
 
-    /** 시험 목록 조회 — 삭제되지 않고 활성(del_yn='N' AND use_yn='Y')인 시험만 노출 */
+    /** 기존 무조건 조회 호출 호환용. */
     public Page<ExaminationResponse> getExaminations(Pageable pageable) {
-        return examinationRepository.findAllWithDetailsActive(pageable)
+        return getExaminations(UserExaminationSearchRequest.empty(), pageable);
+    }
+
+    /** 시험 목록 조회 — 활성 시험에 검색 조건을 적용한 뒤 서버에서 페이지를 계산한다. */
+    public Page<ExaminationResponse> getExaminations(
+            UserExaminationSearchRequest request,
+            Pageable pageable
+    ) {
+        String title = normalizeTitlePattern(request.title());
+        String category = normalizeOptionalText(request.category());
+        List<String> normalizedInterests = request.interests().stream()
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .distinct()
+                .toList();
+        boolean filterInterests = !normalizedInterests.isEmpty();
+        List<String> repositoryInterests = filterInterests
+                ? normalizedInterests
+                : List.of("__NO_INTEREST_FILTER__");
+
+        return examinationRepository.searchActive(
+                        title,
+                        category,
+                        repositoryInterests,
+                        filterInterests,
+                        request.year(),
+                        request.round(),
+                        request.aiCustom(),
+                        pageable
+                )
                 .map(ExaminationResponse::from);
+    }
+
+    /** 현재 페이지와 무관한 전체 활성 시험의 연도·회차 선택지. */
+    public UserExaminationFilterOptionsResponse getFilterOptions() {
+        return new UserExaminationFilterOptionsResponse(
+                examinationRepository.findActiveYears(),
+                examinationRepository.findActiveRounds()
+        );
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null) return null;
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String normalizeTitlePattern(String value) {
+        String normalized = normalizeOptionalText(value);
+        if (normalized == null) return null;
+        return normalized
+                .replace("!", "!!")
+                .replace("%", "!%")
+                .replace("_", "!_");
     }
 
     /** 시험 상세 조회 (문항 포함, RANDOM 모드 시 셔플) — 진입점이므로 삭제되지 않고 활성인 시험·문항만 노출 */

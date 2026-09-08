@@ -3,22 +3,29 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { examinationService } from '@/services/examinationService';
+import type { UserExaminationFilterOptions, UserExaminationSearchOptions } from '@/services/examinationService';
 import { examInfoService } from '@/services/examInfoService';
 import type { ExamTypeOption } from '@/services/examInfoService';
 import { quoteService } from '@/services/quoteService';
 import { useAuthStore } from '@/store/authStore';
 import { CardListSkeleton } from '@/components/ui/Skeleton';
+import { ListPagination } from '@/components/ui/ListPagination';
+import { ApiApplicationError, extractApiErrorMessage } from '@/lib/apiError';
 import type { Examination, Quote } from '@/types';
 
-const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
-type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
+const EXAM_LIST_ID = 'user-examination-list';
 
 export default function UserExamsPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const [allExams, setAllExams] = useState<Examination[]>([]);
+  const [exams, setExams] = useState<Examination[]>([]);
   const [examTypes, setExamTypes] = useState<ExamTypeOption[]>([]);
+  const [filterOptions, setFilterOptions] = useState<UserExaminationFilterOptions>({ years: [], rounds: [] });
+  const [filterMetadataError, setFilterMetadataError] = useState<string | null>(null);
+  const [filterMetadataRetryKey, setFilterMetadataRetryKey] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [showQuote, setShowQuote] = useState(false);
   const [dontShowToday, setDontShowToday] = useState(false);
@@ -32,32 +39,55 @@ export default function UserExamsPage() {
   const [filterExpanded, setFilterExpanded] = useState(false);
   const [showAllExams, setShowAllExams] = useState(false);
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState<PageSize>(20);
+  const [pageSize, setPageSize] = useState(5);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [selectedExam, setSelectedExam] = useState<Examination | null>(null);
+  const requestIdRef = useRef(0);
 
   const STORAGE_KEY = 'tpmp_quote_hidden_until';
 
   useEffect(() => {
+    let cancelled = false;
+    setFilterMetadataError(null);
+    void Promise.all([
+      examInfoService.getExamTypes(),
+      examinationService.userGetExaminationFilters(),
+    ]).then(([typesRes, filtersRes]) => {
+      if (!typesRes.data.success || !typesRes.data.data) {
+        throw new ApiApplicationError(typesRes.data.error?.message ?? '필터 정보를 불러오지 못했습니다.');
+      }
+      if (!filtersRes.data.success || !filtersRes.data.data) {
+        throw new ApiApplicationError(filtersRes.data.error?.message ?? '필터 정보를 불러오지 못했습니다.');
+      }
+      if (!cancelled) {
+        setExamTypes(typesRes.data.data);
+        setFilterOptions(filtersRes.data.data);
+      }
+    }).catch(cause => {
+      if (!cancelled) {
+        setFilterMetadataError(extractApiErrorMessage(cause, '필터 정보를 불러오지 못했습니다.'));
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [filterMetadataRetryKey]);
+
+  useEffect(() => {
+    let cancelled = false;
     const hiddenUntil = Number(localStorage.getItem(STORAGE_KEY) ?? '0');
     const isHidden = hiddenUntil > Date.now();
 
-    Promise.all([
-      examinationService.userGetExaminations(0, 500),
-      !quoteFetched.current && !isHidden ? quoteService.getRandom() : Promise.resolve(null),
-      examInfoService.getExamTypes(),
-    ]).then(([examRes, quoteRes, typesRes]) => {
-      if (examRes.data.success && examRes.data.data) {
-        setAllExams(examRes.data.data.content);
-      }
-      if (quoteRes && quoteRes.data.success && quoteRes.data.data) {
+    if (!quoteFetched.current && !isHidden) {
+      void quoteService.getRandom().then(quoteRes => {
+        if (cancelled || !quoteRes.data.success || !quoteRes.data.data) return;
         setQuote(quoteRes.data.data);
         setShowQuote(true);
         quoteFetched.current = true;
-      }
-      if (typesRes.data.success && typesRes.data.data) {
-        setExamTypes(typesRes.data.data);
-      }
-    }).finally(() => setLoading(false));
+      }).catch(() => undefined);
+    }
+
+    return () => { cancelled = true; };
   }, []);
 
   const handleCloseQuote = () => {
@@ -67,30 +97,75 @@ export default function UserExamsPage() {
 
   const interestedNames = user?.interestedExamTypes ?? [];
   const hasInterests = interestedNames.length > 0;
+  const interestKey = interestedNames.join('\u0000');
+  const previousInterestKeyRef = useRef(interestKey);
+
+  useEffect(() => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    const interestsChanged = previousInterestKeyRef.current !== interestKey;
+    previousInterestKeyRef.current = interestKey;
+    if (interestsChanged && page !== 0) {
+      setPage(0);
+      return;
+    }
+    const filters: UserExaminationSearchOptions = {};
+    const normalizedTitle = searchTitle.trim();
+    if (normalizedTitle) filters.title = normalizedTitle;
+    if (filterCategory !== 'ALL') filters.category = filterCategory;
+    if (!showAllExams && hasInterests) filters.interests = interestedNames;
+    if (filterYear !== 'ALL') filters.year = Number(filterYear);
+    if (filterRound !== 'ALL') filters.round = Number(filterRound);
+    if (filterAiCustom !== 'ALL') filters.aiCustom = filterAiCustom === 'AI_CUSTOM';
+
+    setLoading(true);
+    setError(null);
+    void examinationService.userGetExaminations(page, pageSize, filters)
+      .then(response => {
+        if (requestId !== requestIdRef.current) return;
+        if (!response.data.success || !response.data.data) {
+          throw new ApiApplicationError(response.data.error?.message ?? '시험 목록을 불러오지 못했습니다.');
+        }
+        const result = response.data.data;
+        const lastPage = Math.max(0, result.totalPages - 1);
+        if (page > lastPage) {
+          setPage(lastPage);
+          return;
+        }
+        setExams(result.content);
+        setTotalElements(result.totalElements);
+        setTotalPages(result.totalPages);
+      })
+      .catch(cause => {
+        if (requestId !== requestIdRef.current) return;
+        setExams([]);
+        setTotalElements(0);
+        setTotalPages(0);
+        setError(extractApiErrorMessage(cause, '시험 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'));
+      })
+      .finally(() => {
+        if (requestId === requestIdRef.current) setLoading(false);
+      });
+  }, [
+    page,
+    pageSize,
+    searchTitle,
+    filterCategory,
+    filterYear,
+    filterRound,
+    filterAiCustom,
+    showAllExams,
+    hasInterests,
+    interestKey,
+    retryKey,
+  ]);
 
   const comboOptions = (!showAllExams && hasInterests)
     ? examTypes.filter(t => interestedNames.includes(t.name))
     : examTypes;
 
-  const yearOptions = Array.from(
-    new Set(allExams.map(e => e.examYear).filter((y): y is number => y != null))
-  ).sort((a, b) => b - a);
-  const roundOptions = Array.from(
-    new Set(allExams.map(e => e.examRound).filter((r): r is number => r != null))
-  ).sort((a, b) => b - a);
-
-  const filteredExams = allExams.filter(exam => {
-    const titleMatch = !searchTitle.trim() || exam.title.toLowerCase().includes(searchTitle.toLowerCase());
-    const categoryMatch = filterCategory === 'ALL' || exam.categoryName === filterCategory;
-    const interestedMatch = showAllExams || !hasInterests || interestedNames.includes(exam.categoryName);
-    const yearMatch = filterYear === 'ALL' || exam.examYear === Number(filterYear);
-    const roundMatch = filterRound === 'ALL' || exam.examRound === Number(filterRound);
-    const aiCustomMatch =
-      filterAiCustom === 'ALL' ||
-      (filterAiCustom === 'AI_CUSTOM' && exam.isAiCustom) ||
-      (filterAiCustom === 'ORIGINAL' && !exam.isAiCustom);
-    return titleMatch && categoryMatch && interestedMatch && yearMatch && roundMatch && aiCustomMatch;
-  });
+  const yearOptions = filterOptions.years;
+  const roundOptions = filterOptions.rounds;
 
   const activeFilterCount = [
     filterCategory !== 'ALL',
@@ -99,9 +174,6 @@ export default function UserExamsPage() {
     filterAiCustom !== 'ALL',
   ].filter(Boolean).length;
 
-  const totalPages = Math.max(1, Math.ceil(filteredExams.length / pageSize));
-  const pagedExams = filteredExams.slice(page * pageSize, (page + 1) * pageSize);
-
   const resetPage = () => setPage(0);
 
   const handleToggleShowAll = () => {
@@ -109,6 +181,15 @@ export default function UserExamsPage() {
     setFilterCategory('ALL');
     resetPage();
   };
+
+  const hasAppliedFilters = Boolean(
+    searchTitle.trim() ||
+    filterCategory !== 'ALL' ||
+    filterYear !== 'ALL' ||
+    filterRound !== 'ALL' ||
+    filterAiCustom !== 'ALL' ||
+    (!showAllExams && hasInterests)
+  );
 
   return (
     <div className="space-y-4">
@@ -248,6 +329,7 @@ export default function UserExamsPage() {
           ].join(' ')}
         >
           <select
+            aria-label="시험 유형"
             value={filterCategory}
             onChange={e => { setFilterCategory(e.target.value); resetPage(); }}
             className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
@@ -256,6 +338,7 @@ export default function UserExamsPage() {
             {comboOptions.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
           </select>
           <select
+            aria-label="시험 연도"
             value={filterYear}
             onChange={e => { setFilterYear(e.target.value); resetPage(); }}
             className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
@@ -264,6 +347,7 @@ export default function UserExamsPage() {
             {yearOptions.map(y => <option key={y} value={y}>{y}년</option>)}
           </select>
           <select
+            aria-label="시험 회차"
             value={filterRound}
             onChange={e => { setFilterRound(e.target.value); resetPage(); }}
             className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
@@ -272,6 +356,7 @@ export default function UserExamsPage() {
             {roundOptions.map(r => <option key={r} value={r}>{r}회</option>)}
           </select>
           <select
+            aria-label="시험 출처"
             value={filterAiCustom}
             onChange={e => { setFilterAiCustom(e.target.value as 'ALL' | 'ORIGINAL' | 'AI_CUSTOM'); resetPage(); }}
             className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
@@ -283,37 +368,42 @@ export default function UserExamsPage() {
         </div>
       </div>
 
-      {loading ? (
-        <CardListSkeleton rows={6} />
-      ) : filteredExams.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-400 text-sm">
-          {allExams.length === 0 ? '등록된 시험이 없습니다.' : '검색 조건에 맞는 시험이 없습니다.'}
+      {filterMetadataError && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-amber-800">{filterMetadataError}</p>
+          <button
+            type="button"
+            onClick={() => setFilterMetadataRetryKey(value => value + 1)}
+            className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
+          >
+            필터 다시 시도
+          </button>
         </div>
-      ) : (
-        <>
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">
-              총 <span className="font-semibold text-gray-900">{filteredExams.length}</span>건
-              {(searchTitle || filterCategory !== 'ALL' || filterYear !== 'ALL' || filterRound !== 'ALL' || filterAiCustom !== 'ALL' || (!showAllExams && hasInterests)) && (
-                <span className="ml-1 text-indigo-500 text-xs">(필터 적용)</span>
-              )}
-            </p>
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-400 mr-1">표시</span>
-              {PAGE_SIZE_OPTIONS.map(s => (
-                <button key={s} onClick={() => { setPageSize(s); setPage(0); }}
-                  className={[
-                    'px-2.5 py-1 text-xs rounded-lg border transition',
-                    pageSize === s ? 'bg-indigo-600 text-white border-indigo-600' : 'text-gray-600 border-gray-300 hover:border-indigo-400',
-                  ].join(' ')}>
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
+      )}
 
-          <div className="grid gap-3">
-            {pagedExams.map(exam => (
+      <div id={EXAM_LIST_ID} className="scroll-mt-24 space-y-4">
+        {loading ? (
+          <CardListSkeleton rows={5} />
+        ) : error ? (
+          <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+            <p className="text-sm text-red-700">{error}</p>
+            <button
+              type="button"
+              onClick={() => setRetryKey(value => value + 1)}
+              className="mt-3 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm text-red-700 hover:bg-red-100"
+            >
+              다시 시도
+            </button>
+          </div>
+        ) : (
+          <>
+            {exams.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-400 text-sm">
+                {hasAppliedFilters ? '검색 조건에 맞는 시험이 없습니다.' : '등록된 시험이 없습니다.'}
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {exams.map(exam => (
               <button key={exam.id} onClick={() => setSelectedExam(exam)}
                 className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between hover:border-indigo-400 hover:shadow-md transition group text-left w-full">
                 <div className="flex-1 min-w-0">
@@ -339,24 +429,24 @@ export default function UserExamsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
-            ))}
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition">
-                이전
-              </button>
-              <span className="text-sm text-gray-500">{page + 1} / {totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition">
-                다음
-              </button>
-            </div>
-          )}
-        </>
-      )}
+                ))}
+              </div>
+            )}
+            <ListPagination
+              page={page}
+              totalPages={totalPages}
+              totalElements={totalElements}
+              pageSize={pageSize}
+              onChange={setPage}
+              onPageSizeChange={nextPageSize => {
+                setPageSize(nextPageSize);
+                setPage(0);
+              }}
+              scrollTargetId={EXAM_LIST_ID}
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 }

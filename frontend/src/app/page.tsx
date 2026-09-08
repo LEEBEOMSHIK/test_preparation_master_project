@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { LegalLinks } from '@/components/ui/LegalLinks';
 
 export default function HomePage() {
   const router = useRouter();
@@ -41,24 +42,9 @@ export default function HomePage() {
         회원가입
       </Link>
 
-      {/* 테스트용 바로가기 */}
-      <div className="border border-dashed border-gray-300 rounded-xl p-5 text-center w-full max-w-xs">
-        <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide">테스트 바로가기</p>
-        <div className="flex flex-col gap-2">
-          <Link
-            href="/user/login"
-            className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-100 transition"
-          >
-            사용자 로그인 (User)
-          </Link>
-          <Link
-            href="/admin/login"
-            className="bg-gray-100 text-gray-700 border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
-          >
-            관리자 로그인 (Admin)
-          </Link>
-        </div>
-      </div>
+      <footer className="w-full max-w-lg border-t border-gray-200 pt-6 pb-8">
+        <LegalLinks className="justify-center" />
+      </footer>
     </main>
   );
 }

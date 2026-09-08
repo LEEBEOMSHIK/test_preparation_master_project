@@ -1,3 +1,33 @@
+## HIST-20260909-001
+
+- **날짜**: 2026-09-09
+- **수정 범위**: 사용자 프론트엔드 / 시험 이력 목록 페이지 표시 통일
+- **수정 개요**: 기존 서버 10개 단위 조회와 상세 이동을 유지하면서 자체 이전/다음 UI를 공용 `ListPagination`으로 교체해 현재 범위·전체 건수·축약 페이지 번호·목록 상단 이동을 제공했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exam-history/page.tsx` | 수정 | 기존 10개 API 호출을 유지하며 공용 페이지네이션 적용 |
+| `frontend/src/app/user/exam-history/page.test.tsx` | 추가 | 10개 조회 계약과 다음 페이지 조회 회귀 테스트 |
+| `frontend/src/components/ui/ListPagination.tsx` | 추가 | 목록 페이지네이션 공용 UI |
+| `frontend/src/components/ui/ListLoadError.tsx` | 추가 | 조회 실패와 빈 상태를 구분하는 재시도 UI |
+| `frontend/src/components/ui/ListPagination.test.tsx` | 추가 | 공용 페이지네이션 계약 테스트 |
+| `AGENTS.md` | 수정 | 새 공용 UI 사용 표 등록 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exam-history/page.tsx`
+- 변경 전: 총 페이지가 2 이상일 때만 이전·다음 버튼과 `페이지 n / 전체` 문구를 별도 구현했다.
+- 변경 후: 조회 크기 10은 고정한 채 공용 UI로 범위와 전체 건수를 항상 표시하고 페이지 번호 및 이동 후 상단 스크롤을 통일했다. 요청 ID로 늦은 응답을 무시하고 조회 실패에는 같은 페이지 재시도를 제공한다.
+- 이유: 사용자 목록의 페이지 이동 경험과 건수 표현을 일관되게 제공하기 위해서다.
+
+### 복원 방법
+
+이 ID(`UserExamHistory_Modified.md` 기준 HIST-20260909-001)로 복원 시 시험 이력 페이지의 `ListPagination`과 목록 래퍼 ID를 제거하고 기존 이전·다음 버튼 블록을 복원한다. 공용 컴포넌트는 다른 메뉴에서도 사용하므로 함께 제거하지 않는다.
+
+---
+
 ## HIST-20260826-001
 
 - **날짜**: 2026-08-26

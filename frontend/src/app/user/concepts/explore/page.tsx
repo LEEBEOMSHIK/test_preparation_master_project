@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import { conceptNoteService } from '@/services/conceptNoteService';
 import { CardListSkeleton } from '@/components/ui/Skeleton';
 import { stripHtml } from '@/lib/html';
+import { ListPagination } from '@/components/ui/ListPagination';
+import { extractApiErrorMessage } from '@/lib/apiError';
 import type { ConceptNote } from '@/types';
-
-const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 export default function ConceptExploreListPage() {
   const router = useRouter();
@@ -15,27 +15,39 @@ export default function ConceptExploreListPage() {
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(5);
   const [searchInput, setSearchInput] = useState('');
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
+    let active = true;
     setLoading(true);
+    setError('');
     conceptNoteService.getPublicNotes(page, pageSize, keyword || undefined)
       .then(res => {
+        if (!active) return;
         const data = res.data.data;
-        if (data) {
+        if (!data) throw new Error('Missing page response');
+        if (page > 0 && page >= data.totalPages) {
+          setPage(Math.max(0, data.totalPages - 1));
+        } else {
           setNotes(data.content);
           setTotalElements(data.totalElements);
           setTotalPages(data.totalPages);
         }
       })
-      .finally(() => setLoading(false));
-  }, [page, pageSize, keyword]);
+      .catch((err: unknown) => {
+        if (active) setError(extractApiErrorMessage(err, '공개 개념노트를 불러오지 못했습니다.'));
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [page, pageSize, keyword, reload]);
 
   function handleSearch() {
-    setKeyword(searchInput);
+    setKeyword(searchInput.trim());
     setPage(0);
   }
 
@@ -66,20 +78,17 @@ export default function ConceptExploreListPage() {
         >
           검색
         </button>
-        <select
-          value={pageSize}
-          onChange={e => handlePageSizeChange(Number(e.target.value))}
-          className="shrink-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none"
-        >
-          {PAGE_SIZE_OPTIONS.map(s => (
-            <option key={s} value={s}>{s}개</option>
-          ))}
-        </select>
       </div>
 
       {/* 목록 */}
+      <div id="public-concept-list" className="scroll-mt-24">
       {loading ? (
         <CardListSkeleton rows={5} />
+      ) : error ? (
+        <div role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
+          <p>{error}</p>
+          <button onClick={() => setReload(value => value + 1)} className="mt-2 underline">다시 시도</button>
+        </div>
       ) : notes.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           {keyword
@@ -119,41 +128,14 @@ export default function ConceptExploreListPage() {
           ))}
         </div>
       )}
+      </div>
 
       {/* 페이지네이션 */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-6">
-          <button
-            disabled={page === 0}
-            onClick={() => setPage(p => p - 1)}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-          >
-            이전
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i)}
-              className={`px-3 py-1.5 text-sm rounded-lg border ${
-                i === page
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            disabled={page >= totalPages - 1}
-            onClick={() => setPage(p => p + 1)}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-          >
-            다음
-          </button>
-        </div>
+      {!loading && !error && (
+        <ListPagination page={page} totalPages={totalPages} totalElements={totalElements}
+          pageSize={pageSize} onChange={setPage} onPageSizeChange={handlePageSizeChange}
+          scrollTargetId="public-concept-list" />
       )}
-
-      <p className="text-xs text-gray-400 text-right mt-3">전체 {totalElements}개</p>
     </div>
   );
 }

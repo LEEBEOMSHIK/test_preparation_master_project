@@ -20,8 +20,10 @@ export const conceptNoteService = {
     apiClient.get<ApiResponse<ConceptNote>>(`/user/concepts/public/${id}`),
 
   // User — My Notes
-  getMyNotes: (page = 0, size = 10) =>
-    apiClient.get<ApiResponse<PageResponse<ConceptNote>>>('/user/concepts', { params: { page, size } }),
+  getMyNotes: (page = 0, size = 10, keyword?: string) =>
+    apiClient.get<ApiResponse<PageResponse<ConceptNote>>>('/user/concepts', {
+      params: { page, size, ...(keyword ? { keyword } : {}) },
+    }),
 
   getMyNote: (id: number) =>
     apiClient.get<ApiResponse<ConceptNote>>(`/user/concepts/${id}`),

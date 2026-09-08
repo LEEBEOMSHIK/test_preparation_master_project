@@ -1,5 +1,6 @@
 package com.tpmp.testprep.controller;
 
+import com.tpmp.testprep.dto.request.UserExaminationSearchRequest;
 import com.tpmp.testprep.dto.response.ApiResponse;
 import com.tpmp.testprep.dto.response.ExamHistoryDetailResponse;
 import com.tpmp.testprep.dto.response.ExamSessionResponse;
@@ -8,7 +9,9 @@ import com.tpmp.testprep.dto.response.ExaminationResponse;
 import com.tpmp.testprep.dto.response.ExaminationSubmitResponse;
 import com.tpmp.testprep.dto.response.PagedResponse;
 import com.tpmp.testprep.dto.response.UserExamHistoryResponse;
+import com.tpmp.testprep.dto.response.UserExaminationFilterOptionsResponse;
 import com.tpmp.testprep.service.UserExaminationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,9 +30,20 @@ public class UserExaminationController {
 
     /** 시험 목록 */
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<ExaminationResponse>>> getExaminations(Pageable pageable) {
+    public ResponseEntity<ApiResponse<Page<ExaminationResponse>>> getExaminations(
+            @Valid @ModelAttribute UserExaminationSearchRequest request,
+            Pageable pageable
+    ) {
         return ResponseEntity.ok(ApiResponse.success(
-                userExaminationService.getExaminations(pageable)
+                userExaminationService.getExaminations(request, pageable)
+        ));
+    }
+
+    /** 전체 활성 시험의 연도·회차 필터 선택지 */
+    @GetMapping("/filters")
+    public ResponseEntity<ApiResponse<UserExaminationFilterOptionsResponse>> getFilterOptions() {
+        return ResponseEntity.ok(ApiResponse.success(
+                userExaminationService.getFilterOptions()
         ));
     }
 

@@ -113,6 +113,10 @@ describe('AdminInquiryDetailPage', () => {
     render(<AdminInquiryDetailPage />);
 
     const statusSelect = await screen.findByLabelText('처리 상태');
+    expect(screen.getByRole('region', { name: '기본정보' }).contains(statusSelect)).toBe(true);
+    expect(screen.queryByRole('region', { name: '상태 변경' })).toBeNull();
+    expect((statusSelect as HTMLSelectElement).value).toBe('IN_PROGRESS');
+    expect((screen.getByRole('button', { name: '변경 저장' }) as HTMLButtonElement).disabled).toBe(true);
     expect(statusSelect.textContent).toContain('답변 완료');
     expect(statusSelect.textContent).not.toContain('처리 완료');
     expect(statusSelect.textContent).not.toContain('처리 불가');
@@ -140,6 +144,32 @@ describe('AdminInquiryDetailPage', () => {
     expect(screen.queryByLabelText('종료 안내')).toBeNull();
   });
 
+  it('문의·답변과 이메일 이력을 탭으로 전환하고 기본정보는 유지한다', async () => {
+    render(<AdminInquiryDetailPage />);
+
+    const conversationTab = await screen.findByRole('tab', { name: '문의·답변' });
+    const deliveriesTab = screen.getByRole('tab', { name: '이메일 발송 이력' });
+    expect(conversationTab.getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tabpanel', { name: '문의·답변' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '발송 이력 새로고침' })).toBeNull();
+
+    fireEvent.click(deliveriesTab);
+    expect(screen.getByRole('tabpanel', { name: '이메일 발송 이력' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: '사용자에게 답변' })).toBeNull();
+    expect(screen.getByRole('region', { name: '기본정보' })).toBeTruthy();
+
+    fireEvent.keyDown(deliveriesTab, { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(conversationTab);
+    expect(screen.getByRole('heading', { name: '사용자에게 답변' })).toBeTruthy();
+    fireEvent.keyDown(conversationTab, { key: 'End' });
+    expect(document.activeElement).toBe(deliveriesTab);
+    fireEvent.keyDown(deliveriesTab, { key: 'Home' });
+    expect(document.activeElement).toBe(conversationTab);
+    fireEvent.keyDown(conversationTab, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(deliveriesTab);
+    expect(deliveriesTab.getAttribute('aria-selected')).toBe('true');
+  });
+
   it('관리자 답변 없이 종료하면 확인 모달 뒤에만 상태 API를 호출한다', async () => {
     const completedInquiry = { ...baseInquiry, requestType: 'BUG_REPORT' as const, status: 'COMPLETED' as const };
     jest.mocked(inquiryService.adminGetOne).mockResolvedValue(apiSuccess({
@@ -157,7 +187,7 @@ describe('AdminInquiryDetailPage', () => {
 
     const statusSelect = await screen.findByLabelText('처리 상태');
     fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
-    fireEvent.click(screen.getByRole('button', { name: '처리 완료로 변경' }));
+    fireEvent.click(screen.getByRole('button', { name: '변경 저장' }));
     expect(screen.getByRole('dialog').textContent).toContain('사용자에게 별도 답변을 등록하지 않고 상태를 종료합니다');
     expect(inquiryService.adminUpdateStatus).not.toHaveBeenCalled();
 
@@ -176,7 +206,7 @@ describe('AdminInquiryDetailPage', () => {
 
     const statusSelect = await screen.findByLabelText('처리 상태');
     fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
-    const trigger = screen.getByRole('button', { name: '처리 완료로 변경' });
+    const trigger = screen.getByRole('button', { name: '변경 저장' });
     fireEvent.click(trigger);
 
     const content = container.firstElementChild as HTMLElement;
@@ -212,7 +242,7 @@ describe('AdminInquiryDetailPage', () => {
 
     const statusSelect = await screen.findByLabelText('처리 상태');
     fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
-    const trigger = screen.getByRole('button', { name: '처리 완료로 변경' }) as HTMLButtonElement;
+    const trigger = screen.getByRole('button', { name: '변경 저장' }) as HTMLButtonElement;
     fireEvent.click(trigger);
     const triggerFocus = jest.spyOn(trigger, 'focus');
     fireEvent.click(screen.getByRole('button', { name: '답변 없이 상태 변경' }));
@@ -253,7 +283,7 @@ describe('AdminInquiryDetailPage', () => {
 
     const statusSelect = await screen.findByLabelText('처리 상태');
     fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
-    fireEvent.click(screen.getByRole('button', { name: '처리 완료로 변경' }));
+    fireEvent.click(screen.getByRole('button', { name: '변경 저장' }));
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: '취소' })));
     const focusSpy = jest.spyOn(HTMLElement.prototype, 'focus');
     fireEvent.click(screen.getByRole('button', { name: '답변 없이 상태 변경' }));
@@ -294,7 +324,7 @@ describe('AdminInquiryDetailPage', () => {
     const statusSelect = await screen.findByLabelText('처리 상태');
     fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
     fireEvent.click(screen.getByLabelText('상태 변경 안내 이메일 발송'));
-    fireEvent.click(screen.getByRole('button', { name: '처리 완료로 변경' }));
+    fireEvent.click(screen.getByRole('button', { name: '변경 저장' }));
 
     fireEvent.change(statusSelect, { target: { value: 'UNABLE_TO_PROCESS' } });
     fireEvent.click(screen.getByRole('button', { name: '답변 없이 상태 변경' }));
@@ -312,10 +342,10 @@ describe('AdminInquiryDetailPage', () => {
     expect(screen.queryByLabelText('상태 변경 안내 이메일 발송')).toBeNull();
 
     fireEvent.change(statusSelect, { target: { value: 'IN_PROGRESS' } });
-    expect((screen.getByRole('button', { name: '검토 중으로 변경' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '변경 저장' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('검토 중 상태의 변경 버튼과 성공 메시지에 완성된 문구를 표시한다', async () => {
+  it('기본정보에서 변경 저장 후 현재 상태와 성공 메시지를 표시한다', async () => {
     jest.mocked(inquiryService.adminGetOne).mockResolvedValue(apiSuccess({ ...baseInquiry, status: 'PENDING' }));
     jest.mocked(inquiryService.adminUpdateStatus).mockResolvedValue(apiSuccess({
       inquiry: { ...baseInquiry, status: 'IN_PROGRESS' },
@@ -326,9 +356,11 @@ describe('AdminInquiryDetailPage', () => {
     render(<AdminInquiryDetailPage />);
 
     fireEvent.change(await screen.findByLabelText('처리 상태'), { target: { value: 'IN_PROGRESS' } });
-    fireEvent.click(screen.getByRole('button', { name: '검토 중으로 변경' }));
+    fireEvent.click(screen.getByRole('button', { name: '변경 저장' }));
 
     expect(await screen.findByText('상태를 검토 중으로 변경했습니다.')).toBeTruthy();
+    expect((screen.getByLabelText('처리 상태') as HTMLSelectElement).value).toBe('IN_PROGRESS');
+    expect((screen.getByRole('button', { name: '변경 저장' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('활성 binding이 없으면 상태 이메일 선택을 막고 설정 링크를 제공한다', async () => {
@@ -354,8 +386,51 @@ describe('AdminInquiryDetailPage', () => {
     fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
     expect((screen.getByLabelText('상태 변경 안내 이메일 발송') as HTMLInputElement).disabled).toBe(true);
     expect(screen.getByText('템플릿 미설정')).toBeTruthy();
-    expect(screen.getByRole('link', { name: '이메일 템플릿 관리' }).getAttribute('href'))
+    expect(screen.getByRole('link', { name: '이벤트 연결 관리' }).getAttribute('href'))
       .toBe('/admin/email-templates?tab=bindings');
+  });
+
+  it('종료된 처리형 문의에도 관련 템플릿과 비활성 상태를 표시한다', async () => {
+    jest.mocked(inquiryService.adminGetOne).mockResolvedValue(apiSuccess({
+      ...baseInquiry, requestType: 'BUG_REPORT', status: 'COMPLETED',
+    }));
+    jest.mocked(emailTemplateService.getBindings).mockResolvedValue(apiSuccess(sendableBindings.map((binding) => (
+      binding.eventCode === 'INQUIRY_UNABLE_TO_PROCESS'
+        ? { ...binding, templateActive: false, sendable: false, unavailableReason: '템플릿 비활성' }
+        : binding
+    ))));
+    render(<AdminInquiryDetailPage />);
+
+    expect((await screen.findByRole('link', { name: '처리 완료 안내' })).getAttribute('href'))
+      .toBe('/admin/email-templates/2/edit');
+    expect(screen.getByText('연결됨')).toBeTruthy();
+    expect(screen.getByText('비활성')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: '답변 완료 안내' })).toBeNull();
+    expect(screen.getByRole('link', { name: '이벤트 연결 관리' })).toBeTruthy();
+  });
+
+  it('연결 확인 실패는 미연결과 구분하고 재시도 중 메일 선택을 해제한다', async () => {
+    render(<AdminInquiryDetailPage />);
+    const statusSelect = await screen.findByLabelText('처리 상태');
+    expect(screen.getByRole('link', { name: '답변 완료 안내' })).toBeTruthy();
+    fireEvent.change(statusSelect, { target: { value: 'ANSWERED' } });
+    const emailCheckbox = screen.getByLabelText('상태 변경 안내 이메일 발송') as HTMLInputElement;
+    fireEvent.click(emailCheckbox);
+    expect(emailCheckbox.checked).toBe(true);
+
+    jest.mocked(emailTemplateService.getBindings).mockRejectedValueOnce(new Error('offline'));
+    fireEvent.click(screen.getByRole('button', { name: '템플릿 연결 새로고침' }));
+    expect(emailCheckbox.checked).toBe(false);
+    expect(emailCheckbox.disabled).toBe(true);
+    expect(await screen.findByText(/연결 상태 확인 실패/)).toBeTruthy();
+    expect(screen.queryByText('미연결')).toBeNull();
+    expect(emailCheckbox.disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '변경 저장' }) as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: '템플릿 연결 재시도' }));
+    await waitFor(() => expect(emailCheckbox.disabled).toBe(false));
+    expect(emailCheckbox.checked).toBe(false);
+    expect(screen.queryByText(/연결 상태 확인 실패/)).toBeNull();
   });
 
   it('상태 성공과 이메일 미발송 경고를 함께 표시한다', async () => {
@@ -384,7 +459,7 @@ describe('AdminInquiryDetailPage', () => {
     const statusSelect = await screen.findByLabelText('처리 상태');
     fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
     fireEvent.click(screen.getByLabelText('상태 변경 안내 이메일 발송'));
-    fireEvent.click(screen.getByRole('button', { name: '처리 완료로 변경' }));
+    fireEvent.click(screen.getByRole('button', { name: '변경 저장' }));
 
     expect(await screen.findByText('상태를 처리 완료로 변경했습니다.')).toBeTruthy();
     expect(screen.getByText(/비활성 상태여서 상태만 변경/)).toBeTruthy();
@@ -418,7 +493,7 @@ describe('AdminInquiryDetailPage', () => {
     fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
     fireEvent.click(screen.getByLabelText('상태 변경 안내 이메일 발송'));
     const callsBeforeUpdate = jest.mocked(inquiryService.getEmailDeliveries).mock.calls.length;
-    fireEvent.click(screen.getByRole('button', { name: '처리 완료로 변경' }));
+    fireEvent.click(screen.getByRole('button', { name: '변경 저장' }));
 
     await waitFor(() => {
       expect(inquiryService.getEmailDeliveries).toHaveBeenCalledTimes(callsBeforeUpdate + 1);
@@ -495,9 +570,10 @@ describe('AdminInquiryDetailPage', () => {
     const statusSelect = await screen.findByLabelText('처리 상태');
     fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
     fireEvent.click(screen.getByLabelText('상태 변경 안내 이메일 발송'));
-    fireEvent.click(screen.getByRole('button', { name: '처리 완료로 변경' }));
+    fireEvent.click(screen.getByRole('button', { name: '변경 저장' }));
     await waitFor(() => expect(inquiryService.getEmailDeliveries).toHaveBeenCalledTimes(2));
 
+    fireEvent.click(screen.getByRole('tab', { name: '이메일 발송 이력' }));
     await act(async () => oldRequest.resolve(oldResponse));
     expect(screen.queryByText('오래된 발송 이력')).toBeNull();
     expect((screen.getByRole('button', { name: '발송 이력 새로고침' }) as HTMLButtonElement).disabled).toBe(true);
@@ -576,9 +652,10 @@ describe('AdminInquiryDetailPage', () => {
     const statusSelect = await screen.findByLabelText('처리 상태');
     fireEvent.change(statusSelect, { target: { value: 'COMPLETED' } });
     fireEvent.click(screen.getByLabelText('상태 변경 안내 이메일 발송'));
-    fireEvent.click(screen.getByRole('button', { name: '처리 완료로 변경' }));
+    fireEvent.click(screen.getByRole('button', { name: '변경 저장' }));
     await waitFor(() => expect(inquiryService.getEmailDeliveries).toHaveBeenCalledTimes(2));
 
+    fireEvent.click(screen.getByRole('tab', { name: '이메일 발송 이력' }));
     await act(async () => latestRequest.resolve(latestResponse));
     expect(await screen.findByText('먼저 도착한 최신 이력')).toBeTruthy();
 
@@ -632,6 +709,7 @@ describe('AdminInquiryDetailPage', () => {
 
     render(<AdminInquiryDetailPage />);
 
+    fireEvent.click(await screen.findByRole('tab', { name: '이메일 발송 이력' }));
     expect(await screen.findByText('SMTP 연결 실패')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '재발송' }));
 
@@ -666,6 +744,7 @@ describe('AdminInquiryDetailPage', () => {
 
     render(<AdminInquiryDetailPage />);
 
+    fireEvent.click(await screen.findByRole('tab', { name: '이메일 발송 이력' }));
     expect(await screen.findByText('1페이지 이력')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '다음 페이지' }));
     await waitFor(() => {

@@ -1,28 +1,55 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { faqService } from '@/services/faqService';
 import { AccordionSkeleton } from '@/components/ui/Skeleton';
+import { ListPagination } from '@/components/ui/ListPagination';
+import { ListLoadError } from '@/components/ui/ListLoadError';
 import type { Faq } from '@/types';
 
 export default function UserFaqPage() {
   const [faqs, setFaqs] = useState<Faq[]>([]);
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [loadError, setLoadError] = useState(false);
+  const requestIdRef = useRef(0);
 
-  useEffect(() => {
+  const loadFaqs = useCallback(() => {
+    const requestId = ++requestIdRef.current;
+    setLoading(true);
+    setLoadError(false);
     faqService.getFaqs()
       .then((res) => {
+        if (requestId !== requestIdRef.current) return;
         if (res.data.success && res.data.data) {
           setFaqs(res.data.data);
+        } else {
+          setLoadError(true);
         }
       })
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (requestId === requestIdRef.current) setLoadError(true);
+      })
+      .finally(() => {
+        if (requestId === requestIdRef.current) setLoading(false);
+      });
   }, []);
+
+  useEffect(() => {
+    loadFaqs();
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, [loadFaqs]);
 
   const toggle = (id: number) => {
     setOpenId((prev) => (prev === id ? null : id));
   };
+
+  const totalPages = Math.ceil(faqs.length / pageSize);
+  const visibleFaqs = faqs.slice(page * pageSize, (page + 1) * pageSize);
 
   return (
     <div className="space-y-4">
@@ -33,13 +60,15 @@ export default function UserFaqPage() {
 
       {loading ? (
         <AccordionSkeleton rows={6} />
+      ) : loadError ? (
+        <ListLoadError message="FAQ를 불러오지 못했습니다." onRetry={loadFaqs} />
       ) : faqs.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center text-sm text-gray-400">
           등록된 FAQ가 없습니다.
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
-          {faqs.map((faq) => (
+        <div id="faq-list" className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+          {visibleFaqs.map((faq) => (
             <div key={faq.id}>
               <button
                 onClick={() => toggle(faq.id)}
@@ -73,6 +102,25 @@ export default function UserFaqPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {!loading && !loadError && faqs.length > 0 && (
+        <ListPagination
+          page={page}
+          totalPages={totalPages}
+          totalElements={faqs.length}
+          pageSize={pageSize}
+          onChange={(nextPage) => {
+            setOpenId(null);
+            setPage(nextPage);
+          }}
+          onPageSizeChange={(nextPageSize) => {
+            setOpenId(null);
+            setPage(0);
+            setPageSize(nextPageSize);
+          }}
+          scrollTargetId="faq-list"
+        />
       )}
     </div>
   );

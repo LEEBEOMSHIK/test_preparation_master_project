@@ -1,12 +1,30 @@
 import apiClient from './apiClient';
 import type { ApiResponse, ExamHistoryDetailResult, ExamSession, Examination, ExaminationDetail, ExaminationSubmitResult, PageResponse, UserExamHistorySummary } from '@/types';
 
+export interface UserExaminationSearchOptions {
+  title?: string;
+  category?: string;
+  interests?: string[];
+  year?: number;
+  round?: number;
+  aiCustom?: boolean;
+}
+
+export interface UserExaminationFilterOptions {
+  years: number[];
+  rounds: number[];
+}
+
 export const examinationService = {
   // ── 사용자 ──────────────────────────────────────────────────────────
-  userGetExaminations: (page = 0, size = 500) =>
+  userGetExaminations: (page = 0, size = 500, filters: UserExaminationSearchOptions = {}) =>
     apiClient.get<ApiResponse<PageResponse<Examination>>>('/user/examinations', {
-      params: { page, size },
+      params: { page, size, ...filters },
+      paramsSerializer: { indexes: null },
     }),
+
+  userGetExaminationFilters: () =>
+    apiClient.get<ApiResponse<UserExaminationFilterOptions>>('/user/examinations/filters'),
 
   userGetExaminationDetail: (id: number) =>
     apiClient.get<ApiResponse<ExaminationDetail>>(`/user/examinations/${id}`),

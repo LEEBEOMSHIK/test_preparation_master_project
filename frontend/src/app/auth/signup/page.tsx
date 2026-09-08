@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/authService';
+import { LegalLinks } from '@/components/ui/LegalLinks';
+import { LEGAL_INFO } from '@/lib/legal';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -121,6 +123,14 @@ export default function SignupPage() {
             {error && (
               <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
             )}
+
+            <div className="space-y-2 text-xs leading-relaxed text-gray-600">
+              {LEGAL_INFO.minimumAge !== null && (
+                <p>TPMP는 만 {LEGAL_INFO.minimumAge}세 이상만 이용할 수 있으며, 만 {LEGAL_INFO.minimumAge}세 미만은 이용할 수 없습니다.</p>
+              )}
+              <p>회원가입 시 이름·이메일·비밀번호를 입력받습니다. 비밀번호는 해시로 저장하며, 계정 관리와 로그인 및 문의 응답에 필요한 정보를 사용합니다.</p>
+              <LegalLinks />
+            </div>
 
             <button
               type="submit"

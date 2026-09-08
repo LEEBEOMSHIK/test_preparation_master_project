@@ -1,3 +1,58 @@
+## HIST-20260909-002
+
+- **날짜**: 2026-09-09
+- **수정 범위**: 사용자 프론트엔드 / 시험 목록 리뷰 보완
+- **수정 개요**: 시험 필터 메타데이터 실패를 목록 조회와 분리해 안내·재시도하고, 관심유형 변경 및 빈 서버 페이지 응답 시 0페이지로 보정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exams/page.tsx` | 수정 | 필터 메타데이터 독립 오류·재시도, 관심유형 변경 및 totalPages=0 경계 보정 |
+| `frontend/src/app/user/exams/page.test.tsx` | 수정 | 메타데이터 실패·success=false·관심유형 변경·빈 페이지 회귀 테스트 추가 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exams/page.tsx`
+- 변경 전: 시험유형 또는 연도·회차 선택지 조회가 실패하거나 `success=false`여도 조용히 무시되어 기본 선택지만 남았고 복구 수단이 없었다. 로그인 사용자의 관심유형이 바뀌어도 현재 페이지를 유지했으며 서버가 `totalPages=0`을 반환하면 0페이지 보정이 동작하지 않았다.
+- 변경 후: 두 메타데이터 요청을 목록 요청과 독립적으로 묶어 오류 메시지와 `필터 다시 시도` 버튼을 표시하며 기존 시험 목록은 유지한다. 관심유형 키가 바뀐 상태에서 현재 페이지가 0이 아니면 잘못된 페이지 요청을 보내지 않고 0페이지로 먼저 이동한다. 서버 페이지 경계는 `Math.max(0, totalPages - 1)`로 계산해 빈 결과도 0페이지에서 재조회한다.
+- 이유: 필터 데이터의 일시 장애가 목록 이용을 막지 않으면서 사용자가 복구할 수 있게 하고, 모든 검색조건 변경이 첫 페이지에서 시작한다는 페이지네이션 계약을 지키기 위해서다.
+
+### 복원 방법
+
+이 ID(`UserExamination_Modified.md` 기준 HIST-20260909-002)로 복원 시 필터 메타데이터 오류·재시도 상태와 경고 UI를 제거하고, 관심유형 변경 감지 ref 및 `totalPages=0` 경계 보정을 이전 조건으로 되돌린 뒤 이번 회귀 테스트 4건을 제거한다.
+
+## HIST-20260909-001
+
+- **날짜**: 2026-09-09
+- **수정 범위**: 사용자 프론트엔드 / 시험 목록
+- **수정 개요**: 첫 500건을 받은 뒤 브라우저에서 필터링하던 시험 목록을 전체 서버 검색·페이지네이션으로 전환하고, 전체 활성 시험 기준 연도·회차 선택지와 요청 경합·오류 처리를 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `frontend/src/app/user/exams/page.tsx` | 수정 | 서버 Page 연동, 기본 5건, 공용 ListPagination, 전체 필터 선택지, 경합·오류·경계 처리 |
+| `frontend/src/app/user/exams/page.test.tsx` | 추가 | 페이지 이동·필터 초기화·늦은 응답 무시·오류 재시도 회귀 테스트 |
+| `frontend/src/services/examinationService.ts` | 수정 | 선택 검색조건 및 반복 interests 직렬화, 필터 선택지 API 추가 |
+| `frontend/src/services/examinationService.test.ts` | 추가 | 기존 호출 호환·검색 파라미터·필터 API 계약 테스트 |
+
+### 수정 상세
+
+#### `frontend/src/app/user/exams/page.tsx`
+- 변경 전: `GET /user/examinations?page=0&size=500` 결과만 보관하고 제목·유형·관심유형·연도·회차·AI 조건 및 페이지를 브라우저 배열에서 계산했다.
+- 변경 후: 검색조건과 현재 page/size를 서버에 전달해 받은 `content/totalElements/totalPages`를 그대로 표시한다. 기본 크기는 5건이며 `ListPagination`과 `user-examination-list` 스크롤 대상을 사용한다. 연도·회차는 별도 전체범위 API에서 받고, 요청 ID로 늦은 응답을 무시하며 실패 시 재시도 UI를 제공한다.
+- 이유: 500건 이후 시험도 검색·집계에 포함하고 서버와 화면의 페이지 경계를 일치시키기 위해서다.
+
+#### `frontend/src/services/examinationService.ts`
+- 변경 전: 사용자 목록 API에는 page와 size만 전달했고 배열 직렬화 및 필터 선택지 호출이 없었다.
+- 변경 후: 기존 `(page, size)` 호출을 유지하면서 세 번째 선택 인자로 title/category/interests/year/round/aiCustom을 지원하고, Axios `indexes: null`로 interests를 반복 키로 전송한다.
+- 이유: Spring의 반복 `@RequestParam` 바인딩과 기존 호출부 호환을 함께 보장하기 위해서다.
+
+### 복원 방법
+
+이 ID(`UserExamination_Modified.md` 기준 HIST-20260909-001)로 복원 시 시험 목록 화면을 500건 단일 조회와 로컬 필터·슬라이스 방식으로 되돌리고, examinationService의 검색 옵션·필터 API와 이번 테스트 2개를 제거한다.
+
 ## HIST-20260826-001
 
 - **날짜**: 2026-08-26

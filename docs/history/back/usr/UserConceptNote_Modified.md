@@ -1,3 +1,83 @@
+## HIST-20260909-003
+
+- **날짜**: 2026-09-09
+- **수정 범위**: 사용자 백엔드 / 개념노트 검색 PostgreSQL 호환
+- **수정 개요**: 선택 검색어가 null일 때 PostgreSQL 문자열 함수의 파라미터 타입을 명시한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/ConceptNoteRepository.java` | 수정 | 소유 검색 내용·count 쿼리의 keyword를 string으로 명시 캐스팅 |
+
+### 수정 상세
+
+- 변경 전: nullable keyword를 CONCAT/LOWER에 직접 바인딩. 동일 패턴의 시험 목록이 실제 PostgreSQL에서 lower(bytea) 오류를 발생시켰으며 H2 PostgreSQL 모드 검증은 차이를 포착하지 못함.
+- 변경 후: null 검사와 CONCAT 모두 `CAST(:keyword AS string)`을 사용하여 문자열 타입을 확정. 소유자 조건·특수문자 이스케이프·공개 검색 계약은 유지.
+- 이유: 검색어 없는 기본 목록에서도 PostgreSQL 타입 추론 차이로 500 오류가 발생할 위험을 제거.
+- 검증 주의: 기존 H2 테스트 4건과 전체 백엔드 458건 통과는 실제 PostgreSQL 타입 동작의 근거가 아님. 이 수정의 실서버 기본 조회·검색·전체 건수 검증은 메인에서 수행.
+
+### 복원 방법
+
+이 파일의 `HIST-20260909-003` 기준으로 소유 검색의 CAST만 원래 keyword 참조로 복원한다. 단, nullable 검색어의 PostgreSQL 타입 오류가 재발할 수 있다.
+
+---
+
+## HIST-20260909-002
+
+- **날짜**: 2026-09-09
+- **수정 범위**: 사용자 백엔드 / 개념노트 검색 회귀 보완
+- **수정 개요**: 기존 문자 포함 검색의 특수문자 의미를 보존하고 테스트 DB의 jsonb 호환 설정을 보완한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/service/ConceptNoteService.java` | 수정 | 내 노트 검색의 !·%·_ 이스케이프 |
+| `backend/src/main/java/com/tpmp/testprep/repository/ConceptNoteRepository.java` | 수정 | 내용·건수 검색 쿼리에 ESCAPE '!' |
+| `backend/src/test/java/com/tpmp/testprep/service/ConceptNoteSearchTest.java` | 수정 | PostgreSQL 호환 H2 설정 및 문자 검색 회귀 테스트 |
+
+### 수정 상세
+
+- 변경 전: LIKE 검색에서 %·_가 와일드카드로 취급되어 이전 문자열 포함 검색보다 결과가 확대됨. 기본 H2는 Question의 jsonb DDL을 지원하지 않아 실제 조인 테스트 실패.
+- 변경 후: 내 노트 검색 입력의 이스케이프 문자 !를 먼저 처리하고 %·_를 문자로 매칭한다. 공개 검색 계약은 유지. 테스트에만 H2 PostgreSQL 모드와 DB 자동 대체 방지를 적용한다.
+- 이유: 사용자 검색 의도를 보존하고 운영 엔티티 수정 없이 실서비스·JPA 검증을 수행.
+- 검증: DB 설정 후 기존 3건 통과, 새 특수문자 테스트의 예상 RED 확인. 수정 후 GREEN은 메인 통합 검증에서 수행.
+
+### 복원 방법
+
+이 파일의 `HIST-20260909-002`에 해당하는 입력 이스케이프 및 ESCAPE절, 테스트 환경·특수문자 테스트만 되돌린다. 소유자 조건은 유지한다.
+
+---
+
+## HIST-20260909-001
+
+- **날짜**: 2026-09-09
+- **수정 범위**: 사용자 백엔드 / 개념노트 검색
+- **수정 개요**: 로그인 사용자 전체 소유 노트의 선택 제목 검색과 안정적인 페이지 정렬을 추가한다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/controller/UserConceptNoteController.java` | 수정 | 내 노트 목록 선택 keyword |
+| `backend/src/main/java/com/tpmp/testprep/service/ConceptNoteService.java` | 수정 | 선택 검색 정규화·기존 메서드 호환·동률 정렬 |
+| `backend/src/main/java/com/tpmp/testprep/repository/ConceptNoteRepository.java` | 수정 | 소유자와 제목 조건을 내용·count 쿼리에 동일 적용 |
+| `backend/src/test/java/com/tpmp/testprep/service/ConceptNoteSearchTest.java` | 추가 | 실서비스·JPA 소유 검색, 전체 건수, 삭제 경계, 동률 정렬, 검색값 바인딩 검증 |
+
+### 수정 상세
+
+- 변경 전: 소유 노트 페이지 조회만 제공, 제목 검색 미지원 및 기본 안정 정렬 미지정.
+- 변경 후: 인증 principal의 사용자 ID와 선택 keyword를 함께 바인딩하여 제목 대소문자 무관 검색. 공백 검색은 전체 소유 노트로 처리. 기존 서비스 2인자 메서드는 유지. 내/공개 목록 정렬 미지정 시 updatedAt DESC, 모든 정렬에 id DESC 동률 기준 추가.
+- 이유: 타 사용자 노출 없이 현재 페이지 밖 항목 검색과 일관된 총건수·페이지 경계를 제공. DB 변경 없음.
+- 검증: 새 서비스 검색 시그니처 부재로 RED 확인. JPA 통합 테스트 GREEN은 메인이 직렬 실행.
+
+### 복원 방법
+
+이 파일의 `HIST-20260909-001` 기준으로 선택 keyword 경로·검색 쿼리·stablePage를 제거하고 기존 소유 조회와 전달 pageable을 복원한다. 프론트 검색 연동 변경도 함께 고려한다.
+
+---
+
 ## HIST-20260620-001
 
 - **날짜**: 2026-06-20

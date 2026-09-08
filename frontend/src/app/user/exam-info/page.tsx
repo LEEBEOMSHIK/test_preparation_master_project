@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { examInfoService } from '@/services/examInfoService';
 import { examApplicationService } from '@/services/examApplicationService';
@@ -8,6 +8,7 @@ import { ExamApplicationFormModal } from '@/components/ui/ExamApplicationFormMod
 import type { ExamApplicationPrefill } from '@/components/ui/ExamApplicationFormModal';
 import { InterestExamTypeModal } from '@/components/ui/InterestExamTypeModal';
 import { ExamInfoCardSkeleton } from '@/components/ui/Skeleton';
+import { Pagination } from '@/components/ui/Pagination';
 import { parseLocalDate, getExamDDayLabel, getExamDDayBadgeClass } from '@/lib/date';
 import type { ExamInfo, UserExamApplication } from '@/types';
 
@@ -83,6 +84,7 @@ const EXAM_TYPE_THEMES: readonly ExamTypeTheme[] = [
 
 const DEFAULT_EXAM_TYPE_THEME = EXAM_TYPE_THEMES[0];
 const EMPTY_EXAM_TYPES: string[] = [];
+const SESSION_PAGE_SIZE = 5;
 
 /** 제목 끝의 "N차"(1차/2차/…)를 분리하는 패턴 — 회차 그룹핑·세션 배지 표시에 공용 사용 */
 const SESSION_SUFFIX_RE = /^(.+)\s(\d차)$/;
@@ -121,6 +123,8 @@ export default function UserExamInfoPage() {
   const [items, setItems] = useState<ExamInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>('전체');
+  const [page, setPage] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
   const [showInterestModal, setShowInterestModal] = useState(false);
 
   // 내 시험 접수 정보
@@ -182,6 +186,8 @@ export default function UserExamInfoPage() {
   const openInterestModal = () => setShowInterestModal(true);
 
   const handleInterestsSaved = () => {
+    setPage(0);
+    setFilterType('전체');
     setLoading(true);
     examInfoService.getMyExamInfo()
       .then(infoRes => setItems(infoRes.data.data ?? []))
@@ -225,6 +231,19 @@ export default function UserExamInfoPage() {
       return { key, baseTitle: m ? m[1] : groupItems[0].title, items: groupItems };
     });
   }, [displayed]);
+
+  const totalPages = Math.ceil(sessionGroups.length / SESSION_PAGE_SIZE);
+  const currentPage = Math.min(page, Math.max(0, totalPages - 1));
+  const visibleGroups = sessionGroups.slice(currentPage * SESSION_PAGE_SIZE, (currentPage + 1) * SESSION_PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(previous => Math.min(previous, Math.max(0, totalPages - 1)));
+  }, [totalPages]);
+
+  const changePage = (nextPage: number) => {
+    setPage(nextPage);
+    listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <div className="space-y-6">
@@ -285,7 +304,10 @@ export default function UserExamInfoPage() {
               <button
                 key={type}
                 type="button"
-                onClick={() => setFilterType(type)}
+                onClick={() => {
+                  setFilterType(type);
+                  setPage(0);
+                }}
                 className={`border px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${stateClass}`}
               >
                 {type}
@@ -296,199 +318,203 @@ export default function UserExamInfoPage() {
       )}
 
       {/* Content */}
-      {loading ? (
-        <ExamInfoCardSkeleton count={3} />
-      ) : displayed.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-          <p className="text-gray-400 text-sm mb-2">표시할 시험 정보가 없습니다.</p>
-          {userInterests.length > 0 && (
-            <button type="button" onClick={openInterestModal}
-              className="text-indigo-500 text-sm hover:underline">
-              관심 시험 유형을 변경해 보세요
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {sessionGroups.map(group => {
-            const first = group.items[0];
-            const isGrouped = group.items.length > 1;
+      <div ref={listRef} className="scroll-mt-24 space-y-4">
+        {loading ? (
+          <ExamInfoCardSkeleton count={3} />
+        ) : displayed.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+            <p className="text-gray-400 text-sm mb-2">표시할 시험 정보가 없습니다.</p>
+            {userInterests.length > 0 && (
+              <button type="button" onClick={openInterestModal}
+                className="text-indigo-500 text-sm hover:underline">
+                관심 시험 유형을 변경해 보세요
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {visibleGroups.map(group => {
+              const first = group.items[0];
+              const isGrouped = group.items.length > 1;
 
-            const renderSessionBody = (item: ExamInfo) => {
-              const myApps = applicationsByExamInfoId.get(item.id) ?? [];
-              const myApplicationDate = myApps.find(a => a.applicationDate)?.applicationDate;
-              const myExamDate = myApps.find(a => a.examDate)?.examDate;
-              const appStatus = getPhaseStatus(myApplicationDate ?? item.applicationPeriod);
-              const schStatus = getPhaseStatus(myExamDate ?? item.examSchedule);
-              const resStatus = getPhaseStatus(item.resultDate);
-              return (
-                <>
-                  {item.description && (
-                    <p className="text-sm text-gray-600 mb-4 leading-relaxed">{item.description}</p>
-                  )}
+              const renderSessionBody = (item: ExamInfo) => {
+                const myApps = applicationsByExamInfoId.get(item.id) ?? [];
+                const myApplicationDate = myApps.find(a => a.applicationDate)?.applicationDate;
+                const myExamDate = myApps.find(a => a.examDate)?.examDate;
+                const appStatus = getPhaseStatus(myApplicationDate ?? item.applicationPeriod);
+                const schStatus = getPhaseStatus(myExamDate ?? item.examSchedule);
+                const resStatus = getPhaseStatus(item.resultDate);
+                return (
+                  <>
+                    {item.description && (
+                      <p className="text-sm text-gray-600 mb-4 leading-relaxed">{item.description}</p>
+                    )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {item.applicationPeriod && (
-                      <div className={`${PHASE_STYLES[appStatus].box} rounded-xl p-3`}>
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">접수 기간</p>
-                          <div className="flex items-center gap-1.5">
-                            {appStatus === 'active' && item.applicationUrl && (
-                              <a
-                                href={item.applicationUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-0.5 bg-emerald-600 text-white px-1.5 py-0.5 rounded-full text-[10px] font-bold hover:bg-emerald-700 shadow-sm transition-colors"
-                              >
-                                접수하기
-                                <svg viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5">
-                                  <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-                                  <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-                                </svg>
-                              </a>
-                            )}
-                            {PHASE_STYLES[appStatus].badge && (
-                              <span className={`text-[9px] font-bold ${PHASE_STYLES[appStatus].badgeColor}`}>
-                                {PHASE_STYLES[appStatus].badge}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {item.applicationPeriod && (
+                        <div className={`${PHASE_STYLES[appStatus].box} rounded-xl p-3`}>
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">접수 기간</p>
+                            <div className="flex items-center gap-1.5">
+                              {appStatus === 'active' && item.applicationUrl && (
+                                <a
+                                  href={item.applicationUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-0.5 bg-emerald-600 text-white px-1.5 py-0.5 rounded-full text-[10px] font-bold hover:bg-emerald-700 shadow-sm transition-colors"
+                                >
+                                  접수하기
+                                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5">
+                                    <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                                    <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                                  </svg>
+                                </a>
+                              )}
+                              {PHASE_STYLES[appStatus].badge && (
+                                <span className={`text-[9px] font-bold ${PHASE_STYLES[appStatus].badgeColor}`}>
+                                  {PHASE_STYLES[appStatus].badge}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <p className={`text-sm ${PHASE_STYLES[appStatus].text}`}>{fmtRange(item.applicationPeriod)}</p>
+                        </div>
+                      )}
+                      {item.examSchedule && (
+                        <div className={`${PHASE_STYLES[schStatus].box} rounded-xl p-3`}>
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">시험 일정</p>
+                            {PHASE_STYLES[schStatus].badge && (
+                              <span className={`text-[9px] font-bold ${PHASE_STYLES[schStatus].badgeColor}`}>
+                                {PHASE_STYLES[schStatus].badge}
                               </span>
                             )}
                           </div>
+                          <p className={`text-sm ${PHASE_STYLES[schStatus].text}`}>{fmtRange(item.examSchedule)}</p>
                         </div>
-                        <p className={`text-sm ${PHASE_STYLES[appStatus].text}`}>{fmtRange(item.applicationPeriod)}</p>
-                      </div>
-                    )}
-                    {item.examSchedule && (
-                      <div className={`${PHASE_STYLES[schStatus].box} rounded-xl p-3`}>
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">시험 일정</p>
-                          {PHASE_STYLES[schStatus].badge && (
-                            <span className={`text-[9px] font-bold ${PHASE_STYLES[schStatus].badgeColor}`}>
-                              {PHASE_STYLES[schStatus].badge}
-                            </span>
-                          )}
-                        </div>
-                        <p className={`text-sm ${PHASE_STYLES[schStatus].text}`}>{fmtRange(item.examSchedule)}</p>
-                      </div>
-                    )}
-                    {item.resultDate && (
-                      <div className={`${PHASE_STYLES[resStatus].box} rounded-xl p-3`}>
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">합격 발표</p>
-                          {PHASE_STYLES[resStatus].badge && (
-                            <span className={`text-[9px] font-bold ${PHASE_STYLES[resStatus].badgeColor}`}>
-                              {PHASE_STYLES[resStatus].badge}
-                            </span>
-                          )}
-                        </div>
-                        <p className={`text-sm ${PHASE_STYLES[resStatus].text}`}>{fmtRange(item.resultDate)}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 내 접수 정보 미니 섹션 */}
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    {myApps.length > 0 ? (
-                      <div className="space-y-2">
-                        {myApps.map(app => {
-                          const dDayLabel = getExamDDayLabel(app.applicationDate, app.examDate);
-                          return (
-                          <div key={app.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2">
-                            <p className="text-xs text-gray-600 truncate flex items-center gap-1.5">
-                              <span className="font-medium text-gray-700">내 접수</span>
-                              {dDayLabel && (
-                                <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${getExamDDayBadgeClass(app.applicationDate, app.examDate)}`}>
-                                  {dDayLabel}
-                                </span>
-                              )}
-                              {app.applicationDate && <span className="ml-1">접수일 {app.applicationDate}</span>}
-                              {app.examDate && <span className="ml-2">시험일 {app.examDate}</span>}
-                              {app.memo && <span className="ml-2 text-gray-400">· {app.memo}</span>}
-                            </p>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <button type="button" onClick={() => openEditApplication(app)} aria-label="접수 정보 수정"
-                                className="text-gray-400 hover:text-indigo-600">
-                                <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-                                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                </svg>
-                              </button>
-                              <button type="button" onClick={() => handleDeleteApplication(app.id)} aria-label="접수 정보 삭제"
-                                className="text-gray-400 hover:text-red-500">
-                                <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-                                  <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
-                                </svg>
-                              </button>
-                            </div>
+                      )}
+                      {item.resultDate && (
+                        <div className={`${PHASE_STYLES[resStatus].box} rounded-xl p-3`}>
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">합격 발표</p>
+                            {PHASE_STYLES[resStatus].badge && (
+                              <span className={`text-[9px] font-bold ${PHASE_STYLES[resStatus].badgeColor}`}>
+                                {PHASE_STYLES[resStatus].badge}
+                              </span>
+                            )}
                           </div>
-                          );
-                        })}
+                          <p className={`text-sm ${PHASE_STYLES[resStatus].text}`}>{fmtRange(item.resultDate)}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 내 접수 정보 미니 섹션 */}
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      {myApps.length > 0 ? (
+                        <div className="space-y-2">
+                          {myApps.map(app => {
+                            const dDayLabel = getExamDDayLabel(app.applicationDate, app.examDate);
+                            return (
+                            <div key={app.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                              <p className="text-xs text-gray-600 truncate flex items-center gap-1.5">
+                                <span className="font-medium text-gray-700">내 접수</span>
+                                {dDayLabel && (
+                                  <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${getExamDDayBadgeClass(app.applicationDate, app.examDate)}`}>
+                                    {dDayLabel}
+                                  </span>
+                                )}
+                                {app.applicationDate && <span className="ml-1">접수일 {app.applicationDate}</span>}
+                                {app.examDate && <span className="ml-2">시험일 {app.examDate}</span>}
+                                {app.memo && <span className="ml-2 text-gray-400">· {app.memo}</span>}
+                              </p>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button type="button" onClick={() => openEditApplication(app)} aria-label="접수 정보 수정"
+                                  className="text-gray-400 hover:text-indigo-600">
+                                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                  </svg>
+                                </button>
+                                <button type="button" onClick={() => handleDeleteApplication(app.id)} aria-label="접수 정보 삭제"
+                                  className="text-gray-400 hover:text-red-500">
+                                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                                    <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                            );
+                          })}
+                          <button type="button" onClick={() => openAddApplication(item)}
+                            className="text-xs text-indigo-500 hover:underline">
+                            + 접수 정보 추가
+                          </button>
+                        </div>
+                      ) : (
                         <button type="button" onClick={() => openAddApplication(item)}
                           className="text-xs text-indigo-500 hover:underline">
-                          + 접수 정보 추가
+                          + 접수 정보 입력
                         </button>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => openAddApplication(item)}
-                        className="text-xs text-indigo-500 hover:underline">
-                        + 접수 정보 입력
-                      </button>
-                    )}
-                  </div>
-                </>
-              );
-            };
+                      )}
+                    </div>
+                  </>
+                );
+              };
 
-            return (
-              <div key={group.key} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getExamTypeTheme(first.examType).badge}`}>
-                      {first.examType}
-                    </span>
-                    <h3 className="text-base font-bold text-gray-900">{group.baseTitle}</h3>
+              return (
+                <div key={group.key} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getExamTypeTheme(first.examType).badge}`}>
+                        {first.examType}
+                      </span>
+                      <h3 className="text-base font-bold text-gray-900">{group.baseTitle}</h3>
+                    </div>
+                    <div className="shrink-0 flex items-center gap-2">
+                      {first.officialUrl && (
+                        <a
+                          href={first.officialUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-xs text-indigo-600 hover:underline"
+                        >
+                          공식 홈페이지
+                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                            <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                            <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                          </svg>
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <div className="shrink-0 flex items-center gap-2">
-                    {first.officialUrl && (
-                      <a
-                        href={first.officialUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs text-indigo-600 hover:underline"
-                      >
-                        공식 홈페이지
-                        <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
-                          <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-                          <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-                        </svg>
-                      </a>
-                    )}
-                  </div>
+
+                  {isGrouped ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {group.items.map(item => {
+                        const m = item.title.match(SESSION_SUFFIX_RE);
+                        const sessionLabel = m ? m[2] : null;
+                        return (
+                          <div key={item.id} className="bg-gray-50/60 rounded-xl border border-gray-100 p-3">
+                            {sessionLabel && (
+                              <span className="inline-block mb-2 px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-600">
+                                {sessionLabel}
+                              </span>
+                            )}
+                            {renderSessionBody(item)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    renderSessionBody(first)
+                  )}
                 </div>
+              );
+            })}
+          </div>
+        )}
 
-                {isGrouped ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {group.items.map(item => {
-                      const m = item.title.match(SESSION_SUFFIX_RE);
-                      const sessionLabel = m ? m[2] : null;
-                      return (
-                        <div key={item.id} className="bg-gray-50/60 rounded-xl border border-gray-100 p-3">
-                          {sessionLabel && (
-                            <span className="inline-block mb-2 px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-600">
-                              {sessionLabel}
-                            </span>
-                          )}
-                          {renderSessionBody(item)}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  renderSessionBody(first)
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+        {!loading && <Pagination page={currentPage} totalPages={totalPages} onChange={changePage} />}
+      </div>
 
       {/* 직접 등록한 시험 (exam_info와 연결되지 않은 자유 입력 접수 정보) */}
       {!loading && freeApplications.length > 0 && (

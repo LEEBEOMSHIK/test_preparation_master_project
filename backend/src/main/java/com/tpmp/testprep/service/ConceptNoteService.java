@@ -15,6 +15,8 @@ import com.tpmp.testprep.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -30,8 +32,15 @@ public class ConceptNoteService {
     private final QuestionBankRepository questionBankRepository;
 
     public Page<ConceptNoteResponse> getMyNotes(String email, Pageable pageable) {
+        return getMyNotes(email, null, pageable);
+    }
+
+    public Page<ConceptNoteResponse> getMyNotes(String email, String keyword, Pageable pageable) {
         User user = findUser(email);
-        return conceptNoteRepository.findByUserIdWithRelations(user.getId(), pageable)
+        String kw = StringUtils.hasText(keyword)
+                ? keyword.trim().replace("!", "!!").replace("%", "!%").replace("_", "!_")
+                : null;
+        return conceptNoteRepository.searchOwnedByTitle(user.getId(), kw, stablePage(pageable))
                 .map(ConceptNoteResponse::from);
     }
 
@@ -80,7 +89,7 @@ public class ConceptNoteService {
 
     public Page<ConceptNoteResponse> getPublicNotes(String keyword, Pageable pageable) {
         String kw = StringUtils.hasText(keyword) ? keyword : null;
-        return conceptNoteRepository.findPublicByTitle(kw, pageable)
+        return conceptNoteRepository.findPublicByTitle(kw, stablePage(pageable))
                 .map(note -> ConceptNoteResponse.from(note, true));
     }
 
@@ -95,6 +104,13 @@ public class ConceptNoteService {
             throw new BusinessException(ErrorCode.CONCEPT_NOTE_NOT_FOUND);
         }
         return ConceptNoteResponse.from(note, true);
+    }
+
+    private Pageable stablePage(Pageable pageable) {
+        if (pageable.isUnpaged()) return pageable;
+        Sort sort = pageable.getSort().isSorted() ? pageable.getSort() : Sort.by(Sort.Direction.DESC, "updatedAt");
+        if (sort.getOrderFor("id") == null) sort = sort.and(Sort.by(Sort.Direction.DESC, "id"));
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
     }
 
     // ── Admin ────────────────────────────────────────────────────────────────

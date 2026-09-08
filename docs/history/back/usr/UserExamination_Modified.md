@@ -1,3 +1,61 @@
+## HIST-20260909-002
+
+- **날짜**: 2026-09-09
+- **수정 범위**: 사용자 백엔드 / 시험 목록 PostgreSQL 호환성
+- **수정 개요**: 검색 제목이 없을 때 PostgreSQL이 null CONCAT 파라미터를 bytea로 추론해 `lower(bytea)` 오류를 내던 문제를 HQL 문자열 캐스트로 수정했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/repository/ExaminationRepository.java` | 수정 | 조회·count 쿼리의 title 파라미터를 `CAST(:title AS string)`으로 명시 |
+| `backend/src/test/java/com/tpmp/testprep/repository/UserExaminationSearchRepositoryTest.java` | 수정 | null 제목의 무조건 조회 계약 회귀 테스트 추가 |
+
+### 수정 상세
+
+#### `backend/src/main/java/com/tpmp/testprep/repository/ExaminationRepository.java`
+- 변경 전: `:title IS NULL OR LOWER(e.title) LIKE LOWER(CONCAT('%', :title, '%'))` 조건에서 PostgreSQL이 null title을 bytea로 바인딩해 `function lower(bytea) does not exist`로 첫 목록 조회가 실패했다.
+- 변경 후: 조회 본문과 count 쿼리 모두 null 판정과 CONCAT 내부의 title을 `CAST(:title AS string)`으로 명시했다. 기존 trim·대소문자 무시·`!/%/_` 이스케이프 검색은 그대로 유지한다.
+- 이유: Hibernate/H2에서는 통과하지만 PostgreSQL JDBC의 null 파라미터 타입 추론에서 발생하는 실제 실행 오류를 제거하고 본문·총건수 쿼리의 조건을 일치시키기 위해서다.
+
+### 복원 방법
+
+이 ID(`UserExamination_Modified.md` 기준 HIST-20260909-002)로 복원 시 검색·count 쿼리의 `CAST(:title AS string)`을 기존 `:title` 참조로 되돌리고 null 제목 회귀 테스트를 제거한다.
+
+## HIST-20260909-001
+
+- **날짜**: 2026-09-09
+- **수정 범위**: 사용자 백엔드 / 시험 목록
+- **수정 개요**: 활성 시험 전체에 제목·유형·관심유형·연도·회차·AI 조건을 적용한 서버 페이지 조회와 전체 연도·회차 선택지 API를 추가했다.
+
+### 수정 파일 목록
+
+| 파일 경로 | 수정 유형 | 설명 |
+|-----------|-----------|------|
+| `backend/src/main/java/com/tpmp/testprep/dto/request/UserExaminationSearchRequest.java` | 추가 | 선택 검색조건과 양의 연도·회차 검증 DTO |
+| `backend/src/main/java/com/tpmp/testprep/dto/response/UserExaminationFilterOptionsResponse.java` | 추가 | 전체 활성 연도·회차 응답 DTO |
+| `backend/src/main/java/com/tpmp/testprep/controller/UserExaminationController.java` | 수정 | 목록 검색조건 바인딩 및 `/filters` API 추가 |
+| `backend/src/main/java/com/tpmp/testprep/service/UserExaminationService.java` | 수정 | 검색값 정규화·LIKE 리터럴 이스케이프·기존 조회 오버로드 호환·선택지 조회 |
+| `backend/src/main/java/com/tpmp/testprep/repository/ExaminationRepository.java` | 수정 | 파라미터 바인딩 검색/count 쿼리, 안정 정렬, 전체 연도·회차 조회 |
+| `backend/src/test/java/com/tpmp/testprep/repository/UserExaminationSearchRepositoryTest.java` | 추가 | 500건 이후 검색·복합필터·총건수·동률정렬·LIKE 리터럴·선택지 테스트 |
+| `backend/src/test/java/com/tpmp/testprep/service/UserExaminationSearchServiceTest.java` | 추가 | 정규화·기존호환·LIKE 이스케이프·선택지 서비스 테스트 |
+
+### 수정 상세
+
+#### 조회 API 계층
+- 변경 전: 사용자 목록은 활성 시험을 조건 없이 Page로 조회해 화면이 첫 500건 안에서만 필터링했다.
+- 변경 후: 기존 page/size 호출과 서비스 오버로드를 보존하면서 title/category/interests/year/round/aiCustom 조건을 모두 바인딩된 JPQL로 적용한 후 count와 page를 계산한다. 연도·회차는 `/api/user/examinations/filters`에서 전체 활성 데이터의 구분값을 내림차순 반환한다.
+- 이유: 데이터 증가와 무관하게 전체 검색·총건수·선택지를 정확히 유지하기 위해서다.
+
+#### 검색 안전성과 정렬
+- 변경 전: 사용자 활성 목록의 완전 동률 시 최종 정렬 키가 없었고 제목 검색 계약이 없었다.
+- 변경 후: 연도 DESC NULL LAST, 회차 DESC NULL LAST, 생성시각 DESC, ID DESC로 안정 정렬한다. 제목은 trim·대소문자 무시 contains로 검색하되 `!`, `%`, `_`를 `!` 이스케이프와 `ESCAPE '!'`로 처리해 와일드카드가 아닌 문자 그대로 비교한다. 연도·회차는 `@Positive`로 검증한다.
+- 이유: 페이지 사이 중복·누락과 기존 브라우저 `includes` 의미의 변형을 방지하고 잘못된 필터 입력을 조기에 거절하기 위해서다.
+
+### 복원 방법
+
+이 ID(`UserExamination_Modified.md` 기준 HIST-20260909-001)로 복원 시 Controller의 검색 DTO와 filters 엔드포인트를 제거하고, Service 목록을 `findAllWithDetailsActive(pageable)` 호출로 되돌린 뒤 새 DTO 2개와 검색 Repository 메서드 및 이번 테스트 2개를 제거한다.
+
 ## HIST-20260722-004
 
 - **날짜**: 2026-07-22

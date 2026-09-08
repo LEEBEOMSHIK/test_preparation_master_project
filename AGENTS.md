@@ -223,6 +223,9 @@ rg --files frontend/src/app/admin backend/src/main/java
 | `<QuestionDetailModal question onClose hideEditLink hideAnswerInitially />` | `src/components/ui/QuestionDetailModal.tsx` | 문항 상세 모달 (`hideAnswerInitially`=true면 정답·해설을 "정답 보기" 버튼으로 가림, 기본 false) |
 | `<PermissionDeniedModal />` | `src/components/ui/PermissionDeniedModal.tsx` | 권한 없음 팝업 |
 | `<TableSkeleton />` 외 | `src/components/ui/Skeleton.tsx` | 스켈레톤 UI 모음 |
+| `<ListPagination page totalPages totalElements pageSize onChange onPageSizeChange? scrollTargetId? />` | `frontend/src/components/ui/ListPagination.tsx` | 0-based 목록 페이지 이동·현재 범위/전체 건수·5/10/20/50 페이지 크기·목록 상단 이동 공용 UI |
+| `<ListLoadError message onRetry />` | `frontend/src/components/ui/ListLoadError.tsx` | 목록 조회 실패를 빈 상태와 구분하고 재시도 동작을 제공하는 공용 오류 UI |
+| `<QuizCategoryIcon masterCode categoryName className? />` | `frontend/src/components/ui/QuizCategoryIcon.tsx` | 데일리 퀴즈의 실제 마스터 코드·카테고리 이름 의미에 따른 SVG 아이콘과 알 수 없는 이름 기본 아이콘 |
 | `<QuestionAnalysisPanel content />` | `src/components/ui/QuestionAnalysisPanel.tsx` | 문항 AI 키워드·도메인 추출 패널 |
 | `<ScratchPadPanel storageKey isCodeQuestion className />` | `src/components/ui/ScratchPadPanel.tsx` | 풀이·개념노트 상세 화면 FAB+드로어/바텀시트 스크래치패드(자유메모·CODE 트레이싱·페이지 부재 풀이 도구·스케줄링(간트 차트) 풀이 도구·트리 시각화·안전 계산기), localStorage 영속 |
 | `evaluateExpression(expr)` | `src/lib/safeMathCalc.ts` | 안전한 산술·비트 수식 평가(eval/Function 미사용). 10진/2진(`0b`)/8진(`0o`)/16진(`0x`) 숫자와 `+ - * / % **`, `& \| ^ ~ << >> >>>` 지원. 비트 연산은 32비트 정수 기준. **안전한 정수 결과는 계산 방식과 무관하게 2·8·16진수 변환값**(`bitwise.binary`/`bitwise.octal`/`bitwise.hex`)을 함께 반환 — 0 이상 정수는 항상 포함, 음수 정수는 비트 문맥(비트 연산자·0b/0o/0x 리터럴 사용)일 때만 32비트 2의 보수로 포함, `Number.MAX_SAFE_INTEGER` 초과는 미포함 |
@@ -234,6 +237,9 @@ rg --files frontend/src/app/admin backend/src/main/java
 | `<InquiryMessageComposer inquiryId onSent admin />` | `frontend/src/components/ui/InquiryMessageComposer.tsx` | 문의·요청 후속 메시지 및 이미지 첨부 작성기 |
 | `<InquiryImageUploader uploadImage onChange onUploadingChange />` | `frontend/src/components/ui/InquiryImageUploader.tsx` | 최초 문의·후속 메시지 공용 이미지 드롭존 — 다중 선택/drag&drop, 3장·10MB·형식 사전 검증, 썸네일·상태·개별 삭제 제공 |
 | `loadInquiryDomainOptions(code, isAllowed, fallback)` | `frontend/src/lib/inquiryDomain.ts` | 문의 유형·발생 영역 도메인을 허용 enum으로 좁히고 API 실패 시 fallback 반환 |
+| `LEGAL_INFO` / `LegalInfo` | `frontend/src/lib/legal.ts` | 공개 정책 운영자·연락처·서비스 주소·연령·초안 여부를 명시적으로 관리하는 설정 |
+| `<LegalLinks className />` | `frontend/src/components/ui/LegalLinks.tsx` | 개인정보 처리방침·이용약관·개인정보 요청 안내 공용 링크 |
+| `<LegalPageLayout title description />` | `frontend/src/components/ui/LegalPageLayout.tsx` | 인증 없이 접근하는 정책 페이지 레이아웃·초안 배너·홈 및 상호 링크 |
 
 새 유틸 함수는 `src/lib/`에, 새 UI 컴포넌트는 `src/components/ui/`에 추가하고 위 표를 즉시 갱신한다.
 
