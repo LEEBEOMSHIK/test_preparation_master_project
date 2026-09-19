@@ -1,10 +1,9 @@
 # 현재 작업 인계
 
-- 목표/사용자 결정: 완료한 변경사항 커밋·푸시. 기능 완료 커밋 `045e551` (main). 이 인계 정리 커밋까지 origin/main에 함께 푸시한다.
-- 완료: 사용자 목록 페이지네이션, 시험·개념노트 서버 검색, 퀴즈 카테고리별 아이콘, 관리자 문의 UI, 공개 정책·로그인 안내. 수정 파일 전체는 `git show --stat 045e551` 참조. 이번 후속 변경은 이 문서만 해당한다.
-- 검증: FE `npm.cmd test -- --watch=false --runInBand` 44개 스위트/212개 통과. BE `gradlew.bat test` 459개 통과(실패/오류 0). FE 타입체크 및 격리 프로덕션 빌드(60페이지) 통과. `git diff --check` 통과. 실제 PostgreSQL 시험/개념노트 기본 조회와 페이지 이동, Chrome 퀴즈 아이콘 확인 완료.
-- 경고/남은 이슈: 기존 Next.js viewport 메타데이터 및 Gradle 사용 중단 경고. 운영 도메인, 개인정보 보유기간·처리 절차 확정, Google OAuth 설정 및 실제 14세 미만 차단은 별도 미완료이며 이번 커밋으로 해결됐다고 보지 않는다.
-- 검증 목록: `docs/user-list-pagination-checklist.md`. 사용자가 화면을 확인한 후 추가 요청 대기.
-- 다음 명령: `git status --short`, `git rev-list --left-right --count HEAD...origin/main`으로 푸시/작업 트리 상태 확인.
-- 보존: 비밀 `.env`, `frontend/node_modules`, `frontend/.next`, 업로드 및 로컬 서버. 비밀 설정과 생성 산출물은 커밋 제외. 알려진 별도 미추적 소스 없음.
-- 서버: 프론트 3000 PID 22256, 백엔드 8080 PID 39592(시점 기준). 이 커밋 작업에서는 서버를 변경하지 않음. 이후 조작 전 실제 PID 확인 필수.
+- 목표/결정: 사용자 요청에 따라 버전별 패치노트 및 로컬 DB 포트 분리 변경을 커밋하고 origin/main으로 푸시한다.
+- 완료 커밋: `e0a031d` — 버전별 패치 항목 API/관리자 편집/사용자 목록, 운영 migration, DB 포트55432. 전체 수정 파일은 `git show --stat e0a031d` 참조.
+- 검증: 코드 변경 후 백엔드 전체481개, 프론트44스위트216개 테스트 통과. TypeScript 검사 및 Next.js 빌드60페이지 통과. 이번 커밋 전 `git diff --cached --check` 통과. 기존 viewport metadata 경고 유지.
+- 미완료: 실제 PostgreSQL에 `docs/db-migration/20260916_01_create_patch_note_items.sql` 적용 및 런타임 확인. 마지막 확인 시 Docker Desktop 중지 상태였음. 운영은 migration 적용 후 서버 기동 필요.
+- 이번 후속 변경 파일: `docs/agent-handoff/CURRENT.md`만 갱신. 문서 변경으로 테스트 반복 실행하지 않음.
+- 다음 명령: `git status --short`, `git rev-list --left-right --count HEAD...origin/main`으로 푸시 상태 확인. 런타임 확인은 Docker 기동 후 DB 중복 버전 사전 조회와 migration 적용 여부부터 점검.
+- 보존: 비밀 .env·DB 볼륨·업로드·타 프로젝트 서버. 기존 tpmp-db-local-55432 컨테이너는 같은 볼륨을 공유하므로 tpmp-db-local과 동시 실행 금지. 미추적 비밀/산출물 커밋 제외.
