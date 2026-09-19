@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/tpmp
+    url: jdbc:postgresql://localhost:55432/tpmp
     username: tpmp
     password: ${DB_PASSWORD:tpmp_local_pw}
   jpa:

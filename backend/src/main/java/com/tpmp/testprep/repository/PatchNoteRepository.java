@@ -15,4 +15,8 @@ public interface PatchNoteRepository extends JpaRepository<PatchNote, Long> {
             String delYn, String useYn, String publishedYn, Pageable pageable);
 
     Optional<PatchNote> findByIdAndDelYn(Long id, String delYn);
+
+    boolean existsByVersionAndDelYn(String version, String delYn);
+
+    boolean existsByVersionAndDelYnAndIdNot(String version, String delYn, Long id);
 }

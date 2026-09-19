@@ -1,6 +1,8 @@
 package com.tpmp.testprep.controller;
 
 import com.tpmp.testprep.dto.response.PatchNoteResponse;
+import com.tpmp.testprep.dto.response.PatchNoteItemResponse;
+import com.tpmp.testprep.entity.PatchNoteItem;
 import com.tpmp.testprep.service.PatchNoteService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,6 +45,43 @@ class UserPatchNoteControllerTest {
         assertThat(result.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(result.getBody()).isNotNull();
         verify(patchNoteService).getPublished(pageable);
+    }
+
+    @Test
+    void getPublished_keepsNestedItemsInServiceResponseOrder() {
+        Pageable pageable = PageRequest.of(0, 10);
+        PatchNoteResponse patchNote = new PatchNoteResponse(1L, "패치노트", "v1.2.0", "<p>내용</p>", true,
+                null, null, null, List.of(
+                new PatchNoteItemResponse(11L, PatchNoteItem.ItemType.ADD, "기능 추가", 0),
+                new PatchNoteItemResponse(12L, PatchNoteItem.ItemType.FIX, "버그 수정", 1)));
+        when(patchNoteService.getPublished(pageable)).thenReturn(new PageImpl<>(List.of(patchNote), pageable, 1));
+
+        ResponseEntity<?> result = new UserPatchNoteController(patchNoteService).getPublished(pageable);
+
+        @SuppressWarnings("unchecked")
+        com.tpmp.testprep.dto.response.ApiResponse<Page<PatchNoteResponse>> body =
+                (com.tpmp.testprep.dto.response.ApiResponse<Page<PatchNoteResponse>>) result.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.getData().getContent().get(0).items()).extracting("displayOrder")
+                .containsExactly(0, 1);
+    }
+
+    @Test
+    void getPublished_preservesLegacyEtcFallbackItem() {
+        Pageable pageable = PageRequest.of(0, 10);
+        PatchNoteResponse legacy = new PatchNoteResponse(2L, "기존 패치노트", "1.0.0", "<p>기존 본문</p>", true,
+                null, null, null, List.of(
+                new PatchNoteItemResponse(null, PatchNoteItem.ItemType.ETC, "기존 본문", 0)));
+        when(patchNoteService.getPublished(pageable)).thenReturn(new PageImpl<>(List.of(legacy), pageable, 1));
+
+        ResponseEntity<?> result = new UserPatchNoteController(patchNoteService).getPublished(pageable);
+
+        @SuppressWarnings("unchecked")
+        com.tpmp.testprep.dto.response.ApiResponse<Page<PatchNoteResponse>> body =
+                (com.tpmp.testprep.dto.response.ApiResponse<Page<PatchNoteResponse>>) result.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.getData().getContent().get(0).items().get(0).itemType())
+                .isEqualTo(PatchNoteItem.ItemType.ETC);
     }
 
     @Test

@@ -24,6 +24,15 @@ export interface PageResponse<T> {
 // ──────────────────────────────────────────
 // PatchNote
 // ──────────────────────────────────────────
+export type PatchNoteItemType = 'ADD' | 'IMPROVEMENT' | 'FIX' | 'SECURITY' | 'ETC';
+
+export interface PatchNoteItem {
+  id?: number | null;
+  itemType: PatchNoteItemType;
+  summary: string;
+  displayOrder: number;
+}
+
 export interface PatchNote {
   id: number;
   title: string;
@@ -33,6 +42,7 @@ export interface PatchNote {
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  items?: PatchNoteItem[];
 }
 
 export interface PatchNoteRequest {
@@ -40,6 +50,7 @@ export interface PatchNoteRequest {
   version: string;
   content: string;
   published: boolean;
+  items: PatchNoteItem[];
 }
 
 export interface PatchNotePublicationRequest {

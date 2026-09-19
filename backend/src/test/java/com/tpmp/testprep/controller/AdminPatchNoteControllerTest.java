@@ -1,9 +1,11 @@
 package com.tpmp.testprep.controller;
 
 import com.tpmp.testprep.dto.request.PatchNotePublicationRequest;
+import com.tpmp.testprep.dto.request.PatchNoteItemRequest;
 import com.tpmp.testprep.dto.request.PatchNoteRequest;
 import com.tpmp.testprep.dto.response.PatchNoteResponse;
 import com.tpmp.testprep.service.PatchNoteService;
+import com.tpmp.testprep.entity.PatchNoteItem;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -69,6 +71,19 @@ class AdminPatchNoteControllerTest {
         verify(patchNoteService).update(1L, request, ADMIN_EMAIL);
         verify(patchNoteService).updatePublication(1L, publicationRequest, ADMIN_EMAIL);
         verify(patchNoteService).delete(1L, ADMIN_EMAIL);
+    }
+
+    @Test
+    void create_delegatesVersionedItemsWithoutChangingRequestShape() {
+        PatchNoteRequest request = new PatchNoteRequest("패치노트", "v1.2.0", "<p>내용</p>", false,
+                List.of(new PatchNoteItemRequest(PatchNoteItem.ItemType.ADD, "기능 추가", 0)));
+        PatchNoteResponse response = response();
+        when(patchNoteService.create(request, "admin@tpmp.com")).thenReturn(response);
+
+        ResponseEntity<?> result = new AdminPatchNoteController(patchNoteService).create(request, "admin@tpmp.com");
+
+        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        verify(patchNoteService).create(request, "admin@tpmp.com");
     }
 
     @Test

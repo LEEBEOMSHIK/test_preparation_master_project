@@ -5,9 +5,32 @@ import { CardListSkeleton } from '@/components/ui/Skeleton';
 import { Pagination } from '@/components/ui/Pagination';
 import { RichContent } from '@/components/ui/RichContent';
 import { patchNoteService } from '@/services/patchNoteService';
-import type { PatchNote } from '@/types';
+import type { PatchNote, PatchNoteItemType } from '@/types';
 
 const PAGE_SIZE = 10;
+
+const ITEM_TYPE_LABEL: Record<PatchNoteItemType, string> = {
+  ADD: '추가',
+  IMPROVEMENT: '개선',
+  FIX: '수정',
+  SECURITY: '보안',
+  ETC: '기타',
+};
+
+const ITEM_TYPE_CLASS: Record<PatchNoteItemType, string> = {
+  ADD: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+  IMPROVEMENT: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+  FIX: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+  SECURITY: 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300',
+  ETC: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+};
+
+function getItemTypePresentation(itemType: PatchNoteItemType): { label: string; className: string } {
+  return {
+    label: ITEM_TYPE_LABEL[itemType] ?? ITEM_TYPE_LABEL.ETC,
+    className: ITEM_TYPE_CLASS[itemType] ?? ITEM_TYPE_CLASS.ETC,
+  };
+}
 
 function formatPublishedAt(publishedAt: string | null): string {
   if (!publishedAt) return '게시일 정보 없음';
@@ -91,7 +114,25 @@ export default function PatchNotesPage() {
                   {formatPublishedAt(patchNote.publishedAt)}
                 </time>
               </div>
-              <RichContent html={patchNote.content} className="mt-4 text-sm text-gray-700 dark:text-gray-300" />
+              {patchNote.items && patchNote.items.length > 0 ? (
+                <ul className="mt-4 space-y-2" aria-label={`${patchNote.version} 변경 항목`}>
+                  {[...patchNote.items]
+                    .sort((a, b) => a.displayOrder - b.displayOrder)
+                    .map((item) => {
+                      const presentation = getItemTypePresentation(item.itemType);
+                      return (
+                        <li key={item.id ?? `${patchNote.id}-${item.displayOrder}-${item.summary}`} className="flex min-w-0 items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                          <span className={`mt-0.5 inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${presentation.className}`}>
+                            {presentation.label}
+                          </span>
+                          <span className="min-w-0 break-words">{item.summary}</span>
+                        </li>
+                      );
+                    })}
+                </ul>
+              ) : (
+                <RichContent html={patchNote.content} className="mt-4 text-sm text-gray-700 dark:text-gray-300" />
+              )}
             </article>
           ))}
         </div>

@@ -9,7 +9,7 @@
 이 프로젝트는 아직 Flyway/Liquibase를 쓰지 않고 `docs/db-migration/`에 수동 SQL 파일을 쌓아가는 방식입니다(`docs/db-guidelines.md` §10 참고).
 
 1. **베이스라인 스키마 적용** — `docs/db-migration/00000000_00_baseline_schema.sql`을 실행합니다.
-2. **베이스라인 이후 신규 델타 적용** — `20260826_01_create_patch_notes.sql`, `20260828_01_extend_inquiry_workflow.sql`을 파일명 오름차순으로 적용합니다. 문의 델타의 첫 실행은 빈 DB에서 스키마만 만들고 문의 도메인 시드를 보류하므로 기존 고정 도메인 ID를 선점하지 않습니다. **`ddl-auto=validate`인 프로덕션과 신규 DB 모두 최초 백엔드 기동 전에 필수**입니다.
+2. **베이스라인 이후 신규 델타 적용** — `20260826_01_create_patch_notes.sql`, `20260828_01_extend_inquiry_workflow.sql`, `20260916_01_create_patch_note_items.sql`을 파일명 오름차순으로 적용합니다. 문의 델타의 첫 실행은 빈 DB에서 스키마만 만들고 문의 도메인 시드를 보류하므로 기존 고정 도메인 ID를 선점하지 않습니다. **`ddl-auto=validate`인 프로덕션과 신규 DB 모두 최초 백엔드 기동 전에 필수**입니다.
 3. **백엔드 최초 1회 기동** — `DataInitializer`가 시드 계정(admin=id 1, user=id 2)·기본 도메인·메뉴·권한을 생성합니다. 4단계 덤프의 FK가 이 계정을 참조하므로 반드시 먼저 띄웁니다. 빈 DB에서는 콘텐츠 덤프의 고정 ID를 보존하기 위해 문의 도메인 생성은 아직 보류합니다.
 4. **콘텐츠 데이터 덤프 로드** — `tpmp_content_data.sql`을 로드합니다.
 5. **문의·요청 워크플로 델타 재실행** — 기본·콘텐츠 도메인 뒤에 문의 유형과 발생 영역을 멱등 생성하고 구형 문의 카테고리를 최종 코드로 이관합니다.
@@ -24,7 +24,7 @@
 > - **후속 변경** → `20260826_01` 이후 신규 델타 마이그레이션만 날짜순 적용
 > - **데이터** → `tpmp_content_data.sql`
 >
-> 과거 델타는 변경 이력 추적용으로 보존합니다. 신규 DB에는 베이스라인 이후 추가된 델타만 적용합니다. 패치노트와 문의·요청 워크플로를 사용하는 모든 환경은 `20260826_01_create_patch_notes.sql`, `20260828_01_extend_inquiry_workflow.sql`을 베이스라인 적용 후 실행해야 하며, 문의 델타는 콘텐츠 로드 뒤 한 번 더 실행합니다.
+> 과거 델타는 변경 이력 추적용으로 보존합니다. 신규 DB에는 베이스라인 이후 추가된 델타만 적용합니다. 패치노트와 문의·요청 워크플로를 사용하는 모든 환경은 `20260826_01_create_patch_notes.sql`, `20260828_01_extend_inquiry_workflow.sql`, `20260916_01_create_patch_note_items.sql`을 베이스라인 적용 후 실행해야 하며, 문의 델타는 콘텐츠 로드 뒤 한 번 더 실행합니다.
 
 ### 상황별 필요한 단계
 
@@ -125,6 +125,7 @@ Flyway/Liquibase 미사용 프로젝트이므로, 스키마 변경은 `docs/db-m
 |---|------|------|
 | 1 | `20260826_01_create_patch_notes.sql` | 관리자 작성 패치노트 테이블(`patch_notes`)과 관리자·사용자 목록 조회 인덱스 생성 |
 | 2 | `20260828_01_extend_inquiry_workflow.sql` | 문의·요청 접수 유형·상태·발생 영역·대화 메시지·첨부 업로더·메일 알림 이력을 추가하고 기존 문의·답변을 이관. 첫 실행은 최초 백엔드 기동 전, 두 번째 실행은 콘텐츠 덤프 후 필요 |
+| 3 | `20260916_01_create_patch_note_items.sql` | 패치노트 하위 항목 테이블, 유형·순서 제약, 활성 버전 부분 유니크 인덱스 생성 |
 
 ### 앞으로 새 스키마 변경이 생기면
 
@@ -145,7 +146,7 @@ docker exec tpmp-db psql -U tpmp -d tpmp -v ON_ERROR_STOP=1 -f /tmp/base.sql
 
 ### 0-1) 베이스라인 이후 신규 델타 마이그레이션 적용
 
-베이스라인 적용 후 `20260826_01_create_patch_notes.sql`, `20260828_01_extend_inquiry_workflow.sql` 순으로 신규 델타만 적용합니다. 문의 델타는 콘텐츠 로드 뒤에 한 번 더 실행합니다. `20260802_01`까지의 과거 델타는 베이스라인에 이미 반영되어 있으므로 실행하지 않습니다.
+베이스라인 적용 후 `20260826_01_create_patch_notes.sql`, `20260828_01_extend_inquiry_workflow.sql`, `20260916_01_create_patch_note_items.sql` 순으로 신규 델타만 적용합니다. 문의 델타는 콘텐츠 로드 뒤에 한 번 더 실행합니다. `20260802_01`까지의 과거 델타는 베이스라인에 이미 반영되어 있으므로 실행하지 않습니다.
 
 ```bash
 # 1차: 패치노트 델타를 먼저 적용한 뒤, 문의·요청 델타를 적용합니다.
@@ -153,6 +154,8 @@ docker cp docs/db-migration/20260826_01_create_patch_notes.sql tpmp-db:/tmp/patc
 docker exec tpmp-db psql -U tpmp -d tpmp -v ON_ERROR_STOP=1 -f /tmp/patch-notes-delta.sql
 docker cp docs/db-migration/20260828_01_extend_inquiry_workflow.sql tpmp-db:/tmp/inquiry-delta.sql
 docker exec tpmp-db psql -U tpmp -d tpmp -v ON_ERROR_STOP=1 -f /tmp/inquiry-delta.sql
+docker cp docs/db-migration/20260916_01_create_patch_note_items.sql tpmp-db:/tmp/patch-note-items-delta.sql
+docker exec tpmp-db psql -U tpmp -d tpmp -v ON_ERROR_STOP=1 -f /tmp/patch-note-items-delta.sql
 ```
 
 ### 1) 사전 준비 (중요)
@@ -211,7 +214,7 @@ docker exec tpmp-db psql -U tpmp -d tpmp -c "SELECT count(*) FROM question_bank;
 - `ON_ERROR_STOP=1` 로 실행하면 오류 발생 시 즉시 중단되어 원인을 바로 확인할 수 있습니다.
 - 로드 후 IDENTITY 시퀀스는 덤프 말미의 `setval`로 자동 보정되어, 이후 신규 등록 시 ID 충돌이 없습니다.
 - DB 컨테이너명(`tpmp-db`)·사용자(`tpmp`)·DB명(`tpmp`)은 `docker-compose.yml` 기준이며, 다르면 그에 맞게 바꾸세요.
-- 베이스라인 스키마와 `20260826_01_create_patch_notes.sql`·`20260828_01_extend_inquiry_workflow.sql` 신규 델타를 적용하지 않은 채 콘텐츠 데이터를 로드하면 `examinations.exam_year` 등 없는 컬럼/테이블(`support_settings`, `patch_notes`) 관련 오류로 실패할 수 있습니다. 반드시 이 문서 최상단의 6단계 로드 순서를 지키세요.
+- 베이스라인 스키마와 `20260826_01_create_patch_notes.sql`·`20260828_01_extend_inquiry_workflow.sql`·`20260916_01_create_patch_note_items.sql` 신규 델타를 적용하지 않은 채 콘텐츠 데이터를 로드하면 `examinations.exam_year` 등 없는 컬럼/테이블(`support_settings`, `patch_notes`, `patch_note_items`) 관련 오류로 실패할 수 있습니다. 반드시 이 문서 최상단의 6단계 로드 순서를 지키세요.
 
 ## 재생성 방법
 

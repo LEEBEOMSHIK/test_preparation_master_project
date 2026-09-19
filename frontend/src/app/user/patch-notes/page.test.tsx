@@ -51,6 +51,47 @@ function pageResponse(page: number, publishedAt: string | null = '2026-08-26T09:
   };
 }
 
+function versionedPageResponse(): PublishedPageResponse {
+  return {
+    data: {
+      success: true,
+      timestamp: '2026-08-26T09:00:00',
+      data: {
+        content: [
+          {
+            id: 10,
+            version: 'v2.0.0',
+            title: '대규모 업데이트',
+            content: '<p>legacy 본문</p>',
+            published: true,
+            publishedAt: '2026-08-27T09:00:00',
+            createdAt: '2026-08-27T09:00:00',
+            updatedAt: '2026-08-27T09:00:00',
+            items: [
+              { id: 101, itemType: 'ADD', summary: '새로운 문제 풀이 화면', displayOrder: 0 },
+              { id: 102, itemType: 'SECURITY', summary: '로그인 보안을 강화했습니다.', displayOrder: 1 },
+            ],
+          },
+          {
+            id: 11,
+            version: 'v1.9.0',
+            title: '기존 업데이트',
+            content: '<p>기존 본문</p>',
+            published: true,
+            publishedAt: '2026-08-20T09:00:00',
+            createdAt: '2026-08-20T09:00:00',
+            updatedAt: '2026-08-20T09:00:00',
+          },
+        ],
+        totalElements: 2,
+        totalPages: 1,
+        page: 0,
+        size: 10,
+      },
+    },
+  };
+}
+
 describe('PatchNotesPage', () => {
   beforeEach(() => {
     mockGetPublished.mockReset();
@@ -89,5 +130,20 @@ describe('PatchNotesPage', () => {
 
     expect(await screen.findByText('게시일 정보 없음')).not.toBeNull();
     expect(mockGetPublished).toHaveBeenCalledTimes(2);
+  });
+
+  it('버전 카드 안에 항목 유형 배지와 요약을 표시하고 legacy 본문을 fallback으로 보여준다', async () => {
+    mockGetPublished.mockResolvedValueOnce(versionedPageResponse());
+
+    render(<PatchNotesPage />);
+
+    expect(await screen.findByText('대규모 업데이트')).not.toBeNull();
+    expect(screen.getByText('추가')).not.toBeNull();
+    expect(screen.getByText('보안')).not.toBeNull();
+    expect(screen.getByText('새로운 문제 풀이 화면')).not.toBeNull();
+    expect(screen.getByText('로그인 보안을 강화했습니다.')).not.toBeNull();
+    expect(screen.getAllByTestId('rich-content')[0].textContent).toContain('기존 본문');
+    expect(screen.getAllByTestId('rich-content')).toHaveLength(1);
+    expect(screen.getByText('2026. 8. 27.')).not.toBeNull();
   });
 });

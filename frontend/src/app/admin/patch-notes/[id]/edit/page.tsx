@@ -93,7 +93,13 @@ export default function EditPatchNotePage() {
         </div>
       </div>
       <PatchNoteForm
-        initialValue={{ title: patchNote.title, version: patchNote.version, content: patchNote.content, published: patchNote.published }}
+        initialValue={{
+          title: patchNote.title,
+          version: patchNote.version,
+          content: patchNote.content,
+          published: patchNote.published,
+          items: patchNote.items ?? [],
+        }}
         onSubmit={handleSubmit}
         submitLabel="수정 저장"
         cancelHref="/admin/patch-notes"

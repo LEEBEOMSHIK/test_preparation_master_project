@@ -14,7 +14,7 @@ services:
       POSTGRES_USER: ${DB_USERNAME:-tpmp}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-tpmp_local_pw}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:55432:5432"
     volumes:
       - postgres_data_local:/var/lib/postgresql/data
     healthcheck:

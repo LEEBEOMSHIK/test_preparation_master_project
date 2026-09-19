@@ -1,6 +1,7 @@
 package com.tpmp.testprep.service;
 
 import com.tpmp.testprep.dto.request.PatchNotePublicationRequest;
+import com.tpmp.testprep.dto.request.PatchNoteItemRequest;
 import com.tpmp.testprep.dto.request.PatchNoteRequest;
 import com.tpmp.testprep.dto.response.PatchNoteResponse;
 import com.tpmp.testprep.entity.PatchNote;
@@ -8,6 +9,7 @@ import com.tpmp.testprep.entity.User;
 import com.tpmp.testprep.exception.BusinessException;
 import com.tpmp.testprep.exception.ErrorCode;
 import com.tpmp.testprep.repository.PatchNoteRepository;
+import com.tpmp.testprep.entity.PatchNoteItem;
 import com.tpmp.testprep.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +23,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
@@ -52,7 +55,7 @@ class PatchNoteServiceTest {
         service = new PatchNoteService(patchNoteRepository, userRepository);
         lenient().when(userRepository.findByEmail(ADMIN_EMAIL)).thenReturn(Optional.of(admin));
         lenient().when(admin.getId()).thenReturn(ADMIN_ID);
-        lenient().when(patchNoteRepository.save(any(PatchNote.class)))
+        lenient().when(patchNoteRepository.saveAndFlush(any(PatchNote.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
@@ -61,7 +64,7 @@ class PatchNoteServiceTest {
         PatchNoteResponse response = service.create(request(false), ADMIN_EMAIL);
 
         ArgumentCaptor<PatchNote> captor = ArgumentCaptor.forClass(PatchNote.class);
-        verify(patchNoteRepository).save(captor.capture());
+        verify(patchNoteRepository).saveAndFlush(captor.capture());
         PatchNote saved = captor.getValue();
         assertThat(response.published()).isFalse();
         assertThat(response.publishedAt()).isNull();
@@ -78,7 +81,7 @@ class PatchNoteServiceTest {
         PatchNoteResponse response = service.create(request(true), ADMIN_EMAIL);
 
         ArgumentCaptor<PatchNote> captor = ArgumentCaptor.forClass(PatchNote.class);
-        verify(patchNoteRepository).save(captor.capture());
+        verify(patchNoteRepository).saveAndFlush(captor.capture());
         assertThat(response.published()).isTrue();
         assertThat(response.publishedAt()).isNotNull();
         assertThat(captor.getValue().isPublished()).isTrue();
@@ -150,7 +153,7 @@ class PatchNoteServiceTest {
         PatchNoteResponse response = service.create(request, ADMIN_EMAIL);
 
         assertThat(response.content()).isEqualTo("<p><strong>본문</strong></p>");
-        verify(patchNoteRepository).save(any(PatchNote.class));
+        verify(patchNoteRepository).saveAndFlush(any(PatchNote.class));
     }
 
     @Test
@@ -242,6 +245,140 @@ class PatchNoteServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .satisfies(exception -> assertThat(((BusinessException) exception).getErrorCode())
                         .isEqualTo(ErrorCode.PATCH_NOTE_NOT_FOUND));
+    }
+
+    @Test
+    void create_persistsItemsInDisplayOrder() {
+        PatchNoteRequest request = new PatchNoteRequest("패치노트", "v1.2.0", "<p>본문</p>", true,
+                List.of(
+                        new PatchNoteItemRequest(PatchNoteItem.ItemType.FIX, "버그 수정", 2),
+                        new PatchNoteItemRequest(PatchNoteItem.ItemType.ADD, "기능 추가", 0)));
+
+        PatchNoteResponse response = service.create(request, ADMIN_EMAIL);
+
+        assertThat(response.items()).extracting("itemType")
+                .containsExactly(PatchNoteItem.ItemType.ADD, PatchNoteItem.ItemType.FIX);
+        assertThat(response.items()).extracting("displayOrder").containsExactly(0, 2);
+    }
+
+    @Test
+    void create_rejectsEmptyItemsWhenItemsAreProvided() {
+        PatchNoteRequest request = new PatchNoteRequest("패치노트", "v1.2.0", "<p>본문</p>", false, List.of());
+
+        assertThatThrownBy(() -> service.create(request, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> assertThat(((BusinessException) exception).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+        verify(patchNoteRepository, never()).save(any(PatchNote.class));
+    }
+
+    @Test
+    void create_rejectsInvalidVersionWhenItemsAreProvided() {
+        PatchNoteRequest request = new PatchNoteRequest("패치노트", "1.2.0", "<p>본문</p>", false,
+                List.of(new PatchNoteItemRequest(PatchNoteItem.ItemType.ADD, "기능 추가", 0)));
+
+        assertThatThrownBy(() -> service.create(request, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> assertThat(((BusinessException) exception).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    void create_rejectsHtmlOrOversizedSummary() {
+        PatchNoteRequest htmlRequest = new PatchNoteRequest("패치노트", "v1.2.0", "<p>본문</p>", false,
+                List.of(new PatchNoteItemRequest(PatchNoteItem.ItemType.ADD, "<b>기능</b>", 0)));
+        PatchNoteRequest oversizedRequest = new PatchNoteRequest("패치노트", "v1.2.1", "<p>본문</p>", false,
+                List.of(new PatchNoteItemRequest(PatchNoteItem.ItemType.ADD, "a".repeat(201), 0)));
+
+        assertThatThrownBy(() -> service.create(htmlRequest, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.create(oversizedRequest, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void create_rejectsDuplicateNonDeletedVersion() {
+        PatchNoteRequest request = new PatchNoteRequest("패치노트", "v1.2.0", "<p>본문</p>", false,
+                List.of(new PatchNoteItemRequest(PatchNoteItem.ItemType.ADD, "기능 추가", 0)));
+        when(patchNoteRepository.existsByVersionAndDelYn("v1.2.0", "N")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.create(request, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> assertThat(((BusinessException) exception).getErrorCode())
+                        .isEqualTo(ErrorCode.PATCH_NOTE_VERSION_DUPLICATE));
+    }
+
+    @Test
+    void update_rejectsVersionUsedByAnotherNonDeletedRelease() {
+        PatchNoteRequest request = new PatchNoteRequest("패치노트", "v1.2.0", "<p>본문</p>", false,
+                List.of(new PatchNoteItemRequest(PatchNoteItem.ItemType.ADD, "기능 추가", 0)));
+        when(patchNoteRepository.existsByVersionAndDelYnAndIdNot("v1.2.0", "N", 10L)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.update(10L, request, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> assertThat(((BusinessException) exception).getErrorCode())
+                        .isEqualTo(ErrorCode.PATCH_NOTE_VERSION_DUPLICATE));
+        verify(patchNoteRepository, never()).findByIdAndDelYn(any(Long.class), any(String.class));
+    }
+
+    @Test
+    void create_translatesConcurrentVersionConstraintViolation() {
+        PatchNoteRequest request = new PatchNoteRequest("패치노트", "v1.2.2", "<p>본문</p>", false,
+                List.of(new PatchNoteItemRequest(PatchNoteItem.ItemType.ADD, "기능 추가", 0)));
+        when(patchNoteRepository.saveAndFlush(any(PatchNote.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate key violates ux_patch_notes_version_active"));
+
+        assertThatThrownBy(() -> service.create(request, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> assertThat(((BusinessException) exception).getErrorCode())
+                        .isEqualTo(ErrorCode.PATCH_NOTE_VERSION_DUPLICATE));
+    }
+
+    @Test
+    void update_translatesConcurrentVersionConstraintViolationDuringFlush() {
+        PatchNote patchNote = patchNote(false);
+        when(patchNoteRepository.findByIdAndDelYn(10L, "N")).thenReturn(Optional.of(patchNote));
+        when(patchNoteRepository.saveAndFlush(any(PatchNote.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate key violates ux_patch_notes_version_active"));
+        PatchNoteRequest request = new PatchNoteRequest("패치노트", "v1.2.4", "<p>본문</p>", false,
+                List.of(new PatchNoteItemRequest(PatchNoteItem.ItemType.FIX, "수정", 0)));
+
+        assertThatThrownBy(() -> service.update(10L, request, ADMIN_EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> assertThat(((BusinessException) exception).getErrorCode())
+                        .isEqualTo(ErrorCode.PATCH_NOTE_VERSION_DUPLICATE));
+    }
+
+    @Test
+    void update_replacesItemsWithSoftDeletedPreviousRows() {
+        PatchNote patchNote = patchNote(false);
+        PatchNoteItem previous = PatchNoteItem.builder()
+                .itemType(PatchNoteItem.ItemType.ADD)
+                .summary("이전 기능")
+                .displayOrder(0)
+                .createdByUno(ADMIN_ID)
+                .build();
+        patchNote.addItem(previous);
+        when(patchNoteRepository.findByIdAndDelYn(10L, "N")).thenReturn(Optional.of(patchNote));
+        PatchNoteRequest request = new PatchNoteRequest("패치노트", "v1.2.3", "<p>본문</p>", false,
+                List.of(new PatchNoteItemRequest(PatchNoteItem.ItemType.FIX, "새 수정", 0)));
+
+        PatchNoteResponse response = service.update(10L, request, ADMIN_EMAIL);
+
+        assertThat(previous.getDelYn()).isEqualTo("Y");
+        assertThat(response.items()).extracting("summary").containsExactly("새 수정");
+    }
+
+    @Test
+    void legacyPatchNoteWithoutItems_returnsEtcFallback() {
+        PatchNote patchNote = patchNote(false);
+        when(patchNoteRepository.findByIdAndDelYn(10L, "N")).thenReturn(Optional.of(patchNote));
+
+        PatchNoteResponse response = service.adminGetOne(10L);
+
+        assertThat(response.items()).hasSize(1);
+        assertThat(response.items().get(0).itemType()).isEqualTo(PatchNoteItem.ItemType.ETC);
+        assertThat(response.items().get(0).summary()).isEqualTo("기존 본문");
     }
 
     private PatchNoteRequest request(boolean published) {

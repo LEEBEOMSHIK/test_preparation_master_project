@@ -14,10 +14,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.stream.Collectors;
+import java.util.regex.Pattern;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Pattern PATCH_NOTE_VERSION_CONSTRAINT_PATTERN = Pattern.compile(
+            "(?<![a-z0-9_])ux_patch_notes_version_active(?![a-z0-9_])");
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
@@ -73,9 +77,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException e) {
         log.warn("Data integrity violation", e);
-        ErrorCode code = ErrorCode.DOMAIN_IN_USE;
+        ErrorCode code = isPatchNoteVersionViolation(e)
+                ? ErrorCode.PATCH_NOTE_VERSION_DUPLICATE
+                : ErrorCode.DOMAIN_IN_USE;
         return ResponseEntity.status(code.getStatus())
                 .body(ApiResponse.fail(code.name(), code.getMessage()));
+    }
+
+    private boolean isPatchNoteVersionViolation(Throwable exception) {
+        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+            String message = cause.toString().toLowerCase();
+            if (PATCH_NOTE_VERSION_CONSTRAINT_PATTERN.matcher(message).find()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @ExceptionHandler(Exception.class)

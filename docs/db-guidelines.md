@@ -136,6 +136,7 @@ repository.findAllByDelYn("N", pageable);
 | `inquiry_email_deliveries` | 문의 이메일 발송 이력 | 로그 테이블 예외 | inquiry/message FK, text body와 nullable html_body 발송 스냅샷 |
 | `user_exam_applications` | 사용자 직접 입력 시험 접수 정보 | 미적용 (신규, created_at/updated_at만 자체 관리) | user_id FK → users(CASCADE), exam_info_id nullable FK → exam_info(SET NULL), exam_name 스냅샷 |
 | `patch_notes` | 관리자 작성 패치노트 | ✅ 적용 | title, version, content, published_yn, published_dt |
+| `patch_note_items` | 패치노트 릴리즈별 하위 항목 | ✅ 적용 | patch_note_id, item_type, summary, display_order |
 
 ### 적용 기준
 
@@ -386,6 +387,7 @@ Flyway/Liquibase 미사용 프로젝트이므로 스키마 변경(ALTER TABLE, C
 - **신규(빈) DB는 이 파일을 먼저 적용한 뒤, `20260826_01` 이후의 신규 델타 마이그레이션만 날짜순으로 적용한다.** `20260802_01`까지의 과거 델타는 베이스라인에 이미 반영되어 있고 일부는 빈 DB에서 실행할 수 없다.
 - **일부 스키마만 있는 기존 로컬에도 그대로 적용 가능하다.** 없는 테이블·컬럼·제약·인덱스만 채워 넣고, 기존 데이터는 건드리지 않는다(재실행 안전).
 - 새 스키마 변경은 지금까지처럼 델타 파일로 추가하고, 베이스라인은 손대지 않는다.
+- 패치노트 하위 항목은 `20260916_01_create_patch_note_items.sql`을 `20260826_01_create_patch_notes.sql` 이후 적용한다. 이 델타는 `patch_note_items`와 `del_yn = 'N'` 조건의 `ux_patch_notes_version_active` 부분 유니크 인덱스를 생성하므로 운영 `ddl-auto=validate` 기동 전에 반드시 실행해야 한다.
 - 자세한 절차: [`docs/sql/README.md`](sql/README.md)
 
 > `ddl-auto` 주의: local/dev 프로필은 `update`라 백엔드 기동만으로 스키마가 생기지만, prod은 `validate`라 스키마가 없으면 기동 자체가 실패한다. 운영과 동일한 스키마를 보장하려면 로컬에서도 베이스라인을 적용하는 편이 안전하다.
